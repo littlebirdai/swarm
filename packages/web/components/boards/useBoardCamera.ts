@@ -2,6 +2,7 @@
 // writes the transform straight onto the world layer and the grid; React
 // hears about it only through a throttled viewport (for culling and the
 // overlays), so a pan stays at 60fps with hundreds of elements.
+import { visibleAnimationLoop } from "../../lib/windowVisibleWork";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Box, Pt } from "@codecast/shared/artifacts/board";
 import { useMountEffect } from "../../hooks/useMountEffect";
@@ -105,27 +106,29 @@ export function useBoardCamera(docId: string) {
     paint();
   }, [paint]);
 
-  const animTo = useRef<number | null>(null);
+  const stopAnimation = useRef<(() => void) | null>(null);
   /** Glide to a camera (fit, zoom buttons). Instant when reduced motion is on. */
   const glide = useCallback((to: Cam) => {
-    if (animTo.current) cancelAnimationFrame(animTo.current);
-    // No animation frames run in a hidden tab, and reduced motion asks for none.
-    if (typeof window !== "undefined" && (document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)) return set(to);
+    stopAnimation.current?.();
+    stopAnimation.current = null;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return set(to);
     const from = { ...cam.current };
     const t0 = performance.now();
     const dur = 240;
-    const step = () => {
-      const t = Math.min(1, (performance.now() - t0) / dur);
+    stopAnimation.current = visibleAnimationLoop((now) => {
+      const t = Math.min(1, (now - t0) / dur);
       const e = 1 - Math.pow(1 - t, 3);
       set({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, z: from.z + (to.z - from.z) * e });
-      animTo.current = t < 1 ? requestAnimationFrame(step) : null;
-    };
-    animTo.current = requestAnimationFrame(step);
+      if (t >= 1) {
+        stopAnimation.current = null;
+        return false;
+      }
+    });
   }, [set]);
 
   const stopGlide = useCallback(() => {
-    if (animTo.current) cancelAnimationFrame(animTo.current);
-    animTo.current = null;
+    stopAnimation.current?.();
+    stopAnimation.current = null;
   }, []);
 
   const toWorld = useCallback((p: Pt): Pt => {
@@ -175,7 +178,7 @@ export function useBoardCamera(docId: string) {
       if ((e.target as HTMLElement | null)?.closest?.("[data-board-scroll]")) return;
       e.preventDefault();
       // Direct input wins over a glide in progress (Fit, zoom buttons).
-      if (animTo.current) { cancelAnimationFrame(animTo.current); animTo.current = null; }
+      stopGlide();
       const r = root.getBoundingClientRect();
       const at = { x: e.clientX - r.left, y: e.clientY - r.top };
       const scale = e.deltaMode === 1 ? 16 : 1;
@@ -195,7 +198,7 @@ export function useBoardCamera(docId: string) {
       root.removeEventListener("wheel", onWheel);
       ro.disconnect();
       if (timer.current) clearTimeout(timer.current);
-      if (animTo.current) cancelAnimationFrame(animTo.current);
+      stopGlide();
     };
   });
 

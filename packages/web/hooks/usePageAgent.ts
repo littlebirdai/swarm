@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PageAgentChip } from "@codecast/shared/contracts";
 import { useWatchEffect } from "./useWatchEffect";
+import { whileWindowVisible } from "../lib/windowVisibleWork";
 import { pageMetaUrl } from "../lib/publishedPageUrls";
 
 /** The publishing session as ?meta=1 names it; null when its owner hides it. */
@@ -33,47 +34,33 @@ export function usePageAgent(slug: string, enabled: boolean): PageAgent | null {
   const [agent, setAgent] = useState<PageAgent | null>(() => lastRead.get(slug)?.agent ?? null);
   useWatchEffect(() => {
     if (!enabled) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const cached = lastRead.get(slug);
-    let active = !!cached?.agent && cached.agent.chip !== "idle";
-    let first = !cached;
-    // The first read happens even in a hidden window, so the chip is there
-    // when the reader looks; the repeats wait for a visible one.
-    const tick = async () => {
-      timer = null;
-      if (first || document.visibilityState === "visible") {
-        first = false;
+    return whileWindowVisible((resumed) => {
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const tick = async () => {
+        let next = lastRead.get(slug)?.agent ?? null;
         try {
-          const res = await fetch(pageMetaUrl(slug), { cache: "no-store" });
+          const res = await fetch(pageMetaUrl(slug), { cache: "no-store", signal: controller.signal });
           const meta = res.ok ? ((await res.json()) as { agent?: Omit<PageAgent, "session"> | null; session?: PageSession | null }) : null;
-          if (stopped) return;
-          const next = meta?.agent ? { ...meta.agent, session: meta.session ?? null } : null;
+          if (controller.signal.aborted) return;
+          next = meta?.agent ? { ...meta.agent, session: meta.session ?? null } : null;
           lastRead.set(slug, { agent: next, at: Date.now() });
-          active = !!next && next.chip !== "idle";
           setAgent((prev) => (prev && next && prev.chip === next.chip && prev.since === next.since && sessionName(prev) === sessionName(next) ? prev : next));
         } catch {
           /* enrichment only: keep the last state */
         }
-      }
-      if (!stopped) timer = setTimeout(tick, active ? ACTIVE_POLL_MS : IDLE_POLL_MS);
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible" && timer) {
+        if (!controller.signal.aborted) timer = setTimeout(tick, pollMs(next));
+      };
+      // A recent answer stands on mount. A window that returns refreshes now.
+      const cached = lastRead.get(slug);
+      const wait = !resumed && cached ? cached.at + pollMs(cached.agent) - Date.now() : 0;
+      if (wait > 0) timer = setTimeout(tick, wait);
+      else void tick();
+      return () => {
+        controller.abort();
         clearTimeout(timer);
-        void tick();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    // A recent answer stands until its interval runs out.
-    const wait = cached ? cached.at + pollMs(cached.agent) - Date.now() : 0;
-    if (wait > 0) timer = setTimeout(tick, wait);
-    else void tick();
-    return () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
+      };
+    });
   }, [slug, enabled]);
   return agent;
 }

@@ -1,3 +1,4 @@
+import { visibleInterval } from "../lib/windowVisibleWork";
 import { useRef, useState, useCallback, useMemo } from "react";
 import { useMountEffect } from "./useMountEffect";
 
@@ -38,12 +39,11 @@ export function useStableOrder<T>({ items, getKey, isHovered, onBeforeReorder }:
   const isHoveredRef = isHovered;
 
   useMountEffect(() => {
-    const interval = setInterval(() => {
+    return visibleInterval(() => {
       if (!isHoveredRef.current) {
         commitOrderRef.current(true);
       }
     }, REORDER_INTERVAL_MS);
-    return () => clearInterval(interval);
   });
 
   if (displayOrder.length === 0 && items.length > 0) {

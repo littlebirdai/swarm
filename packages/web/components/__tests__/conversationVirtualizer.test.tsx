@@ -13,5 +13,18 @@ test("transcript resizing preserves geometry and progress without redundant rend
     new Response(child.stderr).text(),
   ]);
   expect({ code, stdout, stderr }).toMatchObject({ code: 0 });
-  expect(stderr).toContain("5 pass");
+  expect(stderr).toContain("7 pass");
 }, 250_000);
+
+test("the legacy anchored list suspends and resumes its landing timer", async () => {
+  const child = Bun.spawn([process.execPath, "--no-env-file", "test", "--test-name-pattern", "the anchored list suspends", `${import.meta.dir}/fixtures/conversationVirtualizer.tsx`], {
+    env: { ...process.env, TEST_LEGACY_LIST: "1" },
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 60_000,
+    killSignal: "SIGKILL",
+  });
+  const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+  expect({ code, stderr }).toMatchObject({ code: 0 });
+  expect(stderr).toContain("1 pass");
+}, 65_000);

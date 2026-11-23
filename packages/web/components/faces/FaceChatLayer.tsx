@@ -1,3 +1,4 @@
+import { whileWindowVisible } from "../../lib/windowVisibleWork";
 import { useLayoutEffect, useState, type RefObject } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { createPortal } from "react-dom";
@@ -69,23 +70,22 @@ function useAnchor(barRef: RefObject<HTMLElement | null>, id: string | null): An
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   useLayoutEffect(() => {
     if (!id) return setAnchor(null);
-    let alive = true;
     const measure = () => {
-      if (!alive) return;
       const seat = seatIn(barRef.current, id);
       const next = seat ? anchorOf(seat) : null;
       setAnchor((prev) =>
         prev && next && Math.abs(prev.x - next.x) < 0.5 && Math.abs(prev.y - next.y) < 0.5 ? prev : next,
       );
     };
-    measure();
-    const iv = setInterval(measure, 120);
-    window.addEventListener("resize", measure);
-    return () => {
-      alive = false;
-      clearInterval(iv);
-      window.removeEventListener("resize", measure);
-    };
+    return whileWindowVisible(() => {
+      measure();
+      const iv = setInterval(measure, 120);
+      window.addEventListener("resize", measure);
+      return () => {
+        clearInterval(iv);
+        window.removeEventListener("resize", measure);
+      };
+    });
   }, [barRef, id]);
   return anchor;
 }

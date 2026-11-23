@@ -1,3 +1,4 @@
+import { visibleInterval } from "../../lib/windowVisibleWork";
 import { AppLoader } from "../AppLoader";
 import { useState, useMemo, Fragment, type ReactNode } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
@@ -766,8 +767,7 @@ export function RestartStatusStrip({ phase, stage, failure, startedAt, onRetry, 
   const [now, setNow] = useState(() => Date.now());
   useWatchEffect(() => {
     if (phase !== "restarting") return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    return visibleInterval(() => setNow(Date.now()), 1000);
   }, [phase]);
   if (phase === "idle") return null;
   const tone = phase === "restored" ? "ok" : phase === "failed" ? "error" : (stage?.tone ?? "active");
@@ -840,8 +840,7 @@ export function DeviceMoveStatusStrip({ conversationId }: { conversationId: stri
 export function WorkingStatusLine({ startedAt, phrase, conversationId, stopHint }: { startedAt?: number; phrase?: string; conversationId: string; stopHint?: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   useMountEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    return visibleInterval(() => setNow(Date.now()), 1000);
   });
   const st = useTrackedStore([(s) => activitySig(s.sessions[conversationId]?.activity)]);
   const rowActivity = st.sessions[conversationId]?.activity;

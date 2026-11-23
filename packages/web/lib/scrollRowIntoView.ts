@@ -1,3 +1,4 @@
+import { visibleAnimationLoop } from "./windowVisibleWork";
 import { rowScrollDelta, scrollMarginTopOf } from "./rowScroll";
 
 // Bring a session row into view: smooth, but never a long glide — when the
@@ -35,27 +36,24 @@ export function scrollRowIntoView(container: HTMLElement, el: Element) {
     glide();
   });
   const glide = () => {
-    let aborted = false;
-    const abort = () => { aborted = true; };
     const cleanup = () => {
-      container.removeEventListener("wheel", abort);
-      container.removeEventListener("touchstart", abort);
+      stop();
+      container.removeEventListener("wheel", cleanup);
+      container.removeEventListener("touchstart", cleanup);
     };
-    container.addEventListener("wheel", abort, { passive: true, once: true });
-    container.addEventListener("touchstart", abort, { passive: true, once: true });
+    container.addEventListener("wheel", cleanup, { passive: true, once: true });
+    container.addEventListener("touchstart", cleanup, { passive: true, once: true });
     let frames = 0;
-    const step = () => {
+    const stop = visibleAnimationLoop(() => {
       // Row unmounted mid-glide (panel remount/resort) — a detached node
       // measures as all-zeros, so stop rather than chase garbage.
-      if (aborted || !el.isConnected) return cleanup();
+      if (!el.isConnected) return cleanup();
       const remaining = remainingDelta();
       if (Math.abs(remaining) < 1 || ++frames > 60) {
         container.scrollTop += remaining;
         return cleanup();
       }
       container.scrollTop += remaining * 0.25;
-      requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+    });
   };
 }

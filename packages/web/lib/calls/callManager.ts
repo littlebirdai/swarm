@@ -1,3 +1,4 @@
+import { visibleInterval } from "../windowVisibleWork";
 import { isMediaDenial, mediaFailureReason, participantTiles, type ParticipantTile } from "./callMedia";
 import { teamMembersOf } from "../activeTeam";
 export { mediaFailureReason, listDevices, grantDeviceNames, type ParticipantTile } from "./callMedia";
@@ -166,7 +167,7 @@ function rebuildTiles() {
 // of the call slice).
 let micLevel = 0;
 const levelSubscribers = new Set<() => void>();
-let levelTimer: ReturnType<typeof setInterval> | null = null;
+let stopLevelTicks: (() => void) | null = null;
 let levelCleanup: (() => void) | null = null;
 
 export function subscribeMicLevel(cb: () => void): () => void {
@@ -178,8 +179,8 @@ export function getMicLevel(): number {
 }
 
 function stopLevelMeter() {
-  if (levelTimer) clearInterval(levelTimer);
-  levelTimer = null;
+  stopLevelTicks?.();
+  stopLevelTicks = null;
   levelCleanup?.();
   levelCleanup = null;
   if (micLevel !== 0) {
@@ -200,7 +201,7 @@ function startLevelMeter() {
     });
     const bytes = new Uint8Array(analyser.fftSize);
     levelCleanup = cleanup;
-    levelTimer = setInterval(() => {
+    stopLevelTicks = visibleInterval(() => {
       // Muted → analyser reads silence anyway, but skip the work and pin 0 so
       // the meter reads honestly the instant the user mutes.
       const muted = useInboxStore.getState().call.muted;

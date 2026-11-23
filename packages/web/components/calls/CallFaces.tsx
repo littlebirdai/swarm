@@ -1,3 +1,4 @@
+import { visibleInterval } from "../../lib/windowVisibleWork";
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useTrackedStore } from "../../store/inboxStore";
@@ -136,8 +137,7 @@ export function CallFaces({
   const speakingRef = useRef<string[]>([]);
   speakingRef.current = (call.speaking ?? []).filter((id: string) => faces.some((f) => f.id === id));
   useMountEffect(() => {
-    const t = setInterval(() => setPick((p) => pickSpeaker(p, speakingRef.current, Date.now())), 250);
-    return () => clearInterval(t);
+    return visibleInterval(() => setPick((p) => pickSpeaker(p, speakingRef.current, Date.now())), 250);
   });
   const shownId = useMemo(() => {
     if (pick.id && faces.some((f) => f.id === pick.id)) return pick.id;

@@ -10,6 +10,7 @@
 // Keyed, because both directions animate: no key is this client's own
 // microphone while the key is held, and a participant identity is the teammate
 // being heard.
+import { visibleAnimationLoop } from "../windowVisibleWork";
 import { getRoom } from "./callManager";
 
 export type WalkieLevels = {
@@ -40,7 +41,7 @@ export function getWalkieLevel(participantId?: string): number {
 let meterCtx: AudioContext | null = null;
 let meterAnalyser: AnalyserNode | null = null;
 let meterBytes: Uint8Array<ArrayBuffer> | null = null;
-let meterFrame: number | null = null;
+let stopFrames: (() => void) | undefined;
 
 function sameRemote(a: Record<string, number>, b: Record<string, number>): boolean {
   const keys = Object.keys(a);
@@ -91,18 +92,17 @@ export function bindWalkieHearing(fn: () => boolean): void {
 }
 
 export function pumpWalkieMeter() {
-  if (meterFrame !== null || typeof requestAnimationFrame !== "function") return;
-  const tick = () => {
-    meterFrame = null;
+  if (stopFrames || typeof requestAnimationFrame !== "function") return;
+  stopFrames = visibleAnimationLoop(() => {
     const wanted = !!meterAnalyser || hearing();
     if (!wanted) {
+      stopFrames?.();
+      stopFrames = undefined;
       publishLevels(0, {});
       return;
     }
     publishLevels(meterAnalyser ? readLocalLevel() : 0, readRemoteLevels());
-    meterFrame = requestAnimationFrame(tick);
-  };
-  meterFrame = requestAnimationFrame(tick);
+  });
 }
 
 export function startLocalMeter(track: MediaStreamTrack) {

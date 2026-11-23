@@ -1,5 +1,6 @@
 // The replay player: the recorded page (or the semantic view), its controls
 // and scrubber, and the events rail beside it on one clock. See ReplayPage.tsx.
+import { whileWindowVisible } from "../../lib/windowVisibleWork";
 import {
   type CSSProperties,
   Fragment,
@@ -249,23 +250,24 @@ function RecordingPlayer({ replay, events, reading = false, initialT, issueMarks
   // posts move this one (useReplayStage).
   useWatchEffect(() => {
     if (!playing || driven) return;
-    let last = performance.now();
-    let raf = 0;
-    const step = (now: number) => {
-      const dt = (now - last) * speed;
-      last = now;
-      setT((cur) => {
-        const next = cur + dt;
-        if (next >= end) {
-          setPlaying(false);
-          return end;
-        }
-        return next;
-      });
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    return whileWindowVisible(() => {
+      let last = performance.now();
+      let raf = requestAnimationFrame(step);
+      function step(now: number) {
+        const dt = (now - last) * speed;
+        last = now;
+        setT((cur) => {
+          const next = cur + dt;
+          if (next >= end) {
+            setPlaying(false);
+            return end;
+          }
+          return next;
+        });
+        raf = requestAnimationFrame(step);
+      }
+      return () => cancelAnimationFrame(raf);
+    });
   }, [playing, speed, end, driven]);
 
   /** Move to a time, paused unless `keepPlaying`: the scrubber, the rail and the keys all land here. */

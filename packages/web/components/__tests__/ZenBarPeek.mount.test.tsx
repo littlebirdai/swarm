@@ -9,7 +9,7 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { ZenTopEdge } from "../ZenBarPeek";
 import { useZenBarPeek } from "../../hooks/useZenBarPeek";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>");
+const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,

@@ -3,6 +3,7 @@
 // mark that opens the source behind any of them. The dashboard grid, the
 // Scrollyteller and the Visual short all draw blocks through these, so a
 // number looks and verifies the same in every format.
+import { visibleAnimationLoop } from "../../lib/windowVisibleWork";
 import { memo, useMemo, useRef, useState, type ReactNode } from "react";
 import { BadgeAlert, BadgeCheck, BadgeX, Bell, CircleDashed, Database, Loader2, TrendingDown, TrendingUp } from "lucide-react";
 import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
@@ -77,15 +78,12 @@ function useCountUp(target: number | null, run: boolean, ms = 900): number | nul
     }
     done.current = true;
     const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
+    return visibleAnimationLoop((now) => {
       const p = Math.min(1, (now - start) / ms);
       const eased = 1 - Math.pow(1 - p, 3);
       setV(p >= 1 ? target : target * eased);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+      if (p >= 1) return false;
+    });
   }, [target, run, ms]);
   return v;
 }

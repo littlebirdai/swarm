@@ -5,6 +5,7 @@
 // composer sits under the corner. Its look is in globals.css under
 // "rise-card"; `accent` tints the border and the primary button, and
 // `children` sits between the lines and the actions.
+import { whileWindowVisible } from "../lib/windowVisibleWork";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { OrgButton } from "./org/OrgButton";
 import { useMountEffect } from "../hooks/useMountEffect";
@@ -18,10 +19,15 @@ function useComposerLift(ref: React.RefObject<HTMLDivElement | null>): number {
   const [lift, setLift] = useState(0);
   useMountEffect(() => {
     const measure = () => setLift(composerLift(document, window.innerHeight));
-    measure();
-    const id = window.setInterval(measure, 500);
-    window.addEventListener("resize", measure);
-    return () => { window.clearInterval(id); window.removeEventListener("resize", measure); };
+    return whileWindowVisible(() => {
+      measure();
+      const id = setInterval(measure, 500);
+      window.addEventListener("resize", measure);
+      return () => {
+        clearInterval(id);
+        window.removeEventListener("resize", measure);
+      };
+    });
   });
   // eslint-disable-next-line no-restricted-syntax -- writes the row's margin to match the measured lift, and clears it on the way out
   useEffect(() => {

@@ -6,6 +6,7 @@
 // Anything showing a value carries data-private, which keeps it out of the
 // error replay's page outline (platform analytics replay.ts).
 
+import { whileWindowVisible } from "../../lib/windowVisibleWork";
 import { useState, type ReactNode } from "react";
 import { Check, ChevronRight, CircleHelp, Copy, Eye, EyeOff, Fingerprint, Loader2, Lock, RefreshCw, UserRound, Users, X } from "lucide-react";
 import { totp, type EnvNameIssue, type SecretKind, type SecretMeta } from "@codecast/shared/contracts/secrets";
@@ -277,20 +278,22 @@ export function TotpCode({ seed, fetchSeed, fetching, held, gated }: { seed: str
   const [broken, setBroken] = useState(false);
   useWatchEffect(() => {
     if (!seed) return;
-    let alive = true;
     setBroken(false);
-    const tick = () =>
-      totp(seed).then(
-        // The first code and each new period set the ring at once; a tick can land past a period's first second, so a new period is any rise in the count.
-        (r) => alive && setNow((prev) => ({ ...r, refill: !prev.code || r.remaining > prev.remaining })),
-        () => alive && setBroken(true),
-      );
-    void tick();
-    const t = setInterval(tick, 1000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
+    return whileWindowVisible(() => {
+      let alive = true;
+      const tick = () =>
+        totp(seed).then(
+          // The first code and each new period set the ring at once; a tick can land past a period's first second, so a new period is any rise in the count.
+          (r) => alive && setNow((prev) => ({ ...r, refill: !prev.code || r.remaining > prev.remaining })),
+          () => alive && setBroken(true),
+        );
+      void tick();
+      const t = setInterval(tick, 1000);
+      return () => {
+        alive = false;
+        clearInterval(t);
+      };
+    });
   }, [seed]);
   if (broken) {
     return (
@@ -300,7 +303,7 @@ export function TotpCode({ seed, fetchSeed, fetching, held, gated }: { seed: str
     );
   }
   const copy = async () => {
-    if (seed) return now.code || (await totp(seed)).code;
+    if (seed) return (await totp(seed)).code;
     const fetched = await fetchSeed?.();
     return fetched ? (await totp(fetched)).code : undefined;
   };

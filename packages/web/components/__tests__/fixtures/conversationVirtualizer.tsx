@@ -1,13 +1,15 @@
-import { afterAll, expect, spyOn, test } from "bun:test";
+import { afterAll, expect, jest, spyOn, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { act, Profiler } from "react";
 import { createRoot } from "react-dom/client";
 import { ConvexProviderWithAuth } from "convex/react";
 import { MemoryRouter } from "react-router";
+import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import type { ConversationData } from "../../conversation/types";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/", pretendToBeVisual: true });
 const sizes = new WeakMap<Element, number>();
+let onRectRead: ((el: HTMLElement) => void) | undefined;
 let onHeightRead: ((el: HTMLElement) => void) | undefined;
 const offsets = new WeakMap<Element, number>();
 const observers = new Set<TestResizeObserver>();
@@ -53,14 +55,17 @@ Object.defineProperties(dom.window.HTMLElement.prototype, {
   scrollHeight: { get() { if (this.hasAttribute("data-sv-feed")) scrollerReads++; return this.hasAttribute("data-sv-feed") ? Number.parseFloat(this.querySelector("[data-vkey]")?.parentElement.style.height ?? "500") : height(this); } },
   offsetParent: { get() { return dom.window.document.body; } },
 });
-dom.window.HTMLElement.prototype.getBoundingClientRect = function () { const width = paneHidden ? 0 : 700; return { x: 0, y: 0, top: 0, left: 0, right: width, bottom: height(this), width, height: height(this), toJSON() {} }; };
+dom.window.HTMLElement.prototype.getBoundingClientRect = function () { onRectRead?.(this); const width = paneHidden ? 0 : 700; return { x: 0, y: 0, top: 0, left: 0, right: width, bottom: height(this), width, height: height(this), toJSON() {} }; };
 dom.window.HTMLElement.prototype.scrollTo = function (x: any, y?: number) { this.scrollTop = typeof x === "object" ? x.top ?? this.scrollTop : y ?? 0; };
 dom.window.HTMLElement.prototype.scrollIntoView = () => {};
 dom.window.HTMLCanvasElement.prototype.getContext = (() => null) as any;
 (dom.window as any).ResizeObserver = TestResizeObserver;
 (dom.window as any).matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
-const restore = replaceGlobals({ window: dom.window, Event: dom.window.Event, CustomEvent: dom.window.CustomEvent, document: dom.window.document, navigator: dom.window.navigator, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, DOMRect: dom.window.DOMRect, getComputedStyle: dom.window.getComputedStyle.bind(dom.window), ResizeObserver: TestResizeObserver, requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window), cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window), localStorage: dom.window.localStorage, IS_REACT_ACT_ENVIRONMENT: true });
-afterAll(() => { dom.window.close(); restore(); });
+const restore = replaceGlobals({ window: dom.window, Document: dom.window.Document, Event: dom.window.Event, CustomEvent: dom.window.CustomEvent, document: dom.window.document, navigator: dom.window.navigator, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, DOMRect: dom.window.DOMRect, getComputedStyle: dom.window.getComputedStyle.bind(dom.window), ResizeObserver: TestResizeObserver, requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window), cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window), localStorage: dom.window.localStorage, IS_REACT_ACT_ENVIRONMENT: true });
+afterAll(() => { closeDomWindow(dom); restore(); });
+if (process.env.TEST_LEGACY_LIST === "1") localStorage.setItem("vlistLegacy", "1");
+const { applyShellVisibility } = await import("../../../lib/windowRole");
+const { useBottomAnchoredList } = await import("../../../hooks/useBottomAnchoredList");
 const { ConversationView } = await import("../../ConversationView");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const useAuth = () => ({ isLoading: false, isAuthenticated: false, fetchAccessToken: async () => null });
@@ -226,3 +231,87 @@ test("fold mode draws the person's message and what the agent said, as bubbles, 
     expect(host.querySelectorAll("[data-cc-bubble]").length).toBe(2);
   } finally { useInboxStore.setState({ anchors } as any); await act(() => root.unmount()); host.remove(); }
 }, 30_000);
+
+test("the transcript cancels queued size repair when hidden and checks once on return", () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  jest.useFakeTimers();
+  const idle = { requestIdleCallback: (fn: () => void) => setTimeout(fn, 100), cancelIdleCallback: clearTimeout };
+  const restoreIdle = replaceGlobals(idle);
+  const request = spyOn(globalThis, "requestIdleCallback");
+  const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
+  try {
+    act(() => { root.render(<ConvexProviderWithAuth client={client} useAuth={useAuth}><MemoryRouter><ConversationView conversation={{ ...conversation, _id: "visibility-fixture" as any }} backHref="/" hideHeader showMessageInput={false} isOwner={false} openAtTop /></MemoryRouter></ConvexProviderWithAuth>); });
+    const rows = new Set(host.querySelectorAll<HTMLElement>("[data-index]"));
+    expect(rows.size).toBeGreaterThan(1);
+    let rowReads = 0;
+    onHeightRead = (el) => { if (rows.has(el)) rowReads++; };
+
+    advance(1000);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(rowReads).toBe(0);
+
+    act(() => { applyShellVisibility(false); });
+    advance(3000);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(rowReads).toBe(0);
+
+    act(() => { applyShellVisibility(true); });
+    expect(rowReads).toBe(rows.size);
+    advance(999);
+    expect(rowReads).toBe(rows.size);
+    advance(101);
+    expect(rowReads).toBe(2 * rows.size);
+  } finally {
+    onHeightRead = undefined;
+    act(() => { root.unmount(); applyShellVisibility(true); });
+    request.mockRestore();
+    restoreIdle();
+    jest.useRealTimers();
+    host.remove();
+  }
+});
+
+test("the anchored list suspends its repair and legacy landing timers while hidden", () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
+  function List() {
+    const list = useBottomAnchoredList({ count: 30, getItemKey: (index) => `row-${index}`, estimateSize: () => 50, cacheNamespace: "visibility-fixture", initialIndex: 0 });
+    return <div ref={list.containerRef} data-sv-feed>
+      <div style={{ height: list.virtualizer.getTotalSize() }}>
+        {list.virtualizer.getVirtualItems().map((item) => <div key={item.key} data-index={item.index} data-vkey={item.key} />)}
+      </div>
+    </div>;
+  }
+
+  jest.useFakeTimers();
+  try {
+    act(() => { applyShellVisibility(false); root.render(<List />); });
+    const scroller = host.querySelector("[data-sv-feed]");
+    const rows = new Set(host.querySelectorAll<HTMLElement>("[data-index]"));
+    expect(rows.size).toBeGreaterThan(1);
+    let repairReads = 0;
+    let landingReads = 0;
+    onHeightRead = (el) => { if (rows.has(el)) repairReads++; };
+    onRectRead = (el) => { if (el === scroller) landingReads++; };
+
+    advance(1500);
+    expect(repairReads).toBe(0);
+    expect(landingReads).toBe(0);
+
+    act(() => { applyShellVisibility(true); });
+    expect(repairReads).toBe(rows.size);
+    expect(landingReads).toBe(process.env.TEST_LEGACY_LIST === "1" ? 1 : 0);
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(repairReads).toBe(rows.size);
+    expect(landingReads).toBe(process.env.TEST_LEGACY_LIST === "1" ? 1 : 0);
+  } finally {
+    onHeightRead = onRectRead = undefined;
+    act(() => { root.unmount(); applyShellVisibility(true); });
+    jest.useRealTimers();
+    host.remove();
+  }
+});
