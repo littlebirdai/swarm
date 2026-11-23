@@ -4,8 +4,10 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   applyStuckMessages,
+  planStuckMessages,
   DEAD_SESSION_REVIVES_PER_PASS,
   STUCK_MESSAGE_PAGES_PER_RUN,
+  STUCK_MESSAGE_RUN_BUDGET_MS,
   STUCK_MESSAGES_PER_PAGE,
   STUCK_SESSIONS_PER_CONVERSATION,
 } from "./pendingMessages";
@@ -212,7 +214,7 @@ test("retries a failed apply on the next tick and uses the dead-session budget a
   });
   try {
     setSystemTime(now);
-    const old = now - 10 * 60_000;
+    const old = now - 35 * 60_000;
     const ids = await t.run(async ({ db }) => {
       const owner = await db.insert("users", { name: "Owner" });
       const offline = await db.insert("conversations", {
@@ -262,6 +264,114 @@ test("retries a failed apply on the next tick and uses the dead-session budget a
     await sweep();
     expect(await statuses()).toEqual(Array(ids.length).fill("pending"));
     expect(await retries()).toEqual([]);
+  } finally {
+    setSystemTime();
+  }
+});
+
+test("notifies and repends on the first eligible tick behind 1,025 older waiting rows", async () => {
+  const { t, now } = fixture();
+  try {
+    setSystemTime(now);
+    const owner = await t.run(({ db }) => db.insert("users", { name: "Recipient" }));
+    await t.run(async ({ db }) => {
+      const offline = await db.insert("conversations", {
+        user_id: owner, session_id: "offline", agent_type: "claude_code", status: "active",
+      });
+      for (let i = 0; i < 1_025; i++) {
+        await db.insert("pending_messages", {
+          conversation_id: offline, from_user_id: owner, status: "pending",
+          created_at: now - 7 * 24 * 60 * 60_000, content: "Waiting for a daemon", retry_count: 6,
+        });
+      }
+    });
+    const sweep = () => t.action(internal.pendingMessages.retryStuckMessages, {});
+    await sweep();
+
+    setSystemTime(now + 1);
+    const { pending, injected, heartbeat } = await t.run(async ({ db }) => {
+      const sender = await db.insert("users", { name: "Sender" });
+      const from = await db.insert("conversations", {
+        user_id: sender, session_id: "sender", agent_type: "claude_code", status: "active",
+      });
+      const terminal = await db.insert("conversations", {
+        user_id: owner, session_id: "terminal", agent_type: "claude_code", status: "active",
+      });
+      const idle = await db.insert("conversations", {
+        user_id: owner, session_id: "idle", agent_type: "claude_code", status: "active",
+      });
+      const heartbeat = await db.insert("managed_sessions", {
+        conversation_id: idle, user_id: owner, session_id: "idle", pid: 1,
+        started_at: now, last_heartbeat: now, agent_status: "idle",
+      });
+      const pending = await db.insert("pending_messages", {
+        conversation_id: terminal, from_conversation_id: from, from_user_id: sender, owner_user_id: owner,
+        status: "pending", created_at: Date.now(), content: "Please review this", retry_count: 0,
+        delivery_disposition_reason: "runs in Ghostty, which Codecast can't type into",
+      });
+      const injected = await db.insert("pending_messages", {
+        conversation_id: idle, from_user_id: owner, status: "injected",
+        created_at: Date.now(), content: "Retry this promptly", retry_count: 6,
+      });
+      return { pending, injected, heartbeat };
+    });
+    for (let tick = 1; tick <= 4; tick++) {
+      const tickTime = now + tick * 60_000;
+      setSystemTime(tickTime);
+      await t.run(({ db }) => db.patch(heartbeat, { last_heartbeat: tickTime }));
+      await sweep();
+      await t.run(async ({ db }) => {
+        const send = await db.get(pending);
+        expect(send?.sender_notified_at).toBe(tick === 4 ? tickTime : undefined);
+        expect(await db.get(injected)).toMatchObject({ status: tick < 3 ? "injected" : "pending" });
+        if (tick === 4) {
+          expect(await db.get(send!.sender_notice_id!)).toMatchObject({
+            content: expect.stringContaining("Its machine is up and keeps the message queued"),
+          });
+        }
+      });
+    }
+  } finally {
+    setSystemTime();
+  }
+});
+
+test("checkpoints the current page and stops starting pages at the action deadline", async () => {
+  let planned = 0;
+  const { t, now } = fixture({
+    ...allModules,
+    "./pendingMessages.ts": async () => ({
+      ...await import("./pendingMessages"),
+      planStuckMessages: Object.assign(() => {}, planStuckMessages, {
+        _handler: async (...args: Parameters<(typeof planStuckMessages)["_handler"]>) => {
+          const page = await planStuckMessages._handler(...args);
+          planned++;
+          setSystemTime(args[1].now + STUCK_MESSAGE_RUN_BUDGET_MS);
+          return page;
+        },
+      }),
+    }),
+  });
+  try {
+    setSystemTime(now);
+    const created = now - 7 * 24 * 60 * 60_000;
+    await t.run(async ({ db }) => {
+      const owner = await db.insert("users", { name: "Owner" });
+      const conversation = await db.insert("conversations", {
+        user_id: owner, session_id: "offline", agent_type: "claude_code", status: "active",
+      });
+      for (let i = 0; i <= STUCK_MESSAGES_PER_PAGE; i++) {
+        await db.insert("pending_messages", {
+          conversation_id: conversation, from_user_id: owner, status: "pending",
+          created_at: created + i, content: "Waiting for a daemon", retry_count: 0,
+        });
+      }
+    });
+    await t.action(internal.pendingMessages.retryStuckMessages, {});
+    expect(planned).toBe(1);
+    expect(await t.run(({ db }) => db.query("pending_message_sweep_state").first())).toMatchObject({
+      cursor: { createdAt: created + STUCK_MESSAGES_PER_PAGE - 1 },
+    });
   } finally {
     setSystemTime();
   }

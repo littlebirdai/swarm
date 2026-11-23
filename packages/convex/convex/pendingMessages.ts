@@ -2311,6 +2311,8 @@ export async function notifyStuckSend(
 export const STUCK_MESSAGES_PER_PAGE = 16;
 export const STUCK_MESSAGE_PAGES_PER_RUN = 32;
 export const STUCK_SESSIONS_PER_CONVERSATION = 4;
+export const STUCK_MESSAGE_RUN_BUDGET_MS = 40_000;
+const FRESH_STUCK_MESSAGE_WINDOW_MS = 30 * 60_000;
 const NON_TERMINAL_STATUSES = ["pending", "injected", "failed", "undeliverable"] as const;
 const stuckCursor = v.object({
   through: v.number(),
@@ -2333,18 +2335,26 @@ export const retryStuckMessages = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     const now = Date.now();
+    const deadline = now + STUCK_MESSAGE_RUN_BUDGET_MS;
     const deadRevived = new Set<Id<"conversations">>();
     const hostedChecked = new Set<Id<"conversations">>();
-    const retried = new Set<Id<"pending_messages">>();
+    const attempted = new Set<Id<"pending_messages">>();
     let failed = 0;
     let firstError: unknown;
 
-    async function applyPage(groups: StuckGroup[], fromRetryQueue: boolean): Promise<RetryUpdate[]> {
+    async function applyPage(groups: StuckGroup[], clearCompleted: boolean): Promise<RetryUpdate[]> {
       const updates: RetryUpdate[] = [];
       for (const { conversationId, ids: groupIds } of groups) {
-        const ids = groupIds.filter((id) => !retried.has(id));
+        const ids = groupIds.filter((id) => !attempted.has(id));
+        if (clearCompleted) {
+          // A failed or deferred attempt was already stamped with this tick
+          // and cannot appear in the retry query again.
+          for (const messageId of groupIds) {
+            if (attempted.has(messageId)) updates.push({ conversationId, messageId });
+          }
+        }
         if (ids.length === 0) continue;
-        if (fromRetryQueue) for (const id of ids) retried.add(id);
+        for (const id of ids) attempted.add(id);
 
         try {
           const result: ApplyStuckResult = await ctx.runMutation(internal.pendingMessages.applyStuckMessages, {
@@ -2358,7 +2368,7 @@ export const retryStuckMessages = internalAction({
           const deferred = new Set(result.deferred);
           for (const messageId of ids) {
             if (deferred.has(messageId)) updates.push({ conversationId, messageId, reason: "dead_revive_limit" });
-            else if (fromRetryQueue) updates.push({ conversationId, messageId });
+            else if (clearCompleted) updates.push({ conversationId, messageId });
           }
         } catch (error) {
           failed++;
@@ -2369,22 +2379,36 @@ export const retryStuckMessages = internalAction({
       return updates;
     }
 
-    // Earlier failures get a separate page budget so they cannot hold the
-    // sweep cursor or lose its normal throughput.
-    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN; page++) {
-      const groups: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planStuckMessageRetries, { now });
-      if (groups.length === 0) break;
-      const updates = await applyPage(groups, true);
-      await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates });
+    const fresh: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planFreshStuckMessages, { now });
+    const freshUpdates = await applyPage(fresh, true);
+    if (freshUpdates.length > 0) {
+      await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates: freshUpdates });
     }
 
-    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN; page++) {
-      const { groups, next }: StuckPlan = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now });
-      const updates = await applyPage(groups, false);
-      if (next !== undefined || updates.length > 0) {
-        await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates, next });
+    // Advance both queues while there is time. Repeated apply failures can
+    // use the retry budget without holding the normal sweep cursor.
+    let retriesRemain = true;
+    let sweepRemains = true;
+    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN && (retriesRemain || sweepRemains); page++) {
+      if (Date.now() >= deadline) break;
+      if (retriesRemain) {
+        const groups: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planStuckMessageRetries, { now });
+        retriesRemain = groups.length > 0;
+        if (retriesRemain) {
+          const updates = await applyPage(groups, true);
+          await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates });
+        }
       }
-      if (!next) break;
+
+      if (Date.now() >= deadline) break;
+      if (sweepRemains) {
+        const { groups, next }: StuckPlan = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now });
+        const updates = await applyPage(groups, false);
+        if (next !== undefined || updates.length > 0) {
+          await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates, next });
+        }
+        sweepRemains = next != null;
+      }
     }
 
     if (failed) {
@@ -2397,7 +2421,43 @@ export const planStuckMessages = internalQuery({
   args: { now: v.number() },
   handler: async (ctx, args): Promise<StuckPlan> => {
     const state = await ctx.db.query("pending_message_sweep_state").first();
-    return planStuckMessagePage(ctx, args.now, state?.cursor ?? null);
+    const cursor = state?.cursor ?? null;
+    const { candidates, next } = await readStuckMessagePage(ctx.db, args.now, cursor);
+    const groups = await planStuckMessageGroups(ctx, args.now, candidates);
+    return { groups, ...(next || cursor ? { next } : {}) };
+  },
+});
+
+export const planFreshStuckMessages = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, { now }): Promise<StuckGroup[]> => {
+    const pages = await Promise.all(NON_TERMINAL_STATUSES.map(async (status) => {
+      const grace = status === "pending" ? STUCK_SEND_NOTIFY_DEADLINE_MS
+        : status === "injected" ? INJECT_ACK_GRACE_MS : 0;
+      const rows = await ctx.db.query("pending_messages")
+        .withIndex("by_status_created", (q) =>
+          q.eq("status", status).gt("created_at", now - FRESH_STUCK_MESSAGE_WINDOW_MS).lte("created_at", now - grace))
+        .order("desc")
+        .take(STUCK_MESSAGES_PER_PAGE);
+      const page = rows.map((row) => ({ row, dueAt: row.created_at + grace }));
+      const remaining = STUCK_MESSAGES_PER_PAGE - rows.length;
+      if (status === "pending" && remaining > 0) {
+        // Pending text can heal before its sender is due a notice.
+        const younger = await ctx.db.query("pending_messages")
+          .withIndex("by_status_created", (q) =>
+            q.eq("status", "pending").gt("created_at", now - grace).lte("created_at", now - INJECT_ACK_GRACE_MS))
+          .order("desc")
+          .take(remaining);
+        page.push(...younger.map((row) => ({ row, dueAt: row.created_at + INJECT_ACK_GRACE_MS })));
+      }
+      return page;
+    }));
+    // Favor rows that just crossed their age threshold. Older rows keep
+    // moving through the chronological sweep even if this page is full.
+    const candidates = pages.flat().sort((a, b) => b.dueAt - a.dueAt || b.row._creationTime - a.row._creationTime)
+      .slice(0, STUCK_MESSAGES_PER_PAGE)
+      .map(({ row }) => row);
+    return planStuckMessageGroups(ctx, now, candidates);
   },
 });
 
@@ -2468,8 +2528,7 @@ async function readStuckMessagePage(db: QueryCtx["db"], now: number, cursor: Stu
   return { candidates, next };
 }
 
-async function planStuckMessagePage(ctx: { db: QueryCtx["db"] }, now: number, cursor: StuckCursor | null): Promise<StuckPlan> {
-  const { candidates, next } = await readStuckMessagePage(ctx.db, now, cursor);
+async function planStuckMessageGroups(ctx: { db: QueryCtx["db"] }, now: number, candidates: Doc<"pending_messages">[]): Promise<StuckGroup[]> {
   const sessionsByConversation = await Promise.all(
     queryStuckSessions(ctx.db, candidates, now).map((query) => query.take(STUCK_SESSIONS_PER_CONVERSATION)),
   );
@@ -2483,10 +2542,9 @@ async function planStuckMessagePage(ctx: { db: QueryCtx["db"] }, now: number, cu
   // Treat a full session sample as inconclusive. The apply mutation checks
   // all live sessions for that conversation before it can revive anything.
   const actedIds = new Set(acted);
-  const groups = groupStuckMessages(candidates
+  return groupStuckMessages(candidates
     .filter((msg) => actedIds.has(msg._id) || (uncertain.has(msg.conversation_id) && !isFencedPendingMessage(msg)))
     .map((msg) => ({ message_id: msg._id, conversation_id: msg.conversation_id })));
-  return { groups, ...(next || cursor ? { next } : {}) };
 }
 
 function groupStuckMessages(rows: { message_id: Id<"pending_messages">; conversation_id: Id<"conversations"> }[]): StuckGroup[] {
