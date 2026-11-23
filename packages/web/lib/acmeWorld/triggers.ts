@@ -234,6 +234,7 @@ const byId = (a: any) => {
 
 export const TRIGGER_ANSWERS: Record<string, (args: any) => unknown> = {
   "agentTasks:webList": () => TRIGGERS(Date.now()),
+  "agentTasks:webListHistory": () => ({ page: TRIGGERS(Date.now()), isDone: true, continueCursor: "" }),
   "agentTasks:webGet": byId,
   "agentTasks:webListRuns": (a) => (a?.task_id === TRIGGER_IDS.summary ? SUMMARY_RUN_ROWS(Date.now()) : []),
   "agentTasks:webListForConversation": (a) => TRIGGERS(Date.now()).filter((t) => t.originating_conversation_id === a?.conversation_id || t.created_by_conversation_id === a?.conversation_id),

@@ -2,14 +2,17 @@
 // (DashboardSyncEffects); every surface reads store.agentTasks through the
 // readers below.
 import { useCallback, useMemo } from "react";
-import { useConvex, type ConvexReactClient } from "convex/react";
+import { useConvex, usePaginatedQuery, type ConvexReactClient } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
 import { ARMED_STATUSES, foreignTriggerConvIds, mergeTriggerRosters, type TaskRow } from "../components/triggerTasks";
 import { makeCollectionSig } from "../store/wakeSig";
 import { useSyncCollection, keyRowsBy } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";
+import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
+import { useServerAuthSettled } from "./useServerAuthSettled";
+import { useWatchEffect } from "./useWatchEffect";
 
 const api = _api as any;
 
@@ -64,8 +67,22 @@ export function useSyncTriggers(enabled = true) {
 
 /** Feeder: the viewer's complete trigger set, finished history included, as a
  *  snapshot. Mounted by the surfaces that list history (the triggers page). */
-export function useSyncTriggerHistory(enabled = true) {
-  return useSyncCollection("agentTasks", api.agentTasks.webList, enabled ? {} : "skip");
+export function useSyncTriggerHistory() {
+  const authSettled = useServerAuthSettled();
+  const pageSize = 50;
+  const { results, status, loadMore } = usePaginatedQuery(
+    _api.agentTasks.webListHistory,
+    authSettled ? {} : "skip",
+    { initialNumItems: pageSize },
+  );
+  useWatchEffect(() => {
+    if (status === "CanLoadMore") loadMore(pageSize);
+  }, [status, loadMore, pageSize]);
+  // Only a complete snapshot can remove rows from the store.
+  useConvexSync(
+    status === "Exhausted" ? results : undefined,
+    useCallback((rows) => useInboxStore.getState().syncTable("agentTasks", rows), []),
+  );
 }
 
 // The fields trigger surfaces render; a change to anything else on the row

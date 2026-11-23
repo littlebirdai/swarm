@@ -785,17 +785,15 @@ export const CLIENT_SYNC_REGISTRY = {
   // Each is ONE entry. The Dexie table, the sync defaults, the {} at boot, the
   // typed store slot and the feed-leakage guard all derive from it.
 
-  // Triggers (agent_tasks). webList returns the COMPLETE set for the user, so
-  // this is a snapshot sync (absence = deleted), not a delta. localFirst: the
-  // pause/resume/run-now/cancel gestures flip status on the draft and ride
-  // named dispatch side effects to the real mutations.
+  // Trigger history syncs as a snapshot after all pages arrive. The web
+  // roster feeds a delta and the phone feeds a bounded snapshot.
   agentTasks: {
     persistence: { kind: "collection", key: "agentTasks" },
     hydration: { phase: "deferred" },
     localFirst: true,
     // A project's new source paints a stub keyed by its client_key; the server row carrying it supersedes it.
     sync: { altKey: "client_key" },
-    feeds: ["agentTasks.webList"],
+    feeds: ["agentTasks.webList", "agentTasks.webListHistory"],
   },
   // The roster's blind spot, filled: triggers armed under ANOTHER account (a
   // remote daemon's bot login) that drive a conversation the viewer can see.
@@ -803,7 +801,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // the candidate conversations off its own armed_trigger_kind stamps and asks
   // webListForConversations for exactly those (components/triggerTasks.ts,
   // foreignTriggerConvIds). A separate key because the query returns the
-  // COMPLETE set for the ids it was asked about — snapshot, like webList — and
+  // COMPLETE set for the ids it was asked about — a snapshot — and
   // two snapshot feeders would delete each other's rows out of one collection.
   // localFirst like agentTasks: the management verbs work on a foreign trigger
   // too (only delete is owner-only, getManageableTask), so pause/resume/run-now
