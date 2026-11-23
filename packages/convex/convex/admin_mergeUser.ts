@@ -1,5 +1,7 @@
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
+import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { patchCommentWithRevision } from "./commentViewWrites";
 import { getComment } from "./commentStore";
 import { commentIdOf, isConversationComment } from "./lib/conversationCommentRows";
@@ -23,6 +25,7 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
   { table: "sync_cursors", field: "user_id", index: "by_user_id" },
   { table: "rate_limits", field: "user_id", index: "by_user_endpoint" },
   { table: "api_tokens", field: "user_id", index: "by_user_id" },
+  // The same transfer moves the dependent heartbeat row.
   { table: "managed_sessions", field: "user_id", index: "by_user_id" },
   { table: "session_metrics", field: "user_id", index: "by_user_collected" },
   { table: "reviews", field: "reviewer_user_id", index: "by_reviewer" },
@@ -181,6 +184,8 @@ export const mergeDuplicateUser = internalMutation({
             // writer, so the conversation's comment view advances.
             const comment = await getComment(ctx, commentIdOf(row));
             if (comment) await patchCommentWithRevision(ctx, comment, { user_id: args.to_user_id });
+          } else if (table === "managed_sessions") {
+            await transferManagedSession(ctx, row._id as Id<"managed_sessions">, args.to_user_id);
           } else if (table === "local_view_heads") {
             await mergeLocalViewHead(ctx, row as any, args.to_user_id);
           } else {

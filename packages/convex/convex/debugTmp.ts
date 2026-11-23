@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./lib/sessionHeartbeat";
 // TEMPORARY debug query — safe to delete. Inspects why a conversation keeps
 // reappearing after dismiss: dumps dismiss-relevant fields + recent activity.
 import { internalQuery, internalMutation } from "./functions";
@@ -97,7 +98,7 @@ export const inspectConversation = internalQuery({
       managedSession: managed
         ? {
             agent_status: managed.agent_status,
-            last_heartbeat: managed.last_heartbeat,
+            last_heartbeat: await heartbeatOf(ctx, managed),
             last_metrics_at: managed.last_metrics_at,
           }
         : null,

@@ -1,3 +1,4 @@
+import { deleteManagedSession } from "./lib/sessionHeartbeat";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation } from "./functions";
@@ -51,7 +52,10 @@ async function deleteOwned(
       .query(table)
       .withIndex(index, (q: any) => q.eq(field, userId))
       .take(budget);
-    for (const row of rows) await ctx.db.delete(row._id);
+    for (const row of rows) {
+      if (table === "managed_sessions") await deleteManagedSession(ctx, row._id);
+      else await ctx.db.delete(row._id);
+    }
     budget -= rows.length;
   }
   return budget;

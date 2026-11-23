@@ -1,3 +1,4 @@
+import { managedSessionsBeatingSince } from "./sessionHeartbeat";
 // The one way to read "this user's live managed sessions".
 //
 // managed_sessions is heartbeat-hot: every live session rewrites its row every
@@ -23,12 +24,7 @@ export async function listLiveManagedSessions(
 ): Promise<Doc<"managed_sessions">[]> {
   const now = opts?.now ?? Date.now();
   const aliveMs = opts?.aliveMs ?? HEARTBEAT_ALIVE_MS;
-  return ctx.db
-    .query("managed_sessions")
-    .withIndex("by_user_heartbeat", (q: any) =>
-      q.eq("user_id", userId).gt("last_heartbeat", now - aliveMs),
-    )
-    .collect();
+  return managedSessionsBeatingSince(ctx, now - aliveMs, userId);
 }
 
 // A row a daemon process stands behind. A hosted assistant conversation's

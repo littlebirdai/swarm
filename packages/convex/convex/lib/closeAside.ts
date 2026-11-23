@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./sessionHeartbeat";
 // Close is dormancy, not retirement: it may stop an agent only when nothing is
 // in flight. The web decides at the click (lib/sessionClose); this is the
 // server's own read of the row, so a close the client guessed wrong never cuts
@@ -98,6 +99,7 @@ export async function inFlightFactsOnServer(ctx: { db: any }, conv: any, now: nu
     : null;
   // No process behind it: nothing to cut off mid-turn.
   if (managed) {
+    const lastHeartbeat = await heartbeatOf(ctx, managed);
     const live = deriveLiveAt({
       status: conv.status,
       agent_type: conv.agent_type,
@@ -106,14 +108,14 @@ export async function inFlightFactsOnServer(ctx: { db: any }, conv: any, now: nu
       has_pending_messages: !!conv.has_pending_messages,
       agent_status: managed.agent_status ?? null,
       agent_status_updated_at: managed.agent_status_updated_at ?? null,
-      last_heartbeat: managed.last_heartbeat ?? null,
-      daemon_alive_until: managed.last_heartbeat != null ? managed.last_heartbeat + HEARTBEAT_ALIVE_MS : null,
+      last_heartbeat: lastHeartbeat,
+      daemon_alive_until: lastHeartbeat + HEARTBEAT_ALIVE_MS,
       last_role_is_user: conv.last_message_role === "user",
       open_tasks: managed.open_tasks ?? null,
       open_tasks_at: managed.open_tasks_at ?? null,
     }, now);
     turnLive = !live.is_idle;
-    openBackgroundWork = openTasksVouchForWaiting(managed.open_tasks_at, managed.open_tasks?.length ?? 0, rowHeartbeatAliveAt(managed, now));
+    openBackgroundWork = openTasksVouchForWaiting(managed.open_tasks_at, managed.open_tasks?.length ?? 0, rowHeartbeatAliveAt({ last_heartbeat: lastHeartbeat }, now));
     awaitingInput = live.awaiting_input || managed.agent_status === "permission_blocked";
     if (!turnLive && !awaitingInput) {
       const newest = await ctx.db

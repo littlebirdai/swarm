@@ -1,3 +1,4 @@
+import { managedSessionsBeatingSince } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
 // Claude Code account switching + mass-continue for limit-blocked sessions.
 //
@@ -2324,12 +2325,7 @@ export const listStaleCodexSessions = query({
       .withIndex("by_user_id", (q) => q.eq("user_id", userId))
       .collect();
     const deviceById = new Map(devices.map((d) => [d.device_id, d]));
-    const live = await ctx.db
-      .query("managed_sessions")
-      .withIndex("by_user_heartbeat", (q: any) =>
-        q.eq("user_id", userId).gt("last_heartbeat", now - CODEX_PANE_LIVE_MS),
-      )
-      .collect();
+    const live = await managedSessionsBeatingSince(ctx, now - CODEX_PANE_LIVE_MS, userId);
     const out: Array<{
       conversation_id: Id<"conversations">;
       session_id: string;

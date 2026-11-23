@@ -1,3 +1,4 @@
+import { deleteManagedSession, heartbeatOf, managedHeartbeatPage, writeSessionHeartbeat } from "./lib/sessionHeartbeat";
 import { mutation, query, internalMutation, type MutationCtx } from "./functions";
 import { noteWriteCause } from "./lifecycleEvents";
 import { releaseQueuedRows } from "./pendingMessageWrites";
@@ -178,7 +179,7 @@ export async function performRegisterManagedSession(
     const now = Date.now();
     if (existing) {
       if (existing.user_id.toString() !== authUserId.toString()) {
-        await ctx.db.delete(existing._id);
+        await deleteManagedSession(ctx, existing._id);
       } else {
         await ctx.db.patch(existing._id, {
           pid: args.pid,
@@ -187,6 +188,7 @@ export async function performRegisterManagedSession(
           ...(args.tmux_session !== undefined ? { tmux_session: args.tmux_session } : {}),
           ...(effectiveConversationId ? { conversation_id: effectiveConversationId } : {}),
         });
+        await writeSessionHeartbeat(ctx, existing._id, authUserId, now);
         if (stampDeviceId && effectiveConversationId) {
           // Registering a live local process for this conversation disproves any
           // "couldn't start / no local checkout - clone it first" banner stamped
@@ -214,7 +216,7 @@ export async function performRegisterManagedSession(
         if (args.tmux_session === undefined && args.backend !== "sdk" && o.tmux_session && !inheritedTmuxSession) {
           inheritedTmuxSession = o.tmux_session;
         }
-        await ctx.db.delete(o._id);
+        await deleteManagedSession(ctx, o._id);
       }
     }
 
@@ -228,6 +230,8 @@ export async function performRegisterManagedSession(
       started_at: now,
       last_heartbeat: now,
     });
+
+    await writeSessionHeartbeat(ctx, id, authUserId, now);
 
     // Claim ownership: stamp this device as the conversation's owner. Also clear
     // any stale "no local checkout" banner — a fresh local process disproves it
@@ -305,7 +309,7 @@ export const updateSessionConversation = mutation({
 
     for (const oldSession of oldSessions) {
       if (oldSession._id !== session._id) {
-        await ctx.db.delete(oldSession._id);
+        await deleteManagedSession(ctx, oldSession._id);
       }
     }
 
@@ -383,7 +387,7 @@ const agentStatusValidator = v.union(
 );
 
 // Shared by heartbeat + heartbeatBatch: compute one session's heartbeat patch.
-// last_heartbeat always advances. The heartbeat carries the daemon's current
+// The heartbeat carries the daemon's current
 // agent_status so the server self-heals a dropped transition — but only
 // overwrites when the incoming client_ts isn't older than the last applied write
 // time, and only advances agent_status_updated_at on an ACTUAL status change
@@ -392,9 +396,8 @@ const agentStatusValidator = v.union(
 // detection depends on).
 // Refresh last_heartbeat at most this often (HEARTBEAT_REFRESH_MS, owned by
 // @codecast/shared/contracts because the liveness window is derived from it).
-// Every managed_sessions write invalidates listInboxSessions (it .collect()s
-// the whole table), so an unconditional last_heartbeat=now on every 30s beat —
-// ×N sessions ×N heartbeat sources — was a needless invalidation/OCC firehose.
+// The legacy write invalidates projections that read the registry, so preserve
+// the refresh throttle during expand.
 // The throttle means the stamp advances on the first flush PAST it, not on the
 // flush cadence: 60s apart in steady state and 85s behind a late flush, which
 // is why HEARTBEAT_ALIVE_MS is derived from this number rather than guessed
@@ -439,6 +442,15 @@ export function buildHeartbeatPatch(
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
+async function applyHeartbeat(ctx: MutationCtx, session: Doc<"managed_sessions">, agentStatus: string | undefined, clientTs: number | undefined, now: number) {
+  const patch = buildHeartbeatPatch(session, agentStatus, clientTs, now);
+  // Expand keeps the original throttle and counts. Seed a missing side row
+  // even when this beat falls within the legacy timestamp's refresh interval.
+  await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);
+  if (patch) await ctx.db.patch(session._id, patch);
+  return patch;
+}
+
 export const heartbeat = mutation({
   args: {
     session_id: v.string(),
@@ -475,8 +487,7 @@ export const heartbeat = mutation({
     if (session.conversation_id && !(await canExecuteConversation(ctx, authUserId, session.conversation_id))) return { found: false };
 
     const now = Date.now();
-    const patch = buildHeartbeatPatch(session, args.agent_status, args.client_ts, now);
-    if (patch) await ctx.db.patch(session._id, patch);
+    const patch = await applyHeartbeat(ctx, session, args.agent_status, args.client_ts, now);
 
     // The heartbeat self-heals dropped status transitions (a lost Stop hook) —
     // those healed transitions must feed the needs-input push like any other.
@@ -541,9 +552,8 @@ export const heartbeatBatch = mutation({
         continue;
       }
       if (session.conversation_id && !(await canExecuteConversation(ctx, authUserId, session.conversation_id))) continue;
-      const patch = buildHeartbeatPatch(session, entry.agent_status, entry.client_ts, now);
+      const patch = await applyHeartbeat(ctx, session, entry.agent_status, entry.client_ts, now);
       if (!patch) continue;
-      await ctx.db.patch(session._id, patch);
       // Same self-healed-transition hook as the single heartbeat above.
       if (patch.agent_status && patch.agent_status_updated_at && session.conversation_id) {
         await scheduleNeedsInputCheck(ctx, session.conversation_id, patch.agent_status, patch.agent_status_updated_at);
@@ -583,7 +593,7 @@ export const unregisterManagedSession = mutation({
       throw new Error("Unauthorized");
     }
 
-    await ctx.db.delete(session._id);
+    await deleteManagedSession(ctx, session._id);
     return { found: true };
   },
 });
@@ -643,7 +653,8 @@ export const isSessionManaged = query({
       return { managed: false };
     }
 
-    const isStale = now - session.last_heartbeat > STALE_THRESHOLD;
+    const lastHeartbeat = await heartbeatOf(ctx, session);
+    const isStale = now - lastHeartbeat > STALE_THRESHOLD;
 
     // Check if any child sessions (subagents) are still active
     let has_active_children = false;
@@ -657,7 +668,7 @@ export const isSessionManaged = query({
           .query("managed_sessions")
           .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", child._id))
           .first();
-        if (childSession && now - childSession.last_heartbeat < STALE_THRESHOLD) {
+        if (childSession && now - await heartbeatOf(ctx, childSession) < STALE_THRESHOLD) {
           has_active_children = true;
           break;
         }
@@ -669,7 +680,7 @@ export const isSessionManaged = query({
       has_active_children,
       session_id: session.session_id,
       pid: session.pid,
-      last_heartbeat: session.last_heartbeat,
+      last_heartbeat: lastHeartbeat,
       tmux_session: session.tmux_session,
       agent_status: session.agent_status,
       hibernated_at: session.hibernated_at,
@@ -905,6 +916,7 @@ export async function ensureHostedManagedSession(ctx: MutationCtx, conversation:
     agent_status_updated_at: now,
     hosted: true,
   });
+  await writeSessionHeartbeat(ctx, id, conversation.user_id, 0);
   return (await ctx.db.get(id))!;
 }
 
@@ -952,7 +964,9 @@ async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions
   // This prevents stale-heartbeat inference from overriding a valid status update
   // (e.g. after daemon restart before the heartbeat interval kicks in).
   if (ACTIVE_AGENT_STATUSES.has(args.agent_status)) {
-    patch.last_heartbeat = Date.now();
+    const at = Date.now();
+    patch.last_heartbeat = at;
+    await writeSessionHeartbeat(ctx, session._id, session.user_id, at);
   }
 
   if (Object.keys(patch).length > 0) {
@@ -1266,28 +1280,20 @@ export const reapStaleManagedSessions = internalMutation({
     noteWriteCause(ctx, "cron:reapStaleManagedSessions");
     const cutoff = args.cutoff ?? Date.now() - (args.cutoffMs ?? 60 * 60 * 1000); // dead = no beat in 1h
     const readStart = Date.now();
-    const dead = await ctx.db
-      .query("managed_sessions")
-      .withIndex("by_heartbeat", (q: any) => {
-        const lower = args.after === undefined
-          ? q.gte("last_heartbeat", cutoff - REAP_WINDOW_MS)
-          : q.gt("last_heartbeat", args.after);
-        return lower.lt("last_heartbeat", cutoff);
-      })
-      .take(REAP_PAGE_SIZE);
+    const { expired, cursor } = await managedHeartbeatPage(ctx, cutoff - REAP_WINDOW_MS, cutoff, args.after, REAP_PAGE_SIZE);
     const readMs = Date.now() - readStart;
 
     // A parked pane and a hosted conversation's status row are not dead rows:
     // the first is waiting to resume, and the second writes no heartbeat while
     // it waits on an approval (see the hosted field in the schema).
-    const reapable = dead.filter(s => s.agent_status !== "hibernated" && isDaemonManagedRow(s));
-    for (const s of reapable) await ctx.db.delete(s._id);
+    const reapable = expired.filter(s => s.agent_status !== "hibernated" && isDaemonManagedRow(s));
+    for (const s of reapable) await deleteManagedSession(ctx, s._id);
 
-    const more = dead.length === REAP_PAGE_SIZE;
-    if (more) {
+    const more = cursor !== undefined;
+    if (cursor !== undefined) {
       await ctx.scheduler.runAfter(0, internal.managedSessions.reapStaleManagedSessions, {
         cutoff,
-        after: dead[dead.length - 1].last_heartbeat,
+        after: cursor,
       });
     }
     if (reapable.length > 0) {

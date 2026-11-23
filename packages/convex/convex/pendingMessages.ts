@@ -1,3 +1,4 @@
+import { conversationSessionsBeatingSince, heartbeatsFor } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
 import { UNCONFIRMED_DELIVERY_REASON, isReservedDevice } from "@codecast/shared/contracts";
 import { noteScreenRecordingSent } from "./lib/screenRecordingSent";
@@ -2148,14 +2149,14 @@ export function planDeadSessionRevive(
 // regardless of what the agent is doing) and `ready` (live AND the agent is idle, so it can take a
 // message right now). The cross-user notifier needs `live` to tell "busy" (alive but not idle)
 // apart from "offline" (no live daemon); both keep the message queued.
-function liveAndReadyConversationIds(sessions: Doc<"managed_sessions">[], now: number) {
+function liveAndReadyConversationIds(sessions: Doc<"managed_sessions">[], beats: number[], now: number) {
   const ready = new Set<string>();
   const live = new Set<string>();
-  for (const s of sessions) {
-    if (!s.conversation_id || s.last_heartbeat <= now - HEARTBEAT_ALIVE_MS) continue;
+  sessions.forEach((s, i) => {
+    if (!s.conversation_id || beats[i] <= now - HEARTBEAT_ALIVE_MS) return;
     live.add(s.conversation_id);
     if (managedSessionReady(s, now)) ready.add(s.conversation_id);
-  }
+  });
   return { ready, live };
 }
 
@@ -2179,10 +2180,12 @@ function readsTypeAhead(target: any, s: any): boolean {
 // after the same trust decay the inbox applies, so a stale "working" left by a
 // lost hook reads as settled) and its owner's daemon (sendArrival).
 async function arrivalFor(ctx: { db: any }, target: any, queued: boolean, now: number): Promise<{ arrives: SendArrival; live: boolean }> {
-  const live = (await ctx.db
+  const sessions = await ctx.db
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", target._id))
-    .collect()).filter((s: any) => now - (s.last_heartbeat ?? 0) < HEARTBEAT_ALIVE_MS);
+    .collect();
+  const beats = await heartbeatsFor(ctx, sessions);
+  const live = sessions.filter((_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS);
   const ownerOnline = live.length > 0 || (await resolveOwnerDeviceView(ctx, target, now)).owner_online;
   const arrives = sendArrival({
     safetyBlocked: isConversationSafetyBlocked(target),
@@ -2538,7 +2541,8 @@ async function planStuckMessageGroups(ctx: { db: QueryCtx["db"] }, now: number, 
   const sessionsByConversation = await Promise.all(
     queryStuckSessions(ctx.db, candidates, now).map((query) => query.take(STUCK_SESSIONS_PER_CONVERSATION)),
   );
-  const readiness = liveAndReadyConversationIds(sessionsByConversation.flat(), now);
+  const sampled = sessionsByConversation.flat();
+  const readiness = liveAndReadyConversationIds(sampled, await heartbeatsFor(ctx, sampled), now);
   const uncertain = new Set(sessionsByConversation
     .filter((sessions) => sessions.length === STUCK_SESSIONS_PER_CONVERSATION)
     .map((sessions) => sessions[0].conversation_id!)
@@ -2587,13 +2591,13 @@ async function healAndNotifyStuckMessages(
     (row): row is Doc<"pending_messages"> => row !== null && NON_TERMINAL_STATUSES.some((status) => status === row.status),
   );
   const sessions = (await Promise.all(queryStuckSessions(ctx.db, candidates, now).map((query) => query.collect()))).flat();
-  return healStuckCandidates(ctx, now, candidates, liveAndReadyConversationIds(sessions, now), deadRevivesRemaining, allowHostedWake, (effect) => effect());
+  const readiness = liveAndReadyConversationIds(sessions, await heartbeatsFor(ctx, sessions), now);
+  return healStuckCandidates(ctx, now, candidates, readiness, deadRevivesRemaining, allowHostedWake, (effect) => effect());
 }
 
 function queryStuckSessions(db: QueryCtx["db"], candidates: Doc<"pending_messages">[], now: number) {
   const conversations = new Set(candidates.filter((msg) => !isFencedPendingMessage(msg)).map((msg) => msg.conversation_id));
-  return [...conversations].map((id) => db.query("managed_sessions")
-    .withIndex("by_conversation_heartbeat", (q) => q.eq("conversation_id", id).gt("last_heartbeat", now - HEARTBEAT_ALIVE_MS)));
+  return [...conversations].map((id) => conversationSessionsBeatingSince({ db }, id, now - HEARTBEAT_ALIVE_MS));
 }
 
 // A plan records eligible effects without running them. Receipts and hosted

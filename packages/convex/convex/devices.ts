@@ -1,3 +1,4 @@
+import { deleteManagedSession, transferManagedSession } from "./lib/sessionHeartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
 import { mutation, query, internalQuery } from "./functions";
@@ -946,7 +947,7 @@ export async function performReparentSessionToDevice(
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
     .collect()) staleManaged.set(row._id.toString(), row);
-  for (const row of staleManaged.values()) await ctx.db.delete(row._id);
+  for (const row of staleManaged.values()) await deleteManagedSession(ctx, row._id);
 
   // Resume on the destination's daemon: the command goes in its RUNNER's queue
   // (the caller, or a team machine's account), targeted at that device. A
@@ -1116,7 +1117,7 @@ export async function performClaimDeviceAccount(
       .collect();
     for (const row of managed) {
       if (row.user_id?.toString() === args.previousUserId.toString()) {
-        await ctx.db.patch(row._id, { user_id: callerId });
+        await transferManagedSession(ctx, row._id, callerId);
       }
     }
   }

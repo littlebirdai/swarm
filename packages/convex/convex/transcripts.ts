@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./lib/sessionHeartbeat";
 // Huddle transcription control plane.
 //
 // The SCRIBE — the client that toggled Transcribe on — owns the run: it holds
@@ -843,7 +844,8 @@ export async function fedSessionPacing(
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
     .first();
-  const heartbeatFresh = !!managed?.last_heartbeat && now - managed.last_heartbeat < HEARTBEAT_ALIVE_MS;
+  const beat = await heartbeatOf(ctx, managed);
+  const heartbeatFresh = beat !== 0 && now - beat < HEARTBEAT_ALIVE_MS;
   const status = trustedAgentStatus(managed?.agent_status, managed?.agent_status_updated_at, now, heartbeatFresh);
   const character = characterOf({
     _id: String(conv._id),

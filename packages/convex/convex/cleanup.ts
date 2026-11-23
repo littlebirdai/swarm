@@ -1,3 +1,4 @@
+import { deleteManagedSession, heartbeatsFor } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { noteWriteCause } from "./lifecycleEvents";
 import { internalMutation, mutation } from "./functions";
@@ -220,14 +221,14 @@ export async function reapEmptyConversation(
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
     .collect();
-  const hasLiveAgent = sessions.some((m: any) => (m.last_heartbeat ?? 0) > now - LIVE_HEARTBEAT_MS);
+  const hasLiveAgent = (await heartbeatsFor(ctx, sessions)).some((beat) => beat > now - LIVE_HEARTBEAT_MS);
 
   if (hasLiveAgent) {
     await enqueueKillSessionCommand(ctx, conv, now, "gc_empty");
     return "kill_enqueued";
   }
 
-  for (const m of sessions) await ctx.db.delete(m._id);
+  for (const m of sessions) await deleteManagedSession(ctx, m._id);
   const diffs = await ctx.db
     .query("conversation_git_diffs")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
@@ -583,7 +584,7 @@ export const gcEmptyConversations = internalMutation({
       // kill_session that tears the tmux down (deleting the managed row alone would
       // orphan it). Undismissed live empties (a fresh pre-warm, an open terminal)
       // stay protected.
-      const live = managed.some((m) => m.last_heartbeat > now - LIVE_HEARTBEAT_MS);
+      const live = (await heartbeatsFor(ctx, managed)).some((beat) => beat > now - LIVE_HEARTBEAT_MS);
       if (!shouldReapEmpty(c, live)) continue;
 
       const userKey = c.user_id.toString();

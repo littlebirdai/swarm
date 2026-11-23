@@ -34,19 +34,21 @@ const CLI = { includeLiveness: true, projection: true };
 // unique, a page or an iterator step). Convex counts its limits the same way.
 function countingDb(db: any) {
   let calls = 0;
+  const queriedTables = new Set<string>();
   const count = (v: any) => { calls++; return v; };
   const wrap = (q: any): any => new Proxy(q, {
     get(target, prop) {
       const value = target[prop];
       if (typeof value !== "function") return value;
       return (...args: any[]) => {
+        if (prop === "query") queriedTables.add(args[0]);
         const out = value.apply(target, args);
         if (out && typeof out.then === "function") return out.then(count);
         return out && typeof out === "object" ? wrap(out) : out;
       };
     },
   });
-  return { db: wrap(db), calls: () => calls };
+  return { db: wrap(db), calls: () => calls, queriedTables };
 }
 
 // An account with `perWindow(w)` rows in every window. Every top-level row
@@ -148,9 +150,9 @@ const light = () => account(() => 20);
 
 async function run(fixture: ReturnType<typeof account>, opts: any) {
   _resetChildAuqProbeCacheForTests();
-  const { db, calls } = countingDb(makeFakeDb(fixture.data, { indexes: schemaIndexes(schema as any) }));
+  const { db, calls, queriedTables } = countingDb(makeFakeDb(fixture.data, { indexes: schemaIndexes(schema as any) }));
   const result = await computeInboxSessions({ db } as any, ME as any, opts);
-  return { result, calls: calls() };
+  return { result, calls: calls(), queriedTables };
 }
 
 // Every row a window would admit that the result leaves out must name its
@@ -182,7 +184,9 @@ beforeEach(() => _resetChildAuqProbeCacheForTests());
 describe("listInboxSessions read budget on a full account", () => {
   test("the web live subscription stays inside half of Convex's 4,096 db-call limit", async () => {
     const fixture = full();
-    const { result, calls } = await run(fixture, WEB);
+    const { result, calls, queriedTables } = await run(fixture, WEB);
+    expect(queriedTables.has("session_heartbeats")).toBe(false);
+    expect(queriedTables.has("managed_sessions")).toBe(false);
     console.log(`web listInboxSessions on a full account: ${calls} db calls, ${result.sessions.length} rows, truncated=${JSON.stringify(result.truncated)}`);
     for (const w of WINDOWS) expect(result.truncated).toContain(w as any);
     expect(calls).toBeLessThanOrEqual(READ_BUDGET);
@@ -190,7 +194,8 @@ describe("listInboxSessions read budget on a full account", () => {
 
   test("the CLI's call (include_liveness:true, the projection) stays inside the same budget", async () => {
     const fixture = full();
-    const { result, calls } = await run(fixture, CLI);
+    const { result, calls, queriedTables } = await run(fixture, CLI);
+    expect(queriedTables.has("session_heartbeats")).toBe(true);
     console.log(`cli listInboxSessions on a full account: ${calls} db calls, ${result.sessions.length} rows, truncated=${JSON.stringify(result.truncated)}`);
     for (const w of WINDOWS) expect(result.truncated).toContain(w as any);
     expect(calls).toBeLessThanOrEqual(READ_BUDGET);

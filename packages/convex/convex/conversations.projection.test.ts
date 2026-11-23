@@ -594,6 +594,7 @@ describe("overlay read budget", () => {
     await computeSessionsLiveness(ctx, ME as any);
     const by = (prefix: string) => ops.filter((o) => o.startsWith(prefix)).length;
     expect(by("managed_sessions")).toBe(1);
+    expect(by("session_heartbeats")).toBe(1);
     expect(by("session_decisions")).toBe(1);
     expect(by("decision_inbox")).toBe(1);
     expect(by("agent_tasks")).toBe(0);
@@ -605,7 +606,7 @@ describe("overlay read budget", () => {
     expect(by("conversations")).toBe(11);
     expect(by("session_owners")).toBe(1);
     expect(by("get")).toBe(0);
-    expect(ops.length).toBe(17);
+    expect(ops.length).toBe(18);
   });
 });
 

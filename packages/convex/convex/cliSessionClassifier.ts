@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./lib/sessionHeartbeat";
 import { wakeFieldsOf, wakeCost } from "./wakeCost";
 import { deriveSessionActivity, classifyWorkState, trustedAgentStatus, userRestOf, isSettleVerdictCurrent, HEARTBEAT_ALIVE_MS, type WorkState } from "./inboxFilters";
 import { openTasksVouchForWaiting } from "@codecast/shared/contracts";
@@ -30,30 +31,31 @@ export function recencyRankOf(conv: any, now: number): RecencyRank {
 }
 
 export function cliSessionClassifier(ctx: any, now: number) {
-  const managedCache = new Map<string, any>();
+  const managedCache = new Map<string, { session: any; beat: number }>();
   const classified = new Map<string, { work_state: WorkState; agent_status?: string }>();
   const armedHomesFor = armedTriggerHomeLoader(ctx);
 
-  const managedFor = async (conv: any): Promise<any> => {
+  const managedFor = async (conv: any) => {
     const key = conv._id.toString();
     if (!managedCache.has(key)) {
       const managed = await ctx.db
         .query("managed_sessions")
         .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
         .first();
-      managedCache.set(key, managed ?? null);
+      managedCache.set(key, { session: managed, beat: await heartbeatOf(ctx, managed) });
     }
-    return managedCache.get(key);
+    return managedCache.get(key)!;
   };
 
-  const isLiveManaged = (managed: any): boolean =>
-    !!managed && managed.agent_status !== "hibernated" && (now - managed.last_heartbeat) < MANAGED_STALE_MS;
+  const isLiveManaged = ({ session, beat }: { session: any; beat: number }): boolean =>
+    !!session && session.agent_status !== "hibernated" && now - beat < MANAGED_STALE_MS;
 
   const classify = async (conv: any): Promise<{ work_state: WorkState; agent_status?: string }> => {
     const cached = classified.get(conv._id.toString());
     if (cached) return cached;
-    const managed = await managedFor(conv);
-    const isLive = isLiveManaged(managed);
+    const facts = await managedFor(conv);
+    const { session: managed, beat } = facts;
+    const isLive = isLiveManaged(facts);
     const armedHomes = await armedHomesFor(conv.user_id);
     // Stop trusting a frozen "active" status once the conversation has gone
     // quiet past the trust TTL — the SAME coercion enrichInboxSessionRow does
@@ -65,8 +67,7 @@ export function cliSessionClassifier(ctx: any, now: number) {
     // maps (NOT the stricter 60s live window above) so both surfaces coerce
     // identically. The coerced status is returned so a displayed `agent_status`
     // agrees with the bucketed work_state.
-    const heartbeatFresh =
-      !!managed?.last_heartbeat && now - managed.last_heartbeat < HEARTBEAT_ALIVE_MS;
+    const heartbeatFresh = beat !== 0 && now - beat < HEARTBEAT_ALIVE_MS;
     const agentStatus = trustedAgentStatus(
       managed?.agent_status, conv.updated_at, now, heartbeatFresh,
       openTasksVouchForWaiting(managed?.open_tasks_at, managed?.open_tasks?.length ?? 0, heartbeatFresh),
