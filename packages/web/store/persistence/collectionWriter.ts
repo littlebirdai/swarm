@@ -4,6 +4,7 @@ import { createCoalescedWriter, deleteAllowed, diffCollection, diffPatchedRows, 
 import { connectLivenessLane, flushLivenessWrites, holdLiveMeta, holdLivenessRows, holdLivenessSyncMeta, resetLivenessLane } from "../idbLivenessLane";
 import { COLLECTION_TABLES, db } from "./db";
 import { persistenceOwned } from "./ownership";
+import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 import { _hydrating } from "./hydration";
 
@@ -15,10 +16,10 @@ import { _hydrating } from "./hydration";
 // an empty set (which would leave pruned rows stranded as ghosts).
 export const lastPersisted = new Map<string, Map<string, any>>();
 
-let conversationPrunePending = false;
+let conversationRetentionDrops = new Set<string>();
 
-export function noteConversationRetentionDrops() {
-  conversationPrunePending = true;
+export function noteConversationRetentionDrops(ids: string[]) {
+  for (const id of ids) conversationRetentionDrops.add(id);
 }
 
 // Test hook: the shadow lives at module scope and would otherwise leak across
@@ -90,17 +91,26 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
           }).catch(() => {});
         }
         // Followers also hydrate. Leave disk retention to the next host write.
-        if (key === "conversations" && conversationPrunePending) {
-          conversationPrunePending = false;
-          void db.transaction("rw", table, async () => {
-            // A different host can update a row between this window's boot and its first write.
-            const { drop } = partitionSessionRetention(
-              await table.toArray(), state.liveInboxIdList, state.lastFocusedConversationId, Date.now(),
-            );
-            const shadow = lastPersisted.get(key);
-            const absent = drop.filter((id) => !(id in data) && !shadow?.has(id));
-            if (absent.length) await table.bulkDelete(absent);
-          }).catch(noteConversationRetentionDrops);
+        if (key === "conversations" && conversationRetentionDrops.size) {
+          const queued = conversationRetentionDrops;
+          const candidates = [...queued];
+          queued.clear();
+          void deleteInBatches({
+            bulkDelete: (batch) => db.transaction("rw", table, async () => {
+              if (queued !== conversationRetentionDrops || !persistenceOwned()) return;
+              const shadow = lastPersisted.get(key);
+              const absent = batch.filter((id) => !(id in data) && !shadow?.has(id));
+              if (!absent.length) return;
+              const rows = (await table.bulkGet(absent)).filter((row) => row !== undefined);
+              // Include the held rows so the retention cap still applies to this batch.
+              const { drop } = partitionSessionRetention(
+                [...(shadow?.values() ?? []), ...rows], state.liveInboxIdList, state.lastFocusedConversationId, Date.now(),
+              );
+              const dropped = new Set(drop);
+              const expired = rows.filter((row) => dropped.has(row._id)).map((row) => row._id);
+              if (expired.length) await table.bulkDelete(expired);
+            }),
+          }, candidates);
         }
       }
     } else if (key === "pending") {
@@ -128,5 +138,5 @@ export function resetCollectionWrites() {
   metaWriter.drop();
   resetLivenessLane();
   lastPersisted.clear();
-  conversationPrunePending = false;
+  conversationRetentionDrops = new Set();
 }

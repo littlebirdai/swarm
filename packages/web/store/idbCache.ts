@@ -7,7 +7,8 @@ export { flushPendingMessageJournal, persistPendingMessageChanges } from "./pers
 export { _cacheOwnerForTests } from "./persistence/ownership";
 export { _resetPersistedShadow, flushPersistence, writePatchesToIDB } from "./persistence/collectionWriter";
 export { setHydrating } from "./persistence/hydration";
-export { deleteInBatches, ensureCacheOwnership, loadCache, loadCacheSync, loadPaintCacheSync, RETENTION_DELETE_BATCH, RETIRED_META_KEYS } from "./persistence/bootLoader";
+export { ensureCacheOwnership, loadCache, loadCacheSync, loadPaintCacheSync, RETIRED_META_KEYS } from "./persistence/bootLoader";
+export { deleteInBatches, RETENTION_DELETE_BATCH } from "./persistence/retention";
 export { flushConversationMessages, loadConversationMessages, writeConversationMessages, writeConversationUserMessages, type CachedConversation } from "./persistence/messageCache";
 export { enqueueDispatch, loadOutbox, removeDispatch, salvageLocalFirstV2Data, type OutboxEntry } from "./persistence/outbox";
 export { purgeLocalCache } from "./persistence/purge";

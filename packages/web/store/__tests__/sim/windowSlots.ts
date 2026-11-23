@@ -117,7 +117,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/storeListenerCensus.ts:liveListenerCount": { shared: "dev listener census, read only from the console" },
   "store/persistence/db.ts:upgradeBlockedListener": IDB,
   "store/persistence/hydration.ts:_hydrating": IDB,
-  "store/persistence/collectionWriter.ts:conversationPrunePending": IDB,
+  "store/persistence/collectionWriter.ts:conversationRetentionDrops": IDB,
   "store/persistence/pendingInputJournal.ts:pendingJournalFlush": IDB,
   "store/persistence/pendingInputJournal.ts:pendingJournalEpoch": IDB,
   "store/persistence/db.ts:closeExpected": IDB,

@@ -1,4 +1,6 @@
-import { COLLECTION_INDEXES, META_STORE_KEYS, isPersistedClientStoreKey } from "../clientSyncRegistry";
+import { META_STORE_KEYS, WEB_COLLECTION_INDEXES, isPersistedClientStoreKey } from "../clientSyncRegistry";
+
+export { WEB_COLLECTION_INDEXES };
 
 // The on-disk schema starts with the client sync registry: every persisted
 // collection becomes a table keyed by its registered `indexes` (default "_id"),
@@ -36,12 +38,6 @@ export const SYSTEM_TABLES = {
   // pinned the desktop app's browser process. loadOutbox sorts the few live rows.
   dispatchOutbox: "id",
 } as const;
-
-// Keep the shared registry classification for replication and native storage.
-export const WEB_COLLECTION_INDEXES: Record<string, string> = {
-  ...COLLECTION_INDEXES,
-  conversations: "_id",
-};
 
 /** Stable serialization of the derived collection schema (sorted). */
 export function cacheSchemaSignature(): string {

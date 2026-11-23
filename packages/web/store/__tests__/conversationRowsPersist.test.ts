@@ -3,6 +3,8 @@ import { beforeEach, expect, spyOn, test } from "bun:test";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { Patch } from "mutative";
 import { followerPersistencePatches } from "../followerPersistence";
+import { MAX_CACHED_SESSIONS } from "../cacheRetention";
+import { noteSnapshotSync } from "../idbCollectionDiff";
 import { loadCache } from "../persistence/bootLoader";
 import { resetCollectionWrites, writePatchesToIDB } from "../persistence/collectionWriter";
 import { _reopenForTests, COLLECTION_TABLES, db } from "../persistence/db";
@@ -81,4 +83,48 @@ test("an ownerless cache cannot claim conversation rows", async () => {
 
   expect(await loadCache(["conversations"])).toBeNull();
   expect(await table.count()).toBe(0);
+});
+
+test("an authoritative snapshot can delete a conversation row", async () => {
+  const gone = { _id: id(1), updated_at: Date.now() };
+  const kept = { _id: id(2), updated_at: Date.now() };
+  await table.bulkPut([gone, kept]);
+  const cached = await loadCache(["conversations"]);
+  const conversations = { [kept._id]: { ...cached?.conversations[kept._id], title: "updated" } };
+
+  noteSnapshotSync("conversations", [kept._id], [gone._id]);
+  writePatchesToIDB(
+    [{ op: "add", path: ["conversations", kept._id, "title"], value: "updated" }],
+    { conversations, pending: {} },
+  );
+  await Bun.sleep(30);
+  expect(await table.toArray()).toEqual([conversations[kept._id]]);
+});
+
+test("deferred retention reads only boot drop IDs and still applies the cap", async () => {
+  const now = Date.now();
+  const old = { _id: id(0), updated_at: now - 60_000 };
+  const retained = Array.from({ length: MAX_CACHED_SESSIONS }, (_, i) => ({
+    _id: id(i + 1), updated_at: now,
+  }));
+  await table.bulkPut([old, ...retained]);
+  const cached = await loadCache(["conversations"]);
+  expect(cached?.conversations[old._id]).toBeUndefined();
+
+  const bulkGet = spyOn(table, "bulkGet");
+  const scan = spyOn(table, "toArray");
+  try {
+    writePatchesToIDB(
+      [{ op: "replace", path: ["conversations"], value: cached?.conversations }],
+      { ...cached, pending: {} },
+    );
+    await Bun.sleep(30);
+    expect(bulkGet.mock.calls).toEqual([[[old._id]]]);
+    expect(scan).not.toHaveBeenCalled();
+  } finally {
+    bulkGet.mockRestore();
+    scan.mockRestore();
+  }
+  expect(await table.get(old._id)).toBeUndefined();
+  expect(await table.count()).toBe(retained.length);
 });
