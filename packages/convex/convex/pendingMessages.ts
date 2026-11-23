@@ -2308,39 +2308,87 @@ export async function notifyStuckSend(
 // The query reads a bounded page. Each conversation gets its own mutation
 // because heartbeat and delivery writes made the former multi-conversation
 // mutation fail OCC on all 61 attempts in an hour.
-export const STUCK_MESSAGES_PER_PASS = 16;
+export const STUCK_MESSAGES_PER_PAGE = 16;
+export const STUCK_MESSAGE_PAGES_PER_RUN = 32;
 export const STUCK_SESSIONS_PER_CONVERSATION = 4;
 const NON_TERMINAL_STATUSES = ["pending", "injected", "failed", "undeliverable"] as const;
 const stuckCursor = v.object({
   through: v.number(),
   createdAt: v.number(),
   creationTime: v.number(),
-  status: v.string(),
 });
 type StuckCursor = Infer<typeof stuckCursor>;
-type StuckPlan = { groups: Id<"pending_messages">[][]; next?: StuckCursor | null };
+type StuckGroup = { conversationId: Id<"conversations">; ids: Id<"pending_messages">[] };
+type StuckPlan = { groups: StuckGroup[]; next?: StuckCursor | null };
+const retryReason = v.union(v.literal("apply_failed"), v.literal("dead_revive_limit"));
+const retryUpdate = v.object({
+  conversationId: v.id("conversations"),
+  messageId: v.id("pending_messages"),
+  reason: v.optional(retryReason),
+});
+type RetryUpdate = Infer<typeof retryUpdate>;
+type ApplyStuckResult = Awaited<ReturnType<typeof healAndNotifyStuckMessages>>;
 
 export const retryStuckMessages = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
-    const { groups, next }: StuckPlan = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now: Date.now() });
-    let deadRevivesRemaining = DEAD_SESSION_REVIVES_PER_PASS;
+    const now = Date.now();
+    const deadRevived = new Set<Id<"conversations">>();
+    const hostedChecked = new Set<Id<"conversations">>();
+    const retried = new Set<Id<"pending_messages">>();
     let failed = 0;
     let firstError: unknown;
-    for (const ids of groups) {
-      try {
-        const revivedDead: boolean = await ctx.runMutation(internal.pendingMessages.applyStuckMessages, { ids, deadRevivesRemaining });
-        if (revivedDead) deadRevivesRemaining--;
-      } catch (error) {
-        failed++;
-        firstError ??= error;
+
+    async function applyPage(groups: StuckGroup[], fromRetryQueue: boolean): Promise<RetryUpdate[]> {
+      const updates: RetryUpdate[] = [];
+      for (const { conversationId, ids: groupIds } of groups) {
+        const ids = groupIds.filter((id) => !retried.has(id));
+        if (ids.length === 0) continue;
+        if (fromRetryQueue) for (const id of ids) retried.add(id);
+
+        try {
+          const result: ApplyStuckResult = await ctx.runMutation(internal.pendingMessages.applyStuckMessages, {
+            ids,
+            now: Date.now(),
+            deadRevivesRemaining: deadRevived.has(conversationId) ? 1 : DEAD_SESSION_REVIVES_PER_PASS - deadRevived.size,
+            allowHostedWake: !hostedChecked.has(conversationId),
+          });
+          if (result.deadRevived > 0) deadRevived.add(conversationId);
+          if (result.checkedHosted) hostedChecked.add(conversationId);
+          const deferred = new Set(result.deferred);
+          for (const messageId of ids) {
+            if (deferred.has(messageId)) updates.push({ conversationId, messageId, reason: "dead_revive_limit" });
+            else if (fromRetryQueue) updates.push({ conversationId, messageId });
+          }
+        } catch (error) {
+          failed++;
+          firstError ??= error;
+          for (const messageId of ids) updates.push({ conversationId, messageId, reason: "apply_failed" });
+        }
       }
+      return updates;
     }
-    // Even a failed conversation must release this page. A new sweep will
-    // see it again, and a contended row cannot block the rest of the backlog.
-    if (next !== undefined) await ctx.runMutation(internal.pendingMessages.advanceStuckMessageSweep, { next });
+
+    // Earlier failures get a separate page budget so they cannot hold the
+    // sweep cursor or lose its normal throughput.
+    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN; page++) {
+      const groups: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planStuckMessageRetries, { now });
+      if (groups.length === 0) break;
+      const updates = await applyPage(groups, true);
+      await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates });
+    }
+
+    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN; page++) {
+      const { groups, next }: StuckPlan = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now });
+      const updates = await applyPage(groups, false);
+      if (next !== undefined || updates.length > 0) {
+        await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates, next });
+      }
+      if (!next) break;
+    }
+
     if (failed) {
-      console.warn(`retryStuckMessages: ${failed} of ${groups.length} conversation(s) left for the next sweep: ${String(firstError).slice(0, 300)}`);
+      console.warn(`retryStuckMessages: ${failed} conversation apply failure(s) queued for retry: ${String(firstError).slice(0, 300)}`);
     }
   },
 });
@@ -2353,14 +2401,40 @@ export const planStuckMessages = internalQuery({
   },
 });
 
-export const advanceStuckMessageSweep = internalMutation({
-  args: { next: v.union(stuckCursor, v.null()) },
-  handler: async (ctx, { next }): Promise<void> => {
-    const state = await ctx.db.query("pending_message_sweep_state").first();
-    if (state) {
-      await ctx.db.patch(state._id, { cursor: next });
-    } else if (next) {
-      await ctx.db.insert("pending_message_sweep_state", { cursor: next });
+export const planStuckMessageRetries = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, { now }): Promise<StuckGroup[]> => {
+    const failures = await ctx.db.query("pending_message_sweep_retries")
+      .withIndex("by_reason_attempted", (q) => q.eq("reason", "apply_failed").lt("attempted_at", now))
+      .take(STUCK_MESSAGES_PER_PAGE);
+    const remaining = STUCK_MESSAGES_PER_PAGE - failures.length;
+    const deferred = remaining > 0 ? await ctx.db.query("pending_message_sweep_retries")
+      .withIndex("by_reason_attempted", (q) => q.eq("reason", "dead_revive_limit").lt("attempted_at", now))
+      .take(remaining) : [];
+    return groupStuckMessages([...failures, ...deferred]);
+  },
+});
+
+export const checkpointStuckMessagePage = internalMutation({
+  args: { now: v.number(), next: v.optional(v.union(stuckCursor, v.null())), updates: v.array(retryUpdate) },
+  handler: async (ctx, { now, next, updates }): Promise<void> => {
+    if (next !== undefined) {
+      const state = await ctx.db.query("pending_message_sweep_state").first();
+      if (state) await ctx.db.patch(state._id, { cursor: next });
+      else if (next) await ctx.db.insert("pending_message_sweep_state", { cursor: next });
+    }
+    for (const { conversationId, messageId, reason } of updates) {
+      const retry = await ctx.db.query("pending_message_sweep_retries")
+        .withIndex("by_message_id", (q) => q.eq("message_id", messageId)).first();
+      if (reason === undefined) {
+        if (retry) await ctx.db.delete(retry._id);
+      } else if (retry) {
+        await ctx.db.patch(retry._id, { attempted_at: now, reason });
+      } else {
+        await ctx.db.insert("pending_message_sweep_retries", {
+          message_id: messageId, conversation_id: conversationId, attempted_at: now, reason,
+        });
+      }
     }
   },
 });
@@ -2371,14 +2445,10 @@ async function readStuckMessagePage(db: QueryCtx["db"], now: number, cursor: Stu
   const through = cursor?.through ?? now;
   const pages = await Promise.all(NON_TERMINAL_STATUSES.map(async (status) => {
     const equalTime = cursor ? await db.query("pending_messages")
-      .withIndex("by_status_created", (q) => {
-        const same = q.eq("status", status).eq("created_at", cursor.createdAt);
-        return status > cursor.status
-          ? same.gte("_creationTime", cursor.creationTime)
-          : same.gt("_creationTime", cursor.creationTime);
-      })
-      .take(STUCK_MESSAGES_PER_PASS) : [];
-    const remaining = STUCK_MESSAGES_PER_PASS - equalTime.length;
+      .withIndex("by_status_created", (q) =>
+        q.eq("status", status).eq("created_at", cursor.createdAt).gt("_creationTime", cursor.creationTime))
+      .take(STUCK_MESSAGES_PER_PAGE) : [];
+    const remaining = STUCK_MESSAGES_PER_PAGE - equalTime.length;
     if (remaining === 0) return equalTime;
     const later = await db.query("pending_messages")
       .withIndex("by_status_created", (q) => {
@@ -2389,12 +2459,11 @@ async function readStuckMessagePage(db: QueryCtx["db"], now: number, cursor: Stu
     return equalTime.concat(later);
   }));
   const candidates = pages.flat()
-    .sort((a, b) => a.created_at - b.created_at || a._creationTime - b._creationTime
-      || Number(a.status > b.status) - Number(a.status < b.status))
-    .slice(0, STUCK_MESSAGES_PER_PASS);
+    .sort((a, b) => a.created_at - b.created_at || a._creationTime - b._creationTime)
+    .slice(0, STUCK_MESSAGES_PER_PAGE);
   const last = candidates.at(-1);
-  const next = last && candidates.length === STUCK_MESSAGES_PER_PASS
-    ? { through, createdAt: last.created_at, creationTime: last._creationTime, status: last.status }
+  const next = last && candidates.length === STUCK_MESSAGES_PER_PAGE
+    ? { through, createdAt: last.created_at, creationTime: last._creationTime }
     : null;
   return { candidates, next };
 }
@@ -2409,50 +2478,52 @@ async function planStuckMessagePage(ctx: { db: QueryCtx["db"] }, now: number, cu
     .filter((sessions) => sessions.length === STUCK_SESSIONS_PER_CONVERSATION)
     .map((sessions) => sessions[0].conversation_id!)
     .filter((id) => !readiness.ready.has(id)));
-  const { acted } = await healStuckCandidates(ctx, now, candidates, readiness, DEAD_SESSION_REVIVES_PER_PASS, async () => true);
+  const { acted } = await healStuckCandidates(ctx, now, candidates, readiness, candidates.length, true, async () => true);
 
   // Treat a full session sample as inconclusive. The apply mutation checks
   // all live sessions for that conversation before it can revive anything.
   const actedIds = new Set(acted);
-  const byConversation = new Map<Id<"conversations">, Id<"pending_messages">[]>();
-  for (const msg of candidates) {
-    if (!actedIds.has(msg._id) && !(uncertain.has(msg.conversation_id) && !isFencedPendingMessage(msg))) continue;
-    const group = byConversation.get(msg.conversation_id);
-    if (group) group.push(msg._id);
-    else byConversation.set(msg.conversation_id, [msg._id]);
-  }
-  return { groups: [...byConversation.values()], ...(next || cursor ? { next } : {}) };
+  const groups = groupStuckMessages(candidates
+    .filter((msg) => actedIds.has(msg._id) || (uncertain.has(msg.conversation_id) && !isFencedPendingMessage(msg)))
+    .map((msg) => ({ message_id: msg._id, conversation_id: msg.conversation_id })));
+  return { groups, ...(next || cursor ? { next } : {}) };
 }
 
-export async function planStuckMessageIds(ctx: { db: QueryCtx["db"] }, now: number): Promise<Id<"pending_messages">[][]> {
-  return (await planStuckMessagePage(ctx, now, null)).groups;
+function groupStuckMessages(rows: { message_id: Id<"pending_messages">; conversation_id: Id<"conversations"> }[]): StuckGroup[] {
+  const groups = new Map<Id<"conversations">, StuckGroup>();
+  for (const row of rows) {
+    const group = groups.get(row.conversation_id);
+    if (group) group.ids.push(row.message_id);
+    else groups.set(row.conversation_id, { conversationId: row.conversation_id, ids: [row.message_id] });
+  }
+  return [...groups.values()];
 }
 
 export const applyStuckMessages: RegisteredMutation<"internal", {
   ids: Id<"pending_messages">[];
+  now: number;
   deadRevivesRemaining: number;
-}, Promise<boolean>> = internalMutation({
-  args: { ids: v.array(v.id("pending_messages")), deadRevivesRemaining: v.number() },
+  allowHostedWake: boolean;
+}, Promise<ApplyStuckResult>> = internalMutation({
+  args: { ids: v.array(v.id("pending_messages")), now: v.number(), deadRevivesRemaining: v.number(), allowHostedWake: v.boolean() },
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cron:retryStuckMessages");
-    const result = await healAndNotifyStuckMessages(ctx, Date.now(), args.ids, args.deadRevivesRemaining);
-    return result.deadRevived > 0;
+    return healAndNotifyStuckMessages(ctx, args.now, args.ids, args.deadRevivesRemaining, args.allowHostedWake);
   },
 });
 
-export async function healAndNotifyStuckMessages(
+async function healAndNotifyStuckMessages(
   ctx: { db: QueryCtx["db"]; scheduler?: WakeScheduler },
   now: number,
-  ids?: Id<"pending_messages">[],
-  deadRevivesRemaining = DEAD_SESSION_REVIVES_PER_PASS,
+  ids: Id<"pending_messages">[],
+  deadRevivesRemaining: number,
+  allowHostedWake: boolean,
 ) {
-  const candidates = ids
-    ? (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter(
-      (row): row is Doc<"pending_messages"> => row !== null && NON_TERMINAL_STATUSES.some((status) => status === row.status),
-    )
-    : (await readStuckMessagePage(ctx.db, now, null)).candidates;
+  const candidates = (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter(
+    (row): row is Doc<"pending_messages"> => row !== null && NON_TERMINAL_STATUSES.some((status) => status === row.status),
+  );
   const sessions = (await Promise.all(queryStuckSessions(ctx.db, candidates, now).map((query) => query.collect()))).flat();
-  return healStuckCandidates(ctx, now, candidates, liveAndReadyConversationIds(sessions, now), deadRevivesRemaining, (effect) => effect());
+  return healStuckCandidates(ctx, now, candidates, liveAndReadyConversationIds(sessions, now), deadRevivesRemaining, allowHostedWake, (effect) => effect());
 }
 
 function queryStuckSessions(db: QueryCtx["db"], candidates: Doc<"pending_messages">[], now: number) {
@@ -2469,9 +2540,11 @@ async function healStuckCandidates(
   candidates: Doc<"pending_messages">[],
   { ready, live }: ReturnType<typeof liveAndReadyConversationIds>,
   deadRevivesRemaining: number,
+  allowHostedWake: boolean,
   perform: (effect: () => Promise<boolean | void>) => Promise<boolean | void>,
 ) {
   const acted = new Set<Id<"pending_messages">>();
+  const deferred: Id<"pending_messages">[] = [];
 
   let revived = 0;
   let controlsAcked = 0;
@@ -2516,7 +2589,7 @@ async function healStuckCandidates(
     }
     const hostedConversation = hosted.get(conversationId);
     if (hostedConversation) {
-      if (planStuckMessageHeal(msg, now).kind !== "skip" && !hostedChecked.has(conversationId)) {
+      if (allowHostedWake && planStuckMessageHeal(msg, now).kind !== "skip" && !hostedChecked.has(conversationId)) {
         hostedChecked.add(conversationId);
         // Input waiting on an open approval card stays pending on purpose,
         // for as long as the card is open: the answer, a dismissal or the
@@ -2565,20 +2638,23 @@ async function healStuckCandidates(
       continue;
     }
     if (!ready.has(conversationId)) {
-      const revivable = !live.has(conversationId) && !gone.has(conversationId)
-        && planDeadSessionRevive(msg, now)
-        && (deadRevived.has(conversationId) || deadRevived.size < deadRevivesRemaining);
+      const revivable = !live.has(conversationId) && !gone.has(conversationId) && planDeadSessionRevive(msg, now);
       if (!revivable) {
         waiting++;
         continue;
       }
-      deadRevived.add(conversationId);
+      if (!deadRevived.has(conversationId) && deadRevived.size >= deadRevivesRemaining) {
+        deferred.push(msg._id);
+        waiting++;
+        continue;
+      }
       acted.add(msg._id);
       if (await perform(async () => {
         if (!await rependPendingMessage(ctx, msg, 0)) return false;
         await ctx.db.patch(msg._id, { dead_session_revived_at: now });
         return true;
       })) {
+        deadRevived.add(conversationId);
         reflag.add(msg.conversation_id);
         revived++;
       }
@@ -2610,7 +2686,10 @@ async function healStuckCandidates(
       console.log(`retryStuckMessages: revived ${revived} for idle sessions, acked ${controlsAcked} control msg(s), failed ${failedUnconfirmed} unconfirmed, expired ${expiredUnconfirmed}, notified ${notified} stuck cross-user send(s), rewoke ${rewoken.size} hosted conversation(s), ${waiting} waiting on a busy/offline session`);
     }
   });
-  return { revived, controlsAcked, failedUnconfirmed, expiredUnconfirmed, notified, waiting, rewoken: rewoken.size, acted: [...acted], deadRevived: deadRevived.size };
+  return {
+    revived, controlsAcked, failedUnconfirmed, expiredUnconfirmed, notified, waiting, rewoken: rewoken.size,
+    acted: [...acted], deadRevived: deadRevived.size, checkedHosted: hostedChecked.size > 0, deferred,
+  };
 }
 
 const NON_TERMINAL_PENDING_STATUSES = [

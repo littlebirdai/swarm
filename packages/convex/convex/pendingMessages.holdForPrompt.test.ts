@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getConversationPendingMessage, healAndNotifyStuckMessages, retryMessage, retryPendingMessageForUser, updateMessageStatus } from "./pendingMessages";
+import { getConversationPendingMessage, applyStuckMessages, DEAD_SESSION_REVIVES_PER_PASS, retryMessage, retryPendingMessageForUser, updateMessageStatus } from "./pendingMessages";
 import { updateAgentStatus } from "./managedSessions";
 import { makeFakeDb } from "./testDb";
 
@@ -84,11 +84,15 @@ describe("hold for a human prompt", () => {
   test("a dialog hold is dropped once no daemon serves the session, and kept while one does", async () => {
     const held = { status: "pending", delivery_disposition_reason: "waiting for a human answer in the terminal", delivery_hold_screen: "❯ 1. Yes" };
     const live = setup(held);
-    await healAndNotifyStuckMessages(live.ctx, 110);
+    await (applyStuckMessages as any)._handler(live.ctx, {
+      ids: [live.row()._id], now: 110, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+    });
     expect(live.row().delivery_disposition_reason).toBe("waiting for a human answer in the terminal");
 
     const offline = setup(held);
-    await healAndNotifyStuckMessages(offline.ctx, 100 + 60 * 60_000);
+    await (applyStuckMessages as any)._handler(offline.ctx, {
+      ids: [offline.row()._id], now: 100 + 60 * 60_000, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+    });
     expect(offline.row().status).toBe("pending");
     expect(offline.row().delivery_disposition_reason).toBeUndefined();
     expect(offline.row().delivery_hold_screen).toBeUndefined();

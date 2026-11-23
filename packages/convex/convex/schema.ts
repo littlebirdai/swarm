@@ -3027,9 +3027,17 @@ export default defineSchema({
       through: v.number(),
       createdAt: v.number(),
       creationTime: v.number(),
-      status: v.string(),
     })),
   }),
+
+  pending_message_sweep_retries: defineTable({
+    conversation_id: v.id("conversations"),
+    message_id: v.id("pending_messages"),
+    attempted_at: v.number(),
+    reason: v.union(v.literal("apply_failed"), v.literal("dead_revive_limit")),
+  })
+    .index("by_reason_attempted", ["reason", "attempted_at"])
+    .index("by_message_id", ["message_id"]),
 
   // One authoritative ordering/fencing row per conversation. Convex OCC on
   // this row serializes enqueue, delivery-slot acquisition, terminal-prefix
