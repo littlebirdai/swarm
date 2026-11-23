@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { DesktopProvider } from "@/components/DesktopProvider";
+import { DesktopBadge } from "@/components/DesktopBadge";
 import { OpenInDesktopHandoff } from "@/components/OpenInDesktopHandoff";
 import { ShortcutProvider, setKeyBindings, isMac } from "@/shortcuts";
 import { shortcutCatalog } from "@/shortcuts/registry";
@@ -31,13 +32,14 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 // shortcut catalog. Rebinding in settings, on another device, or by an agent
 // through `cast shortcuts` all land in the store, and from there here.
 function KeyBindingsSync() {
-  const s = useTrackedStore([(s) => s.clientState.ui?.key_bindings]);
+  const s = useTrackedStore([(s) => s.clientState.ui?.key_bindings, (s) => s.clientStateInitialized]);
   const bindings = s.clientState.ui?.key_bindings;
+  const hydrated = s.clientStateInitialized;
   useWatchEffect(() => {
     setKeyBindings(bindings);
     // The desktop menu bar repeats a few chords natively; it follows too.
-    bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
-  }, [bindings]);
+    if (hydrated) bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
+  }, [bindings, hydrated]);
   return null;
 }
 
@@ -157,6 +159,7 @@ export function Providers({ children }: { children: ReactNode }) {
         </AgentTabOverride.Provider>
         <ErrorBoundary name="DesktopProvider" level="inline">
           <DesktopProvider />
+          <DesktopBadge />
         </ErrorBoundary>
         <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
           <OpenInDesktopHandoff />

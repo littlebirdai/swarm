@@ -605,9 +605,15 @@ function buildTabWindow(extraArgs = []) {
 // ---------------------------------------------------------------------------
 
 const SPARE_WARM_DELAY_MS = 6000;
+const SPARE_REVEAL_TIMEOUT_MS = 400;
 let spareTabWindow = null;
 let spareTabReady = false;
 let spareTabTimer = null;
+
+// Reply even when the sender is rejected so a synchronous preload call can return.
+ipcMain.on("is-warm-spare", (e) => {
+  e.returnValue = e.sender === spareTabWindow?.webContents && shellAuthority.admits(e);
+});
 
 function warmSpareTabWindow(delayMs = SPARE_WARM_DELAY_MS) {
   if (spareTabTimer) return;
@@ -648,6 +654,27 @@ function claimSpareTabWindow() {
   return win;
 }
 
+// Runs in the renderer. The title changes after the route commits, and the
+// store is ready after critical hydration. Keep the existing reveal deadline
+// for routes that reuse the title or caches that take longer to read.
+function waitForWarmWindowPaint(timeoutMs) {
+  return new Promise((resolve) => {
+    const title = document.title;
+    let frame;
+    const finish = () => {
+      clearTimeout(deadline);
+      cancelAnimationFrame(frame);
+      resolve();
+    };
+    const deadline = setTimeout(finish, timeoutMs);
+    function checkPaint() {
+      const hydrated = window.__inboxStore?.getState().clientStateInitialized === true;
+      frame = requestAnimationFrame(hydrated && document.title !== title ? finish : checkPaint);
+    }
+    frame = requestAnimationFrame(checkPaint);
+  });
+}
+
 // A window for `navPath`, instantly when the warm spare is ready: the spare is
 // claimed and told to navigate, and shows once the route has painted; with no
 // spare a fresh window loads the path cold. `place` positions the window and
@@ -666,18 +693,12 @@ function openWarmWindow(navPath, place, coldArgs = []) {
     // is the Chat window before it navigates, so it never paints the
     // dashboard's chrome around the page it is about to show.
     flushWindowRole();
-    // Navigate first, show once the new route has painted, so the window never
-    // flashes the inbox it was parked on. The URL flips before React commits
-    // the route; the title flips with the commit, so wait for that (capped, in
-    // case the route keeps the title) and then for a frame to paint.
+    // Capture the old title before dispatching the in-place navigation.
+    const painted = win.webContents.executeJavaScript(
+      `(${waitForWarmWindowPaint})(${SPARE_REVEAL_TIMEOUT_MS})`
+    );
     sendNavigate(win, navPath);
-    win.webContents
-      .executeJavaScript(
-        "new Promise((done) => { const t0 = document.title, start = Date.now();" +
-          "  const tick = () => (document.title !== t0 || Date.now() - start > 400)" +
-          "    ? requestAnimationFrame(() => requestAnimationFrame(done)) : setTimeout(tick, 16);" +
-          "  tick(); })"
-      )
+    painted
       .catch(() => {})
       .then(() => {
         if (!win.isDestroyed()) win.show();

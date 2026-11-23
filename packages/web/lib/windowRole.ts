@@ -2,30 +2,28 @@
 // desktop bridge's imports (the phone bundle reaches some of its callers).
 // Outside a browser every answer is the plain app window.
 
-export function windowStorePolicy(role: "spare" | "regular", claimed: boolean) {
-  const active = role === "regular" || claimed;
-  return { mayHost: active, shouldHydrate: active };
+export function shouldStartWindowStore(role: "spare" | "regular", claimed: boolean): boolean {
+  return role === "regular" || claimed;
 }
 
 let warmSpareClaimed = false;
 const storeStartListeners = new Set<() => void>();
 
-export function getWindowStorePolicy() {
+export function isWindowStoreActive(): boolean {
   const spare = typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isWarmSpare === true;
-  return windowStorePolicy(spare ? "spare" : "regular", warmSpareClaimed);
+  return shouldStartWindowStore(spare ? "spare" : "regular", warmSpareClaimed);
 }
 
-/** The preload flag covers boot. Only an explicit shell role can end standby,
- *  including on reload of a window built with the original spare flag. */
+/** The preload flag covers boot. The shell role ends standby on claim. */
 export function applyWarmSpareRole(spare: unknown): void {
-  if (spare !== false || getWindowStorePolicy().shouldHydrate) return;
+  if (spare !== false || isWindowStoreActive()) return;
   warmSpareClaimed = true;
   for (const start of storeStartListeners) start();
   storeStartListeners.clear();
 }
 
 export function subscribeWindowStoreStart(start: () => void): () => void {
-  if (!getWindowStorePolicy().shouldHydrate) storeStartListeners.add(start);
+  if (!isWindowStoreActive()) storeStartListeners.add(start);
   return () => { storeStartListeners.delete(start); };
 }
 

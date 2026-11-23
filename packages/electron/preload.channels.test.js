@@ -67,7 +67,7 @@ test("every exposed bridge method has a handler in this shell", () => {
   for (const [method, channel] of sharedChannels()) {
     if (!removed.has(method) && !handled(channel)) orphans.push(`${method} → ${channel}`);
   }
-  for (const m of PRELOAD.matchAll(/ipcRenderer\.(?:invoke|send)\("([^"]+)"/g)) {
+  for (const m of PRELOAD.matchAll(/ipcRenderer\.(?:invoke|send|sendSync)\("([^"]+)"/g)) {
     if (!handled(m[1])) orphans.push(`preload.js → ${m[1]}`);
   }
   assert.deepEqual(orphans, [], "handle these channels in main.js, or take the methods off the bridge in preload.js");

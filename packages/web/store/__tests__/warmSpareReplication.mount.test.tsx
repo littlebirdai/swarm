@@ -5,14 +5,16 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { AUTH_JWT_STORAGE_KEY, issueFakeToken } from "./fixtures/fakeAuthToken";
 
-test("the shell claim starts hydration, replication, and host election", async () => {
+test("the shell claim starts hydration, replication, host election, and badge reporting", async () => {
   const dom = new JSDOM("<div id='root'></div>", { url: "https://codecast.sh/inbox" });
   const { window } = dom;
   let pushRole!: (role: { spare?: boolean }) => void;
+  const badgeCounts: number[] = [];
   Object.assign(window, {
     __CODECAST_ELECTRON__: {
       isWarmSpare: true,
       onWindowRole: (cb: typeof pushRole) => { pushRole = cb; },
+      setBadgeCount: async (count: number) => { badgeCounts.push(count); },
     },
   });
   window.localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken("userA"));
@@ -46,7 +48,8 @@ test("the shell claim starts hydration, replication, and host election", async (
   const { installWindowRoleTracker } = await import("../../lib/desktop");
   const { useInboxStore, rebootPersistence } = await import("../inboxStore");
   const { useIsSyncHost, useSyncReplication } = await import("../../hooks/useSyncRole");
-  const { replicationChannelName, replicationLockName, startSyncReplication } = await import("../syncReplication");
+  const { replicationChannelName, replicationLockName } = await import("../syncReplication");
+  const { DesktopBadge } = await import("../../components/DesktopBadge");
 
   function Feeders() {
     useSyncReplication(true);
@@ -63,29 +66,30 @@ test("the shell claim starts hydration, replication, and host election", async (
     db.close({ disableAutoOpen: false });
 
     installWindowRoleTracker();
-    await act(async () => { root.render(<Feeders />); });
+    await act(async () => { root.render(<><Feeders /><DesktopBadge /></>); });
     pushRole({ spare: true });
     pushRole({});
     rebootPersistence();
-    startSyncReplication({ eligible: true, principalId: "userA" })();
     expect(db.isOpen()).toBe(false);
     expect(useInboxStore.getState().clientStateInitialized).toBe(false);
     expect(useInboxStore.getState().sessions).toEqual({});
     expect(container.textContent).toBe("");
     expect(channels.some((name) => name.startsWith(replicationChannelName("userA")))).toBe(false);
     expect(locks).toEqual([]);
+    expect(badgeCounts).toEqual([]);
 
-    await act(async () => { pushRole({ spare: false }); });
-    const deadline = performance.now() + 2_000;
-    while (hydration._hydrating && performance.now() < deadline) {
-      await Bun.sleep(1);
-    }
+    await act(async () => {
+      pushRole({ spare: false });
+      const deadline = performance.now() + 2_000;
+      while (hydration._hydrating && performance.now() < deadline) await Bun.sleep(1);
+    });
     expect(hydration._hydrating).toBe(false);
     expect(useInboxStore.getState().clientStateInitialized).toBe(true);
     expect(useInboxStore.getState().sessions[id]?.session_id).toBe("cached");
     expect(channels).toContain(replicationChannelName("userA"));
     expect(locks).toEqual([replicationLockName("userA")]);
     expect(container.textContent).toBe("Host feeders");
+    expect(badgeCounts).toEqual([0]);
   } finally {
     await act(async () => { root.unmount(); });
     db.close();

@@ -10,7 +10,6 @@ import { floorRequestDue, isBelowFloor } from "../lib/desktopFloor";
 import { api } from "@codecast/convex/convex/_generated/api";
 import {
   isDesktop,
-  updateBadge,
   onDeepLink,
   checkDesktopUpdate,
   onUpdateStatus,
@@ -43,7 +42,6 @@ import { useOsPermission } from "../hooks/useOsPermissions";
 import { soundChatMessage } from "../lib/sounds";
 import { useInboxStore } from "../store/inboxStore";
 import { showBrowserHandoffToast } from "./BrowserHandoffToast";
-import { useNeedsInputCount } from "../hooks/useNeedsInputCount";
 import { usePresenceReporter } from "../hooks/usePresenceReporter";
 import { useNotificationDelivery } from "../hooks/useNotificationDelivery";
 import { agentAlertsSuppressed } from "../lib/notificationDelivery";
@@ -128,23 +126,15 @@ export function DesktopProvider() {
     }
   };
 
-  // Dock badge = the sidebar's NEEDS YOU count (same hook, so they can't
-  // drift): sessions where the ball is in the user's court, mine-scoped, over
-  // the authoritative inbox set. It used to count `has_pending || is_idle` over
-  // the raw never-prune cache — i.e. every finished session ever synced — which
-  // pinned the badge at 99+ forever.
-  const needsInputCount = useNeedsInputCount(isDesktop());
-  useWatchEffect(() => {
-    if (!isDesktop()) return;
-    updateBadge(needsInputCount);
-  }, [needsInputCount]);
+  const hydrated = useInboxStore((s) => s.clientStateInitialized);
+  const canReportWindowState = hydrated || !isDesktop();
 
   // Report "a human is at this desktop" so the server holds mobile pushes
   // while you're here (pushRouter.ts). Runs on web and Electron alike.
   usePresenceReporter();
 
   const notifications = useQueryNoThrow(api.notifications.list, {}).data;
-  useNotificationDelivery(isAuthenticated && notifications !== undefined);
+  useNotificationDelivery(canReportWindowState && isAuthenticated && notifications !== undefined);
   // The latest rows, for a banner asking at show time whether its row still stands.
   const notificationsRef = useRef(notifications);
   notificationsRef.current = notifications;
@@ -173,7 +163,7 @@ export function DesktopProvider() {
   readinessRef.current = readiness;
 
   useWatchEffect(() => {
-    if (!notifications) return;
+    if (!canReportWindowState || !notifications) return;
     if (isPaletteWindow()) return;
     const canNotify = isDesktop() || hasBrowserNotificationPermission();
 
@@ -278,7 +268,7 @@ export function DesktopProvider() {
       }
     }
     seenIdsRef.current = new Set(notifications.map((n) => n._id).filter((id) => !waiting.has(id)));
-  }, [notifications, chatRowsHeld]);
+  }, [canReportWindowState, notifications, chatRowsHeld]);
 
   const updateDismissed = useInboxStore(s => s.updateClientDismissed);
 
@@ -411,6 +401,7 @@ export function DesktopProvider() {
     return `${tabs}#${st.activeTabId ?? ""}#${st.currentSessionId ?? ""}#${st.call?.phase ?? ""}`;
   });
   useWatchEffect(() => {
+    if (!canReportWindowState) return;
     const st = useInboxStore.getState();
     const live = `${location.pathname}${location.search}`;
     const inboxFamily = (p: string) => p === "/inbox" || p.startsWith("/inbox?") || p.startsWith("/conversation/");
@@ -433,7 +424,7 @@ export function DesktopProvider() {
       open,
       inCall: inHuddle(st, walkie),
     });
-  }, [surfaceSig, location.pathname, location.search]);
+  }, [canReportWindowState, surfaceSig, location.pathname, location.search]);
 
   // Desktop update detection: compare the running app version against the latest
   // published version (same-origin /api/desktop/latest). Poll on mount, on window

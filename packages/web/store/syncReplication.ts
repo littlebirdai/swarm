@@ -17,7 +17,6 @@
 // window automatically.
 
 import { overlayReplicatedPullRequests } from "../lib/cardPullRequestRows";
-import { getWindowStorePolicy } from "../lib/windowRole";
 import {
   createReplicationFollower,
   createReplicationHost,
@@ -508,7 +507,6 @@ function setRole(role: "host" | "follower"): void {
  * window stays a self-sufficient host. Returns a stop for unmount/HMR.
  */
 export function startSyncReplication(opts: { eligible: boolean; principalId: string | null }): () => void {
-  if (!getWindowStorePolicy().mayHost) return () => {};
   if (running) return running.stop;
   setRole("host");
   if (!transportAvailable() || !opts.principalId) {

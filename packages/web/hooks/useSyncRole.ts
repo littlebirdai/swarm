@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useAuthPrincipal } from "../lib/authPrincipal";
-import { getWindowStorePolicy, subscribeWindowStoreStart } from "../lib/windowRole";
+import { isWindowStoreActive, subscribeWindowStoreStart } from "../lib/windowRole";
 import { useInboxStore } from "../store/inboxStore";
 import { startSyncReplication } from "../store/syncReplication";
 
@@ -22,7 +22,7 @@ export function useSyncReplication(eligible: boolean): void {
   const { principalId } = useAuthPrincipal();
   const active = useSyncExternalStore(
     subscribeWindowStoreStart,
-    () => getWindowStorePolicy().mayHost,
+    isWindowStoreActive,
     () => true,
   );
   useWatchEffect(() => {

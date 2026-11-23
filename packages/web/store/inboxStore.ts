@@ -53,7 +53,7 @@ import { declareViewNav, freshHomeLaunchPending, hasViewNavigated, recordNavEven
 import { applySyncTable, applySyncRecord, applySyncPatch, applyShapeLocks, type PendingEntry } from "./syncProtocol";
 import { syncTransaction } from "./syncTransaction";
 import { installStoreListenerCensus } from "./storeListenerCensus";
-import { getWindowStorePolicy, subscribeWindowStoreStart } from "../lib/windowRole";
+import { isWindowStoreActive, subscribeWindowStoreStart } from "../lib/windowRole";
 import { current, isDraft, original } from "mutative";
 import { soundDismiss, soundKill } from "../lib/sounds";
 import type { AppPermissionKind } from "../lib/osPermissions";
@@ -9995,7 +9995,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   pending: {},
   dispatchErrors: 0,
   storageDegraded: false,
-  syncRole: getWindowStorePolicy().mayHost ? "host" : "follower",
+  syncRole: isWindowStoreActive() ? "host" : "follower",
   lastDispatchFailure: null,
   currentSessionId: null,
   lastFocusedConversationId: null,
@@ -16535,7 +16535,7 @@ export function clearProtectedInboxMemory(): void {
   // already mirrored to localStorage; no server or principal data is retained.
   reset.clientState = { ui: readCriticalUiPrefs() as ClientUI };
   reset.clientStateInitialized = false;
-  reset.syncRole = getWindowStorePolicy().mayHost ? "host" : "follower";
+  reset.syncRole = isWindowStoreActive() ? "host" : "follower";
   // Monotonic through the reset: a bootstrap floor still in flight for the
   // old principal fences on the epoch it was cut at and must not apply into
   // this cleared store, and the next sign-in's floors must never resolve to
@@ -17129,7 +17129,7 @@ function bootPersistence(): void {
  * serves the disk cache only to the account that owns it (idbCache).
  */
 export function rebootPersistence(): void {
-  if (getWindowStorePolicy().shouldHydrate) bootPersistence();
+  if (isWindowStoreActive()) bootPersistence();
 }
 
 // Once per store, not once per module evaluation: after a dev hot swap the
@@ -17137,7 +17137,7 @@ export function rebootPersistence(): void {
 // outbox bindings, so running this again would re-open the database and re-seed
 // state that is live.
 if (!survivingInboxStore) {
-  if (getWindowStorePolicy().shouldHydrate) bootPersistence();
+  if (isWindowStoreActive()) bootPersistence();
   else subscribeWindowStoreStart(bootPersistence);
 }
 

@@ -79,7 +79,9 @@ const onShellProcessGone = bufferedChannel(ipcRenderer, "shell-process-gone");
 
 contextBridge.exposeInMainWorld("__CODECAST_ELECTRON__", {
   ...shared,
-  isWarmSpare: process.argv.includes("--warm-spare"),
+  // The argument marks candidates. Main knows whether this window was claimed
+  // before a reload, and the store needs that answer before page scripts run.
+  isWarmSpare: process.argv.includes("--warm-spare") && ipcRenderer.sendSync("is-warm-spare") === true,
   // OS-level permissions, read from the OS itself (osPermissions.js):
   // { notifications, microphone, camera, screen } each "granted" | "ask" |
   // "off" | "unknown". `request` performs the one gesture that makes the OS
