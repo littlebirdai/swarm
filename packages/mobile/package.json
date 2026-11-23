@@ -8,13 +8,13 @@
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:dev": "eas build --profile development --platform ios",
-    "build:preview": "eas build --profile preview --platform ios",
-    "build:prod": "eas build --profile production --platform ios",
-    "submit:ios": "eas submit --platform ios --latest",
-    "release:ios": "eas build --profile production --platform ios --auto-submit",
-    "update:preview": "eas update --branch preview",
-    "update:production": "eas update --branch production"
+    "build:dev": "bash ../../scripts/lib/fork-guard.sh && eas build --profile development --platform ios",
+    "build:preview": "bash ../../scripts/lib/fork-guard.sh && eas build --profile preview --platform ios",
+    "build:prod": "bash ../../scripts/lib/fork-guard.sh && eas build --profile production --platform ios",
+    "submit:ios": "bash ../../scripts/lib/fork-guard.sh && eas submit --platform ios --latest",
+    "release:ios": "bash ../../scripts/lib/fork-guard.sh && eas build --profile production --platform ios --auto-submit",
+    "update:preview": "bash ../../scripts/lib/fork-guard.sh && eas update --branch preview",
+    "update:production": "bash ../../scripts/lib/fork-guard.sh && eas update --branch production"
   },
   "dependencies": {
     "@bacons/apple-targets": "5.0.0",

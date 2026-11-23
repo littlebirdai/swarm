@@ -3,6 +3,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 REPO_ROOT="$(pwd)"
+bash scripts/lib/fork-guard.sh
 
 PREVIEW_ONLY=false
 FORCE_CLI=false

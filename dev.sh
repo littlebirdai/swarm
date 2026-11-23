@@ -129,14 +129,11 @@ check_rapid_restarts() {
 }
 
 # The convex pusher (packages/convex/scripts/gated-push.ts, behind `bun run
-# dev`) pushes whole-tree snapshots to PROD: a tree behind origin/main deletes
-# newer functions and routes from prod (the 2026-07-15 reparent-route outage).
+# dev`) pushes whole-tree snapshots to the configured dev deployment.
 # Never start it from a stale tree; it re-checks freshness before every push
 # too, and only pushes a tree that has been quiet and typechecks whole (a raw
 # `convex dev` shipped a half-saved edit on 2026-09-21). Offline (fetch fails),
 # judge by the last-known <remote>/main rather than blocking local dev.
-# The remote is codecast-sh/codecast's, not a fork's origin (see
-# scripts/convex-base-remote.sh).
 CONVEX_BASE_REMOTE="$("$ROOT_DIR/scripts/convex-base-remote.sh")"
 convex_tree_is_fresh() {
     git -C "$ROOT_DIR" fetch "$CONVEX_BASE_REMOTE" --quiet 2>/dev/null || true
@@ -173,10 +170,7 @@ start_convex() {
 
     [ -n "$CONVEX_PID" ] && kill_tree $CONVEX_PID
     cd "$ROOT_DIR/packages/convex"
-    # bun loads the workspace-root .env.local into `bun run` children, and its
-    # CONVEX_DEPLOYMENT=anonymous pointer makes the CLI refuse to start next to
-    # the self-hosted vars (same hijack deploy.sh guards against). Scrub it.
-    env -u CONVEX_DEPLOYMENT bun run dev &
+    bun run dev &
     CONVEX_PID=$!
     cd "$ROOT_DIR"
     log "Convex started (pid $CONVEX_PID)"

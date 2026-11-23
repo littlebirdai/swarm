@@ -2,6 +2,7 @@
 set -e
 
 cd "$(dirname "$0")/.."
+bash ../../scripts/lib/fork-guard.sh
 
 FORCE_UPDATE=false
 BUMP_TYPE="patch"

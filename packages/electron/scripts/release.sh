@@ -3,6 +3,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 REPO_ROOT="$(cd ../.. && pwd)"
+bash "$REPO_ROOT/scripts/lib/fork-guard.sh"
 
 # Load R2 credentials from CLI's .env.deploy
 ENV_FILE="$REPO_ROOT/packages/cli/.env.deploy"

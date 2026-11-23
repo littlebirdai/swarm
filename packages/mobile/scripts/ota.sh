@@ -7,8 +7,10 @@
 # deploy (its Watch station), so this marks nothing itself.
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+(cd "$ROOT" && bash scripts/lib/fork-guard.sh)
+
 SHA="${1:?usage: ota.sh <sha>}"
-ROOT="$(git rev-parse --show-toplevel)"
 WT="$(mktemp -d "${TMPDIR:-/tmp}/codecast-ota.XXXXXX")"
 cleanup() { git -C "$ROOT" worktree remove --force "$WT" >/dev/null 2>&1 || rm -rf "$WT"; }
 trap cleanup EXIT

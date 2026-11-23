@@ -15,7 +15,6 @@ import {
   namesFromSchema,
   readCredentials,
   type ApiSpecEntry,
-  describeAdder,
 } from "./prod-diff";
 
 // Trimmed from prod's `_system/cli/modules:apiSpec` on 2026-11-22.
@@ -190,35 +189,16 @@ describe("readCredentials", () => {
   });
 
   test("falls back to the two keys in the file, quotes stripped, nothing else read", () => {
-    const f = envFile('OTHER=x\nexport CONVEX_SELF_HOSTED_ADMIN_KEY="file-key"\n');
-    expect(readCredentials({}, f)).toEqual({ url: "https://convex.codecast.sh", key: "file-key" });
+    const f = envFile('OTHER=x\nCONVEX_SELF_HOSTED_URL="https://file.example/"\nexport CONVEX_SELF_HOSTED_ADMIN_KEY="file-key"\n');
+    expect(readCredentials({}, f)).toEqual({ url: "https://file.example", key: "file-key" });
   });
 
-  test("no key anywhere", () => {
-    expect(readCredentials({}, "/nonexistent/.env.local").key).toBeUndefined();
-  });
-});
-
-describe("drops name the push that put them there", () => {
-  const at = Date.UTC(2026, 10, 22, 5, 21);
-  const adder = { name: "index:voiceprints.by_user", deploy: "dp-2372", by: "Ashot", machine: "MBP-182", via: "deploy.sh", at, dirty: 78 };
-
-  test("an uncommitted push, a watcher push, a commit, and nobody", () => {
-    expect(describeAdder(adder)).toStartWith("dp-2372, uncommitted push (78 files) by Ashot on MBP-182, ");
-    expect(describeAdder({ ...adder, deploy: null, dev_push: true, via: "dev watcher", dirty: 2 })).toStartWith("dev watcher push by Ashot on MBP-182, ");
-    expect(describeAdder({ ...adder, dirty: 0, machine: null })).toStartWith("dp-2372, push of a commit by Ashot, ");
-    expect(describeAdder(undefined)).toBe("no recorded push added it");
-    expect(describeAdder({ ...adder, via: "dev watcher", committed_in: "dp-2380" })).toEndWith("; committed since (dp-2380 carried it)");
+  test("a key alone does not select a production URL", () => {
+    const f = envFile('CONVEX_SELF_HOSTED_ADMIN_KEY="file-key"\n');
+    expect(readCredentials({}, f)).toEqual({ url: undefined, key: "file-key" });
   });
 
-  test("the summary puts each adder beside its drop, and says nothing about adders it could not ask", () => {
-    const diff = { adds: [], drops: ["index:voiceprints.by_user", "table:voiceprints"] };
-    const withAdders = formatSummary(diff, undefined, [adder]);
-    expect(withAdders).toContain("This push takes these off prod, with the push that put each there:");
-    expect(withAdders).toContain("DROP index:voiceprints.by_user  ← dp-2372, uncommitted push (78 files)");
-    expect(withAdders).toContain("DROP table:voiceprints  ← no recorded push added it");
-    const without = formatSummary(diff);
-    expect(without).toContain("  DROP table:voiceprints");
-    expect(without).not.toContain("←");
+  test("no credentials when neither the environment nor the file provides them", () => {
+    expect(readCredentials({}, "/nonexistent/.env.local")).toEqual({ url: undefined, key: undefined });
   });
 });

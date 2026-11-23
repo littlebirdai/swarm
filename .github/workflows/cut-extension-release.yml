@@ -41,7 +41,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  release-disabled:
+    if: github.repository != 'codecast-sh/codecast'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - run: echo "Swarm's release targets are not configured yet." >> "$GITHUB_STEP_SUMMARY"
+
   release:
+    if: github.repository == 'codecast-sh/codecast'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
