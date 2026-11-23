@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
-import { useSplitQueryNoThrow } from "./useSplitQuery";
+import { querySplitWhole, useSplitQueryNoThrow } from "./useSplitQuery";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -137,10 +137,11 @@ export function useSyncTeamInboxSessions() {
 
   useRecoveryPoll(lastLivenessRef, useCallback(async (signal: AbortSignal) => {
     if (!active) return;
-    const fresh: any = await queryWithSignal(convex, api.conversations.teamSessionsLiveness, {
+    // Split and rebuilt from the subscription's cache, as the personal poll does,
+    // so a recovery refills that cache instead of leaving the next push to fetch whole.
+    const fresh: any = await querySplitWhole(convex, api.conversations.teamSessionsLiveness, {
       activeTeamId: activeTeamId as Id<"teams"> | undefined,
-      _probe: Date.now(),
-    }, signal);
+    }, "liveness", signal);
     if (signal.aborted) return;
     const liveness = fresh?.liveness;
     if (!liveness) return;
