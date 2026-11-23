@@ -95,6 +95,18 @@ describe("useSyncCore owns the full feeder mount set", () => {
       }
     }
   });
+
+  test("live inbox subscriptions use the split reader", () => {
+    const feeds = {
+      "useLiveInboxSessions.ts": "listInboxSessions",
+      "useSyncInboxSessions.ts": "sessionsLiveness",
+      "useSyncTeamInboxSessions.ts": "teamSessionsLiveness",
+    };
+    for (const [file, query] of Object.entries(feeds)) {
+      const src = codeLines(read(join(WEB_ROOT, "hooks", file))).join("\n");
+      expect(src).toMatch(new RegExp(`useSplitQueryNoThrow\\(\\s*api\\.conversations\\.${query},`));
+    }
+  });
 });
 
 describe("mobile screens host no core feeder", () => {

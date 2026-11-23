@@ -6,7 +6,7 @@ import type { SplitCache } from "@codecast/shared/contracts/inboxSplit";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { LIST_INBOX_SESSIONS_ARGS } from "../../hooks/useLiveInboxSessions";
 import { rebuildSplitPayload, seedSplitCache, type SplitKind } from "../../hooks/useSplitQuery";
-import { GEN_MIN, SERVER_EVENTS, SimServer, advance, installSim, makeRng, seededWorld, uninstallSim } from "./inboxSimHarness";
+import { GEN_MIN, ME, SERVER_EVENTS, SimServer, advance, installSim, makeRng, seededWorld, uninstallSim } from "./inboxSimHarness";
 
 // The split wire form against the real handlers: at every step of a randomized
 // world, the result a replica rebuilds from split pushes must equal the whole
@@ -24,6 +24,27 @@ const bytes = (v: unknown) => JSON.stringify(v).length;
 const wire = (v: any) => jsonToConvex(convexToJson(v as Value)) as any;
 
 describe("inbox split wire form", () => {
+  it("keeps team recovery reads whole and rebuilds the team's split response", async () => {
+    const server = new SimServer(seededWorld(41));
+    const db = server.backend.db;
+    const activeTeamId = await db.insert("teams", { name: "Test Team" });
+    await db.insert("team_memberships", { user_id: ME, team_id: activeTeamId, role: "member" });
+    const client = server.clientAs("me");
+    const query = "conversations:teamSessionsLiveness";
+    const args = { activeTeamId };
+
+    const whole = await client.query(query, { ...args, _probe: 1 });
+    expect(whole.projection.team_id).toBe(activeTeamId);
+    expect(Object.keys(whole.liveness).length).toBeGreaterThan(0);
+    expect(whole.split).toBeUndefined();
+    expect(await client.query(query, args)).toEqual(whole);
+    const split = await client.query(query, { ...args, split: true });
+    expect(split.split).toBe(true);
+    const cache: SplitCache<unknown> = new Map();
+    seedSplitCache("liveness", whole, cache);
+    expect(rebuildSplitPayload("liveness", split, cache)).toEqual(whole);
+  });
+
   it("rebuilds exactly the whole result, and ships a fraction of it", async () => {
     const feeds: Array<{ kind: SplitKind; name: string; args: Record<string, unknown> }> = [
       { kind: "list", name: "conversations:listInboxSessions", args: LIST_INBOX_SESSIONS_ARGS },
@@ -47,6 +68,7 @@ describe("inbox split wire form", () => {
           // The server hashed its in-memory rows; the replica holds decoded ones.
           const split = wire(await client.query(f.name, { ...f.args, split: true }));
           const whole = wire(await client.query(f.name, f.args));
+          expect(whole.split).toBeUndefined();
           const cache = caches.get(f.kind)!;
           const t = tally.get(f.kind)!;
           let rebuilt = rebuildSplitPayload(f.kind, split, cache);
