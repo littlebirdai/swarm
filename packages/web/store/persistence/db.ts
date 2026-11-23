@@ -27,7 +27,13 @@ class CacheDB extends Dexie {
     this.version(CACHE_SCHEMA_VERSION)
       .stores({ ...WEB_COLLECTION_INDEXES, ...SYSTEM_TABLES })
       // Keep this callback on the current version for users who skip releases.
-      .upgrade(conversationsToRows);
+      .upgrade(async (tx) => {
+        await conversationsToRows(tx);
+        // Legacy navigator rows would have no transcript metadata for pruning.
+        if (tx.idbtrans.db.objectStoreNames.contains("conversationMessages")) {
+          await tx.table("conversationUserMessages").clear();
+        }
+      });
   }
 }
 

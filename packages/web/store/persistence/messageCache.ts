@@ -20,13 +20,6 @@ const MSG_WRITE_DEBOUNCE_MS = 300;
 // keeping every inline image that was ever opened alive in memory.
 const MESSAGE_SHADOW_LIMIT = 8;
 const _messageShadows = new Map<string, Map<string, ConversationMessageRow>>();
-let _messageCacheWritable = true;
-
-export function setMessageCacheWritable(writable: boolean) {
-  if (_messageCacheWritable === writable) return;
-  _messageCacheWritable = writable;
-  if (!writable) dropPendingMessageWrites();
-}
 
 // Prune off the debounced write path. The cap is near the session-row cache
 // floor so a conversation the inbox can show usually has its tail on disk.
@@ -56,7 +49,7 @@ function _flushMessageWrites(immediate = false) {
     clearTimeout(_msgWriteTimer);
     _msgWriteTimer = null;
   }
-  if (!_messageCacheWritable || !persistenceOwned() || _pendingMsgWrites.size === 0) return;
+  if (!persistenceOwned() || _pendingMsgWrites.size === 0) return;
   for (const [convId, snapshot] of _pendingMsgWrites) {
     if (_inFlightMsgWrites.has(convId)) continue;
     void _writeMessageSnapshot(convId, snapshot);
@@ -240,13 +233,13 @@ export async function loadConversationMessages(convId: string): Promise<CachedCo
 // Small row, written straight through: the store already dedups no-op ticks
 // (setUserMessages), so every call here is a real change.
 export function writeConversationUserMessages(convId: string, userMessages: any[]) {
-  if (_hydrating || !_messageCacheWritable || !persistenceOwned()) return;
+  if (_hydrating || !persistenceOwned()) return;
   _touchedAt.set(convId, Date.now());
   db.conversationUserMessages.put({ convId, userMessages }).catch(() => {});
 }
 
 export function writeConversationMessages(convId: string, messages: any[], pagination: any) {
-  if (_hydrating || !_messageCacheWritable || !persistenceOwned()) return;
+  if (_hydrating || !persistenceOwned()) return;
   _touchedAt.set(convId, Date.now());
   _pendingMsgWrites.set(convId, { messages, pagination });
   if (!_inFlightMsgWrites.has(convId)) _scheduleMessageWrites();

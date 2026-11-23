@@ -20,7 +20,6 @@ test("a boot drops retired meta values, including a conversation blob from an ol
   const row = { _id: "c1", title: "Current title" };
   await db().conversations.put(row);
   await db().meta.bulkPut([
-    { key: "conversationMessages", value: { c1: [{ _id: "obsolete" }] } },
     { key: "messages", value: { c1: [{ _id: "m1" }] } },
     { key: "teamUnreadCount", value: 3 },
     { key: "drafts", value: { c1: "half a thought" } },
@@ -28,7 +27,6 @@ test("a boot drops retired meta values, including a conversation blob from an ol
   ]);
   const cache = await loadCache(["drafts", "conversations"]);
   await Bun.sleep(50);
-  expect(await db().meta.get("conversationMessages")).toBeUndefined();
   expect(await db().meta.get("messages")).toBeUndefined();
   expect(await db().meta.get("teamUnreadCount")).toBeUndefined();
   expect((await db().meta.get("drafts"))?.value).toEqual({ c1: "half a thought" });

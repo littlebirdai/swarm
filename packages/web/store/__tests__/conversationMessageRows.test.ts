@@ -135,7 +135,7 @@ test("pruning removes an expired conversation's messages, metadata, and navigato
   expect(await rows.where("convId").equals(fresh).count()).toBe(1);
 });
 
-test("a v112 upgrade removes the retired table and preserves the pending-input journal", async () => {
+test("a v112 upgrade drops old transcript and navigator data and preserves the pending-input journal", async () => {
   const indexedDB = new IDBFactory();
   const legacy = new Dexie(db.name, { indexedDB, IDBKeyRange });
   const { conversationMessageMeta: _, conversationMessageRows: __, ...unchanged } = SYSTEM_TABLES;
@@ -144,7 +144,7 @@ test("a v112 upgrade removes the retired table and preserves the pending-input j
   const pending = { key: `pendingInput:v1:${TEST_PRINCIPAL}:message`, value: { content: "unsent" } };
   await legacy.table("meta").put(pending);
   await legacy.table("conversationMessages").put({ convId, messages: [message(1)], pagination, latestTimestamp: 1 });
-  await legacy.table("conversationUserMessages").put({ convId, userMessages: [message(1)] });
+  await legacy.table("conversationUserMessages").put({ convId: "navigator-only", userMessages: [message(1)] });
   legacy.close();
 
   await _reopenForTests({ indexedDB, IDBKeyRange });
@@ -152,5 +152,6 @@ test("a v112 upgrade removes the retired table and preserves the pending-input j
   expect(await db.meta.get(pending.key)).toEqual(pending);
   expect(await rows.count()).toBe(0);
   expect(await meta.count()).toBe(0);
-  expect(await loadConversationMessages(convId)).toEqual({ messages: [], pagination: undefined, latestTimestamp: 0, userMessages: [message(1)] });
+  expect(await navigatorRows.count()).toBe(0);
+  expect(await loadConversationMessages(convId)).toBeNull();
 });
