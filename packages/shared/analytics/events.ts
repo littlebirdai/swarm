@@ -133,6 +133,22 @@ export const CODECAST_EVENTS = defineCatalog({
   },
   synclog_crawl_healed: { namespace: { type: "string", values: ["tasks", "docs"] }, count: COUNT },
 
+  client_resource_report: {
+    platform: SURFACE,
+    sync_role: { type: "string", values: ["host", "follower"] },
+    window_role: { type: "string", values: ["app", "tab", "people", "palette", "call_panel", "auxiliary"] },
+    window_count: { ...COUNT, optional: true },
+    heap_used_bytes: { ...COUNT, optional: true },
+    heap_total_bytes: { ...COUNT, optional: true },
+    store_total_rows: COUNT,
+    store_collection_rows: { type: "counters", maxKeys: 15 },
+    store_collection_estimated_bytes: { type: "counters", maxKeys: 15 },
+    storage_usage_bytes: { ...COUNT, optional: true },
+    storage_quota_bytes: { ...COUNT, optional: true },
+    long_frame_count: { ...COUNT, optional: true },
+    long_frame_worst_ms: { ...COUNT, optional: true },
+  },
+
   // Inbox digest compare: does the client's own projection agree with the
   // server's? Counters only — no ids, no titles.
   inbox_digest_heartbeat: {

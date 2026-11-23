@@ -12,6 +12,16 @@ export function isPaletteWindow(): boolean {
   return typeof window !== "undefined" && !!window.location?.pathname?.startsWith("/palette");
 }
 
+export function getWindowRole() {
+  if (isCallPanelWindow()) return "call_panel";
+  if (isPaletteWindow()) return "palette";
+  const shell = typeof window === "undefined" ? undefined : window.__CODECAST_ELECTRON__;
+  if (shell?.isPeopleWindow) return "people";
+  if (shell?.isTransparentWindow) return "auxiliary";
+  if (shell?.isTabWindow) return "tab";
+  return "app";
+}
+
 /** Whether this window ever draws a conversation's transcript: the palette and
  *  the call panel never do, so they keep no message cache warm. */
 export function windowDrawsTranscripts(): boolean {

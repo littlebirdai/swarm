@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { LONG_FRAME_MS, summarizeLongFrame, watchLongFrames, type LongFrameEntry } from "../freezeAttribution";
+import { LONG_FRAME_MS, summarizeLongFrame, watchLongFrames, watchLongFrameStats, type LongFrameEntry } from "../freezeAttribution";
 
 const frame = (over: Partial<LongFrameEntry> = {}): LongFrameEntry => ({
   startTime: 1_000,
@@ -145,9 +145,26 @@ describe("watchLongFrames", () => {
   test("a recorder that throws does not break the observer", () => {
     const state = installObserver(["long-animation-frame"]);
     let calls = 0;
-    watchLongFrames(() => { calls++; throw new Error("stopped"); });
+    const stop = watchLongFrames(() => { calls++; throw new Error("stopped"); });
     expect(() => state.deliver!([frame({ startTime: 0 })])).not.toThrow();
     expect(() => state.deliver!([frame({ startTime: 5_000 })])).not.toThrow();
     expect(calls).toBe(2);
+    stop();
+  });
+
+  test("counts frames that replay suppresses and resets the interval when read", () => {
+    const state = installObserver(["long-animation-frame"]);
+    const marks: unknown[] = [];
+    const stopReplay = watchLongFrames((_, data) => marks.push(data));
+    const frames = watchLongFrameStats();
+    state.deliver!([frame({ startTime: 0, duration: 350 }), frame({ startTime: 400, duration: 150 })]);
+    state.deliver!([frame({ startTime: 600, duration: 900 })]);
+    expect(marks).toHaveLength(1);
+    expect(frames.take()).toEqual({ count: 2, worstMs: 900 });
+    expect(frames.take()).toEqual({ count: 0, worstMs: 0 });
+    stopReplay();
+    expect(state.disconnected).toBe(false);
+    frames.stop?.();
+    expect(state.disconnected).toBe(true);
   });
 });

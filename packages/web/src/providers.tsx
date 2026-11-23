@@ -20,6 +20,7 @@ import { TipProvider } from "@/tips/TipProvider";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { identifyUser, keepReplay, resetUser } from "@/lib/analytics";
+import { ClientResourceTelemetry } from "@/lib/telemetry/clientResourceTelemetry";
 import { CodecastAuthRoot } from "@/lib/authRoot";
 import { CONVEX_URL } from "@/lib/localAuth";
 import { DOCS_SHOTS, docsShotsConvex } from "@/lib/docsShots/flag";
@@ -163,6 +164,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <KeyBindingsSync />
         <GestureBridge />
         <AnalyticsIdentify />
+        <ClientResourceTelemetry />
         <DispatchFailureToast />
         <Toaster position="bottom-right" />
         </TipProvider>

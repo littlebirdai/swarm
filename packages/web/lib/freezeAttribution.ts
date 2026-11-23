@@ -108,34 +108,74 @@ export function summarizeLongFrame(entry: LongFrameEntry, minMs: number = LONG_F
   };
 }
 
-/**
- * Write a `long_frame` mark for each long frame from now on. Returns the stop.
- * A no-op where the browser reports no long animation frames (Safari, Firefox).
- */
-export function watchLongFrames(mark: (name: string, data: Record<string, unknown>) => void): () => void {
-  if (typeof PerformanceObserver === "undefined") return () => {};
-  if (!(PerformanceObserver.supportedEntryTypes ?? []).includes("long-animation-frame")) return () => {};
-  let lastAt = -Infinity;
-  try {
-    const observer = new PerformanceObserver((list) => {
-      // The longest frame of the batch speaks for it.
-      let worst: LongFrameEntry | null = null;
-      for (const entry of list.getEntries() as unknown as LongFrameEntry[]) {
-        if (entry.duration >= LONG_FRAME_MS && (!worst || entry.duration > worst.duration)) worst = entry;
-      }
-      if (!worst || worst.startTime - lastAt < MIN_GAP_MS) return;
-      const summary = summarizeLongFrame(worst);
-      if (!summary) return;
-      lastAt = worst.startTime;
-      try {
-        mark("long_frame", summary);
-      } catch {
-        // The recorder stopped under us; the next frame tries again.
-      }
-    });
-    observer.observe({ type: "long-animation-frame", buffered: false });
-    return () => observer.disconnect();
-  } catch {
-    return () => {};
+const frameListeners = new Set<(entries: LongFrameEntry[]) => void>();
+let frameObserver: PerformanceObserver | undefined;
+
+function observeLongFrames(listener: (entries: LongFrameEntry[]) => void): (() => void) | undefined {
+  if (!frameObserver) {
+    if (typeof PerformanceObserver === "undefined") return;
+    if (!(PerformanceObserver.supportedEntryTypes ?? []).includes("long-animation-frame")) return;
+    try {
+      const observer = new PerformanceObserver((list) => {
+        const entries = list.getEntries();
+        for (const receive of frameListeners) receive(entries);
+      });
+      observer.observe({ type: "long-animation-frame", buffered: false });
+      frameObserver = observer;
+    } catch {
+      return;
+    }
   }
+  frameListeners.add(listener);
+  return () => {
+    frameListeners.delete(listener);
+    if (frameListeners.size === 0) {
+      frameObserver?.disconnect();
+      frameObserver = undefined;
+    }
+  };
+}
+
+/** Count every qualifying frame. Replay marks use a separate rate limit. */
+export function watchLongFrameStats() {
+  let count = 0;
+  let worstMs = 0;
+  const stop = observeLongFrames((entries) => {
+    for (const { duration } of entries) {
+      if (duration < LONG_FRAME_MS) continue;
+      count++;
+      worstMs = Math.max(worstMs, duration);
+    }
+  });
+  return {
+    take() {
+      if (!stop) return undefined;
+      const stats = { count, worstMs: Math.round(worstMs) };
+      count = 0;
+      worstMs = 0;
+      return stats;
+    },
+    stop,
+  };
+}
+
+/** Write a rate-limited `long_frame` mark to the replay. */
+export function watchLongFrames(mark: (name: string, data: Record<string, unknown>) => void): () => void {
+  let lastAt = -Infinity;
+  return observeLongFrames((entries) => {
+    // The longest frame of the batch speaks for it.
+    let worst: LongFrameEntry | null = null;
+    for (const entry of entries) {
+      if (entry.duration >= LONG_FRAME_MS && (!worst || entry.duration > worst.duration)) worst = entry;
+    }
+    if (!worst || worst.startTime - lastAt < MIN_GAP_MS) return;
+    const summary = summarizeLongFrame(worst);
+    if (!summary) return;
+    lastAt = worst.startTime;
+    try {
+      mark("long_frame", summary);
+    } catch {
+      // The recorder stopped under us; the next frame tries again.
+    }
+  }) ?? (() => {});
 }
