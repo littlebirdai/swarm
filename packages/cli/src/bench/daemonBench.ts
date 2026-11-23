@@ -8,6 +8,8 @@ import { readLoopbackIdentity, localAuthHeaders, runRouteProbes, type ProbeIdent
 import { runLoadBench, type LoadResult, type RuntimeIdentity, type LoadIO } from "./load.js";
 import { childProcess } from "./fixture.js";
 import { porcelainEntries } from "../gitPlane.js";
+import { sampleDaemonMemory, startMemorySampling } from "./memorySampler.js";
+import { summarizeMemory } from "./memoryStats.js";
 
 export interface BenchDeps {
   config: Config;
@@ -53,6 +55,7 @@ export interface BenchReport {
   after: BenchContext | null;
   observe: RouteProbes | null;
   log: LogReport | null;
+  memory: ReturnType<typeof summarizeMemory>;
   sleepWindows: SleepWindow[];
   sleepCoverage: "darwin pmset historical only" | "unavailable";
   load: LoadResult | null;
@@ -113,35 +116,43 @@ export interface DaemonBenchIO {
   routes: typeof runRouteProbes;
   load: typeof runLoadBench;
   loadIO?: Partial<LoadIO>;
-  logs: () => Promise<{ log: LogReport; windows: SleepWindow[] }>;
+  logs: (run: { startMs: number; endMs: number }) => Promise<{ log: LogReport; windows: SleepWindow[] }>;
+  sampleMemory: typeof sampleDaemonMemory;
   write: (file: string, value: string) => Promise<void>;
 }
 
 export async function runDaemonBench(deps: BenchDeps, opts: BenchOptions, say: (line: string) => void = console.log, overrides: Partial<DaemonBenchIO> = {}): Promise<BenchReport> {
   const startedAt = new Date().toISOString();
   const prefix = path.join(deps.configDir, "bench", `${startedAt.replaceAll(":", "-")}-${process.pid}`);
-  const r: BenchReport = { schema: 2, startedAt, finishedAt: startedAt, context: null, after: null, observe: null, log: null, sleepWindows: [], sleepCoverage: process.platform === "darwin" ? "darwin pmset historical only" : "unavailable", load: null, errors: [], acceptance: { status: "NOT ESTABLISHED", reasons: [] }, notes: BENCH_NOTES, outputs: { json: `${prefix}.json`, md: `${prefix}.md` } };
+  const r: BenchReport = { schema: 2, startedAt, finishedAt: startedAt, context: null, after: null, observe: null, log: null, memory: summarizeMemory([]), sleepWindows: [], sleepCoverage: process.platform === "darwin" ? "darwin pmset historical only" : "unavailable", load: null, errors: [], acceptance: { status: "NOT ESTABLISHED", reasons: [] }, notes: BENCH_NOTES, outputs: { json: `${prefix}.json`, md: `${prefix}.md` } };
   const io: DaemonBenchIO = { identity: () => readLoopbackIdentity(deps.configDir), context: identity => benchContext(deps, identity), routes: runRouteProbes, load: runLoadBench,
-    logs: async () => { const windows = readSleepWindows(); const raw = await optionalRead(path.join(deps.configDir, "daemon.log")); if (raw === null) throw new Error("daemon log unavailable"); return { log: buildLogReport(raw.split("\n"), { sinceMs: Date.now() - opts.logSinceMs, sleepWindows: windows }), windows }; },
+    logs: async run => { const windows = readSleepWindows(); const raw = await optionalRead(path.join(deps.configDir, "daemon.log")); if (raw === null) throw new Error("daemon log unavailable"); return { log: buildLogReport(raw.split("\n"), { sinceMs: Date.now() - opts.logSinceMs, sleepWindows: windows, run }), windows }; },
+    sampleMemory: sampleDaemonMemory,
     write: async (file, value) => { await fs.mkdir(path.dirname(file), { recursive: true }); await fs.writeFile(file, value, { mode: 0o600, flag: "wx" }); }, ...overrides };
   const cancellation = new AbortController();
   const abort = () => cancellation.abort(new DOMException("bench cancelled", "AbortError"));
   process.once("SIGINT", abort); process.once("SIGTERM", abort);
   if (opts.signal?.aborted) abort(); else opts.signal?.addEventListener("abort", abort, { once: true });
   let identity: ProbeIdentity | null = null;
+  let finishMemory: Awaited<ReturnType<typeof startMemorySampling>> | undefined;
   try {
     identity = io.identity();
     r.context = await io.context(identity);
     if (identity.port === null) throw new Error("no loopback port");
     const authHeaders = identity.token ? localAuthHeaders(identity.port, identity.token) : null;
+    const { port } = identity;
+    const { pid } = r.context.runtime;
+    if (pid !== null) finishMemory = await startMemorySampling(() => io.sampleMemory(pid, port, authHeaders));
     say(`observing health HTTP RTT for ${opts.durationMs}ms`);
     r.observe = await io.routes({ port: identity.port, durationMs: opts.durationMs, authHeaders, signal: cancellation.signal });
     cancellation.signal.throwIfAborted();
     if (opts.load && opts.load > 0) r.load = await io.load({ ...deps, observeRuntime: async () => (await io.context(io.identity())).runtime }, { n: opts.load, sample: opts.sample, durationMs: opts.durationMs, churnIntervalMs: opts.churnIntervalMs, keep: opts.keep, projectDir: opts.projectDir, port: identity.port, authHeaders, signal: cancellation.signal }, say, io.loadIO);
   } catch { r.errors.push(cancellation.signal.aborted ? "bench cancelled" : "benchmark operation failed; inspect partial records"); }
   finally {
+    if (finishMemory) r.memory = summarizeMemory(await finishMemory());
+    const run = { startMs: Date.parse(startedAt), endMs: Date.now() };
     try { r.after = await io.context(io.identity()); } catch { r.errors.push("after identity unavailable"); }
-    try { const logs = await io.logs(); r.log = logs.log; r.sleepWindows = logs.windows; } catch { r.errors.push("log or sleep evidence unavailable"); }
+    try { const logs = await io.logs(run); r.log = logs.log; r.sleepWindows = logs.windows; } catch { r.errors.push("log or sleep evidence unavailable"); }
     (process as NodeJS.EventEmitter).off("SIGINT", abort); (process as NodeJS.EventEmitter).off("SIGTERM", abort); opts.signal?.removeEventListener("abort", abort);
   }
   for (const [label, probe] of [["health", r.observe?.loopLag], ["hook dispatch", r.observe?.hookStatus], ["terminal", r.observe?.termSessions]] as const) {
@@ -177,6 +188,18 @@ export function renderMarkdown(r: BenchReport): string {
     for (const probe of [routes?.loopLag, routes?.hookStatus, routes?.termSessions]) if (probe) lines.push(`| ${phase}: ${probe.label} | ${probe.summary.n} / ${probe.expected} | ${probe.summary.p99 ?? "unknown"} / ${probe.summary.max ?? "unknown"} | ${probe.errors} / ${probe.timeouts} / ${probe.cancelled} / ${probe.skipped} / ${probe.missing} | ${probe.lateness.max ?? "unknown"} |`);
   }
   if (r.load) lines.push("", `Fleet: ${r.load.spawned}/${r.load.n} spawned, ${r.load.mapped}/${r.load.n} mapped. Delivery: ${r.load.echoedMs.n}/${r.load.sampleRequested} assistant echoes. Cleanup: ${r.load.teardown.verified ? "verified" : "unverified"}.`, "", `Cleanup failures: ${r.load.teardown.warnings.join("; ") || "none"}`);
+  const mib = (bytes: number | null) => bytes === null ? "unavailable" : (bytes / 1024 ** 2).toFixed(1);
+  const { daemonRss, agentRss } = r.memory;
+  const longestHold = r.log?.longestLoopHoldMs;
+  lines.push("", "| Daemon RSS (MiB) | Start | Sampled peak | End |", "| --- | ---: | ---: | ---: |",
+    `| RSS | ${mib(daemonRss.startBytes)} | ${mib(daemonRss.peakBytes)} | ${mib(daemonRss.endBytes)} |`,
+    "", `Longest recorded main-loop hold during the run — ${longestHold != null ? `${longestHold} ms` : r.log ? "none recorded" : "log unavailable"}`);
+  if (agentRss?.length) {
+    lines.push("", "| Provider | Processes | Median peak RSS (MiB) | p90 (MiB) | Max (MiB) |", "| --- | ---: | ---: | ---: | ---: |");
+    for (const row of agentRss) lines.push(`| ${row.provider} | ${row.count} | ${mib(row.medianBytes)} | ${mib(row.p90Bytes)} | ${mib(row.maxBytes)} |`);
+  } else {
+    lines.push("", agentRss ? "No tracked agent processes sampled." : "Agent RSS unavailable.");
+  }
   lines.push("", "Runtime before/after, source manifests, phase timestamps, full probe slots, delivery legs, sleep windows and cleanup ledger are retained in JSON.", "", ...r.notes.map(note => `- ${note}`), "", `JSON: ${r.outputs.json}`, "");
   return lines.join("\n");
 }

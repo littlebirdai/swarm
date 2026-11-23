@@ -372,6 +372,7 @@ import {
 import { LaunchPromptCarriedError, launchPromptFragment, pickLaunchPrompt, transcriptHasUserPrompt } from "./launchPrompt.js";
 import {
   attachTerminalServer,
+  authorizeLocalRequest,
   handleTerminalHttp,
   reapStaleTerminalSessions,
   type TerminalServerOptions,
@@ -3170,6 +3171,18 @@ function startHookServer(): http.Server {
     if (req.method === "GET" && req.url === "/health") {
       res.writeHead(200, { "Content-Type": "text/plain" });
       res.end("ok");
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/bench/processes") {
+      if (!authorizeLocalRequest(req, terminalServerOptions())) {
+        res.writeHead(403).end();
+        return;
+      }
+      const agentPids = process.platform === "win32" ? null
+        : [...new Set([...sessionProcessCache.values()].map(info => info.pid))];
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ pid: process.pid, rssBytes: process.memoryUsage.rss(), agentPids }));
       return;
     }
 

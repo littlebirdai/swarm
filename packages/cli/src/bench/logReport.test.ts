@@ -21,6 +21,25 @@ const FREEZE_SLEEP_1048S =
 const FREEZE_SWEEP =
   "[2026-08-28T19:57:02.928Z] [LOOP-FREEZE] event loop blocked 25s (14637ms CPU during the freeze); last log before it: 2026-08-28T19:56:23.740Z [SLOW-SYNC-SPAWN] spawnSync blocked the event loop 2181ms: lsappinfo front; hot stacks: (anonymous) 100%, processTicksAndRejections 100%, sweepGitPlaneFleet@daemon.ts:13717 100%";
 
+test("longest loop hold uses the run window independently of historical log selection", () => {
+  const slow = "[2026-09-01T23:20:04.000Z] [SLOW-SYNC-FS] statSync blocked the event loop 460ms: fixture";
+  const startMs = Date.parse("2026-09-01T23:20:03Z");
+  const endMs = Date.parse("2026-09-01T23:20:15Z");
+  const report = buildLogReport([FREEZE_SWEEP, slow, FREEZE_25S, FREEZE_8S_NESTED], {
+    sinceMs: endMs,
+    run: { startMs, endMs },
+    sleepWindows: [],
+  });
+  expect(report.longestLoopHoldMs).toBe(8000);
+  expect(report.freezes.freezeCount).toBe(0);
+  expect(buildLogReport([slow], { sinceMs: 0, run: { startMs, endMs }, sleepWindows: [] }).longestLoopHoldMs).toBe(460);
+  expect(buildLogReport([FREEZE_SLEEP_1048S], {
+    sinceMs: 0,
+    run: { startMs: Date.parse("2026-08-31T06:40:00Z"), endMs },
+    sleepWindows: [],
+  }).longestLoopHoldMs).toBeNull();
+});
+
 const PMSET = [
   "2026-08-27 08:50:32 -0400 Sleep               \tEntering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using AC (Charge:100%) 202 secs  ",
   "2026-08-27 08:50:34 -0400 Wake Requests       \t[*process=dasd request=SleepService deltaSecs=1019 wakeAt=2026-08-27 09:07:33 info=\"x\"]",

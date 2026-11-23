@@ -178,6 +178,7 @@ export interface LogReport {
   sinceMs: number;
   linesRead: number;
   sleepWindows: number;
+  longestLoopHoldMs: number | null;
   freezes: {
     rawCount: number;
     sleepCount: number;
@@ -199,7 +200,7 @@ export const PS_SNAPSHOT_EDGES_MS = [2000, 5000, 10000, 20000];
 
 export function buildLogReport(
   lines: Iterable<string>,
-  opts: { sinceMs: number; sleepWindows: SleepWindow[]; top?: number },
+  opts: { sinceMs: number; sleepWindows: SleepWindow[]; top?: number; run?: { startMs: number; endMs: number } },
 ): LogReport {
   const top = opts.top ?? 8;
   const freezes: Array<LoopFreezeEvent & { kind: FreezeKind }> = [];
@@ -208,21 +209,35 @@ export function buildLogReport(
   const fsHolds: SlowSpawnEvent[] = [];
   const boots: BootRow[] = [];
   let linesRead = 0;
+  let longestLoopHoldMs: number | null = null;
 
   for (const raw of lines) {
     const parsed = parseDaemonLogLine(raw);
-    if (!parsed || parsed.ts < opts.sinceMs) continue;
-    linesRead++;
+    if (!parsed) continue;
     const { ts, message } = parsed;
+    const historical = ts >= opts.sinceMs;
+    const run = opts.run && ts >= opts.run.startMs && ts <= opts.run.endMs ? opts.run : null;
+    if (!historical && !run) continue;
+    if (historical) linesRead++;
+    let holdMs: number | undefined;
     if (message.startsWith("[LOOP-FREEZE]")) {
       const ev = parseLoopFreeze(ts, message);
-      if (ev) freezes.push({ ...ev, kind: classifyFreeze(ev, opts.sleepWindows) });
+      if (ev) {
+        const kind = classifyFreeze(ev, opts.sleepWindows);
+        if (historical) freezes.push({ ...ev, kind });
+        if (kind === "freeze") holdMs = ev.lateMs;
+      }
+    } else if (message.startsWith("[SLOW-SYNC-")) {
+      const ev = parseSlowSpawn(ts, message);
+      if (ev) {
+        if (historical) (ev.tag === "SLOW-SYNC-FS" ? fsHolds : spawns).push(ev);
+        holdMs = ev.blockedMs;
+      }
+    } else if (!historical) {
+      continue;
     } else if (message.startsWith("[PS-SNAPSHOT]")) {
       const ev = parsePsSnapshot(ts, message);
       if (ev) ps.push(ev);
-    } else if (message.startsWith("[SLOW-SYNC-")) {
-      const ev = parseSlowSpawn(ts, message);
-      if (ev) (ev.tag === "SLOW-SYNC-FS" ? fsHolds : spawns).push(ev);
     } else if (message.startsWith("[LIFECYCLE] daemon_start")) {
       const m = START_RE.exec(message);
       if (m) boots.push({ startedAt: new Date(ts).toISOString(), version: m[1], pid: Number(m[2]), listeningAt: null, blackoutMs: null });
@@ -232,6 +247,9 @@ export function buildLogReport(
         last.listeningAt = new Date(ts).toISOString();
         last.blackoutMs = ts - Date.parse(last.startedAt);
       }
+    }
+    if (run && holdMs !== undefined && ts - holdMs >= run.startMs) {
+      longestLoopHoldMs = Math.max(longestLoopHoldMs ?? 0, holdMs);
     }
   }
 
@@ -262,6 +280,7 @@ export function buildLogReport(
     sinceMs: opts.sinceMs,
     linesRead,
     sleepWindows: opts.sleepWindows.length,
+    longestLoopHoldMs,
     freezes: {
       rawCount: freezes.length,
       sleepCount: freezes.length - real.length,
