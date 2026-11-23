@@ -15,6 +15,10 @@ import deliverySettle from "./__fixtures__/delivery.settle.json";
 import commandsNext from "./__fixtures__/commands.next.json";
 import commandsResult from "./__fixtures__/commands.result.json";
 
+function expectParsed(result: edge.EdgeParseResult<unknown>, value: unknown) {
+  expect(result).toEqual({ ok: true, value });
+}
+
 function expectParseError(
   result: edge.EdgeParseResult<unknown>,
   code: edge.EdgeParseErrorCode,
@@ -45,8 +49,8 @@ const verbs = [
 for (const [verb, fixture, parseRequest, parseResponse] of verbs) {
   describe(verb, () => {
     test("preserves the golden request and response", () => {
-      expect(parseRequest(fixture.request)).toEqual({ ok: true, value: fixture.request });
-      expect(parseResponse(fixture.response)).toEqual({ ok: true, value: fixture.response });
+      expectParsed(parseRequest(fixture.request), fixture.request);
+      expectParsed(parseResponse(fixture.response), fixture.response);
     });
 
     test("rejects malformed requests and responses", () => {
@@ -76,9 +80,9 @@ describe("version negotiation", () => {
   });
 
   test("returns a parsable upgrade response without a shared version", () => {
-    const expected = { status: "upgrade_required", supported_versions: [3, 2] };
+    const expected: edge.EdgeVersionNegotiation = { status: "upgrade_required", supported_versions: [3, 2] };
     expect(edge.negotiateEdgeVersion([1], new Set([2, 3]))).toEqual(expected);
-    expect(edge.parseHelloResponse(expected)).toEqual({ ok: true, value: expected });
+    expectParsed(edge.parseHelloResponse(expected), expected);
   });
 
   test("validates versions and nested host capacity", () => {
@@ -106,7 +110,7 @@ describe("canonical events", () => {
 
   test("preserves the absence of a delivery ID", () => {
     const userEvent = { ...first, kind: "message.user", body: { text: "hello", authors: [] } };
-    expect(edge.parseCanonicalEvent(userEvent)).toEqual({ ok: true, value: userEvent });
+    expectParsed(edge.parseCanonicalEvent(userEvent), userEvent);
     expectParseError(
       edge.parseCanonicalEvent({ ...userEvent, body: { ...userEvent.body, delivery_id: null } }),
       "invalid_type", "$.body.delivery_id",
@@ -114,7 +118,7 @@ describe("canonical events", () => {
   });
 
   test("keeps the relay-only delta out of durable event batches", () => {
-    expect(edge.parseMessageDelta(delta)).toEqual({ ok: true, value: delta });
+    expectParsed(edge.parseMessageDelta(delta), delta);
     expectParseError(
       edge.parseEventsAppendRequest({ ...eventsAppend.request, events: [{ ...delta, seq: 1 }] }),
       "invalid_value", "$.events[0].kind",
@@ -154,7 +158,7 @@ describe("canonical events", () => {
 describe("permits and claims", () => {
   test("parses an authorized steer permit for an agent sender", () => {
     const permit = { ...permitsNext.response, intent: "steer" };
-    expect(edge.parsePermitsNextResponse(permit)).toEqual({ ok: true, value: permit });
+    expectParsed(edge.parsePermitsNextResponse(permit), permit);
   });
 
   test("checks sender, effective intent, and outcome", () => {
@@ -188,6 +192,6 @@ describe("permits and claims", () => {
 
   test("accepts a machine command result without a claim", () => {
     const { claim: _claim, ...result } = commandsResult.request;
-    expect(edge.parseCommandsResultRequest(result)).toEqual({ ok: true, value: result });
+    expectParsed(edge.parseCommandsResultRequest(result), result);
   });
 });
