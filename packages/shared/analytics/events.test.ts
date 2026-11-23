@@ -36,6 +36,15 @@ describe("the codecast event catalog", () => {
       ["tips_level_changed", { level: "subtle" }],
       ["synclog_apply", { direct: 12, refetch: 3, ratio: 0.8 }],
       ["synclog_crawl_healed", { namespace: "tasks", count: 2 }],
+      ["client_resource_report", {
+        platform: "desktop",
+        sync_role: "host",
+        window_role: "app",
+        window_count: 4,
+        store_total_rows: 1100,
+        store_collection_rows: { messages: 1000, tasks: 100 },
+        store_collection_estimated_bytes: { tasks: 30_000 },
+      }],
       [
         "inbox_digest_heartbeat",
         {

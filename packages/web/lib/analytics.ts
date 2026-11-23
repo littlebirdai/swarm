@@ -156,7 +156,7 @@ function startReplayOnError(analytics: AnalyticsRuntime) {
         for (const reason of pendingKeeps.splice(0)) recorder.keep(reason);
         // What ran in each long frame, beside the recorder's own `freeze` mark
         // (./freezeAttribution). A stopped recorder drops the marks.
-        watchLongFrames((name, data) => recorder.mark(name, data));
+        stopReplayFrames = watchLongFrames((name, data) => recorder.mark(name, data));
       }
     })
     .catch(() => {});
@@ -173,6 +173,7 @@ function startReplayOnError(analytics: AnalyticsRuntime) {
 const REGULATED_KEY = "codecast.regulated-data";
 let regulated = readRegulatedMarker();
 let replayRecorder: { stop(): void; keep(reason: string): void } | undefined;
+let stopReplayFrames: (() => void) | undefined;
 /** Reasons asked for before the recorder loaded, applied when it does. */
 const pendingKeeps: string[] = [];
 
@@ -213,6 +214,8 @@ export function setRegulatedData(on: boolean) {
     try { posthog.opt_out_capturing(); } catch {}
     replayRecorder?.stop();
     replayRecorder = undefined;
+    stopReplayFrames?.();
+    stopReplayFrames = undefined;
     // Destructured, not `(sentry) => sentry.close()`: Rollup keeps every export
     // of a namespace handed to a callback, which put Sentry's Replay and
     // Feedback (never enabled) into the boot graph.
