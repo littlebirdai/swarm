@@ -8010,7 +8010,10 @@ export default defineSchema({
       org_role_id: v.optional(v.id("org_roles")),
       standing_role_id: v.optional(v.id("org_roles")),
     })),
-    // Absent until pageData.backfillSessionStarts refreshes pre-existing rows.
+    // What the daemon's pending-message query needs to decide delivery (the
+    // owning device and whether delivery is blocked), so that subscription
+    // reads this row and not the conversation. Absent until
+    // pageData.backfillSessionStarts refreshes pre-existing rows.
     daemon_delivery: v.optional(v.object({
       owner_device_id: v.optional(v.string()),
       blocked: v.boolean(),

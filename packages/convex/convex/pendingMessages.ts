@@ -1814,8 +1814,9 @@ export async function collectDeliverableForOwner(
     seen.add(key);
     const start = await sessionStartOf(ctx.db, message.conversation_id);
     const projectedDelivery = start?.daemon_delivery;
-    // TODO: Remove the pre-backfill conversation fallback after
-    // pageData.backfillSessionStarts populates daemon_delivery on existing rows.
+    // Rows written before daemon_delivery existed fall back to the conversation.
+    // Remove this fallback once pageData.backfillSessionStarts has run on every
+    // deployment that holds such rows.
     const conversation = projectedDelivery ? start : await ctx.db.get(message.conversation_id);
     if (!conversation) continue;
     const delivery = projectedDelivery ?? daemonDeliveryStateOf(conversation);

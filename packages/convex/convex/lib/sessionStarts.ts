@@ -5,7 +5,9 @@
 // mutation's db passes through (functions.ts): any insert, replace, delete,
 // or patch of a field the row derives from re-derives it. The row's team is
 // the visibility rule's answer (teamVisibleConvTeam), so a session made
-// private leaves its team's count at once.
+// private leaves its team's count at once. It also carries daemon_delivery,
+// which getPendingMessagesForDaemon reads instead of the conversation: drop a
+// field from DERIVED_FROM and the daemon delivers on a stale value.
 
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
