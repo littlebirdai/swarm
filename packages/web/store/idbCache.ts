@@ -9,6 +9,6 @@ export { _resetPersistedShadow, flushPersistence, writePatchesToIDB } from "./pe
 export { setHydrating } from "./persistence/hydration";
 export { ensureCacheOwnership, loadCache, loadCacheSync, loadPaintCacheSync, RETIRED_META_KEYS } from "./persistence/bootLoader";
 export { deleteInBatches, RETENTION_DELETE_BATCH } from "./persistence/retention";
-export { flushConversationMessages, loadConversationMessages, writeConversationMessages, writeConversationUserMessages, type CachedConversation } from "./persistence/messageCache";
+export { flushConversationMessages, loadConversationMessages, setMessageCacheWritable, writeConversationMessages, writeConversationUserMessages, type CachedConversation } from "./persistence/messageCache";
 export { enqueueDispatch, loadOutbox, removeDispatch, salvageLocalFirstV2Data, type OutboxEntry } from "./persistence/outbox";
 export { purgeLocalCache } from "./persistence/purge";

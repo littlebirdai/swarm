@@ -11,7 +11,7 @@ import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 
 // Old bundles can still write these values to the web meta table.
-export const RETIRED_META_KEYS = ["messages", "pagination", "sidePanelOpen", "sidePanelUserClosed", "teamUnreadCount", "conversations"];
+export const RETIRED_META_KEYS = ["messages", "pagination", "sidePanelOpen", "sidePanelUserClosed", "teamUnreadCount", "conversations", "conversationMessages"];
 let retiredMetaSwept = false;
 
 // Native kv-store can read SQLite on this thread (getItemSync). Web IndexedDB

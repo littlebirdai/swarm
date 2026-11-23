@@ -147,10 +147,16 @@ test("a joining follower applies the host snapshot without writing to IndexedDB"
   startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
   // Feeders can still answer while the new window is waiting for its role.
   state().syncTable("sessions", [{ ...rows[0], title: "Early feeder result" }], { isDelta: true });
+  const early = { _id: "early-message", role: "user" as const, timestamp: Date.now(), content: "During election" };
+  state().setMessages("election-conversation", [early]);
   await waitFor(() => state().syncRole === "follower");
   expect(state().sessions[rows[0]._id]?.title).toBe("From the host");
   state().syncTable("sessions", [{ ...rows[1], title: "Late feeder result" }], { isDelta: true });
   expect(state().sessions[rows[1]._id]?.title).toBe("Late feeder result");
+  const message = { _id: "follower-message", role: "user" as const, timestamp: Date.now(), content: "Only in this window" };
+  state().setMessages("follower-conversation", [message]);
+  state().setUserMessages("follower-conversation", [message]);
+  expect(state().messages["follower-conversation"]).toEqual([message]);
   await drainWrites();
 
   expect(mutations).toEqual([]);

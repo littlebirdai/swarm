@@ -1,34 +1,35 @@
 import { captureException } from "@sentry/react";
-import { persistedMessageTail } from "../cacheRetention";
+import Dexie from "dexie";
+import { MESSAGE_PAGE_SIZE, persistedMessageTail } from "../cacheRetention";
+import { sameValue } from "../sameValue";
+import { db, type ConversationMessageRow } from "./db";
 import { _hydrating } from "./hydration";
-import { db } from "./db";
+import { diffMessageTail } from "./messageTailDiff";
 import { persistenceOwned } from "./ownership";
+import { deleteInBatches, RETENTION_DELETE_BATCH } from "./retention";
 
-// IDB writes are coalesced per conversation. setMessages fires on nearly every
-// live-sync tick for the focused conversation, and each write serializes the
-// ENTIRE conversation — message bodies carry inline images, so a single put can
-// be multiple MB. Writing the whole thing on every appended message is pure
-// waste: this row is a reload cache, not the live source of truth (the in-memory
-// store is, and it still updates synchronously). We keep only the latest payload
-// per conv and flush on a short trailing timer, collapsing a burst of N ticks
-// into one write. The timer is scheduled once per burst (not reset on each
-// write), so a continuous stream still flushes at most every DEBOUNCE_MS rather
-// than starving. Reads consult the pending buffer first for read-your-writes,
-// and page-hide flushes so an abrupt close still persists the freshest state.
+// A continuous stream flushes at most once per interval. Keep the latest
+// snapshot readable until its row edits and metadata commit together.
 type MessageSnapshot = { messages: any[]; pagination: any };
-const _pendingMsgWrites = new Map<string, MessageSnapshot>();
+let _pendingMsgWrites = new Map<string, MessageSnapshot>();
 const _inFlightMsgWrites = new Set<string>();
 let _msgWriteTimer: ReturnType<typeof setTimeout> | null = null;
 const MSG_WRITE_DEBOUNCE_MS = 300;
 
-// On-disk prune of the conversationMessages store. Every conversation ever opened
-// leaves a row (up to several MB with inline images) and nothing ever deleted it,
-// so the store climbed unbounded (~445MB in a past incident). We cap it at the N
-// most-recently-active conversations and drop anything past a TTL, ordered by the
-// latestTimestamp index. Runs lazily off the write path — piggybacked on the
-// debounced flush and throttled — never on the hot per-tick path. The cap sits
-// near the session-row cache floor (partitionSessionRetention keeps ~1200 rows):
-// a row the list can show should have its tail on disk, so the click is local.
+// Hold a few hot tails for exact, mostly referential comparisons without
+// keeping every inline image that was ever opened alive in memory.
+const MESSAGE_SHADOW_LIMIT = 8;
+const _messageShadows = new Map<string, Map<string, ConversationMessageRow>>();
+let _messageCacheWritable = true;
+
+export function setMessageCacheWritable(writable: boolean) {
+  if (_messageCacheWritable === writable) return;
+  _messageCacheWritable = writable;
+  if (!writable) dropPendingMessageWrites();
+}
+
+// Prune off the debounced write path. The cap is near the session-row cache
+// floor so a conversation the inbox can show usually has its tail on disk.
 const MAX_CACHED_CONVERSATIONS = 1000;
 const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const PRUNE_THROTTLE_MS = 5 * 60 * 1000; // at most once per 5 min
@@ -55,7 +56,7 @@ function _flushMessageWrites(immediate = false) {
     clearTimeout(_msgWriteTimer);
     _msgWriteTimer = null;
   }
-  if (_pendingMsgWrites.size === 0) return;
+  if (!_messageCacheWritable || !persistenceOwned() || _pendingMsgWrites.size === 0) return;
   for (const [convId, snapshot] of _pendingMsgWrites) {
     if (_inFlightMsgWrites.has(convId)) continue;
     void _writeMessageSnapshot(convId, snapshot);
@@ -69,17 +70,66 @@ function _flushMessageWrites(immediate = false) {
 
 async function _writeMessageSnapshot(convId: string, snapshot: MessageSnapshot) {
   _inFlightMsgWrites.add(convId);
+  const pending = _pendingMsgWrites;
   try {
     const { messages, pagination } = snapshot;
     const tail = persistedMessageTail(messages, pagination);
-    await db.conversationMessages.put({ convId, messages: tail.messages, pagination: tail.pagination, latestTimestamp: _latestTs(tail.messages) });
-    if (_pendingMsgWrites.get(convId) === snapshot) _pendingMsgWrites.delete(convId);
+    const latestTimestamp = _latestTs(tail.messages);
+    const { conversationMessageMeta: meta, conversationMessageRows: rows } = db;
+    const committed = await db.transaction("rw", meta, rows, async () => {
+      if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
+      const priorMeta = await meta.get(convId);
+      // Read keys only on the hot path. A revision lets a transaction detect
+      // writes from another window or a DB reset without reading image bodies.
+      const shadow = _messageShadows.get(convId);
+      const previous = new Map<string, ConversationMessageRow>();
+      const missing: Array<[string, string]> = [];
+      await rows.where("[convId+position+messageKey+revision]")
+        .between([convId, Dexie.minKey], [convId, Dexie.maxKey])
+        .eachKey((compoundKey) => {
+          if (!Array.isArray(compoundKey)) return;
+          const [, , key, revision] = compoundKey;
+          if (typeof key !== "string" || typeof revision !== "string") return;
+          const cached = shadow?.get(key);
+          if (cached?.revision === revision) previous.set(key, cached);
+          else missing.push([convId, key]);
+        });
+      if (missing.length) {
+        for (const row of await rows.bulkGet(missing)) {
+          if (row) previous.set(row.messageKey, row);
+        }
+      }
+
+      const { puts, deletes, next } = diffMessageTail(previous, tail.messages);
+      if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
+      const revision = puts.length ? crypto.getRandomValues(new Uint32Array(4)).join("-") : "";
+      const rowPuts = puts.map((put) => ({ convId, revision, ...put }));
+      if (deletes.length) await rows.bulkDelete(deletes.map((key) => [convId, key]));
+      if (rowPuts.length) await rows.bulkPut(rowPuts);
+      if (!priorMeta || latestTimestamp !== priorMeta.latestTimestamp ||
+          !sameValue(tail.pagination, priorMeta.pagination)) {
+        await meta.put({ convId, pagination: tail.pagination, latestTimestamp });
+      }
+
+      for (const row of rowPuts) previous.set(row.messageKey, row);
+      // Reuse the latest immutable refs even if the feeder rebuilt equal rows.
+      return new Map([...next].map(([key, row]) => [key, { ...previous.get(key)!, ...row }]));
+    });
+    if (committed && pending === _pendingMsgWrites) {
+      _messageShadows.delete(convId);
+      _messageShadows.set(convId, committed);
+      if (_messageShadows.size > MESSAGE_SHADOW_LIMIT) {
+        const oldest = _messageShadows.keys().next().value;
+        if (oldest !== undefined) _messageShadows.delete(oldest);
+      }
+    }
+    if (pending.get(convId) === snapshot) pending.delete(convId);
   } catch (error) {
     captureException(error, { tags: { source: "conversation-cache" } });
   } finally {
     _inFlightMsgWrites.delete(convId);
-    const pending = _pendingMsgWrites.get(convId);
-    if (pending && pending !== snapshot) _scheduleMessageWrites();
+    const newest = _pendingMsgWrites.get(convId);
+    if (newest && newest !== snapshot) _scheduleMessageWrites();
   }
 }
 
@@ -87,46 +137,42 @@ function _scheduleMessageWrites(delay = MSG_WRITE_DEBOUNCE_MS) {
   if (!_msgWriteTimer) _msgWriteTimer = setTimeout(_flushMessageWrites, delay);
 }
 
-// Drop conversationMessages rows beyond the cap (oldest by latestTimestamp) and
-// past the TTL, skipping any conversation currently buffered or recently touched
-// (open/on-screen). Reads only primary keys off the latestTimestamp index, so the
-// multi-MB message payloads are never loaded; best-effort and never throws.
+// The writable index walk lets Chromium clean up entries stranded by timestamp
+// updates. Delete whole conversations in batches that bound the number of rows
+// in each transaction, rechecking touches and timestamps after the walk.
 async function _pruneConversations() {
   try {
     const now = Date.now();
-    const protectedIds = new Set<string>(_pendingMsgWrites.keys());
+    const { conversationMessageMeta: meta, conversationMessageRows: rows, conversationUserMessages: userMessages } = db;
     for (const [convId, ts] of _touchedAt) {
-      if (now - ts <= PROTECT_RECENT_MS) protectedIds.add(convId);
-      else _touchedAt.delete(convId); // let the recency map self-bound
+      if (now - ts > PROTECT_RECENT_MS) _touchedAt.delete(convId);
     }
-
-    // One WRITABLE transaction, even when nothing gets deleted. Each flush of a
-    // streaming conversation moves its latestTimestamp and strands the old index
-    // entry; Chromium deletes those dead entries as a cursor steps over them, but
-    // only in a writable transaction. Read-only, this walk re-paid for every
-    // entry stranded since boot (153ms for 1000 rows in a day-old tab, 9ms by
-    // primary key); writable, each prune pays only for the churn since the last.
-    await db.transaction("rw", db.conversationMessages, db.conversationUserMessages, async () => {
-      // Ascending by latestTimestamp (oldest first); everything past the cap is the
-      // least-recently-active tail. primaryKeys() reads the index only, not the rows.
-      const orderedKeys = await db.conversationMessages.orderBy("latestTimestamp").primaryKeys();
-      const overCap =
-        orderedKeys.length > MAX_CACHED_CONVERSATIONS
-          ? orderedKeys.slice(0, orderedKeys.length - MAX_CACHED_CONVERSATIONS)
-          : [];
-      const expired = await db.conversationMessages
-        .where("latestTimestamp")
-        .below(now - CONVERSATION_TTL_MS)
-        .primaryKeys();
-
-      const doomed = new Set<string>([...overCap, ...expired]);
-      for (const id of protectedIds) doomed.delete(id);
-      if (doomed.size > 0) {
-        const ids = [...doomed];
-        await db.conversationMessages.bulkDelete(ids);
-        await db.conversationUserMessages.bulkDelete(ids);
-      }
-    });
+    const pending = _pendingMsgWrites;
+    const ordered = new Map<string, number>();
+    await db.transaction("rw", meta, () => meta.orderBy("latestTimestamp").eachKey((ts, cursor) => {
+      ordered.set(cursor.primaryKey as string, ts as number);
+    }));
+    const overCap = ordered.size - MAX_CACHED_CONVERSATIONS;
+    const doomed: string[] = [];
+    let index = 0;
+    for (const [id, timestamp] of ordered) {
+      if ((index++ < overCap || timestamp < now - CONVERSATION_TTL_MS) &&
+          !_touchedAt.has(id) && !_pendingMsgWrites.has(id)) doomed.push(id);
+    }
+    await deleteInBatches({
+      bulkDelete: (ids) => db.transaction("rw", meta, rows, userMessages, async () => {
+        if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
+        const current = await meta.bulkGet(ids);
+        const drop = current.flatMap((row) => row && ordered.get(row.convId) === row.latestTimestamp &&
+          !_touchedAt.has(row.convId) && !_pendingMsgWrites.has(row.convId) ? [row.convId] : []);
+        if (!drop.length) return;
+        const keys = await rows.where("convId").anyOf(drop).primaryKeys();
+        await rows.bulkDelete(keys);
+        await userMessages.bulkDelete(drop);
+        await meta.bulkDelete(drop);
+        for (const id of drop) _messageShadows.delete(id);
+      }),
+    }, doomed, Math.floor(RETENTION_DELETE_BATCH / MESSAGE_PAGE_SIZE));
   } catch {
     // Maintenance is best-effort — the durable cache tolerates skipped prunes.
   }
@@ -177,11 +223,15 @@ export async function loadConversationMessages(convId: string): Promise<CachedCo
     return { messages: tail.messages, pagination: tail.pagination, latestTimestamp: _latestTs(tail.messages), userMessages };
   }
   try {
-    const row = await db.conversationMessages.get(convId);
-    // A conversation whose navigator list landed before any message page did
-    // still hydrates that list; the caller treats empty messages as a miss.
-    if (!row) return userMessages ? { messages: [], pagination: undefined, latestTimestamp: 0, userMessages } : null;
-    return { messages: row.messages, pagination: row.pagination, latestTimestamp: row.latestTimestamp, userMessages };
+    const { conversationMessageMeta: meta, conversationMessageRows: rows } = db;
+    return await db.transaction("r", meta, rows, async () => {
+      const row = await meta.get(convId);
+      // A navigator list can arrive before the first message page.
+      if (!row) return userMessages ? { messages: [], pagination: undefined, latestTimestamp: 0, userMessages } : null;
+      const ordered = await rows.where("[convId+position+messageKey+revision]")
+        .between([convId, Dexie.minKey], [convId, Dexie.maxKey]).toArray();
+      return { messages: ordered.map((entry) => entry.message), pagination: row.pagination, latestTimestamp: row.latestTimestamp, userMessages };
+    });
   } catch {
     return null;
   }
@@ -190,18 +240,23 @@ export async function loadConversationMessages(convId: string): Promise<CachedCo
 // Small row, written straight through: the store already dedups no-op ticks
 // (setUserMessages), so every call here is a real change.
 export function writeConversationUserMessages(convId: string, userMessages: any[]) {
-  if (_hydrating || !persistenceOwned()) return;
+  if (_hydrating || !_messageCacheWritable || !persistenceOwned()) return;
   _touchedAt.set(convId, Date.now());
   db.conversationUserMessages.put({ convId, userMessages }).catch(() => {});
 }
 
 export function writeConversationMessages(convId: string, messages: any[], pagination: any) {
-  if (_hydrating || !persistenceOwned()) return;
+  if (_hydrating || !_messageCacheWritable || !persistenceOwned()) return;
   _touchedAt.set(convId, Date.now());
   _pendingMsgWrites.set(convId, { messages, pagination });
   if (!_inFlightMsgWrites.has(convId)) _scheduleMessageWrites();
 }
 
 export function dropPendingMessageWrites() {
-  _pendingMsgWrites.clear();
+  if (_msgWriteTimer) clearTimeout(_msgWriteTimer);
+  _msgWriteTimer = null;
+  _pendingMsgWrites = new Map();
+  _messageShadows.clear();
+  _touchedAt.clear();
+  _lastPruneAt = 0;
 }

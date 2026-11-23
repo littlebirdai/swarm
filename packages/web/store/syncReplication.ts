@@ -29,7 +29,7 @@ import {
 } from "@platform/engine";
 import { useInboxStore, hasSyncRegistryEntry, syncLogScopeMetaKey, SESSIONS_PRESERVE_FIELDS } from "./inboxStore";
 import { INBOX_FACT_FIELDS } from "@codecast/shared/contracts";
-import { CACHE_SCHEMA_VERSION, writePatchesToIDB } from "./idbCache";
+import { CACHE_SCHEMA_VERSION, setMessageCacheWritable, writePatchesToIDB } from "./idbCache";
 import { followerPersistencePatches } from "./followerPersistence";
 import { syncTransaction } from "./syncTransaction";
 import type { GestureMessage } from "./gestureBridge";
@@ -572,17 +572,20 @@ export function startSyncReplication(opts: { eligible: boolean; principalId: str
         setActionTee(null);
         internals._setIDBWrite(writePatchesToIDB);
         persistSkipped();
+        setMessageCacheWritable(true);
         setRole("host");
       }
     }, SOLO_FALLBACK_MS);
   };
 
   const startFollower = () => {
+    setMessageCacheWritable(false);
     (useInboxStore.getState() as any)._setIDBWrite(bootWrite);
     follower = replicationFollowerFor(selfId, channel, (synced) => {
       if (stopped || elected) return;
       if (synced) {
         if (soloTimer) clearTimeout(soloTimer);
+        setMessageCacheWritable(false);
         setRole("follower");
         // The host persists the shared slice; nothing skipped is owed.
         skippedBeforeRole = null;
@@ -598,6 +601,7 @@ export function startSyncReplication(opts: { eligible: boolean; principalId: str
   const becomeElectedHost = () => {
     if (stopped) return;
     elected = true;
+    setMessageCacheWritable(true);
     if (soloTimer) clearTimeout(soloTimer);
     host = promoteToHost(follower, () => replicationHostFor(selfId, channel, () => useInboxStore.getState()));
     follower = null;
@@ -662,6 +666,7 @@ export function startSyncReplication(opts: { eligible: boolean; principalId: str
     // Whatever role we were in, leave the window as a self-sufficient host
     // (today's behavior): write-through restored, feeders gate open.
     internals._setIDBWrite(writePatchesToIDB);
+    setMessageCacheWritable(true);
     setRole("host");
     running = null;
   };

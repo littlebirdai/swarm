@@ -703,6 +703,9 @@ export function writeConversationUserMessages(convId: string, userMessages: any[
   scheduleWrite(CONVUSERMSG_PREFIX + convId, () => JSON.stringify(userMessages));
 }
 
+// Native has its own cache and no browser sync-host election.
+export function setMessageCacheWritable(_writable: boolean) {}
+
 export function writeConversationMessages(convId: string, messages: any[], pagination: any) {
   if (!Storage || _hydrating) return;
   // Everything runs at flush time: the array is the store's own, finalized by

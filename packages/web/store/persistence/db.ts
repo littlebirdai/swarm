@@ -8,9 +8,17 @@ import { CACHE_SCHEMA_VERSION, SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "./s
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
 export const PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
 
+export type ConversationMessageRow = { convId: string; messageKey: string; position: number; revision: string; message: any };
+type ConversationMessageMeta = {
+  convId: string;
+  pagination: Record<string, unknown> | undefined;
+  latestTimestamp: number;
+};
+
 class CacheDB extends Dexie {
   meta!: Dexie.Table<{ key: string; value: any }, string>;
-  conversationMessages!: Dexie.Table<{ convId: string; messages: any[]; latestTimestamp: number; pagination: any }, string>;
+  conversationMessageMeta!: Dexie.Table<ConversationMessageMeta, string>;
+  conversationMessageRows!: Dexie.Table<ConversationMessageRow, [string, string]>;
   conversationUserMessages!: Dexie.Table<{ convId: string; userMessages: any[] }, string>;
   dispatchOutbox!: Dexie.Table<OutboxEntry, string>;
 

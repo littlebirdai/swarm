@@ -1,7 +1,7 @@
 import "./fixtures/signedInPrincipal";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { expect, it } from "bun:test";
-import Dexie from "dexie";
+import { db } from "../persistence/db";
 import { useInboxStore } from "../inboxStore";
 import { _reopenForTests, flushConversationMessages, setHydrating } from "../idbCache";
 
@@ -19,15 +19,19 @@ const CONV = "conv_draftwrite_aaaaaaaaaaaaaaaaaaaaa";
 const msg = (n: number) => ({ _id: `m${n}`, role: "assistant", content: `row ${n}`, timestamp: n }) as any;
 
 async function committedIds(): Promise<string[] | undefined> {
-  const table = (Dexie.connections.find((db) => db.name === "codecast-store") as any).conversationMessages;
   const deadline = Date.now() + 5_000;
-  let row = await table.get(CONV);
+  let ids: string[] | undefined;
   while (Date.now() < deadline) {
     await Bun.sleep(20);
-    row = await table.get(CONV);
-    if (row && Date.now() > deadline - 4_500) break;
+    ids = await db.transaction("r", db.conversationMessageMeta, db.conversationMessageRows, async () => {
+      const meta = await db.conversationMessageMeta.get(CONV);
+      if (!meta) return undefined;
+      const rows = await db.conversationMessageRows.where("convId").equals(CONV).sortBy("position");
+      return rows.map((row) => row.message._id);
+    });
+    if (ids && Date.now() > deadline - 4_500) break;
   }
-  return row?.messages.map((m: any) => m._id);
+  return ids;
 }
 
 function reset() {

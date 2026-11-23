@@ -1,4 +1,5 @@
 import type Dexie from "dexie";
+import { sameValue } from "./sameValue";
 import { COLLECTION_LIVE_FIELDS, META_LIVE_FIELDS } from "./clientSyncRegistry";
 
 // The liveness lane. A row whose change since it last reached disk touches
@@ -36,22 +37,6 @@ export function connectLivenessLane(deps: LivenessLaneDeps) {
 function scheduleLivenessFlush(state: any) {
   livenessState = state;
   if (!livenessTimer) livenessTimer = setTimeout(flushLivenessWrites, LIVENESS_FLUSH_MS);
-}
-
-/** Content equality for synced values. A push hands back fresh nested objects
- *  even where nothing in them changed, so a reference compare is not enough. */
-function sameValue(a: any, b: any): boolean {
-  if (a === b) return true;
-  if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
-  if (Array.isArray(a)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) if (!sameValue(a[i], b[i])) return false;
-    return true;
-  }
-  const keys = Object.keys(a);
-  if (keys.length !== Object.keys(b).length) return false;
-  for (const key of keys) if (!Object.prototype.hasOwnProperty.call(b, key) || !sameValue(a[key], b[key])) return false;
-  return true;
 }
 
 /** Whether `next` differs from the row on disk only in `live` fields. */

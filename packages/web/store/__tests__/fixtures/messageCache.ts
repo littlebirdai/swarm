@@ -13,7 +13,8 @@ const pagination = { initialized: true, hasMore: false };
 await cache.enqueueDispatch({ id: "seed", action: "seed", args: [], patches: [], result: null, ts: now });
 const db = new Dexie("codecast-store");
 await db.open();
-await db.table("conversationMessages").put({ convId: "cached", messages: [message("disk")], pagination, latestTimestamp: now });
+await db.table("conversationMessageMeta").put({ convId: "cached", pagination, latestTimestamp: now });
+await db.table("conversationMessageRows").put({ convId: "cached", messageKey: "0:id:disk", position: 0, revision: "seed", message: message("disk") });
 await db.table("conversationUserMessages").put({ convId: "cached", userMessages: [message("disk")] });
 await stampCacheOwner();
 const puts: string[] = [];
@@ -21,7 +22,7 @@ const original = IDBObjectStore.prototype.put;
 let firstWriteTurnCount = 0;
 let probeArmed = false;
 IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-  if (this.name === "conversationMessages" || this.name === "conversationUserMessages") {
+  if (this.name === "conversationMessageRows" || this.name === "conversationUserMessages") {
     puts.push(args[0].convId);
     if (probeArmed) {
       probeArmed = false;
@@ -46,7 +47,7 @@ useInboxStore.getState().setMessages("cached", [message("disk"), message("live")
 expect((await cache.loadConversationMessages("cached"))?.messages.map((m) => m._id)).toEqual(["disk", "live"]);
 cache.flushConversationMessages();
 await waitFor(() => puts.length === 1);
-expect((await db.table("conversationMessages").get("cached")).messages.map((m: any) => m._id)).toEqual(["disk", "live"]);
+expect((await db.table("conversationMessageRows").where("convId").equals("cached").toArray()).map((row) => row.message._id)).toEqual(["disk", "live"]);
 
 puts.length = 0;
 probeArmed = true;
