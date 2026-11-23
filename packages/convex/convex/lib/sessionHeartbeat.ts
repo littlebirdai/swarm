@@ -12,8 +12,8 @@ function heartbeatRow(ctx: Reader, id: Id<"managed_sessions">) {
 }
 
 function resolveHeartbeat(session: ManagedHeartbeat, beat: number | undefined): number {
-  // Expand: pre-existing sessions can lack a side row until they report again.
-  return beat ?? session.last_heartbeat ?? 0;
+  // A rollback can advance the legacy timestamp without updating the side row.
+  return Math.max(beat ?? 0, session.last_heartbeat ?? 0);
 }
 
 export async function heartbeatOf(ctx: Reader, session: ManagedHeartbeat | null | undefined): Promise<number> {
@@ -52,15 +52,13 @@ export async function transferManagedSession(ctx: Writer, id: Id<"managed_sessio
   await ctx.db.patch(id, { user_id: userId });
 }
 
-export async function deleteManagedSession(ctx: Writer, id: Id<"managed_sessions">) {
+export async function deleteSessionHeartbeat(ctx: Writer, id: Id<"managed_sessions">) {
   const row = await heartbeatRow(ctx, id);
   if (row) await ctx.db.delete(row._id);
-  await ctx.db.delete(id);
 }
 
-// The legacy range supplies candidates during expand. Its timestamps match
-// the side rows because all writers update both in one transaction. Keep this
-// range until migration fills in the side rows for older sessions.
+// During expand, either index can contain the freshest heartbeat.
+// Keep the legacy range until migration fills in the side rows.
 export async function managedSessionsBeatingSince(ctx: Reader, since: number, userId?: Id<"users">) {
   const legacy = userId === undefined
     ? ctx.db.query("managed_sessions").withIndex("by_heartbeat", (q) => q.gt("last_heartbeat", since))
@@ -69,11 +67,18 @@ export async function managedSessionsBeatingSince(ctx: Reader, since: number, us
     ? ctx.db.query("session_heartbeats").withIndex("by_heartbeat", (q) => q.gt("heartbeat_at", since))
     : ctx.db.query("session_heartbeats").withIndex("by_user_heartbeat", (q) => q.eq("user_id", userId).gt("heartbeat_at", since));
   const [sessions, rows] = await Promise.all([legacy.collect(), side.collect()]);
-  const liveIds = new Set(rows.map((row) => row.managed_session_id));
-  const live = await Promise.all(sessions.map(async (session) =>
-    liveIds.has(session._id) || (await heartbeatOf(ctx, session)) > since
-  ));
-  return sessions.filter((_, i) => live[i]);
+  const beats = new Map(rows.map((row) => [row.managed_session_id, row.heartbeat_at]));
+  const legacyIds = new Set(sessions.map((session) => session._id));
+  const sideOnly = await Promise.all(rows
+    .filter((row) => !legacyIds.has(row.managed_session_id))
+    .map((row) => ctx.db.get(row.managed_session_id)));
+  for (const session of sideOnly) {
+    if (session && (userId === undefined || session.user_id === userId)) sessions.push(session);
+  }
+  return sessions.sort((a, b) =>
+    resolveHeartbeat(a, beats.get(a._id)) - resolveHeartbeat(b, beats.get(b._id)) ||
+    a._creationTime - b._creationTime
+  );
 }
 
 // One conversation's candidate sessions. The caller bounds

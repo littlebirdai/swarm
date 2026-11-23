@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const schemaAndStorage = new Set(["schema.ts", "managedSessions.ts", "lib/sessionHeartbeat.ts"]);
+const schemaAndStorage = new Set(["schema.ts", "lib/sessionHeartbeat.ts"]);
 const otherHeartbeats = new Set(["daemonLogs.ts", "users.ts"]);
 const wireFields: Record<string, string[]> = {
   "conversations.ts": [
@@ -17,6 +17,16 @@ const wireFields: Record<string, string[]> = {
     "last_heartbeat: facts.last_heartbeat,",
   ],
   "debugTmp.ts": ["last_heartbeat: await heartbeatOf(ctx, managed),"],
+  "managedSessions.ts": [
+    "last_heartbeat: now,",
+    "last_heartbeat: 0,",
+    "session: { agent_status?: string; agent_status_updated_at?: number; agent_status_write_at?: number; last_heartbeat?: number },",
+    "const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;",
+    "patch.last_heartbeat = now;",
+    "await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);",
+    "patch.last_heartbeat = at;",
+    "last_heartbeat: lastHeartbeat,",
+  ],
   "managedSessionsList.ts": ["last_heartbeat: await heartbeatOf(ctx, session),"],
   "lib/closeAside.ts": [
     "last_heartbeat: lastHeartbeat,",

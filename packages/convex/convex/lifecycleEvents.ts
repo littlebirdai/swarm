@@ -15,6 +15,8 @@
 // `cron:<name>`). A write with no cause keeps the top of its stack instead,
 // which names the writing function.
 
+import { deleteSessionHeartbeat } from "./lib/sessionHeartbeat";
+
 const LIFECYCLE_FIELDS = [
   "status",
   "inbox_dismissed_at",
@@ -123,6 +125,7 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
       if (!conversation && !managed) return db.delete(id);
       const pre = await db.get(id);
       const res = await db.delete(id);
+      if (managed) await deleteSessionHeartbeat({ db }, id);
       if (conversation) {
         await record({ conversation_id: String(id), kind: "deleted", changes: { status: [short(pre?.status), null] } });
       } else if (pre?.conversation_id) {

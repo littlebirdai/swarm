@@ -1,4 +1,4 @@
-import { deleteManagedSession, heartbeatOf, managedHeartbeatPage, writeSessionHeartbeat } from "./lib/sessionHeartbeat";
+import { heartbeatOf, managedHeartbeatPage, writeSessionHeartbeat } from "./lib/sessionHeartbeat";
 import { mutation, query, internalMutation, type MutationCtx } from "./functions";
 import { noteWriteCause } from "./lifecycleEvents";
 import { releaseQueuedRows } from "./pendingMessageWrites";
@@ -179,7 +179,7 @@ export async function performRegisterManagedSession(
     const now = Date.now();
     if (existing) {
       if (existing.user_id.toString() !== authUserId.toString()) {
-        await deleteManagedSession(ctx, existing._id);
+        await ctx.db.delete(existing._id);
       } else {
         await ctx.db.patch(existing._id, {
           pid: args.pid,
@@ -216,7 +216,7 @@ export async function performRegisterManagedSession(
         if (args.tmux_session === undefined && args.backend !== "sdk" && o.tmux_session && !inheritedTmuxSession) {
           inheritedTmuxSession = o.tmux_session;
         }
-        await deleteManagedSession(ctx, o._id);
+        await ctx.db.delete(o._id);
       }
     }
 
@@ -309,7 +309,7 @@ export const updateSessionConversation = mutation({
 
     for (const oldSession of oldSessions) {
       if (oldSession._id !== session._id) {
-        await deleteManagedSession(ctx, oldSession._id);
+        await ctx.db.delete(oldSession._id);
       }
     }
 
@@ -593,7 +593,7 @@ export const unregisterManagedSession = mutation({
       throw new Error("Unauthorized");
     }
 
-    await deleteManagedSession(ctx, session._id);
+    await ctx.db.delete(session._id);
     return { found: true };
   },
 });
@@ -1287,7 +1287,7 @@ export const reapStaleManagedSessions = internalMutation({
     // the first is waiting to resume, and the second writes no heartbeat while
     // it waits on an approval (see the hosted field in the schema).
     const reapable = expired.filter(s => s.agent_status !== "hibernated" && isDaemonManagedRow(s));
-    for (const s of reapable) await deleteManagedSession(ctx, s._id);
+    for (const s of reapable) await ctx.db.delete(s._id);
 
     const more = cursor !== undefined;
     if (cursor !== undefined) {

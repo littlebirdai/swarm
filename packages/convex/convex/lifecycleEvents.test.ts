@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
 import { makeLifecycleEventDb, noteWriteCause } from "./lifecycleEvents";
+import { makeFakeDb } from "./testDb";
 
 function fakeDb(rows: Record<string, any>) {
   const inserted: any[] = [];
@@ -56,13 +57,15 @@ test("a pending message ending cancelled is recorded under its conversation", as
   expect(inserted[0]).toMatchObject({ conversation_id: "conversations:c1", kind: "message_cancelled", cause: "killSession" });
 });
 
-test("deleting a conversation or its managed session is recorded", async () => {
-  const { db, inserted } = fakeDb({
-    "conversations:c1": { status: "active" },
-    "managed_sessions:s1": { conversation_id: "conversations:c1", session_id: "sid" },
+test("a raw managed-session delete removes its heartbeat and records the lifecycle event", async () => {
+  const db = makeFakeDb({
+    conversations: [{ _id: "c1", status: "active" }],
+    managed_sessions: [{ _id: "s1", conversation_id: "c1", session_id: "sid" }],
+    session_heartbeats: [{ _id: "h1", managed_session_id: "s1", heartbeat_at: 123 }],
   });
   const ctx = { db: makeLifecycleEventDb(db, db) };
-  await ctx.db.delete("managed_sessions:s1");
-  await ctx.db.delete("conversations:c1");
-  expect(inserted.map((e) => e.kind)).toEqual(["managed_session_deleted", "deleted"]);
+  await ctx.db.delete("s1");
+  await ctx.db.delete("c1");
+  expect(await db.get("h1")).toBeNull();
+  expect(db._inserted.map((e) => e.doc.kind)).toEqual(["managed_session_deleted", "deleted"]);
 });

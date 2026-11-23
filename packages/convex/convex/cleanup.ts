@@ -1,4 +1,4 @@
-import { deleteManagedSession, heartbeatsFor } from "./lib/sessionHeartbeat";
+import { heartbeatsFor } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { noteWriteCause } from "./lifecycleEvents";
 import { internalMutation, mutation } from "./functions";
@@ -228,7 +228,7 @@ export async function reapEmptyConversation(
     return "kill_enqueued";
   }
 
-  for (const m of sessions) await deleteManagedSession(ctx, m._id);
+  for (const m of sessions) await ctx.db.delete(m._id);
   const diffs = await ctx.db
     .query("conversation_git_diffs")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
