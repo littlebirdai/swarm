@@ -28,7 +28,8 @@ import { ShortcutTooltip } from "../../../components/KeyboardShortcutsHelp";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { useInboxStore } from "../../../store/inboxStore";
-import { useTriggers, useSyncTriggerHistory } from "../../../hooks/useSyncTriggers";
+import { useTriggers } from "../../../hooks/useSyncTriggers";
+import { TriggerHistoryFeed } from "../../../components/TriggerHistoryFeed";
 import { TriggerRunList, useTriggerRuns } from "../../../components/TriggerRunHistory";
 import { TriggerPromptView } from "../../../components/TriggerPromptView";
 import { entityQueryArgs } from "../../../lib/entityDisplay";
@@ -166,8 +167,6 @@ export default function TriggerDetailPage() {
   // The viewer's own roster, from the store — first paint and the optimistic
   // side of every verb click.
   const { tasks: ownTasks } = useTriggers();
-  // The app-wide feed carries armed triggers and a recent tail; this page shows finished history too.
-  useSyncTriggerHistory();
   const storeRow = useMemo(() => {
     if (!id) return undefined;
     const lower = id.toLowerCase();
@@ -325,6 +324,7 @@ export default function TriggerDetailPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
+        <TriggerHistoryFeed />
         <PageFrame
           // data-page-head: inside a reveal band the band's strip names and shares it (globals.css).
           header={<PageHeader legacy={backLink} data-page-head crumbs={<Link href="/triggers" className="no-underline hover:text-sol-text">Triggers</Link>} icon={Zap} title={title} actions={idCopy} share={share} />}

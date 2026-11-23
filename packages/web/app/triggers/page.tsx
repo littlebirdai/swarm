@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AuthGuard } from "../../components/AuthGuard";
 import { PaneLoader } from "../../components/PaneLoader";
 import { DashboardLayout } from "../../components/DashboardLayout";
-import { ErrorBoundary } from "../../components/ErrorBoundary";
+import { TriggerHistoryFeed } from "../../components/TriggerHistoryFeed";
 import { fmtDuration, fmtClock } from "../../components/triggerCadence";
 // The `--on <event>` vocabulary is shared with the CLI so the two cannot drift.
 import {
@@ -28,7 +28,7 @@ import { isTriggerFailing, isTriggerTerminal, taskDisplayTitle, groupTriggerRows
 import { TriggerRowItem, TriggerHomeHeader } from "../../components/TriggerRow";
 import { HorizonRail } from "../../components/triggers/HorizonRail";
 import { EMPTY_FILTERS, filtersActive, matchesFilters, type Filters } from "./triggerFilters";
-import { useTriggers, fetchTriggerRuns, useSyncTriggerHistory } from "../../hooks/useSyncTriggers";
+import { useTriggers, fetchTriggerRuns } from "../../hooks/useSyncTriggers";
 import { openRunInStore } from "../../components/TriggerRunHistory";
 import { SelectBox } from "../../components/ui/select-box";
 import { SegmentedToggle } from "../../components/SegmentedToggle";
@@ -1024,11 +1024,6 @@ function FilteredEmpty({ onClear }: { onClear: () => void }) {
   );
 }
 
-function TriggerHistoryFeed() {
-  useSyncTriggerHistory();
-  return null;
-}
-
 function TriggersContent() {
   // Store-fed (hooks/useSyncTriggers): the list paints from the cached roster
   // synchronously; the feeder keeps it fresh. `undefined` only while the cache
@@ -1236,9 +1231,7 @@ export default function TriggersPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <ErrorBoundary name="Trigger history" fallback={<></>}>
-          <TriggerHistoryFeed />
-        </ErrorBoundary>
+        <TriggerHistoryFeed />
         <TriggersContent />
       </DashboardLayout>
     </AuthGuard>

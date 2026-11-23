@@ -5,7 +5,7 @@
 // role hears it once: one `session-waits:<s>:<episode>` wake per
 // hand_wake_notified_key (agentTasks.routeUpWaitingSession). Both people feed
 // their triggers from agentTasks:webList, so INV-triggers holds each replica
-// to what webList returns them and every armed_trigger_kind to its triggers.
+// to the live roster and every armed_trigger_kind to its triggers.
 //
 // A literal "waiting" settle schedules no needs-input check
 // (managedSessions.scheduleNeedsInputCheck), so the stall is permission_blocked.
@@ -25,7 +25,9 @@ export async function roleTriggerScope(w: ScenarioWorld): Promise<void> {
   await w.start();
   // bo files s under the role, as the org chart's drag does.
   await w.clientAs("bo").mutation("orgRoles:reparentSession", { conversation_id: w.idOf(s), target: { kind: "role", role_id: w.idOf(rev) } });
-  for (const user of ["ada", "bo"]) await (await w.device(user)).host.feed("agentTasks", api.agentTasks.webList, () => ({}));
+  for (const user of ["ada", "bo"]) {
+    await (await w.device(user)).host.feed("agentTasks", api.agentTasks.webList, () => ({}), { syncOpts: { isDelta: true } });
+  }
 
   const bo = w.daemon("bo");
   await bo.settles(s, "permission_blocked");

@@ -4,13 +4,8 @@ import { ConvexProvider, type ConvexReactClient } from "convex/react";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { replaceGlobals } from "../../test-helpers/globals";
-import { useSyncTriggerHistory } from "../useSyncTriggers";
+import { TriggerHistoryFeed } from "../../components/TriggerHistoryFeed";
 import { useInboxStore } from "../../store/inboxStore";
-
-function HistoryFeed() {
-  useSyncTriggerHistory();
-  return null;
-}
 
 test("the trigger history feeder keeps cached rows until the last page arrives", async () => {
   const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "http://localhost/" });
@@ -47,7 +42,7 @@ test("the trigger history feeder keeps cached rows until the last page arrives",
 
   try {
     store.syncTable("agentTasks", [cached]);
-    await act(async () => root.render(<ConvexProvider client={client}><HistoryFeed /></ConvexProvider>));
+    await act(async () => root.render(<ConvexProvider client={client}><TriggerHistoryFeed /></ConvexProvider>));
     expect(notifyLastPage).toBeDefined();
     expect(ids()).toEqual([cached._id]);
 
