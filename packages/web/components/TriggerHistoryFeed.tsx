@@ -8,7 +8,7 @@ function TriggerHistorySync() {
 
 export function TriggerHistoryFeed() {
   return (
-    <ErrorBoundary name="Trigger history" fallback={<></>}>
+    <ErrorBoundary name="Trigger history" fallback={<></>} silent>
       <TriggerHistorySync />
     </ErrorBoundary>
   );

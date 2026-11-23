@@ -314,7 +314,15 @@ export const INVARIANTS: readonly Invariant[] = [
       for (const id of [...new Set([...want.keys(), ...Object.keys(replica ?? {}).filter(isConvexId)])].sort()) {
         const s = want.get(id);
         const r = replica?.[id];
-        if (!s && ownedIds.has(id)) continue; // Older history can outlive the bounded roster.
+        if (!s && r && ownedIds.has(id)) {
+          // Older history outlives the bounded roster, so check it against the stored row instead.
+          const stored = tasks.find((t) => String(t._id) === id)!;
+          const [server, mine] = sharedFields("agent_tasks", stored, r);
+          if (stable(server) === stable(mine)) continue;
+          out.push({ message: "a cached trigger disagrees with the stored row", row: { table: "agent_tasks", id, server: stored, replica: r } });
+          if (out.length >= MAX_ROWS_PER_CHECK) break;
+          continue;
+        }
         if (s && r && stable(sharedFields("agent_tasks", s, r)[0]) === stable(sharedFields("agent_tasks", s, r)[1])) continue;
         out.push({ message: s && r ? "a trigger disagrees with webList" : r ? "the replica holds a deleted or foreign trigger" : "the replica lacks a trigger webList returns", row: { table: "agent_tasks", id, server: s ?? null, replica: r ?? null } });
         if (out.length >= MAX_ROWS_PER_CHECK) break;
