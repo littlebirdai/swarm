@@ -236,7 +236,7 @@ export function processGroupTree(procs: ProcRow[], group: number, self = process
 export type AncestryRow = { ppid: number; comm: string; args: string };
 
 /** The agent client a process is (agentBinaryFromPsRow, or the claude launcher's versioned binary), else null. */
-function agentOfRow(row: AncestryRow): string | null {
+export function agentOfRow(row: Pick<AncestryRow, "comm" | "args">): string | null {
   return agentBinaryFromPsRow(row.comm, row.args) ?? (CLAUDE_VERSIONED_BINARY_RE.test(row.args.trim().split(/\s+/)[0] ?? "") ? "claude" : null);
 }
 

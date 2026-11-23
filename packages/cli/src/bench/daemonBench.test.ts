@@ -8,6 +8,7 @@ function fixture() {
   const deps = { ...loadDeps, version: "fixture-version", readDaemonState: () => ({}) };
   const context: BenchContext = { at: "fixture-time", runtime: { ...runtimeIdentity }, daemonConnected: true, heartbeatAgeMs: 1, cliVersion: "fixture-version", testerRuntime: "fixture", loadAvg: [0, 0, 0], processCount: 2, tmuxPanes: 2, freeMemMb: 10, port: 43210, termAuth: "private-fake-api private-fake", source: { commit: "fixture-head", dirty: [], error: null }, diskWorkerSetting: true };
   const io: Partial<DaemonBenchIO> = { identity: () => ({ port: 43210, token: "private-fake", reason: null }), context: async () => structuredClone(context), routes: opts => f.io.routes({ ...opts, clock: f.clock }), loadIO: f.io, logs: async () => ({ log: buildLogReport([], { sinceMs: 0, sleepWindows: [] }), windows: [] }), write: async (file, value) => { writes.set(file, value); } };
+  io.sampleMemory = async () => ({ daemonRssBytes: 2 * 1024 ** 2, agents: [{ identity: "private-process", provider: "codex", rssBytes: 64 * 1024 ** 2 }] });
   const options = { ...loadOptions, load: 2, logSinceMs: 1000, json: true };
   return { f, deps, context, io, options, writes };
 }
@@ -17,8 +18,13 @@ test("final report retains every raw probe sample and redacts private credential
   const r = await f.clock.drive(runDaemonBench(deps, options, () => {}, io));
   expect(r.observe!.loopLag.samples.length).toBeGreaterThan(0); expect(r.load!.loopLag!.samples.length).toBeGreaterThan(0);
   expect(r.load!.teardown.verified).toBe(true); expect(r.acceptance.status).toBe("NOT ESTABLISHED");
+  expect(JSON.parse(writes.get(r.outputs.json)!).memory).toEqual({
+    daemonRss: { startBytes: 2097152, peakBytes: 2097152, endBytes: 2097152 },
+    agentRss: [{ provider: "codex", count: 1, medianBytes: 67108864, p90Bytes: 67108864, maxBytes: 67108864 }],
+  });
+  expect(writes.get(r.outputs.md)).toContain("| codex | 1 | 64.0 | 64.0 | 64.0 |");
   expect(writes.size).toBe(2);
-  for (const text of writes.values()) { expect(text).not.toContain("private-fake"); expect(text).not.toContain("Bearer"); }
+  for (const text of writes.values()) { expect(text).not.toContain("private-fake"); expect(text).not.toContain("Bearer"); expect(text).not.toContain("private-process"); }
   expect(renderMarkdown(r)).toContain("scheduled"); expect(renderMarkdown(r)).toContain("NOT ESTABLISHED");
   expect(f.clock.timers.size).toBe(0);
 });

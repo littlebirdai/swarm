@@ -322,6 +322,14 @@ no authoritative observation exists; disk configuration and CLI version are
 separate context. A PID/build/config change invalidates comparison. Historical
 sleep windows do not excuse missing measurement slots.
 
+`memory.daemonRss` reports start, sampled peak and end RSS. On macOS and Linux,
+`memory.agentRss` groups each tracked live process's sampled peak by provider
+and reports count, median, p90 and max. Samples run every five seconds and at
+both ends. JSON uses bytes and Markdown uses MiB. Stand-ins may appear under
+`unknown`. Windows reports daemon RSS only. `log.longestLoopHoldMs` uses
+freeze and slow synchronous operation records from the run. Holds below the
+existing logging thresholds may be absent.
+
 Cleanup uses the exact acquired resource ledger, checkpointed in the private
 scratch directory before spawn and after custody acquisition. Abrupt benchmark
 process death can leave that ledger for recovery; it is not automatic cleanup
