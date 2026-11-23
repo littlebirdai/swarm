@@ -5,14 +5,27 @@
 // mutation's db passes through (functions.ts): any insert, replace, delete,
 // or patch of a field the row derives from re-derives it. The row's team is
 // the visibility rule's answer (teamVisibleConvTeam), so a session made
-// private leaves its team's count at once.
+// private leaves its team's count at once. It also carries daemon_delivery,
+// which getPendingMessagesForDaemon reads instead of the conversation: drop a
+// field from DERIVED_FROM and the daemon delivers on a stale value.
 
 import type { Doc, Id } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 import { teamVisibleConvTeam } from "../privacy";
+import { daemonDeliveryStateOf } from "./daemonDelivery";
 
 /** The conversation fields a session_starts row derives from. */
 const CARD_FIELDS = ["title", "project_path", "character_avatar", "character_name", "drawn_icon", "org_role_id", "standing_role_id"] as const;
-const DERIVED_FROM = ["user_id", "team_id", "is_private", "auto_shared", "team_visibility", "agent_type", "started_at", "is_subagent", "parent_conversation_id", ...CARD_FIELDS];
+const DERIVED_FROM = [
+  "user_id", "team_id", "is_private", "auto_shared", "team_visibility", "agent_type",
+  "started_at", "is_subagent", "parent_conversation_id", ...CARD_FIELDS,
+  "owner_device_id", "execution_protocol_state", "cloud_placement", "migration",
+  "pending_api_error_kind", "session_error",
+] satisfies (keyof Doc<"conversations">)[];
+
+export function sessionStartOf(db: QueryCtx["db"], conversationId: Id<"conversations">) {
+  return db.query("session_starts").withIndex("by_conversation", (q) => q.eq("conversation_id", conversationId)).first();
+}
 
 export function sessionStartFields(conv: Doc<"conversations">) {
   const visible = teamVisibleConvTeam(conv);
@@ -24,6 +37,7 @@ export function sessionStartFields(conv: Doc<"conversations">) {
     started_at: conv.started_at,
     subagent: !!(conv.is_subagent || conv.parent_conversation_id),
     card: cardOf(conv),
+    daemon_delivery: daemonDeliveryStateOf(conv),
   };
 }
 
@@ -44,12 +58,14 @@ const same = (row: any, next: ReturnType<typeof sessionStartFields>) =>
   row.agent_type === next.agent_type &&
   row.started_at === next.started_at &&
   row.subagent === next.subagent &&
+  row.daemon_delivery?.blocked === next.daemon_delivery.blocked &&
+  row.daemon_delivery?.owner_device_id === next.daemon_delivery.owner_device_id &&
   sameCard(row.card, next.card);
 
 /** Re-derive one conversation's row from what it is now: write it, rewrite it, or drop it with the conversation. */
 export async function syncSessionStart(db: any, conversationId: Id<"conversations">): Promise<void> {
   const conv = await db.get(conversationId);
-  const row = await db.query("session_starts").withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId)).first();
+  const row = await sessionStartOf(db, conversationId);
   if (!conv) {
     if (row) await db.delete(row._id);
     return;
