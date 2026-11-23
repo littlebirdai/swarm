@@ -121,6 +121,7 @@ export function useFaceCrop(opts: {
       let faces: Array<{ boundingBox: FaceBox }> = [];
       inFlight = true;
       try {
+        // A synchronous failure must wait until the sampler has registered its cleanup.
         faces = await Promise.resolve().then(() => detector.detect(video));
       } catch {
         // A frame it could not read, or a detector that is not really there.

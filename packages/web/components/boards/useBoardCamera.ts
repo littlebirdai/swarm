@@ -107,11 +107,11 @@ export function useBoardCamera(docId: string) {
   }, [paint]);
 
   const stopAnimation = useRef<(() => void) | null>(null);
-  /** Glide to a camera (fit, zoom buttons). Instant when reduced motion is on. */
+  /** Glide to a camera (fit, zoom buttons). Snap while hidden or with reduced motion. */
   const glide = useCallback((to: Cam) => {
     stopAnimation.current?.();
     stopAnimation.current = null;
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return set(to);
+    if (typeof window !== "undefined" && (document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)) return set(to);
     const from = { ...cam.current };
     const t0 = performance.now();
     const dur = 240;
