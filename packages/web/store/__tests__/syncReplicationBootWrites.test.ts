@@ -1,128 +1,209 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
+import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { createReplicationHost } from "@platform/engine";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
+import { JSDOM } from "jsdom";
+import { closeDomWindow } from "../../test-helpers/domGlobals";
+import type { SyncReplicationStatus } from "../syncReplication";
 
-// A window that boots beside a living host must not write the shared slice
-// while it waits to learn its role. On 2026-11-14 every new desktop window
-// rewrote the whole cache (100 to 220 MB a burst) as its feeders and the
-// host's snapshot landed through full write-through, and outbox writes queued
-// behind those bursts tripped "Local storage is not keeping up".
+const dom = new JSDOM("", { url: "https://example.test/" });
+const globals = globalThis as Record<string, unknown>;
+const savedGlobals = { window: globals.window, document: globals.document, navigator: globals.navigator };
+globals.window = dom.window;
+globals.document = dom.window.document;
 
-const writes: Array<Array<{ path: Array<string | number> }>> = [];
-const realCache = { ...(await import("../idbCache")) };
-mock.module("../idbCache", () => ({
-  ...realCache,
-  writePatchesToIDB: (patches: any[]) => { writes.push(patches); },
-}));
-const { replicationChannelName, replicationTransport, startSyncReplication, stopSyncReplication } = await import("../syncReplication");
-const { useInboxStore } = await import("../inboxStore");
-const { writePatchesToIDB } = await import("../idbCache");
+const { _reopenForTests, COLLECTION_TABLES, db } = await import("../persistence/db");
+const { writeOwnerStamp } = await import("../persistence/ownership");
+const hydration = await import("../persistence/hydration");
+const { resetCollectionWrites } = await import("../persistence/collectionWriter");
+const { conversations, sessions, docs } = COLLECTION_TABLES;
 
-const sharedKeysWritten = () => writes.flat().map((p) => String(p.path[0])).filter((k) => k === "sessions");
+type Mutation = { table: string; type: string; keys: unknown[] };
+let mutations: Mutation[] | undefined;
 
-function makeHub(opts: { grantLock: boolean }) {
-  const members = new Map<string, Set<(e: MessageEvent) => void>>();
-  class FakeBroadcastChannel {
-    private own = new Set<(e: MessageEvent) => void>();
-    private closed = false;
-    constructor(public name: string) {}
-    postMessage(data: unknown) {
-      if (this.closed) return;
-      for (const fn of members.get(this.name) ?? []) {
-        if (this.own.has(fn)) continue;
-        queueMicrotask(() => fn({ data: structuredClone(data) } as MessageEvent));
-      }
-    }
-    addEventListener(_t: string, fn: (e: MessageEvent) => void) {
-      this.own.add(fn);
-      if (!members.has(this.name)) members.set(this.name, new Set());
-      members.get(this.name)!.add(fn);
-    }
-    removeEventListener(_t: string, fn: (e: MessageEvent) => void) {
-      this.own.delete(fn);
-      members.get(this.name)?.delete(fn);
-    }
-    close() {
-      this.closed = true;
-      for (const fn of this.own) members.get(this.name)?.delete(fn);
-      this.own.clear();
-    }
-  }
-  const lockManager = {
-    // Another window holds the lock unless the hub grants it.
-    request: (_name: string, _o: unknown, cb: () => unknown) => (opts.grantLock ? Promise.resolve().then(() => cb()) : new Promise(() => {})),
-  };
-  return { FakeBroadcastChannel, lockManager };
+// Observe actual table mutations, including redundant puts whose values would
+// make the final contents of the database look identical.
+db.use({
+  stack: "dbcore",
+  create(core) {
+    return {
+      ...core,
+      table(name) {
+        const table = core.table(name);
+        return {
+          ...table,
+          mutate(request) {
+            const keys = request.type === "put" || request.type === "add"
+              ? request.values.map((value) => table.schema.primaryKey.extractKey(value))
+              : request.type === "delete" ? request.keys : [];
+            // An outbox entry journals a dispatch separately from the state cache.
+            if (name !== "dispatchOutbox") mutations?.push({ table: name, type: request.type, keys });
+            return table.mutate(request);
+          },
+        };
+      },
+    };
+  },
+});
+
+async function waitFor(condition: () => boolean) {
+  const deadline = Date.now() + 2000;
+  while (!condition() && Date.now() < deadline) await Bun.sleep(1);
+  expect(condition()).toBe(true);
 }
 
-describe("a window's writes before its role is known", () => {
-  const g = globalThis as any;
-  let saved: Record<string, unknown>;
-  const settle = () => new Promise((r) => setTimeout(r, 10));
-  const sessionPatch = (id: string) => [{ op: "replace", path: ["sessions", id], value: { _id: id, title: id } }];
+async function openCache() {
+  resetCollectionWrites();
+  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+  await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
+  await writeOwnerStamp(TEST_PRINCIPAL, "confirmed");
+}
 
-  function install(grantLock: boolean) {
-    const hub = makeHub({ grantLock });
-    saved = { window: g.window, BroadcastChannel: g.BroadcastChannel, navigator: g.navigator };
-    g.window = g.window ?? globalThis;
-    g.BroadcastChannel = hub.FakeBroadcastChannel;
-    g.navigator = { ...(g.navigator ?? {}), locks: hub.lockManager };
+await openCache();
+const { rebootPersistence, useInboxStore } = await import("../inboxStore");
+const { replicationChannelName, replicationLockName, replicationTransport, startSyncReplication, stopSyncReplication } = await import("../syncReplication");
+await waitFor(() => !hydration._hydrating);
+
+const state = () => useInboxStore.getState();
+const sessionId = (n: number) => `k${String(n).padStart(31, "0")}`;
+const cachedSessions = () => Array.from({ length: 10 }, (_, i) => ({
+  _id: sessionId(i),
+  title: `Cached session ${i}`,
+  updated_at: Date.now(),
+}));
+
+async function bootCache() {
+  rebootPersistence();
+  await waitFor(() => !hydration._hydrating);
+}
+
+async function drainWrites() {
+  // Page hide flushes deferred metadata and liveness writes. A read transaction
+  // across the cache waits behind the write transactions already queued.
+  dom.window.dispatchEvent(new dom.window.Event("pagehide"));
+  await db.transaction("r", db.tables, () => db.meta.count());
+}
+
+function holdHostLock() {
+  const name = replicationLockName(TEST_PRINCIPAL);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  globals.navigator = {
+    locks: {
+      async request(requestedName: string, { signal }: { signal: AbortSignal }, grant: () => Promise<void>) {
+        expect(requestedName).toBe(name);
+        await held;
+        if (!signal.aborted) await grant();
+      },
+    },
+  };
+  cleanups.push(release);
+  return release;
+}
+
+const cleanups: Array<() => void> = [];
+
+beforeEach(async () => {
+  useInboxStore.setState(useInboxStore.getInitialState(), true);
+  await openCache();
+});
+
+afterEach(async () => {
+  stopSyncReplication();
+  for (const cleanup of cleanups.splice(0)) cleanup();
+  await drainWrites();
+  mutations = undefined;
+});
+
+afterAll(() => {
+  db.close();
+  closeDomWindow(dom);
+  for (const [key, value] of Object.entries(savedGlobals)) {
+    if (value === undefined) delete globals[key];
+    else globals[key] = value;
   }
-  // The writer the window has installed right now.
-  let installed: ((patches: any[], state: any) => unknown) | null = null;
-  beforeEach(() => {
-    writes.length = 0;
-    installed = null;
-    const real = (useInboxStore.getState() as any)._setIDBWrite;
-    useInboxStore.setState({ _setIDBWrite: (fn: any) => { installed = fn; real?.(fn); } } as any);
-    // As hydration leaves every window: full write-through.
-    (useInboxStore.getState() as any)._setIDBWrite(writePatchesToIDB);
-  });
-  afterEach(() => {
-    stopSyncReplication();
-    for (const [k, v] of Object.entries(saved)) {
-      if (v === undefined) delete g[k]; else g[k] = v;
-    }
-  });
+});
 
-  it("beside a living host: the host's snapshot is applied without writing the shared slice", async () => {
-    install(false);
-    const name = replicationChannelName("userA");
-    const hostTransport = replicationTransport(name, "hostX");
-    const hostState: any = { sessions: { s1: { _id: "s1", title: "from the host" } } };
-    const host = createReplicationHost({
-      hostId: "hostX",
-      channel: hostTransport.channel,
-      getState: () => hostState,
-      replicatedKeys: ["sessions"],
-      isCollectionKey: () => true,
-      applyUpdates: () => {},
-    });
-    startSyncReplication({ eligible: true, principalId: "userA" });
-    // A feeder push before the snapshot lands: skipped, not written.
-    installed!(sessionPatch("early"), useInboxStore.getState());
-    await settle();
-    expect(useInboxStore.getState().syncRole).toBe("follower");
-    expect((useInboxStore.getState() as any).sessions?.s1?.title).toBe("from the host");
-    expect(sharedKeysWritten()).toEqual([]);
-    // Settled as a follower, nothing skipped is owed: the host persists it.
-    installed!(sessionPatch("later"), useInboxStore.getState());
-    expect(sharedKeysWritten()).toEqual([]);
-    host.stop();
-    hostTransport.close();
+test("a joining follower applies the host snapshot without writing to IndexedDB", async () => {
+  holdHostLock();
+  const rows = cachedSessions();
+  await sessions.bulkPut(rows);
+  await bootCache();
+  const hostRows = [{ ...rows[0], title: "From the host" }, ...rows.slice(1)];
+  const transport = replicationTransport(replicationChannelName(TEST_PRINCIPAL), "previous-host");
+  const host = createReplicationHost({
+    hostId: "previous-host",
+    channel: transport.channel,
+    getState: () => ({ sessions: Object.fromEntries(hostRows.map((row) => [row._id, row])) }),
+    replicatedKeys: ["sessions"],
+    isCollectionKey: () => true,
+    applyUpdates: () => {},
   });
+  cleanups.push(() => { host.stop(); transport.close(); });
 
-  it("elected host: what was skipped before the election is written once, straight to disk", async () => {
-    install(true);
-    startSyncReplication({ eligible: true, principalId: "userA" });
-    installed!(sessionPatch("early"), useInboxStore.getState());
-    expect(sharedKeysWritten()).toEqual([]);
-    await settle();
-    // One whole-collection write for the skipped key, diffed against disk.
-    const catchUp = writes.filter((batch) => batch.some((p) => p.path[0] === "sessions"));
-    expect(catchUp).toHaveLength(1);
-    expect(catchUp[0]).toEqual([expect.objectContaining({ op: "replace", path: ["sessions"] })]);
-    // From here the host writes through as before.
-    installed!(sessionPatch("after"), useInboxStore.getState());
-    expect(sharedKeysWritten()).toEqual(["sessions", "sessions"]);
-  });
+  mutations = [];
+  startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
+  // Feeders can still answer while the new window is waiting for its role.
+  state().syncTable("sessions", [{ ...rows[0], title: "Early feeder result" }], { isDelta: true });
+  await waitFor(() => state().syncRole === "follower");
+  expect(state().sessions[rows[0]._id]?.title).toBe("From the host");
+  state().syncTable("sessions", [{ ...rows[1], title: "Late feeder result" }], { isDelta: true });
+  expect(state().sessions[rows[1]._id]?.title).toBe("Late feeder result");
+  await drainWrites();
+
+  expect(mutations).toEqual([]);
+  expect(await sessions.toArray()).toEqual(rows);
+});
+
+test("a window elected when the previous host closes persists only changed rows", async () => {
+  const closePreviousHost = holdHostLock();
+  const rows = cachedSessions();
+  await sessions.bulkPut(rows);
+  await conversations.bulkPut(rows);
+  await bootCache();
+
+  mutations = [];
+  startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
+  const changed = { ...rows[0], title: "Updated during the election" };
+  state().syncTable("sessions", [changed], { isDelta: true });
+  expect(state().sessions[changed._id]?.title).toBe(changed.title);
+  await drainWrites();
+  expect(mutations).toEqual([]);
+
+  // The lock holder leaves before it can answer the joining window's hello.
+  closePreviousHost();
+  const getStatus = (dom.window as Window & { __syncReplication?: () => SyncReplicationStatus }).__syncReplication;
+  await waitFor(() => getStatus?.().holdsLock === true);
+  await drainWrites();
+
+  expect(mutations).toEqual([{ table: "sessions", type: "put", keys: [changed._id] }]);
+  expect(await conversations.toArray()).toEqual(rows);
+  expect(await sessions.toArray()).toEqual([changed, ...rows.slice(1)]);
+});
+
+test("boot hydration writes only documented row trims and retention drops", async () => {
+  const [fresh] = cachedSessions();
+  const expired = { _id: sessionId(1), updated_at: Date.now() - 365 * 86_400_000 };
+  const thinDoc = { _id: "doc-1", title: "Cached document" };
+  await sessions.bulkPut([fresh, expired]);
+  await docs.put({ ...thinDoc, content: "Legacy inline body" });
+  await db.meta.put({ key: "clientState", value: { ui: { sidebar_collapsed: true } } });
+  // If the live user settings arrive first, hydration fills missing settings
+  // through the normal update action, which would ordinarily persist.
+  useInboxStore.setState({ clientStateInitialized: true });
+
+  mutations = [];
+  await bootCache();
+  await drainWrites();
+
+  expect(state().clientState.ui?.sidebar_collapsed).toBe(true);
+  expect(state().sessions[fresh._id]).toEqual(fresh);
+  expect(state().sessions[expired._id]).toBeUndefined();
+  expect(state().docs[thinDoc._id]).toEqual(thinDoc);
+  expect(mutations).toEqual([
+    { table: "sessions", type: "delete", keys: [expired._id] },
+    { table: "docs", type: "put", keys: [thinDoc._id] },
+  ]);
+  expect(await sessions.toArray()).toEqual([fresh]);
+  expect(await docs.toArray()).toEqual([thinDoc]);
 });
