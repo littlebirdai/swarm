@@ -1,3 +1,4 @@
+import { whileWindowVisible } from "../../lib/windowVisibleWork";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, X } from "lucide-react";
@@ -185,13 +186,15 @@ export function HangingReply({ row }: { row: ThreadRow | null }) {
       const notch = Math.max(18, Math.min(b.left + 30 - left, w - 18));
       setAt((p) => (p && p.left === left && p.top === b.bottom + 10 && p.notch === notch ? p : { left, top: b.bottom + 10, notch }));
     };
-    measure();
-    const iv = setInterval(measure, 200);
-    window.addEventListener("resize", measure);
-    return () => {
-      clearInterval(iv);
-      window.removeEventListener("resize", measure);
-    };
+    return whileWindowVisible(() => {
+      measure();
+      const iv = setInterval(measure, 200);
+      window.addEventListener("resize", measure);
+      return () => {
+        clearInterval(iv);
+        window.removeEventListener("resize", measure);
+      };
+    });
   }, [r.shown]);
 
   return (

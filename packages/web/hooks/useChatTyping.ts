@@ -1,3 +1,4 @@
+import { visibleInterval } from "../lib/windowVisibleWork";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -102,8 +103,7 @@ export function useTypingMembers(
   const rowCount: number = data?.length ?? 0;
   useWatchEffect(() => {
     if (rowCount === 0) return;
-    const t = setInterval(() => setTick((n) => n + 1), TICK_MS);
-    return () => clearInterval(t);
+    return visibleInterval(() => setTick((n) => n + 1), TICK_MS);
   }, [rowCount]);
 
   // The roster's identity fields (what the strip renders), not the array a

@@ -3,6 +3,7 @@
 // the background pans, and fit / center ease over 520ms. The transform is
 // written straight onto the world group, never through React state, so a pan
 // repaints one attribute a frame and nothing re-renders.
+import { visibleAnimationLoop } from "../../../../../lib/windowVisibleWork";
 import { useCallback, useMemo, useRef, type RefObject } from "react";
 import { prefersReducedMotion } from "../../../../../lib/reducedMotion";
 import { useWatchEffect } from "../../../../../hooks/useWatchEffect";
@@ -18,10 +19,6 @@ export const FIT_MIN_K = 0.86;
 const MAX_K = 2.2;
 const EASE_MS = 520;
 const DRAG_SLOP = 3;
-/** Frames where the page has them (jsdom and a worker may not). */
-const nextFrame = (fn: FrameRequestCallback) => (typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : (setTimeout(() => fn(performance.now()), 16) as unknown as number));
-const cancelFrame = (id: number) => { if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(id); else clearTimeout(id); };
-
 export type PanZoom = {
   /** Fit a box (the whole graph by default) into the stage. */
   /** `floor`: the smallest zoom this fit may pick, for a caller holding a group whose words it has already cut to the few that matter. */
@@ -45,7 +42,7 @@ export function usePanZoom(
   opts: { bounds: Box; insets: Insets; onBackgroundClick?: () => void; onView?: (view: View, width: number) => void },
 ): PanZoom {
   const t = useRef<View>({ x: 0, y: 0, k: 1 });
-  const raf = useRef(0);
+  const stopTween = useRef<(() => void) | undefined>(undefined);
   const o = useRef(opts);
   o.current = opts;
 
@@ -58,18 +55,17 @@ export function usePanZoom(
   }, [worldRef, svgRef]);
 
   const tween = useCallback((to: View, anim: boolean) => {
-    cancelFrame(raf.current);
-    if (!anim || prefersReducedMotion()) { t.current = to; apply(); return; }
+    stopTween.current?.();
+    if (!anim || prefersReducedMotion() || typeof requestAnimationFrame !== "function") { t.current = to; apply(); return; }
     const from = { ...t.current };
     const t0 = performance.now();
-    const step = (now: number) => {
+    stopTween.current = visibleAnimationLoop((now) => {
       const p = Math.min(1, (now - t0) / EASE_MS);
       const e = 1 - Math.pow(1 - p, 3);
       t.current = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, k: from.k + (to.k - from.k) * e };
       apply();
-      if (p < 1) raf.current = nextFrame(step);
-    };
-    raf.current = nextFrame(step);
+      if (p >= 1) return false;
+    });
   }, [apply]);
 
   const size = useCallback(() => {
@@ -143,7 +139,7 @@ export function usePanZoom(
     let drag: { x: number; y: number; tx: number; ty: number; moved: boolean; id: number } | null = null;
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault();
-      cancelFrame(raf.current);
+      stopTween.current?.();
       if (ev.ctrlKey || ev.metaKey) {
         const r = svg.getBoundingClientRect();
         zoomAt(ev.clientX - r.left, ev.clientY - r.top, t.current.k * Math.exp(-ev.deltaY * 0.01));
@@ -155,7 +151,7 @@ export function usePanZoom(
     };
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== 0 || (ev.target as Element).closest?.("[data-lwg-node],[data-lwg-label]")) return;
-      cancelFrame(raf.current);
+      stopTween.current?.();
       drag = { x: ev.clientX, y: ev.clientY, tx: t.current.x, ty: t.current.y, moved: false, id: ev.pointerId };
       svg.setPointerCapture(ev.pointerId);
       svg.setAttribute("data-dragging", "");
@@ -180,7 +176,7 @@ export function usePanZoom(
     svg.addEventListener("pointerup", onUp);
     svg.addEventListener("pointercancel", onUp);
     return () => {
-      cancelFrame(raf.current);
+      stopTween.current?.();
       svg.removeEventListener("wheel", onWheel);
       svg.removeEventListener("pointerdown", onDown);
       svg.removeEventListener("pointermove", onMove);

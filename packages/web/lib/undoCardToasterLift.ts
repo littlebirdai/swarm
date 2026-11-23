@@ -3,6 +3,7 @@
 // it, so no toast (an error, the milestone tip, one that arrives while the
 // card is open) covers the card's rows or footer.
 
+import { whileWindowVisible } from "./windowVisibleWork";
 import { useState, useSyncExternalStore } from "react";
 import * as undoTimeline from "./undoTimelineOpen";
 import { useWatchEffect } from "../hooks/useWatchEffect";
@@ -48,14 +49,17 @@ export function useUndoCardToasterLift(): { bottom: number } | undefined {
         observer.observe(card);
       }
     };
-    attach();
     const onResize = () => { const card = document.querySelector("[data-undo-timeline]"); if (card) measure(card); };
-    window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener("resize", onResize);
-    };
+    return whileWindowVisible(() => {
+      attach();
+      window.addEventListener("resize", onResize);
+      return () => {
+        cancelAnimationFrame(frame);
+        observer?.disconnect();
+        observer = null;
+        window.removeEventListener("resize", onResize);
+      };
+    });
   }, [open]);
   return open && lift !== null ? { bottom: lift } : undefined;
 }

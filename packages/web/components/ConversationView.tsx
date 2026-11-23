@@ -216,6 +216,7 @@ import { pickFeatureMoment, type MomentFeature } from "../lib/featureMoments";
 import { Button } from "./ui/button";
 import { attributeMeasurementsByKey } from "../lib/virtualList/attributeByKey";
 import { createScrollHold, type ScrollHold } from "../lib/virtualList/scrollHold";
+import { visibleInterval, whileWindowVisible } from "../lib/windowVisibleWork";
 import { VLIST_LEGACY } from "../lib/virtualList/legacyFlags";
 import { useScrollSeek } from "../hooks/useScrollSeek";
 import { adjustScrollForResizeRule } from "../lib/virtualList/resizeAdjust";
@@ -1982,7 +1983,6 @@ const ConversationViewInner = (
       // layout between two keystrokes. While the person types the pass waits
       // for a pause (typing budget, lib/inputQuiet).
       if (msUntilInputQuiet(TYPING_QUIET_MS) > 0) return;
-      if (document.visibilityState === "hidden") return;
       if (virtualizer.isScrolling) return;
       const container = containerRef.current;
       if (!container || container.offsetParent === null) return;
@@ -2013,19 +2013,18 @@ const ConversationViewInner = (
     // Each second's pass waits for an idle moment after a frame, where the
     // page is already laid out: its reads (every row's height) then cost
     // nothing, where a timer landing after a DOM change paid a full layout.
-    let idle: number | null = null;
-    const ric = typeof requestIdleCallback === "function" ? requestIdleCallback : null;
-    const id = setInterval(() => {
-      if (!ric) return tick();
-      if (idle === null) idle = ric(() => { idle = null; tick(); }, { timeout: 1000 });
-    }, 1000);
-    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(id);
-      if (idle !== null) cancelIdleCallback(idle);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
+    return whileWindowVisible(() => {
+      let idle: number | null = null;
+      const ric = typeof requestIdleCallback === "function" ? requestIdleCallback : null;
+      const id = setInterval(() => {
+        if (!ric) return tick();
+        if (idle === null) idle = ric(() => { idle = null; tick(); }, { timeout: 1000 });
+      }, 1000);
+      return () => {
+        clearInterval(id);
+        if (idle !== null) cancelIdleCallback(idle);
+      };
+    }, tick);
   }, [virtualizer]);
 
   // Scroll to absolute top or bottom of the loaded list with retries to handle
@@ -2848,6 +2847,9 @@ const ConversationViewInner = (
     }
   }, [timeline.length, initialScrollDone]);
 
+  const stopLegacyLandingRef = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => () => stopLegacyLandingRef.current?.(), [conversation?._id]);
+
   // Initial scroll: authed viewers snap to the live tail; unsigned share-link
   // visitors stay at the top so the thread reads from the beginning.
   useLayoutEffect(() => {
@@ -2913,11 +2915,13 @@ const ConversationViewInner = (
       // for a while rather than trusting one ladder pass. Bails permanently
       // the moment the reader scrolls somewhere on purpose.
       const settleStart = Date.now();
-      const settleId = setInterval(() => {
+      stopLegacyLandingRef.current?.();
+      const stop = visibleInterval(() => {
         const el = containerRef.current;
-        if (!el || userScrolledRef.current || Date.now() - settleStart > 8000) { clearInterval(settleId); return; }
+        if (!el || userScrolledRef.current || Date.now() - settleStart > 8000) { stop(); return; }
         if (el.scrollHeight - el.scrollTop - el.clientHeight > 20) scrollToEdgeRef.current('bottom', { bailOnUserScroll: true });
       }, 350);
+      stopLegacyLandingRef.current = stop;
       // Fallback: clear cooldown after virtualizer has had time to measure,
       // then re-run scroll handler so pagination fires if we're already near top.
       setTimeout(() => {

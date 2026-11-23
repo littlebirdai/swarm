@@ -15,6 +15,7 @@
 // moves sixty times a second, and anything that woke a component per frame
 // would be the jank the wake signatures exist to prevent. The pill writes it to
 // a CSS variable and the browser animates from there.
+import { visibleAnimationLoop } from "../windowVisibleWork";
 import { readMeterLevel } from "./meterCurve";
 
 export type MicMeter = {
@@ -34,7 +35,7 @@ export function createMicMeter(track: MediaStreamTrack): MicMeter {
   let ctx: AudioContext | null = null;
   let analyser: AnalyserNode | null = null;
   let bytes: Uint8Array<ArrayBuffer> | null = null;
-  let frame: number | null = null;
+  let stopFrames: (() => void) | undefined;
   const subscribers = new Set<() => void>();
 
   function publish(next: number) {
@@ -47,16 +48,6 @@ export function createMicMeter(track: MediaStreamTrack): MicMeter {
     return analyser && bytes ? readMeterLevel(analyser, bytes) : 0;
   }
 
-  function pump() {
-    if (stopped || typeof requestAnimationFrame !== "function") return;
-    frame = requestAnimationFrame(() => {
-      frame = null;
-      if (stopped) return;
-      publish(read());
-      pump();
-    });
-  }
-
   try {
     const ac = new AudioContext();
     ctx = ac;
@@ -67,7 +58,7 @@ export function createMicMeter(track: MediaStreamTrack): MicMeter {
     ac.createMediaStreamSource(new MediaStream([track])).connect(node);
     analyser = node;
     bytes = new Uint8Array(new ArrayBuffer(node.fftSize));
-    pump();
+    if (typeof requestAnimationFrame === "function") stopFrames = visibleAnimationLoop(() => publish(read()));
   } catch {
     // No meter is a flat bar, never a failed recording. The words are the
     // artifact and they do not come through here.
@@ -83,8 +74,7 @@ export function createMicMeter(track: MediaStreamTrack): MicMeter {
     stop() {
       if (stopped) return;
       stopped = true;
-      if (frame !== null) cancelAnimationFrame(frame);
-      frame = null;
+      stopFrames?.();
       analyser = null;
       bytes = null;
       if (ctx) {

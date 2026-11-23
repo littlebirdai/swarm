@@ -1,3 +1,4 @@
+import { visibleAnimationLoop } from "../../lib/windowVisibleWork";
 import { useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Maximize2, Minimize2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { formatCallTime } from "@codecast/shared/entities";
@@ -109,22 +110,15 @@ export function CallVideoControls({
       paint();
     };
     sync();
-    let frame = 0;
-    const stop = () => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
-    };
-    const loop = () => {
-      paint();
-      frame = requestAnimationFrame(loop);
-    };
+    let stopPainting: (() => void) | undefined;
     const onPlay = () => {
       sync();
-      stop();
-      frame = requestAnimationFrame(loop);
+      stopPainting?.();
+      stopPainting = visibleAnimationLoop(paint);
     };
     const onPause = () => {
-      stop();
+      stopPainting?.();
+      stopPainting = undefined;
       sync();
     };
     const events: [string, () => void][] = [
@@ -140,7 +134,7 @@ export function CallVideoControls({
     for (const [k, f] of events) el.addEventListener(k, f);
     if (!el.paused) onPlay();
     return () => {
-      stop();
+      stopPainting?.();
       for (const [k, f] of events) el.removeEventListener(k, f);
     };
   }, [el]);

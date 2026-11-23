@@ -16,6 +16,7 @@
 // here IS the page — same component, same in-pane navigation — never a second
 // rendering of the object to keep in step.
 
+import { visibleAnimationLoop } from "../lib/windowVisibleWork";
 import React, { useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -276,15 +277,13 @@ function useScrollHold(ref: React.RefObject<HTMLDivElement | null>, reveal: Open
     if (!bounds) return;
     const { anchor } = reveal;
     const t0 = performance.now();
-    let raf = 0;
-    const tick = () => {
-      raf = 0;
+    const tick = (now: number) => {
       const drift = (anchor.getBoundingClientRect().top - want) / cssZoomOf(bounds);
       if (Math.abs(drift) >= 1) bounds.scrollTop += drift;
-      if (performance.now() - t0 < HOLD_MS) raf = requestAnimationFrame(tick);
+      if (now - t0 >= HOLD_MS) return false;
     };
-    tick();
-    return () => cancelAnimationFrame(raf);
+    if (!document.hidden) tick(t0);
+    return visibleAnimationLoop(tick);
   }, [ref, reveal]);
 }
 

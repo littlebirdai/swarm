@@ -1,5 +1,6 @@
 // The sheet's pointer gestures: select and drag-select (with point mode while
 // typing a formula), header resize and the fill handle.
+import { visibleAnimationLoop } from "../../lib/windowVisibleWork";
 import { a1, cellNum, fillOps, inputOps, isFormula, quoteTabName, colWidthOps, rowHeightOps } from "./sheetCore";
 import { wantsReference } from "./editStore";
 import { ROW_HEADER_W, COL_HEADER_H, hitTest, type GridHit } from "./gridGeometry";
@@ -59,7 +60,6 @@ export function sheetPointerDown(hit: GridHit, e: React.PointerEvent, c: SheetCt
     }
     const frozenW = cols.offset(frozenCols + 1), frozenH = rows.offset(frozenRows + 1);
     let lastX = e.clientX, lastY = e.clientY;
-    let raf = 0;
     const update = () => {
       const d = dragRef.current;
       if (!d) return;
@@ -86,9 +86,8 @@ export function sheetPointerDown(hit: GridHit, e: React.PointerEvent, c: SheetCt
         el.scrollTop += dy;
         update();
       }
-      raf = requestAnimationFrame(autoscroll);
     };
-    raf = requestAnimationFrame(autoscroll);
+    const stopAutoscroll = visibleAnimationLoop(autoscroll);
     const onMove = (ev: PointerEvent) => {
       lastX = ev.clientX;
       lastY = ev.clientY;
@@ -96,7 +95,7 @@ export function sheetPointerDown(hit: GridHit, e: React.PointerEvent, c: SheetCt
     };
     const onUp = () => {
       dragRef.current = null;
-      cancelAnimationFrame(raf);
+      stopAutoscroll();
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };

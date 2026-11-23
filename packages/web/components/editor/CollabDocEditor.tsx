@@ -1,3 +1,4 @@
+import { visibleInterval } from "../../lib/windowVisibleWork";
 import { useCallback, useRef, useState } from "react";
 import { EditorProvider, useCurrentEditor } from "@tiptap/react";
 import { Editor as HeadlessEditor, Extension } from "@tiptap/core";
@@ -124,11 +125,9 @@ type PresenceEntry = {
 function CursorOverlay({ presences }: { presences: PresenceEntry[] }) {
   const { editor } = useCurrentEditor();
   const [, setTick] = useState(0);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useMountEffect(() => {
-    tickRef.current = setInterval(() => setTick((t) => t + 1), 500);
-    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+    return visibleInterval(() => setTick((t) => t + 1), 500);
   });
 
   // `editor.view` is a Proxy that THROWS on any property access (e.g. `.dom`)

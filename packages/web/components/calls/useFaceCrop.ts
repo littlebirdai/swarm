@@ -1,3 +1,4 @@
+import { visibleAnimationLoop, whileWindowVisible } from "../../lib/windowVisibleWork";
 import { type RefObject } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
@@ -52,7 +53,6 @@ export function useFaceCrop(opts: {
     let crop: Crop = CENTER_CROP;
     let target: Crop = CENTER_CROP;
     let lastFaceAt = 0;
-    let raf = 0;
     let stopped = false;
     const smooth = !prefersReducedMotion();
 
@@ -87,23 +87,22 @@ export function useFaceCrop(opts: {
     let inFlight = false;
     let firstAskAt = 0;
     let backoff = DETECT_RETRY_MS;
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let stopSampling: (() => void) | undefined;
     let retry: ReturnType<typeof setTimeout> | null = null;
     // Answers from before a stand-down belong to a question we stopped waiting
     // for; a late one must not be mistaken for the current attempt's.
     let askGen = 0;
 
     const standDown = () => {
-      if (timer) clearInterval(timer);
-      timer = null;
+      stopSampling?.();
+      stopSampling = undefined;
       askGen++;
       inFlight = false;
       firstAskAt = 0;
       retry = setTimeout(() => {
         if (stopped) return;
         backoff = Math.min(backoff * 2, DETECT_RETRY_MAX_MS);
-        timer = setInterval(() => void sample(), SAMPLE_MS);
-        void sample();
+        startSampling();
       }, backoff);
     };
 
@@ -122,7 +121,8 @@ export function useFaceCrop(opts: {
       let faces: Array<{ boundingBox: FaceBox }> = [];
       inFlight = true;
       try {
-        faces = await detector.detect(video);
+        // A synchronous failure must wait until the sampler has registered its cleanup.
+        faces = await Promise.resolve().then(() => detector.detect(video));
       } catch {
         // A frame it could not read, or a detector that is not really there.
         // Same treatment as silence: stand down, come back later.
@@ -148,24 +148,27 @@ export function useFaceCrop(opts: {
         setTracking("center");
       }
     };
-    if (detector) timer = setInterval(() => void sample(), SAMPLE_MS);
-    void sample();
+    const startSampling = () => {
+      stopSampling = whileWindowVisible(() => {
+        const id = setInterval(() => void sample(), SAMPLE_MS);
+        void sample();
+        return () => clearInterval(id);
+      });
+    };
+    if (detector) startSampling();
 
-    const tick = () => {
-      if (stopped) return;
+    const stopFrames = visibleAnimationLoop(() => {
       const next = smooth ? lerpCrop(crop, target, SMOOTHING) : target;
       if (next !== crop) {
         crop = next;
         paint();
       }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    });
 
     return () => {
       stopped = true;
-      cancelAnimationFrame(raf);
-      if (timer) clearInterval(timer);
+      stopFrames();
+      stopSampling?.();
       if (retry) clearTimeout(retry);
     };
   }, [hostRef, videoRef, active, diameter, mirror]);

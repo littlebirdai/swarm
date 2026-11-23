@@ -2,6 +2,7 @@
 // links, the MEMORY.md index against its load budget, a table, a health check,
 // and an editor. Read and written through the local daemon (memoryStore).
 
+import { whileWindowVisible } from "../../lib/windowVisibleWork";
 import { lazy, Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConvex } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -129,13 +130,15 @@ function MemoryBody({ fit }: { fit: Fit }) {
   // Other sessions write memories while this is open: re-read while visible.
   useWatchEffect(() => {
     if (connection !== "connected" || !isTabActive) return;
-    const tick = () => document.visibilityState === "visible" && void refresh();
-    const id = setInterval(tick, REFRESH_MS);
-    window.addEventListener("focus", tick);
-    return () => {
-      clearInterval(id);
-      window.removeEventListener("focus", tick);
-    };
+    const tick = () => { void refresh(); };
+    return whileWindowVisible(() => {
+      const id = setInterval(tick, REFRESH_MS);
+      window.addEventListener("focus", tick);
+      return () => {
+        clearInterval(id);
+        window.removeEventListener("focus", tick);
+      };
+    }, tick);
   }, [connection, isTabActive]);
 
   const atlas = useMemo(() => (project ? buildMemoryAtlas(project.files, project.index.raw) : null), [project]);

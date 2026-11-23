@@ -69,6 +69,7 @@ import { useWatchEffect } from "./useWatchEffect";
 import { prefersReducedMotion } from "../lib/reducedMotion";
 import { attributeMeasurementsByKey } from "../lib/virtualList/attributeByKey";
 import { createScrollHold, type ScrollHold } from "../lib/virtualList/scrollHold";
+import { visibleInterval } from "../lib/windowVisibleWork";
 import { VLIST_LEGACY } from "../lib/virtualList/legacyFlags";
 import { adjustScrollForResizeRule } from "../lib/virtualList/resizeAdjust";
 
@@ -623,9 +624,9 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     scrollToRef.current(target, { align: "start", bailOnUserScroll: true });
 
     const start = Date.now();
-    const id = setInterval(() => {
+    const stop = visibleInterval(() => {
       const el = containerRef.current;
-      if (!el || userScrolledRef.current || Date.now() - start > 8000) { clearInterval(id); return; }
+      if (!el || userScrolledRef.current || Date.now() - start > 8000) { stop(); return; }
       if (target === "bottom") {
         if (el.scrollHeight - el.scrollTop - el.clientHeight > 20) {
           scrollToRef.current("bottom", { bailOnUserScroll: true });
@@ -637,10 +638,10 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
         if (!row) return;
         const off = (row.getBoundingClientRect().top - el.getBoundingClientRect().top) / cssZoomOf(el);
         if (Math.abs(off - paddingStart) > 4) scrollToRef.current(target, { align: "start", bailOnUserScroll: true });
-        else clearInterval(id);
+        else stop();
       }
     }, 120);
-    return () => clearInterval(id);
+    return stop;
     // initialIndex intentionally omitted: the landing spot is read once per
     // resetKey. A live unread watermark must not re-snap a reader mid read.
   }, [resetKey, count > 0, holdLanding]);
@@ -680,10 +681,7 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
         virtualizer.scrollToIndex(Math.max(0, count - 1), { align: "end", behavior: "auto" });
       }
     };
-    // Plain setInterval, not rAF: rAF never fires in a backgrounded tab and
-    // drift must heal there too, so the layout is right on return.
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    return visibleInterval(tick, 1000);
   }, [virtualizer, count, bottomThresholdPx]);
 
   const items = virtualizer.getVirtualItems();

@@ -5,6 +5,7 @@
 // usage credits). Shared by the header chip's popover and the Claude Accounts
 // settings page so both always tell the same story.
 
+import { visibleInterval } from "../lib/windowVisibleWork";
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -262,8 +263,7 @@ export function ProfileSignInButton({
 function useCoarseNowLocal(): number {
   const [now, setNow] = useState(() => Date.now());
   useMountEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 5_000);
-    return () => clearInterval(t);
+    return visibleInterval(() => setNow(Date.now()), 5_000);
   });
   return now;
 }

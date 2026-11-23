@@ -4,6 +4,7 @@
 // the bar down, and leaving it (with none of its menus open) slides it away.
 // The edge strip itself is ZenTopEdge (components/ZenBarPeek.tsx).
 
+import { visibleInterval } from "../lib/windowVisibleWork";
 import { useCallback, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { useWatchEffect } from "./useWatchEffect";
 
@@ -22,20 +23,23 @@ function barHoldsMenu(bar: HTMLElement | null): boolean {
 export function useZenBarPeek(enabled: boolean, barRef: RefObject<HTMLElement | null>) {
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const over = useRef(false);
+  const stopMenuPoll = useRef<(() => void) | null>(null);
   const clear = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
+    stopMenuPoll.current?.();
+    stopMenuPoll.current = null;
   };
   // The bar goes once the pointer is off it and none of its menus is open.
-  const closeWhenFree = useCallback(() => {
+  const onBarLeave = useCallback(() => {
     clear();
-    if (over.current) return;
-    if (barHoldsMenu(barRef.current)) {
-      timer.current = setTimeout(closeWhenFree, HOLD_CHECK_MS);
-      return;
-    }
-    setOpen(false);
+    const closeWhenFree = () => {
+      if (barHoldsMenu(barRef.current)) return;
+      clear();
+      setOpen(false);
+    };
+    stopMenuPoll.current = visibleInterval(closeWhenFree, HOLD_CHECK_MS);
+    if (!document.hidden) closeWhenFree();
   }, [barRef]);
   const onEdgeEnter = useCallback((e: MouseEvent) => {
     clear();
@@ -46,18 +50,12 @@ export function useZenBarPeek(enabled: boolean, barRef: RefObject<HTMLElement | 
     if (!open) clear();
   }, [open]);
   const onBarEnter = useCallback(() => {
-    over.current = true;
     clear();
   }, []);
-  const onBarLeave = useCallback(() => {
-    over.current = false;
-    closeWhenFree();
-  }, [closeWhenFree]);
   // Leaving zen (or the bar becoming an app window's) drops the peek.
   useWatchEffect(() => {
     if (!enabled) {
       clear();
-      over.current = false;
       setOpen(false);
     }
   }, [enabled]);

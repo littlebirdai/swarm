@@ -1,5 +1,6 @@
 "use client";
 
+import { whileWindowVisible } from "../../lib/windowVisibleWork";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -33,19 +34,16 @@ function usePolledProgress(tmux: string | null, active: boolean): CompactionProg
       setProgress(null);
       return;
     }
-    let cancelled = false;
     const tick = () => {
       const text = tmux ? readLiveScreenText(tmux) : null;
       const next = text ? parseCompactionProgress(text) : null;
-      if (cancelled) return;
       setProgress((prev) => (sameProgress(prev, next) ? prev : next));
     };
-    tick();
-    const id = setInterval(tick, 400);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    return whileWindowVisible(() => {
+      tick();
+      const id = setInterval(tick, 400);
+      return () => clearInterval(id);
+    });
   }, [tmux, active]);
   return progress;
 }
