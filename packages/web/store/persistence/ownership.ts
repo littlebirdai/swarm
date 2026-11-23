@@ -1,6 +1,6 @@
 import { createCacheOwnership } from "../cacheOwnership";
 import { COLLECTION_TABLES, db, markCacheServed } from "./db";
-import { PENDING_INPUT_PREFIX } from "./pendingInputJournal";
+import { PENDING_INPUT_PREFIX } from "./schema";
 
 const ownershipApi = createCacheOwnership({
   db,

@@ -4,8 +4,8 @@ import { connectLivenessLane, flushLivenessWrites, holdLiveMeta, holdLivenessRow
 import { COLLECTION_TABLES, db } from "./db";
 import { persistenceOwned } from "./ownership";
 import { META_KEYS } from "./schema";
+import { _hydrating } from "./hydration";
 
-export let _hydrating = false;
 
 // What each collection table currently holds on disk, by id → row reference.
 // Lets writePatchesToIDB persist only the rows that actually changed (and delete
@@ -98,9 +98,6 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
   }
 }
 
-export function setHydrating(v: boolean) {
-  _hydrating = v;
-}
 
 /** Dexie writes only the diffed rows and lands them itself; nothing is held
  *  back. The native engine schedules whole-blob writes and drains them here. */

@@ -3,7 +3,8 @@ import { resetCollectionWrites } from "./collectionWriter";
 import { db, deleteCacheDatabase, reopenAfterPurge, setPurgeInProgress } from "./db";
 import { dropPendingMessageWrites } from "./messageCache";
 import { writeOwnerStamp } from "./ownership";
-import { clearPendingInputJournal, PENDING_INPUT_PREFIX } from "./pendingInputJournal";
+import { clearPendingInputJournal } from "./pendingInputJournal";
+import { PENDING_INPUT_PREFIX } from "./schema";
 
 // Sign-out purge: drop every locally persisted row (collections, messages,
 // meta, parked outbox). The caller owns navigation/reload afterwards.

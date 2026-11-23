@@ -102,7 +102,7 @@ const { scheduleWrite, scheduleRemove, scheduledValue } = writes;
 // heartbeat does not keep issuing removeItem for a key that is already gone.
 const droppedLegacyBlobs = new Set<string>();
 
-// Test hook — see idbCache.ts.
+// Test hook — see persistence/db.ts.
 export function _resetPersistedShadow() {
   lastPersisted.clear();
   droppedLegacyBlobs.clear();
@@ -347,7 +347,7 @@ function materializeLoadedCache(
         continue;
       }
       // Seed the persistence shadow with what's on disk so the first write after
-      // hydrate diffs against reality (see idbCache.ts).
+      // hydrate diffs against reality (see persistence/bootLoader.ts).
       const shadow = new Map<string, any>();
       const validRow = collectionRowValidator(key);
       const hydrateRow = collectionRowHydrator(key);
@@ -890,5 +890,5 @@ export function setUpgradeBlockedListener(_fn: ((blocked: boolean) => void) | nu
 
 // Names the web's cross-window sync lock and channel (syncReplication.ts).
 // Mobile has one process and no other window to elect against, so any value
-// does; the real one lives in idbCache.ts beside the Dexie schema.
+// does; the real one lives in persistence/schema.ts beside the Dexie schema.
 export const CACHE_SCHEMA_VERSION = 0;

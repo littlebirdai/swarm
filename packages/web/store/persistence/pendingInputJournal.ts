@@ -11,8 +11,8 @@ import {
   type PendingMessages,
 } from "../pendingMessageJournal";
 import { db, PERSISTENCE_AVAILABLE } from "./db";
+import { PENDING_INPUT_PREFIX } from "./schema";
 
-export const PENDING_INPUT_PREFIX = "pendingInput:v1:";
 let pendingJournalFlush: Promise<void> | null = null;
 let pendingJournalEpoch = 0;
 

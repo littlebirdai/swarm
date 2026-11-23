@@ -1,6 +1,6 @@
 import { captureException } from "@sentry/react";
 import { persistedMessageTail } from "../cacheRetention";
-import { _hydrating } from "./collectionWriter";
+import { _hydrating } from "./hydration";
 import { db } from "./db";
 import { persistenceOwned } from "./ownership";
 
