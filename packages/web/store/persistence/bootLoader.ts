@@ -2,39 +2,17 @@ import { authPrincipal } from "../../lib/authPrincipal";
 import { COLLECTION_RETENTION, expireExcludeTombstones, partitionSessionRetention } from "../cacheRetention";
 import { collectionRowHydrator, collectionRowValidator } from "../clientSyncRegistry";
 import { queuedMessagesFromPending } from "../pendingMessageJournal";
-import { lastPersisted } from "./collectionWriter";
+import { lastPersisted, noteConversationRetentionDrops } from "./collectionWriter";
 import { COLLECTION_TABLES, db } from "./db";
 import { ensureCacheOwnership as resolveOwnership } from "./ownership";
 import { loadPendingInput } from "./pendingInputJournal";
 import { purgeLocalCache } from "./purge";
+import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 
-// Meta keys the registry no longer names. Nothing reads them and nothing
-// deleted them: the desktop app still held a 12 MB `messages` blob from
-// before conversationMessages (2026-11-21). Dropped at boot; a key leaving
-// the registry joins this list.
-export const RETIRED_META_KEYS = ["messages", "pagination", "sidePanelOpen", "sidePanelUserClosed", "teamUnreadCount"];
+// Old bundles can still write these values to the web meta table.
+export const RETIRED_META_KEYS = ["messages", "pagination", "sidePanelOpen", "sidePanelUserClosed", "teamUnreadCount", "conversations"];
 let retiredMetaSwept = false;
-
-// A boot retention pass can shed most of a table at once: the first boot with
-// externalEvents retention drops 136,209 rows from a 153,681-row cache. As one
-// bulkDelete that queued for 422 ms on the main thread and held the table for
-// 12 s (measured on a copy of that cache). In batches each queue is a few
-// milliseconds, the window paints between them, and a write to the table
-// waits behind one batch instead of the whole pass.
-export const RETENTION_DELETE_BATCH = 2_000;
-
-export async function deleteInBatches(
-  table: { bulkDelete: (ids: string[]) => PromiseLike<unknown> },
-  ids: string[],
-  batch = RETENTION_DELETE_BATCH,
-): Promise<void> {
-  try {
-    for (let i = 0; i < ids.length; i += batch) await table.bulkDelete(ids.slice(i, i + batch));
-  } catch {
-    // What is left on disk goes at the next boot's pass.
-  }
-}
 
 // Native kv-store can read SQLite on this thread (getItemSync). Web IndexedDB
 // cannot; kill-and-reopen on desktop still hydrates under the boot shell via
@@ -91,7 +69,7 @@ export async function loadCache(
       void db.meta.bulkDelete(RETIRED_META_KEYS).catch(() => {});
     }
 
-    // Meta lookup first — the sessions retention pass below needs
+    // Meta lookup first — the session and conversation retention pass needs
     // liveInboxIdList and lastFocusedConversationId from the same snapshot.
     const metaByKey: Record<string, any> = { ...context };
     for (const row of metaRows) {
@@ -116,7 +94,7 @@ export async function loadCache(
       // the registry) are excluded from hydration AND removed from disk, so the
       // cache self-heals instead of resurrecting phantoms on every load.
       const invalid: string[] = [];
-      if (key === "sessions" && rows.length > 0) {
+      if ((key === "sessions" || key === "conversations") && rows.length > 0) {
         const { keep, drop } = partitionSessionRetention(
           rows,
           metaByKey.liveInboxIdList,
@@ -124,7 +102,10 @@ export async function loadCache(
           Date.now(),
         );
         rows = keep;
-        if (drop.length) table.bulkDelete(drop).catch(() => {});
+        if (drop.length) {
+          if (key === "conversations") noteConversationRetentionDrops(drop);
+          else table.bulkDelete(drop).catch(() => {});
+        }
       }
       // Collections that bound themselves at boot (COLLECTION_RETENTION).
       const retain = COLLECTION_RETENTION[key];
@@ -145,6 +126,9 @@ export async function loadCache(
           result[key] = map;
           hasData = true;
         }
+      } else if (key === "conversations" && collectionResults[i].length > 0) {
+        result[key] = {};
+        hasData = true;
       }
       if (invalid.length) table.bulkDelete(invalid).catch(() => {});
       if (trimmed.length) table.bulkPut(trimmed).catch(() => {});
@@ -164,23 +148,6 @@ export async function loadCache(
         result.queuedMessages = queuedMessagesFromPending(result.pendingMessages);
         hasData = true;
       }
-    }
-
-    // The conversations map is the sessions cache's twin (same ids, richer
-    // metadata) persisted as ONE meta blob — every put structured-clones the
-    // whole thing on the main thread, so an unpruned blob (measured at ~2,700
-    // entries) costs hundreds of ms per write and at boot. Apply the same
-    // retention policy; the pruned blob reaches disk on its next natural put.
-    if (result.conversations && typeof result.conversations === "object") {
-      const { keep } = partitionSessionRetention(
-        Object.values(result.conversations),
-        metaByKey.liveInboxIdList,
-        metaByKey.lastFocusedConversationId,
-        Date.now(),
-      );
-      const pruned: Record<string, any> = {};
-      for (const row of keep) pruned[row._id] = row;
-      result.conversations = pruned;
     }
 
     if (result.pending && typeof result.pending === "object") {

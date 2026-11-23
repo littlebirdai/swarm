@@ -4,7 +4,7 @@
 // codecast's rule for which of the diff's deletes may reach disk, shared by
 // both persistence engines.
 import { isConvexId } from "../lib/entityLinks";
-import { COLLECTION_STORE_KEYS } from "./clientSyncRegistry";
+import { WEB_COLLECTION_INDEXES } from "./clientSyncRegistry";
 
 export { diffCollection, diffPatchedRows, patchedIds, createCoalescedWriter, type CollectionDiff } from "@platform/engine";
 
@@ -35,7 +35,7 @@ const snapshotDrops = new Map<string, Set<string>>();
 const landedSnapshots = new Set<string>();
 // Only a collection with a disk table ever spends a drop; recording the rest
 // would grow the ledger for the life of the page.
-const persistedCollections: ReadonlySet<string> = new Set(COLLECTION_STORE_KEYS);
+const persistedCollections: ReadonlySet<string> = new Set(Object.keys(WEB_COLLECTION_INDEXES));
 
 /** A non-delta sync landed for `key`: `incomingIds` is the server's complete set. */
 export function noteSnapshotSync(key: string, incomingIds: Iterable<string>, droppedIds: Iterable<string>): void {

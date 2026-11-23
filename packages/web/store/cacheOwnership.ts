@@ -35,7 +35,7 @@ type PurgeCache = (opts: { keepPendingInputFor: string | null; reason: string; d
 
 export type CacheOwnershipDeps = {
   db: Dexie & { meta: Dexie.Table<{ key: string; value: any }, string> };
-  sessions: Dexie.Table<any, string> | undefined;
+  residueTables: Dexie.Table<any, string>[];
   pendingInputPrefix: string;
   onServed: () => void;
 };
@@ -75,15 +75,15 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
   // straddle a write and count a row twice.
   async function foreignRowCount(principal: string | null): Promise<number | null> {
     try {
-      const sessions = deps.sessions;
+      const tables = deps.residueTables;
       // Index-only counts (no row values are read; meta holds large blobs), in
       // one read transaction so all of them see the same snapshot.
-      return await deps.db.transaction("r", sessions ? [deps.db.meta, sessions] : [deps.db.meta], async () => {
+      return await deps.db.transaction("r", [deps.db.meta, ...tables], async () => {
         const meta = await deps.db.meta.count();
         const own = principal ? await deps.db.meta.where("key").startsWith(`${deps.pendingInputPrefix}${principal}:`).count() : 0;
         const stamp = await deps.db.meta.where("key").equals(OWNER_STAMP_KEY).count();
-        const rows = sessions ? await sessions.count() : 0;
-        return meta - own - stamp + rows;
+        const rows = await Promise.all(tables.map((table) => table.count()));
+        return meta - own - stamp + rows.reduce((total, count) => total + count, 0);
       });
     } catch {
       return null;

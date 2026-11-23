@@ -46,6 +46,8 @@ export type ClientSyncRegistryEntry = {
     kind: PersistenceKind;
     key: string;
     perWindow?: boolean;
+    // Web stores this meta key as rows. Native still uses the meta namespace.
+    webTable?: boolean;
     // A collection's liveness fields: server-derived counters and clocks
     // that move on every message, model call or heartbeat. A row whose
     // change touches only these reaches disk on the slow liveness flush
@@ -183,7 +185,7 @@ export const CLIENT_SYNC_REGISTRY = {
   },
   conversations: {
     writtenBy: ["conversations", "peerTransfers"],
-    persistence: { kind: "meta", key: "conversations" },
+    persistence: { kind: "meta", key: "conversations", webTable: true },
     localFirst: true,
     dispatchTable: { table: "conversations", kind: "collection" },
     // The daemon rewrites peer_transfer every few seconds, so a lock on it
@@ -2133,6 +2135,13 @@ export const COLLECTION_INDEXES: Record<string, string> = Object.fromEntries(
     (CLIENT_SYNC_REGISTRY[key] as ClientSyncRegistryEntry).indexes ?? "_id",
   ]),
 );
+
+export const WEB_COLLECTION_INDEXES: Record<string, string> = {
+  ...COLLECTION_INDEXES,
+  ...Object.fromEntries(registryEntries
+    .filter(([, entry]) => entry.persistence?.webTable)
+    .map(([key, entry]) => [key, entry.indexes ?? "_id"])),
+};
 
 /** Collections whose rows enumerate only through useWorkspaceCollection:
  *  every collection DATA_SCOPE (clientSyncRegistry.scope.ts) classes "workspace". */

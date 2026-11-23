@@ -1,8 +1,10 @@
 import type { Patch } from "mutative";
+import { partitionSessionRetention } from "../cacheRetention";
 import { createCoalescedWriter, deleteAllowed, diffCollection, diffPatchedRows, durableDeletes, hasSnapshotDrops, patchedIds } from "../idbCollectionDiff";
 import { connectLivenessLane, flushLivenessWrites, holdLiveMeta, holdLivenessRows, holdLivenessSyncMeta, resetLivenessLane } from "../idbLivenessLane";
 import { COLLECTION_TABLES, db } from "./db";
 import { persistenceOwned } from "./ownership";
+import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 import { _hydrating } from "./hydration";
 
@@ -13,6 +15,12 @@ import { _hydrating } from "./hydration";
 // Seeded from loadCache so the first post-hydrate write diffs against disk, not
 // an empty set (which would leave pruned rows stranded as ghosts).
 export const lastPersisted = new Map<string, Map<string, any>>();
+
+let conversationRetentionDrops = new Set<string>();
+
+export function noteConversationRetentionDrops(ids: string[]) {
+  for (const id of ids) conversationRetentionDrops.add(id);
+}
 
 // Test hook: the shadow lives at module scope and would otherwise leak across
 // tests that reset the underlying storage out from under it.
@@ -82,6 +90,28 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
             if (puts.length) await table.bulkPut(puts);
           }).catch(() => {});
         }
+        // Followers also hydrate. Leave disk retention to the next host write.
+        if (key === "conversations" && conversationRetentionDrops.size) {
+          const queued = conversationRetentionDrops;
+          const candidates = [...queued];
+          queued.clear();
+          void deleteInBatches({
+            bulkDelete: (batch) => db.transaction("rw", table, async () => {
+              if (queued !== conversationRetentionDrops || !persistenceOwned()) return;
+              const shadow = lastPersisted.get(key);
+              const absent = batch.filter((id) => !(id in data) && !shadow?.has(id));
+              if (!absent.length) return;
+              const rows = (await table.bulkGet(absent)).filter((row) => row !== undefined);
+              // Include the held rows so the retention cap still applies to this batch.
+              const { drop } = partitionSessionRetention(
+                [...(shadow?.values() ?? []), ...rows], state.liveInboxIdList, state.lastFocusedConversationId, Date.now(),
+              );
+              const dropped = new Set(drop);
+              const expired = rows.filter((row) => dropped.has(row._id)).map((row) => row._id);
+              if (expired.length) await table.bulkDelete(expired);
+            }),
+          }, candidates);
+        }
       }
     } else if (key === "pending") {
       // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
@@ -108,4 +138,5 @@ export function resetCollectionWrites() {
   metaWriter.drop();
   resetLivenessLane();
   lastPersisted.clear();
+  conversationRetentionDrops = new Set();
 }
