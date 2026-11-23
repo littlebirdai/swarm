@@ -615,7 +615,7 @@ function warmSpareTabWindow(delayMs = SPARE_WARM_DELAY_MS) {
     spareTabTimer = null;
     if (appIsQuitting) return;
     if (spareTabWindow && !spareTabWindow.isDestroyed()) return;
-    const win = buildTabWindow();
+    const win = buildTabWindow(["--warm-spare"]);
     spareTabWindow = win;
     spareTabReady = false;
     win.webContents.once("did-finish-load", () => {
@@ -2121,6 +2121,7 @@ function flushWindowRole() {
         // The app THIS window is. A cold app window also says so in its
         // preload arguments; a claimed warm spare only learns it here.
         app: appOf(win),
+        spare: win === spareTabWindow,
         shown: windowShown(win),
       });
     }

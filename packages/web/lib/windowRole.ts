@@ -2,6 +2,33 @@
 // desktop bridge's imports (the phone bundle reaches some of its callers).
 // Outside a browser every answer is the plain app window.
 
+export function windowStorePolicy(role: "spare" | "regular", claimed: boolean) {
+  const active = role === "regular" || claimed;
+  return { mayHost: active, shouldHydrate: active };
+}
+
+let warmSpareClaimed = false;
+const storeStartListeners = new Set<() => void>();
+
+export function getWindowStorePolicy() {
+  const spare = typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isWarmSpare === true;
+  return windowStorePolicy(spare ? "spare" : "regular", warmSpareClaimed);
+}
+
+/** The preload flag covers boot. Only an explicit shell role can end standby,
+ *  including on reload of a window built with the original spare flag. */
+export function applyWarmSpareRole(spare: unknown): void {
+  if (spare !== false || getWindowStorePolicy().shouldHydrate) return;
+  warmSpareClaimed = true;
+  for (const start of storeStartListeners) start();
+  storeStartListeners.clear();
+}
+
+export function subscribeWindowStoreStart(start: () => void): () => void {
+  if (!getWindowStorePolicy().shouldHydrate) storeStartListeners.add(start);
+  return () => { storeStartListeners.delete(start); };
+}
+
 /** This renderer IS the call panel: it hosts the call and draws the stage. */
 export function isCallPanelWindow(): boolean {
   return typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isCallPanelWindow === true;

@@ -1,0 +1,95 @@
+import { expect, test } from "bun:test";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
+import { JSDOM } from "jsdom";
+import { closeDomWindow } from "../../test-helpers/domGlobals";
+import { replaceGlobals } from "../../test-helpers/globals";
+import { AUTH_JWT_STORAGE_KEY, issueFakeToken } from "./fixtures/fakeAuthToken";
+
+test("the shell claim starts hydration, replication, and host election", async () => {
+  const dom = new JSDOM("<div id='root'></div>", { url: "https://codecast.sh/inbox" });
+  const { window } = dom;
+  let pushRole!: (role: { spare?: boolean }) => void;
+  Object.assign(window, {
+    __CODECAST_ELECTRON__: {
+      isWarmSpare: true,
+      onWindowRole: (cb: typeof pushRole) => { pushRole = cb; },
+    },
+  });
+  window.localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken("userA"));
+  const channels: string[] = [];
+  const locks: string[] = [];
+  const restore = replaceGlobals({
+    window, document: window.document, navigator: {
+      userAgent: window.navigator.userAgent,
+      locks: {
+        request: (name: string, _options: unknown, grant: () => Promise<void>) => {
+          locks.push(name);
+          return Promise.resolve().then(grant);
+        },
+      },
+    },
+    localStorage: window.localStorage,
+    indexedDB: new IDBFactory(),
+    IDBKeyRange,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    BroadcastChannel: class extends EventTarget {
+      constructor(name: string) { super(); channels.push(name); }
+      postMessage() {}
+      close() {}
+    },
+  });
+
+  const { act } = await import("react");
+  const { createRoot } = await import("react-dom/client");
+  const { db } = await import("../persistence/db");
+  const hydration = await import("../persistence/hydration");
+  const { installWindowRoleTracker } = await import("../../lib/desktop");
+  const { useInboxStore, rebootPersistence } = await import("../inboxStore");
+  const { useIsSyncHost, useSyncReplication } = await import("../../hooks/useSyncRole");
+  const { replicationChannelName, replicationLockName, startSyncReplication } = await import("../syncReplication");
+
+  function Feeders() {
+    useSyncReplication(true);
+    return useIsSyncHost() ? <span>Host feeders</span> : null;
+  }
+
+  const container = window.document.getElementById("root")!;
+  const root = createRoot(container);
+  try {
+    await db.meta.put({ key: "currentUser", value: { _id: "userA" } });
+    await db.meta.put({ key: "cacheOwner", value: { principal: "userA", at: 1, reason: "seed" } });
+    const id = "a".repeat(32);
+    await db.table("sessions").put({ _id: id, session_id: "cached", updated_at: Date.now() });
+    db.close({ disableAutoOpen: false });
+
+    installWindowRoleTracker();
+    await act(async () => { root.render(<Feeders />); });
+    pushRole({ spare: true });
+    pushRole({});
+    rebootPersistence();
+    startSyncReplication({ eligible: true, principalId: "userA" })();
+    expect(db.isOpen()).toBe(false);
+    expect(useInboxStore.getState().clientStateInitialized).toBe(false);
+    expect(useInboxStore.getState().sessions).toEqual({});
+    expect(container.textContent).toBe("");
+    expect(channels.some((name) => name.startsWith(replicationChannelName("userA")))).toBe(false);
+    expect(locks).toEqual([]);
+
+    await act(async () => { pushRole({ spare: false }); });
+    const deadline = performance.now() + 2_000;
+    while (hydration._hydrating && performance.now() < deadline) {
+      await Bun.sleep(1);
+    }
+    expect(hydration._hydrating).toBe(false);
+    expect(useInboxStore.getState().clientStateInitialized).toBe(true);
+    expect(useInboxStore.getState().sessions[id]?.session_id).toBe("cached");
+    expect(channels).toContain(replicationChannelName("userA"));
+    expect(locks).toEqual([replicationLockName("userA")]);
+    expect(container.textContent).toBe("Host feeders");
+  } finally {
+    await act(async () => { root.unmount(); });
+    db.close();
+    closeDomWindow(dom);
+    restore();
+  }
+});

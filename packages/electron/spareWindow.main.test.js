@@ -30,6 +30,19 @@ test("detaching a tab discards a crashed spare and loads a fresh window", (t) =>
 
 test("detaching a tab still reuses a healthy ready spare", async (t) => {
   const { rig, spare } = warmSpare(t);
+  assert.ok(spare.options.webPreferences.additionalArguments.includes("--warm-spare"));
+  const events = [];
+  spare.webContents.send = (channel, role) => {
+    if (channel === "window-role") events.push(["role", role.spare]);
+  };
+  spare.webContents.executeJavaScript = async (script) => {
+    if (script.includes("codecast-navigate")) events.push(["navigate"]);
+  };
+  rig.listeners.get("browser-window-created")(null, spare);
+  spare.webContents.emit("did-finish-load");
+  t.mock.timers.tick(30);
+  assert.deepEqual(events, [["role", true]]);
+
   const created = rig.windows.length;
   rig.handlers.get("detach-tab")(rig.event(), "/questions");
   await new Promise((resolve) => setImmediate(resolve));
@@ -37,4 +50,10 @@ test("detaching a tab still reuses a healthy ready spare", async (t) => {
   assert.equal(spare.isDestroyed(), false);
   assert.equal(spare.isVisible(), true);
   assert.equal(spare.did("loadURL").length, 1);
+  assert.deepEqual(events, [["role", true], ["role", false], ["navigate"]]);
+
+  // A reload gets the claimed role again even though preload still has the flag.
+  spare.webContents.emit("did-finish-load");
+  t.mock.timers.tick(30);
+  assert.deepEqual(events.at(-1), ["role", false]);
 });
