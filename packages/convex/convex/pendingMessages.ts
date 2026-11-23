@@ -2312,6 +2312,11 @@ export const STUCK_MESSAGES_PER_PAGE = 16;
 export const STUCK_MESSAGE_PAGES_PER_RUN = 32;
 export const STUCK_SESSIONS_PER_CONVERSATION = 4;
 export const STUCK_MESSAGE_RUN_BUDGET_MS = 40_000;
+// The recent page covers deadlines measured from created_at (the 2-minute
+// injected repend and the 3-minute sender notice). Rules measured from
+// paste_verified_at (fail_unconfirmed, the no-daemon wait, the unconfirmed
+// expiry) can fall due outside it and wait for the sweep. So can a burst of
+// more than one page of due rows: the newest page holds the slots.
 const FRESH_STUCK_MESSAGE_WINDOW_MS = 30 * 60_000;
 const NON_TERMINAL_STATUSES = ["pending", "injected", "failed", "undeliverable"] as const;
 const stuckCursor = v.object({
@@ -2442,7 +2447,8 @@ export const planFreshStuckMessages = internalQuery({
       const page = rows.map((row) => ({ row, dueAt: row.created_at + grace }));
       const remaining = STUCK_MESSAGES_PER_PAGE - rows.length;
       if (status === "pending" && remaining > 0) {
-        // Pending text can heal before its sender is due a notice.
+        // Pending text can heal before its sender is due a notice. Only spare room
+        // on the page is used, so with a queued backlog the repend waits for the notice tick.
         const younger = await ctx.db.query("pending_messages")
           .withIndex("by_status_created", (q) =>
             q.eq("status", "pending").gt("created_at", now - grace).lte("created_at", now - INJECT_ACK_GRACE_MS))
