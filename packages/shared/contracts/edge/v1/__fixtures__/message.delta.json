@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "session": "session-1",
+  "run": 3,
+  "turn": "turn-2",
+  "at": 1795453200000,
+  "source": "provider",
+  "kind": "message.delta",
+  "body": {
+    "text": "I read"
+  }
+}

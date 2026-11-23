@@ -1,0 +1,40 @@
+{
+  "request": {
+    "machine": "machine-laptop",
+    "boot": "boot-1",
+    "versions": [
+      1
+    ],
+    "capabilities": [
+      "delivery-permit-v1"
+    ],
+    "providers": [
+      {
+        "name": "claude",
+        "version": "1.2.3"
+      }
+    ],
+    "runtimes": [
+      {
+        "host": "local",
+        "isolation": "worktree"
+      }
+    ],
+    "capacity": {
+      "memory_total_bytes": 17179869184,
+      "memory_available_bytes": 4294967296,
+      "live_agents": 2
+    }
+  },
+  "response": {
+    "status": "ok",
+    "version": 1,
+    "policy": {
+      "revision": 2,
+      "heartbeat_interval_ms": 10000,
+      "capabilities": [
+        "delivery-permit-v1"
+      ]
+    }
+  }
+}

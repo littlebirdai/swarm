@@ -1,0 +1,14 @@
+{
+  "request": {
+    "v": 1,
+    "machine": "machine-laptop",
+    "boot": "boot-1",
+    "content_type": "text/plain",
+    "data_base64": "ZXhhbXBsZQ=="
+  },
+  "response": {
+    "v": 1,
+    "blob_id": "blob-1",
+    "size_bytes": 7
+  }
+}
