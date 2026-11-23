@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildClientResourceReport, estimateCollectionBytes } from "./clientResourceReport";
+import { buildClientResourceReport, estimateCollectionBytes, shouldReportClientResources } from "./clientResourceReport";
 
 const window = { platform: "desktop", syncRole: "host", windowRole: "app" } as const;
 
@@ -49,10 +49,24 @@ describe("client resource report", () => {
     expect(report.store_collection_estimated_bytes).toEqual({});
   });
 
-  test("estimates from sample lengths and skips oversized row structures", () => {
-    const longText = "x".repeat(1_000_000);
-    expect(estimateCollectionBytes([longText], 10)).toBe(10_000_020);
-    expect(estimateCollectionBytes(["a", "abc"], 4)).toBe(16);
-    expect(estimateCollectionBytes([Array(1000).fill(0)], 1)).toBeUndefined();
+  test("estimates a collection from three rows of 100 fields each", () => {
+    const row = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`field${i}`, Array(6).fill("x")]));
+    expect(estimateCollectionBytes([row, row, row], 1000)).toBe(3_692_000);
+  });
+
+  test("uses complete samples when another row exceeds the traversal budget", () => {
+    const oversized = Array(3000).fill(0);
+    expect(estimateCollectionBytes(["a", oversized, "abc"], 4)).toBe(16);
+    expect(estimateCollectionBytes([oversized], 1)).toBeUndefined();
+  });
+
+  test("reports from visible app windows or the sync host, and excludes overlays and the palette", () => {
+    expect(shouldReportClientResources("app", true, "host")).toBe(true);
+    expect(shouldReportClientResources("tab", true, "follower")).toBe(false);
+    expect(shouldReportClientResources("tab", false, "follower")).toBe(true);
+    expect(shouldReportClientResources("people", false, "follower")).toBe(true);
+    expect(shouldReportClientResources("call_panel", false, "follower")).toBe(true);
+    expect(shouldReportClientResources("auxiliary", false, "host")).toBe(false);
+    expect(shouldReportClientResources("palette", false, "follower")).toBe(false);
   });
 });

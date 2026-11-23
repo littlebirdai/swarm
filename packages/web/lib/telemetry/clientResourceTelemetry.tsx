@@ -6,7 +6,10 @@ import { getPlatform, isRegulatedData, track } from "../analytics";
 import { watchLongFrameStats } from "../freezeAttribution";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../inputQuiet";
 import { getWindowRole } from "../windowRole";
-import { buildClientResourceReport, estimateCollectionBytes, type CollectionSample } from "./clientResourceReport";
+import {
+  buildClientResourceReport, estimateCollectionBytes, isClientResourceReportWindow,
+  shouldReportClientResources, type CollectionSample,
+} from "./clientResourceReport";
 
 const FIRST_REPORT_MS = 60_000;
 const REPORT_INTERVAL_MS = 10 * 60_000;
@@ -34,7 +37,7 @@ function* sampleCollections(): Generator<CollectionSample> {
   yield { key: "messages", count, estimatedBytes: estimateCollectionBytes(samples, count) };
 }
 
-function startClientResourceTelemetry(): () => void {
+function startClientResourceTelemetry(windowRole: ReturnType<typeof getWindowRole>): () => void {
   const frames = watchLongFrameStats();
   const locks = navigator.locks;
   let releaseWindow: (() => void) | undefined;
@@ -48,7 +51,7 @@ function startClientResourceTelemetry(): () => void {
   let timer: ReturnType<typeof setTimeout>;
   let idle: number | undefined;
   const eligible = () => !isRegulatedData() &&
-    (!document.hidden || useInboxStore.getState().syncRole === "host");
+    shouldReportClientResources(windowRole, document.hidden, useInboxStore.getState().syncRole);
 
   function schedule(delay: number) {
     timer = setTimeout(begin, delay);
@@ -67,7 +70,7 @@ function startClientResourceTelemetry(): () => void {
       track("client_resource_report", buildClientResourceReport({
         platform: getPlatform(),
         syncRole: useInboxStore.getState().syncRole,
-        windowRole: getWindowRole(),
+        windowRole,
         windowCount: windowCount || undefined,
         memory,
         collections,
@@ -136,7 +139,10 @@ function startClientResourceTelemetry(): () => void {
 export function ClientResourceTelemetry() {
   const { isAuthenticated } = useConvexAuth();
   useEffect(() => {
-    if (isAuthenticated) return startClientResourceTelemetry();
+    const role = getWindowRole();
+    if (isAuthenticated && isClientResourceReportWindow(role)) {
+      return startClientResourceTelemetry(role);
+    }
   }, [isAuthenticated]);
   return null;
 }

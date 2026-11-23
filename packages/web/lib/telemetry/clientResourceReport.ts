@@ -2,6 +2,18 @@ import type { CodecastEventProps } from "@codecast/shared/analytics";
 
 type Report = CodecastEventProps<"client_resource_report">;
 
+export function isClientResourceReportWindow(role: Report["window_role"]): boolean {
+  return role === "app" || role === "tab" || role === "people" || role === "call_panel";
+}
+
+export function shouldReportClientResources(
+  role: Report["window_role"],
+  hidden: boolean,
+  syncRole: Report["sync_role"],
+): boolean {
+  return isClientResourceReportWindow(role) && (!hidden || syncRole === "host");
+}
+
 export type CollectionSample = {
   key: string;
   count: number;
@@ -49,7 +61,7 @@ export function buildClientResourceReport(input: ReportInputs): Report {
 
 /** Estimate serialized size without copying message bodies or walking large rows in full. */
 export function estimateCollectionBytes(rows: readonly unknown[], count: number): number | undefined {
-  let budget = 256;
+  let budget: number;
   function size(value: unknown): number {
     if (--budget < 0) throw new RangeError();
     if (typeof value === "string") return value.length + 2;
@@ -65,11 +77,16 @@ export function estimateCollectionBytes(rows: readonly unknown[], count: number)
     return bytes;
   }
 
-  if (!rows.length) return undefined;
-  try {
-    const sampleBytes = rows.reduce<number>((bytes, row) => bytes + size(row), 0);
-    return Math.round(sampleBytes / rows.length * count);
-  } catch {
-    return undefined;
+  let sampleBytes = 0;
+  let measuredRows = 0;
+  for (const row of rows) {
+    budget = 1_536;
+    try {
+      sampleBytes += size(row);
+      measuredRows++;
+    } catch {
+      // An oversized row leaves the other samples available for the estimate.
+    }
   }
+  return measuredRows ? Math.round(sampleBytes / measuredRows * count) : undefined;
 }
