@@ -40,3 +40,33 @@ test.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
     }
   },
 );
+
+test.skipIf(process.platform !== "darwin" && process.platform !== "linux")(
+  "keeps agent RSS when ps prints more than a megabyte of argv",
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "bench-rss-big-"));
+    const entry = join(dir, "codex");
+    await writeFile(entry, 'console.log("ready"); setInterval(() => {}, 1000);');
+    const prompt = "x".repeat(400 * 1024);
+    const children = [0, 1, 2].map(() => spawn(process.execPath, [entry, prompt], { stdio: ["ignore", "pipe", "ignore"] }));
+    const closed = children.map(child => new Promise(resolve => child.once("close", resolve)));
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: () => Response.json({ pid: process.pid, rssBytes: 1, agentPids: children.map(child => child.pid) }),
+    });
+    try {
+      await Promise.all(children.map(child => new Promise<void>((resolve, reject) => {
+        child.stdout?.once("data", () => resolve());
+        child.once("exit", code => reject(new Error(`fixture exited with ${code}`)));
+      })));
+      const sample = await sampleDaemonMemory(process.pid, server.port!, { Authorization: "Bearer fixture" });
+      expect(sample.agents?.length).toBe(3);
+    } finally {
+      for (const child of children) child.kill();
+      await Promise.all(closed);
+      await server.stop(true);
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);

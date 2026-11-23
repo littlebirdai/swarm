@@ -11,7 +11,9 @@ export async function sampleDaemonMemory(pid: number, port: number, headers: Rec
 
   const pids = new Set([pid, ...(inventory?.agentPids ?? [])]);
   const { stdout } = await execFileAsync("ps", ["-ww", "-o", "pid=,rss=,lstart=,args=", "-p", [...pids].join(",")], {
-    timeout: 2_000, killSignal: "SIGKILL", env: { ...process.env, LC_ALL: "C" },
+    // Agents carry their launch prompt in argv, so 200 of them print well past
+    // the 1 MB default; an overflow would read as "no agents" (processTable.ts).
+    timeout: 2_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, LC_ALL: "C" },
   }).catch(() => ({ stdout: "" }));
 
   let daemonRssBytes = inventory?.rssBytes ?? null;

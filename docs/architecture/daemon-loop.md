@@ -325,7 +325,9 @@ sleep windows do not excuse missing measurement slots.
 `memory.daemonRss` reports start, sampled peak and end RSS. On macOS and Linux,
 `memory.agentRss` groups each tracked live process's sampled peak by provider
 and reports count, median, p90 and max. Samples run every five seconds and at
-both ends. JSON uses bytes and Markdown uses MiB. Stand-ins may appear under
+both ends. JSON uses bytes and Markdown uses MiB. It covers the processes the
+daemon has resolved for its sessions (its 30-second process cache), not every
+live agent, so agents it has not looked up yet are missing. Stand-ins may appear under
 `unknown`. Windows reports daemon RSS only. `log.longestLoopHoldMs` uses
 freeze and slow synchronous operation records from the run. Holds below the
 existing logging thresholds may be absent.
