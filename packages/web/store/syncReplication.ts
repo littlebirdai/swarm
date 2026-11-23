@@ -8,8 +8,8 @@
 // slice applied from the host's broadcasts, its own optimistic writes offered
 // back as muts.
 //
-// Roles are safety-first: every window BOOTS as host (today's behavior) and
-// demotes to follower only on evidence — a snapshot from a living host. A
+// Active windows start with host behavior and demote to follower after a
+// snapshot from a living host. An unclaimed warm spare has no transport. A
 // follower that loses its host falls back to host behavior ("solo") until a
 // host answers again, so no window can be starved by a dead or absent host.
 // Election uses the Web Locks API: the lock holder is the one elected host;
@@ -508,6 +508,7 @@ function setRole(role: "host" | "follower"): void {
  */
 export function startSyncReplication(opts: { eligible: boolean; principalId: string | null }): () => void {
   if (running) return running.stop;
+  setRole("host");
   if (!transportAvailable() || !opts.principalId) {
     // No transport (React Native, SSR, ancient browser) or no account: stay
     // host, changed nothing. Share pages and tests land here too.

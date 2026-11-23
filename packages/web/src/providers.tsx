@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { DesktopProvider } from "@/components/DesktopProvider";
+import { DesktopBadge } from "@/components/DesktopBadge";
 import { OpenInDesktopHandoff } from "@/components/OpenInDesktopHandoff";
 import { ShortcutProvider, setKeyBindings, isMac } from "@/shortcuts";
 import { shortcutCatalog } from "@/shortcuts/registry";
@@ -19,6 +20,7 @@ import { bridge } from "@/lib/desktop";
 import { TipProvider } from "@/tips/TipProvider";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useDesktopStoreReady } from "@/hooks/useDesktopStoreReady";
 import { identifyUser, keepReplay, resetUser } from "@/lib/analytics";
 import { ClientResourceTelemetry } from "@/lib/telemetry/clientResourceTelemetry";
 import { CodecastAuthRoot } from "@/lib/authRoot";
@@ -33,11 +35,12 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 function KeyBindingsSync() {
   const s = useTrackedStore([(s) => s.clientState.ui?.key_bindings]);
   const bindings = s.clientState.ui?.key_bindings;
+  const storeReady = useDesktopStoreReady();
   useWatchEffect(() => {
     setKeyBindings(bindings);
     // The desktop menu bar repeats a few chords natively; it follows too.
-    bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
-  }, [bindings]);
+    if (storeReady) bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
+  }, [bindings, storeReady]);
   return null;
 }
 
@@ -157,6 +160,7 @@ export function Providers({ children }: { children: ReactNode }) {
         </AgentTabOverride.Provider>
         <ErrorBoundary name="DesktopProvider" level="inline">
           <DesktopProvider />
+          <DesktopBadge />
         </ErrorBoundary>
         <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
           <OpenInDesktopHandoff />

@@ -1,5 +1,5 @@
 import { conversationIdFromPath } from "./desktopHandoff";
-import { applyShellVisibility, isCallPanelWindow, isPaletteWindow } from "./windowRole";
+import { applyShellVisibility, applyWarmSpareRole, isCallPanelWindow, isPaletteWindow } from "./windowRole";
 import { useSyncExternalStore } from "react";
 import { naturalTier, type FaceTier, type FacesMode } from "./calls/faceCrop";
 import { BrowserBannerGate, bannerEntity } from "./notificationGate";
@@ -70,6 +70,7 @@ declare global {
       // Detached tab windows: a dashboard tab broken out into its own OS
       // window. All absent on older builds — gate on them.
       isTabWindow?: boolean;
+      isWarmSpare?: boolean;
       detachTab: (path: string) => Promise<void>;
       attachTab: (path: string) => Promise<void>;
       onAdoptTab: (cb: (path: string) => void) => void;
@@ -393,6 +394,7 @@ export type DesktopWindowRole = {
    *  spare). Null from a shell that does not say: the document's own
    *  visibility then stands (lib/windowRole applyShellVisibility). */
   shown: boolean | null;
+  spare?: boolean;
 };
 
 /** A room handed to the voice host, with the state the person is already in. */
@@ -1421,6 +1423,7 @@ export function installWindowRoleTracker(): void {
       shown: typeof role.shown === "boolean" ? role.shown : null,
     };
     applyShellVisibility(windowRole.shown);
+    applyWarmSpareRole(role.spare);
     for (const cb of windowRoleWatchers) cb();
   });
 }

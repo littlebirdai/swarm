@@ -1,4 +1,6 @@
+import { useSyncExternalStore } from "react";
 import { useAuthPrincipal } from "../lib/authPrincipal";
+import { isWindowStoreActive, subscribeWindowStoreStart } from "../lib/windowRole";
 import { useInboxStore } from "../store/inboxStore";
 import { startSyncReplication } from "../store/syncReplication";
 
@@ -18,5 +20,12 @@ export function useIsSyncHost(): boolean {
  *  the account the window acts for and restarts when that changes. */
 export function useSyncReplication(eligible: boolean): void {
   const { principalId } = useAuthPrincipal();
-  useWatchEffect(() => startSyncReplication({ eligible, principalId }), [eligible, principalId]);
+  const active = useSyncExternalStore(
+    subscribeWindowStoreStart,
+    isWindowStoreActive,
+    () => true,
+  );
+  useWatchEffect(() => {
+    if (active) return startSyncReplication({ eligible, principalId });
+  }, [active, eligible, principalId]);
 }

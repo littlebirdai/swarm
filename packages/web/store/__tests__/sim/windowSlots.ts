@@ -272,6 +272,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "lib/desktop.ts:inputTrackerInstalled": DESKTOP,
   "lib/desktop.ts:windowRole": DESKTOP,
   "lib/windowRole.ts:shellShown": DESKTOP,
+  "lib/windowRole.ts:warmSpareClaimed": DESKTOP,
+  "lib/windowRole.ts:storeStartListeners": DESKTOP,
   "lib/windowRole.ts:shellVisibilityInstalled": DESKTOP,
   "lib/desktop.ts:windowRoleBridge": DESKTOP,
   "lib/desktop.ts:reportedWindowState": DESKTOP,
