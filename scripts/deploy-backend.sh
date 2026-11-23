@@ -1,32 +1,39 @@
 #!/bin/bash
-# Deploy the Convex backend from this fork's main, safely.
+# Deploy swarm's Convex backend.
 #
-# Two targets:
+# Swarm runs on its own Convex cloud deployment, separate from the codecast
+# project it was forked from. This is its deploy path. It does not use
+# packages/convex/deploy.sh, which belongs to codecast's self-hosted server.
 #
-#   codecast production (self-hosted, the default): goes through
-#   packages/convex/deploy.sh, the only path to that server. deploy.sh refuses
-#   a tree behind its freshness remote, but in this fork that remote falls back
-#   to `origin` (scripts/convex-base-remote.sh finds no codecast-sh/codecast
-#   remote), so a fork behind codecast-sh/codecast's main would pass and its
-#   push would delete codecast's newer functions. This wrapper adds
-#   codecast-sh/codecast as the `codecast` remote and makes it the freshness
-#   remote, so the fork must contain codecast's main before it can push there.
+# Before pushing, the script checks that:
+#   - this is a clean `main` that contains origin/main (fast-forwarded when
+#     possible), because Convex pushes the whole tree and an older tree deletes
+#     newer functions;
+#   - the deploy key is a production key for the pinned deployment
+#     (SWARM_CONVEX_DEPLOYMENT, default fine-deer-603), so a key for another
+#     deployment is refused;
+#   - no CONVEX_SELF_HOSTED_URL is set to steer the CLI elsewhere, and the
+#     repo's own Convex CLI is installed.
 #
-#   a Convex cloud deployment (--deploy-key-file): swarm's own backend. The key
-#   names its deployment; the tree must contain this fork's origin/main. It does
-#   not go through deploy.sh, which always targets the self-hosted server. The
-#   target's function list is read before and after the push, and anything the
-#   push removed is printed.
+# What it does while deploying:
+#   - shares the deploy lock with packages/convex/deploy.sh;
+#   - moves aside any .env.local that names a deployment;
+#   - lists the target's functions before and after the push and prints
+#     anything the push removed;
+#   - restores the generated code under packages/convex/convex/_generated,
+#     which the push rewrites.
 #
 # Usage:
-#   scripts/deploy-backend.sh [--deploy-key-file PATH] [--check] [--yes] [-- deploy args]
+#   scripts/deploy-backend.sh [--deploy-key-file PATH] [--check] [--yes] [-- convex deploy args]
+#     --deploy-key-file  a file holding the production deploy key (prod:<deployment>|...);
+#                        without it, CONVEX_DEPLOY_KEY from the environment is used
 #     --check            run every check and print the target; deploy nothing
 #     --yes              skip the confirmation prompt
-#     --deploy-key-file  a file holding a Convex cloud deploy key (prod:<name>|...)
 set -euo pipefail
 ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 cd "$ROOT"
 
+EXPECTED="${SWARM_CONVEX_DEPLOYMENT:-fine-deer-603}"
 CHECK_ONLY=0
 ASSUME_YES=0
 KEY_FILE=""
@@ -44,14 +51,22 @@ done
 
 fail() { echo "REFUSING to deploy: $*" >&2; exit 1; }
 
-confirm() {
-    [ "$ASSUME_YES" = 1 ] && return 0
-    [ -t 0 ] || fail "no terminal to confirm on; pass --yes to deploy without the prompt."
-    read -r -p "Deploy this tree to $1? Type 'deploy' to continue: " ANSWER
-    [ "$ANSWER" = "deploy" ] || { echo "Not deployed."; exit 1; }
-}
+[ -z "${CONVEX_SELF_HOSTED_URL:-}" ] || fail "CONVEX_SELF_HOSTED_URL is set; unset it, it would send the push to a self-hosted server."
+CONVEX_BIN="$ROOT/node_modules/.bin/convex"
+[ -x "$CONVEX_BIN" ] || fail "the repo's Convex CLI is not installed; run 'bun install --frozen-lockfile' first."
 
-# Both targets: a clean main that contains this fork's origin/main.
+if [ -n "$KEY_FILE" ]; then
+    [ -r "$KEY_FILE" ] || fail "cannot read the deploy key file."
+    DEPLOY_KEY="$(tr -d '[:space:]' < "$KEY_FILE")"
+else
+    DEPLOY_KEY="${CONVEX_DEPLOY_KEY:-}"
+fi
+[ -n "$DEPLOY_KEY" ] || fail "no deploy key: pass --deploy-key-file PATH or set CONVEX_DEPLOY_KEY."
+case "$DEPLOY_KEY" in prod:*'|'*) ;; *) fail "the deploy key is not a production key (expected prod:<deployment>|...)." ;; esac
+NAME="${DEPLOY_KEY#prod:}"; NAME="${NAME%%|*}"
+[ "$NAME" = "$EXPECTED" ] || fail "the deploy key is for '$NAME', not swarm's deployment '$EXPECTED' (set SWARM_CONVEX_DEPLOYMENT to change the pin)."
+TARGET="https://$NAME.convex.cloud"
+
 [ "$(git branch --show-current)" = "main" ] || fail "check out main first (on '$(git branch --show-current)')."
 [ -z "$(git status --porcelain --untracked-files=no)" ] || fail "main has uncommitted changes to tracked files; commit or stash them."
 git fetch origin --quiet || fail "'git fetch origin' failed."
@@ -60,91 +75,59 @@ if ! git merge-base --is-ancestor origin/main HEAD; then
     echo "main fast-forwarded to $(git rev-parse --short HEAD)."
 fi
 
-if [ -n "$KEY_FILE" ]; then
-    [ -r "$KEY_FILE" ] || fail "cannot read the deploy key file."
-    DEPLOY_KEY="$(tr -d '[:space:]' < "$KEY_FILE")"
-    case "$DEPLOY_KEY" in prod:*'|'*) ;; *) fail "the deploy key is not a production key (expected prod:<deployment>|...)." ;; esac
-    NAME="${DEPLOY_KEY#prod:}"; NAME="${NAME%%|*}"
-    case "$NAME" in ""|*[!a-z0-9-]*) fail "cannot read a deployment name from the deploy key." ;; esac
-    TARGET="https://$NAME.convex.cloud"
-    echo "Checks passed. main $(git rev-parse --short HEAD) contains origin/main."
-    echo "Target deployment: $TARGET (Convex cloud, from the deploy key)"
-    [ "$CHECK_ONLY" = 1 ] && { echo "--check: nothing deployed."; exit 0; }
-    confirm "$TARGET"
-
-    # One deploy at a time per checkout, shared with deploy.sh.
-    LOCK="$(git rev-parse --path-format=absolute --git-common-dir)/convex-deploy.lock"
-    while ! mkdir "$LOCK" 2>/dev/null; do
-        echo "waiting for the deploy already running from this checkout to finish..." >&2
-        sleep 15
-    done
-    echo $$ > "$LOCK/pid"
-    # An .env.local naming a CONVEX_DEPLOYMENT steers the CLI away from the key's deployment.
-    HELD=()
-    for f in "$ROOT/.env.local" "$ROOT/packages/convex/.env.local"; do
-        if [ -f "$f" ] && grep -q '^CONVEX_DEPLOYMENT=' "$f"; then mv "$f" "$f.deployhold"; HELD+=("$f"); fi
-    done
-    SPEC_DIR="$(mktemp -d "${TMPDIR:-/tmp}/convex-spec.XXXXXX")"
-    cleanup() {
-        for f in ${HELD[@]+"${HELD[@]}"}; do [ -f "$f.deployhold" ] && mv "$f.deployhold" "$f"; done
-        rm -rf "$LOCK" "$SPEC_DIR"
-    }
-    trap cleanup EXIT
-
-    convex() {
-        (cd "$ROOT/packages/convex" && env -u CONVEX_DEPLOYMENT -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY \
-            CONVEX_DEPLOY_KEY="$DEPLOY_KEY" npx convex "$@")
-    }
-    functions() { bun -e 'const s = JSON.parse(await Bun.stdin.text()); for (const f of s.functions ?? []) if (f.identifier) console.log(f.identifier)' | sort -u; }
-
-    if convex function-spec > "$SPEC_DIR/before.json" 2>/dev/null; then
-        functions < "$SPEC_DIR/before.json" > "$SPEC_DIR/before.txt"
-        echo "The target runs $(wc -l < "$SPEC_DIR/before.txt" | tr -d ' ') function(s) before the push."
-    else
-        echo "warning: could not read the target's functions before the push; removals will not be listed." >&2
-        : > "$SPEC_DIR/before.txt"
-    fi
-
-    convex deploy -y ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
-
-    if [ -s "$SPEC_DIR/before.txt" ] && convex function-spec > "$SPEC_DIR/after.json" 2>/dev/null; then
-        functions < "$SPEC_DIR/after.json" > "$SPEC_DIR/after.txt"
-        REMOVED="$(comm -23 "$SPEC_DIR/before.txt" "$SPEC_DIR/after.txt")"
-        ADDED="$(comm -13 "$SPEC_DIR/before.txt" "$SPEC_DIR/after.txt" | wc -l | tr -d ' ')"
-        echo "Deployed $(git rev-parse --short HEAD) to $TARGET: $(wc -l < "$SPEC_DIR/after.txt" | tr -d ' ') function(s), $ADDED added."
-        if [ -n "$REMOVED" ]; then
-            echo "Removed by this push:"
-            echo "$REMOVED" | sed 's/^/  /'
-        else
-            echo "Removed by this push: none."
-        fi
-    else
-        echo "Deployed $(git rev-parse --short HEAD) to $TARGET."
-    fi
-    exit 0
-fi
-
-# codecast production: the fork must also contain codecast-sh/codecast's main.
-UPSTREAM_REMOTE="codecast"
-UPSTREAM_URL="https://github.com/codecast-sh/codecast"
-TARGET="${CONVEX_SELF_HOSTED_URL:-https://convex.codecast.sh}"
-if ! git remote get-url "$UPSTREAM_REMOTE" >/dev/null 2>&1; then
-    git remote add "$UPSTREAM_REMOTE" "$UPSTREAM_URL"
-    echo "added remote '$UPSTREAM_REMOTE' -> $UPSTREAM_URL"
-fi
-git fetch "$UPSTREAM_REMOTE" main --quiet || fail "'git fetch $UPSTREAM_REMOTE main' failed."
-if ! git merge-base --is-ancestor "$UPSTREAM_REMOTE/main" HEAD; then
-    echo "REFUSING to deploy: main is BEHIND $UPSTREAM_REMOTE/main ($UPSTREAM_URL)." >&2
-    echo "Pushing this tree to $TARGET would delete what these commits added to the backend:" >&2
-    git log --oneline "HEAD..$UPSTREAM_REMOTE/main" >&2
-    echo "Backend files they touch:" >&2
-    git diff --name-only "HEAD...$UPSTREAM_REMOTE/main" -- packages/convex/convex packages/shared platform/packages >&2 || true
-    echo "Bring $UPSTREAM_REMOTE/main into this fork's main (through a pull request), then retry." >&2
-    exit 1
-fi
-echo "Checks passed. main $(git rev-parse --short HEAD) contains $UPSTREAM_REMOTE/main and is $(git rev-list --count "$UPSTREAM_REMOTE/main..HEAD") commit(s) ahead of it."
-echo "Target deployment: $TARGET (self-hosted, through packages/convex/deploy.sh)"
+echo "Checks passed. main $(git rev-parse --short HEAD) contains origin/main."
+echo "Target deployment: $TARGET"
 [ "$CHECK_ONLY" = 1 ] && { echo "--check: nothing deployed."; exit 0; }
-confirm "$TARGET"
-export CONVEX_FRESHNESS_REMOTE="$UPSTREAM_REMOTE"
-exec "$ROOT/packages/convex/deploy.sh" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+if [ "$ASSUME_YES" != 1 ]; then
+    [ -t 0 ] || fail "no terminal to confirm on; pass --yes to deploy without the prompt."
+    read -r -p "Deploy main $(git rev-parse --short HEAD) to $TARGET? Type 'deploy' to continue: " ANSWER
+    [ "$ANSWER" = "deploy" ] || { echo "Not deployed."; exit 1; }
+fi
+
+LOCK="$(git rev-parse --path-format=absolute --git-common-dir)/convex-deploy.lock"
+while ! mkdir "$LOCK" 2>/dev/null; do
+    HOLDER="$(cat "$LOCK/pid" 2>/dev/null || true)"
+    if [ -n "$HOLDER" ] && ! kill -0 "$HOLDER" 2>/dev/null; then rm -rf "$LOCK"; continue; fi
+    echo "waiting for the deploy already running from this checkout (pid ${HOLDER:-unknown}) to finish..." >&2
+    sleep 15
+done
+echo $$ > "$LOCK/pid"
+HELD=()
+for f in "$ROOT/.env.local" "$ROOT/packages/convex/.env.local"; do
+    if [ -f "$f" ] && grep -q '^CONVEX_DEPLOYMENT=' "$f"; then mv "$f" "$f.deployhold"; HELD+=("$f"); fi
+done
+SPEC_DIR="$(mktemp -d "${TMPDIR:-/tmp}/convex-spec.XXXXXX")"
+GENERATED="packages/convex/convex/_generated"
+cleanup() {
+    for f in ${HELD[@]+"${HELD[@]}"}; do [ -f "$f.deployhold" ] && mv "$f.deployhold" "$f"; done
+    git -C "$ROOT" checkout -- "$GENERATED" 2>/dev/null || true
+    rm -rf "$LOCK" "$SPEC_DIR"
+}
+trap cleanup EXIT
+
+convex() {
+    (cd "$ROOT/packages/convex" && env -u CONVEX_DEPLOYMENT -u CONVEX_SELF_HOSTED_ADMIN_KEY \
+        CONVEX_DEPLOY_KEY="$DEPLOY_KEY" "$CONVEX_BIN" "$@")
+}
+functions() { bun -e 'const s = JSON.parse(await Bun.stdin.text()); for (const f of s.functions ?? []) if (f.identifier) console.log(f.identifier)' | sort -u; }
+
+BEFORE_OK=0
+if convex function-spec > "$SPEC_DIR/before.json" 2>/dev/null; then
+    functions < "$SPEC_DIR/before.json" > "$SPEC_DIR/before.txt"
+    BEFORE_OK=1
+    echo "The target runs $(wc -l < "$SPEC_DIR/before.txt" | tr -d ' ') function(s) before the push."
+else
+    echo "warning: could not read the target's functions before the push; removals will not be listed." >&2
+fi
+
+convex deploy -y ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+
+if [ "$BEFORE_OK" = 1 ] && convex function-spec > "$SPEC_DIR/after.json" 2>/dev/null; then
+    functions < "$SPEC_DIR/after.json" > "$SPEC_DIR/after.txt"
+    REMOVED="$(comm -23 "$SPEC_DIR/before.txt" "$SPEC_DIR/after.txt")"
+    ADDED="$(comm -13 "$SPEC_DIR/before.txt" "$SPEC_DIR/after.txt" | wc -l | tr -d ' ')"
+    echo "Deployed $(git rev-parse --short HEAD) to $TARGET: $(wc -l < "$SPEC_DIR/after.txt" | tr -d ' ') function(s), $ADDED added."
+    if [ -n "$REMOVED" ]; then echo "Removed by this push:"; echo "$REMOVED" | sed 's/^/  /'; else echo "Removed by this push: none."; fi
+else
+    echo "Deployed $(git rev-parse --short HEAD) to $TARGET."
+fi
