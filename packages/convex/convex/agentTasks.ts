@@ -1,4 +1,5 @@
 import { isClosedSession } from "@codecast/shared/contracts";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { normalizeRepository } from "./lib/gitRefs";
@@ -2030,27 +2031,35 @@ async function withResolvedRunConversations(
 
 const ARMED_TASK_STATUSES = ["scheduled", "running", "paused"] as const;
 const FINISHED_TASK_STATUSES = ["completed", "failed", "cancelled"] as const;
+const DEFAULT_RECENT_FINISHED = 50;
 
 export const webList = query({
   args: {
-    // The armed triggers and only this many of the most recently finished
-    // ones. The phone passes it: it shows armed triggers, and a busy account's
-    // finished history (thousands of rows with their prompts, 6.7 MB on one
-    // account) would otherwise download again on every reconnect.
+    // Keep reconnects from downloading the account's full trigger history.
     recent_finished: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    const tasks = args.recent_finished === undefined
-      ? await ctx.db
-          .query("agent_tasks")
-          .withIndex("by_user_status", (q) => q.eq("user_id", userId))
-          .collect()
-      : await armedAndRecentlyFinished(ctx, userId, args.recent_finished);
-
+    const tasks = await armedAndRecentlyFinished(ctx, userId, args.recent_finished ?? DEFAULT_RECENT_FINISHED);
     return await withResolvedRunConversations(ctx, userId, tasks);
+  },
+});
+
+// The Triggers page uses the full set for its history, filters and counts.
+export const webListHistory = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { page: [], isDone: true, continueCursor: "" };
+
+    const result = await ctx.db
+      .query("agent_tasks")
+      .withIndex("by_user_status", (q) => q.eq("user_id", userId))
+      .order("desc")
+      .paginate(paginationOpts);
+    return { ...result, page: await withResolvedRunConversations(ctx, userId, result.page) };
   },
 });
 

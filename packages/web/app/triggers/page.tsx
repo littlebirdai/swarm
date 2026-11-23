@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AuthGuard } from "../../components/AuthGuard";
 import { PaneLoader } from "../../components/PaneLoader";
 import { DashboardLayout } from "../../components/DashboardLayout";
+import { TriggerHistoryFeed } from "../../components/TriggerHistoryFeed";
 import { fmtDuration, fmtClock } from "../../components/triggerCadence";
 // The `--on <event>` vocabulary is shared with the CLI so the two cannot drift.
 import {
@@ -27,7 +28,7 @@ import { isTriggerFailing, isTriggerTerminal, taskDisplayTitle, groupTriggerRows
 import { TriggerRowItem, TriggerHomeHeader } from "../../components/TriggerRow";
 import { HorizonRail } from "../../components/triggers/HorizonRail";
 import { EMPTY_FILTERS, filtersActive, matchesFilters, type Filters } from "./triggerFilters";
-import { useTriggers, fetchTriggerRuns, useSyncTriggerHistory } from "../../hooks/useSyncTriggers";
+import { useTriggers, fetchTriggerRuns } from "../../hooks/useSyncTriggers";
 import { openRunInStore } from "../../components/TriggerRunHistory";
 import { SelectBox } from "../../components/ui/select-box";
 import { SegmentedToggle } from "../../components/SegmentedToggle";
@@ -1028,8 +1029,6 @@ function TriggersContent() {
   // synchronously; the feeder keeps it fresh. `undefined` only while the cache
   // is empty AND the first answer is in flight.
   const { tasks: taskRows, ready: tasksReady } = useTriggers();
-  // The app-wide feed carries armed triggers and a recent tail; this page shows finished history too.
-  useSyncTriggerHistory();
   const tasks: TaskRow[] | undefined = tasksReady || taskRows.length > 0 ? taskRows : undefined;
   // Deep links, read REACTIVELY (tab-context searchParams): the tab shell
   // keeps this page mounted, so a later click on another trigger changes only
@@ -1052,11 +1051,12 @@ function TriggersContent() {
   }, [searchParams]);
   // The deep-linked row's form opens once its row can be found — by Convex id
   // or by short id (the palette links by whichever it has).
+  const deepLinkTaskId = deepLinkId
+    ? tasks?.find((t) => t._id === deepLinkId || t.short_id === deepLinkId.toLowerCase())?._id
+    : undefined;
   useWatchEffect(() => {
-    if (!deepLinkId || !deepLinkMode || !tasks) return;
-    const target = tasks.find((t) => t._id === deepLinkId || t.short_id === deepLinkId.toLowerCase());
-    if (target) setForm({ id: target._id, mode: deepLinkMode });
-  }, [deepLinkId, deepLinkMode, tasks === undefined]);
+    if (deepLinkTaskId && deepLinkMode) setForm({ id: deepLinkTaskId, mode: deepLinkMode });
+  }, [deepLinkId, deepLinkTaskId, deepLinkMode]);
   const [now, setNow] = useState(() => Date.now());
 
   // Tick so countdowns ("in 23m", "due now") stay live without resubscribing.
@@ -1231,6 +1231,7 @@ export default function TriggersPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
+        <TriggerHistoryFeed />
         <TriggersContent />
       </DashboardLayout>
     </AuthGuard>

@@ -290,7 +290,7 @@ export const INVARIANTS: readonly Invariant[] = [
   },
   {
     id: "INV-triggers",
-    meaning: "the trigger replica equals agentTasks:webList, and each conversation's armed kind matches its live triggers",
+    meaning: "the trigger replica includes the live roster and only stores owned triggers, and each conversation's armed kind matches its live triggers",
     keys: ["agentTasks"],
     on: "window",
     async check(world, w) {
@@ -309,12 +309,14 @@ export const INVARIANTS: readonly Invariant[] = [
       if (!w!.feeds?.has("agentTasks")) return out;
       const list: Row[] = (await asUser(world, user).query("agentTasks:webList", {})) ?? [];
       const want = new Map(list.map((t) => [String(t._id), t]));
+      const ownedIds = new Set(tasks.filter((t) => t.user_id === user).map((t) => String(t._id)));
       const replica = (w!.store.getState() as any).agentTasks as Record<string, Row>;
       for (const id of [...new Set([...want.keys(), ...Object.keys(replica ?? {}).filter(isConvexId)])].sort()) {
         const s = want.get(id);
         const r = replica?.[id];
+        if (!s && ownedIds.has(id)) continue; // Older history can outlive the bounded roster.
         if (s && r && stable(sharedFields("agent_tasks", s, r)[0]) === stable(sharedFields("agent_tasks", s, r)[1])) continue;
-        out.push({ message: s && r ? "a trigger disagrees with webList" : r ? "the replica holds a trigger webList does not return" : "the replica lacks a trigger webList returns", row: { table: "agent_tasks", id, server: s ?? null, replica: r ?? null } });
+        out.push({ message: s && r ? "a trigger disagrees with webList" : r ? "the replica holds a deleted or foreign trigger" : "the replica lacks a trigger webList returns", row: { table: "agent_tasks", id, server: s ?? null, replica: r ?? null } });
         if (out.length >= MAX_ROWS_PER_CHECK) break;
       }
       return out;

@@ -401,10 +401,18 @@ describe("invariants", () => {
     await planted(world, "INV-outbox", "conversations.kill (ob-1) {\"conversation_id\":\"ada/s0\"}", { onRow: false });
   });
 
-  test("INV-triggers: an armed kind no trigger backs, and a trigger webList does not return", async () => {
+  test("INV-triggers: cached history is valid, but a ghost trigger and an incorrect armed kind are violations", async () => {
     const world = fixture(11);
+    const finished = [];
+    for (let i = 0; i < 51; i++) {
+      const id = await world.backend.db.insert("agent_tasks", { user_id: ADA, status: "completed", title: `Finished ${i}` });
+      finished.push(await world.backend.db.get(id));
+    }
     const ada = await world.host("ada", ADA);
     await ada.mount("agentTasks.webList");
+    const cached = finished.find((row) => !ada.store.getState().agentTasks[row._id]);
+    expect(cached).toBeDefined();
+    await plant(ada, (s) => ({ agentTasks: { ...s.agentTasks, [cached._id]: cached } }));
     await clean(world, "INV-triggers");
     await world.backend.db.patch(world.convs.ada[0], { armed_trigger_kind: "standing" });
     expect(await planted(world, "INV-triggers", "ada/s0")).toContain("armed_trigger_kind is standing, its triggers make it none");
