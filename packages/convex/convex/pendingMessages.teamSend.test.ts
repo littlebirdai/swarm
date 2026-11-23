@@ -21,7 +21,7 @@ import {
 // ── In-memory Convex-ish DB ──────────────────────────────────────────────────
 // A small fake `ctx.db` that's faithful enough to run the REAL send / poll / claim / heal code
 // end-to-end across two users and a team. withIndex ignores the index NAME and matches on the
-// eq/gt constraints the query builder declares — equivalent to the real index for these queries.
+// index constraints the query builder declares — equivalent to the real index for these queries.
 // We deliberately never pass client_id, so enqueue's `.filter()` dedup branch is never taken
 // (the fake's query chain doesn't implement .filter).
 
@@ -53,7 +53,7 @@ function createDb(seed: Record<string, Rec[]>) {
       Object.assign(row, patch);
     },
     query(table: string) {
-      const constraints: Array<{ field: string; op: "eq" | "gt"; val: any }> = [];
+      const constraints: Array<{ field: string; op: "eq" | "gt" | "lte"; val: any }> = [];
       const q: any = {
         eq(field: string, val: any) {
           constraints.push({ field, op: "eq", val });
@@ -63,13 +63,17 @@ function createDb(seed: Record<string, Rec[]>) {
           constraints.push({ field, op: "gt", val });
           return q;
         },
+        lte(field: string, val: any) {
+          constraints.push({ field, op: "lte", val });
+          return q;
+        },
       };
       const run = () =>
         (tables[table] ?? []).filter((r) =>
           constraints.every((c) =>
             c.op === "eq"
               ? String(r[c.field]) === String(c.val)
-              : (r[c.field] ?? -Infinity) > c.val
+              : c.op === "gt" ? (r[c.field] ?? -Infinity) > c.val : r[c.field] <= c.val
           )
         );
       let descending = false;
