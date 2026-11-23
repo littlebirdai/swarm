@@ -1,5 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
+import { useSplitQueryNoThrow } from "./useSplitQuery";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -79,10 +80,15 @@ export function useSyncTeamInboxSessions() {
   const teamArgs = active ? teamInboxArgs(activeTeamId) : "skip";
 
   const teamSessions = useQueryNoThrow(api.conversations.listTeamInboxSessions, teamArgs as any).data;
-  const teamLiveness = useQueryNoThrow(
+  const teamLiveness = useSplitQueryNoThrow(
     api.conversations.teamSessionsLiveness,
     active ? { activeTeamId: activeTeamId as Id<"teams"> | undefined } : "skip",
+    "liveness",
   ).data;
+  const scopedLiveness = useMemo(
+    () => teamLiveness === undefined ? undefined : { teamId: activeTeamId, data: teamLiveness },
+    [teamLiveness, activeTeamId],
+  );
 
   const lastSyncRef = useRef(Date.now());
   const lastLivenessRef = useRef(Date.now());
@@ -95,10 +101,12 @@ export function useSyncTeamInboxSessions() {
   }, [activeTeamId]), { coalesceMs: 300 });
 
   // Liveness overlay into the team projection slot (applyTeamLivenessPayload).
-  useConvexSync(teamLiveness, useCallback((data: any) => {
+  useConvexSync(scopedLiveness, useCallback(({ teamId, data }) => {
+    // A coalesced push can flush after the team or inbox scope has changed.
+    if (!active || teamId !== activeTeamId) return;
     if (!applyTeamLivenessPayload(activeTeamId, data)) return;
     lastLivenessRef.current = Date.now();
-  }, [activeTeamId]), { coalesceMs: 300 });
+  }, [active, activeTeamId]), { coalesceMs: 300 });
 
   // Leaving team mode, or switching to another team, clears the active set
   // (the teammate rows stay in the never-prune cache; the scope filter is what

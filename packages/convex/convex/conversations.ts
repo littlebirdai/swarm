@@ -10869,13 +10869,15 @@ export const teamSessionsLiveness = query({
   args: {
     activeTeamId: v.optional(v.id("teams")),
     _probe: v.optional(v.number()),
+    split: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { liveness: {} };
-    const teamScope = await resolveInboxTeamScope(ctx, userId, args.activeTeamId);
-    if (!teamScope) return { liveness: {} };
-    return computeSessionsLiveness(ctx, userId, teamScope);
+    const teamScope = userId && await resolveInboxTeamScope(ctx, userId, args.activeTeamId);
+    const result = userId && teamScope
+      ? await computeSessionsLiveness(ctx, userId, teamScope)
+      : { liveness: {} };
+    return args.split ? splitInboxLiveness(result) : result;
   },
 });
 

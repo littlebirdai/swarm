@@ -1,6 +1,6 @@
-// The split wire form of the two live inbox queries (listInboxSessions and
-// sessionsLiveness). Convex re-sends a query's whole result whenever any part
-// of it changes, and both results are the viewer's whole working set: on
+// The split wire form of the personal inbox list and both liveness queries.
+// Convex re-sends a query's whole result whenever any part of it changes,
+// and these results cover the viewer's whole working set: on
 // 2026-10-08 one heartbeat re-sent 650 kB of liveness about once a second and
 // one changed field re-sent the 3.5 MB list, around 60 MB a minute for an
 // account with forty live agents. Split, a result carries every row id in

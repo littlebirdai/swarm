@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useConvex, type ConvexReactClient } from "convex/react";
 import { getFunctionName, type FunctionReference } from "convex/server";
+import { convexToJson } from "convex/values";
 import { queryWithSignal } from "../lib/queryWithSignal";
 import { cacheRows, heldHash, rebuildRows, type SplitCache } from "@codecast/shared/contracts/inboxSplit";
 import { useQueryNoThrow } from "./useQueryNoThrow";
@@ -192,10 +193,12 @@ export function useSplitQueryNoThrow<Q extends FunctionReference<"query">>(
 ): { data: any; error: Error | undefined } {
   const name = getFunctionName(query);
   const convex = useConvex();
+  const key = args === "skip" ? null : `${name}:${JSON.stringify(convexToJson(args))}`;
   const [, rerender] = useState(0);
   const splitOn = args !== "skip" && !unsupported.has(name);
   const sub = useQueryNoThrow(query, args === "skip" ? "skip" : splitOn ? ({ ...args, split: true } as any) : (args as any));
-  const [data, setData] = useState<any>(undefined);
+  // A rebuild can outlive its subscription args during a team switch.
+  const [resolved, setResolved] = useState<{ key: string; data: any }>();
 
   useWatchEffect(() => {
     if (splitOn && sub.error && rejectsSplit(sub.error)) {
@@ -206,24 +209,25 @@ export function useSplitQueryNoThrow<Q extends FunctionReference<"query">>(
 
   useWatchEffect(() => {
     const value = sub.data;
-    if (value === undefined || args === "skip") return;
+    if (value === undefined || key === null || args === "skip") return;
     const cache = cacheFor(name);
     const rebuilt = rebuildSplitPayload(kind, value, cache);
     if (rebuilt) {
-      setData(rebuilt);
+      setResolved({ key, data: rebuilt });
       noteHeldChanged(name);
       return;
     }
     let cancelled = false;
     void settleSplitPush(convex, query, args, kind, value, () => cancelled).then((whole) => {
-      if (whole !== null && !cancelled) setData(whole);
+      if (whole !== null && !cancelled) setResolved({ key, data: whole });
     });
     return () => {
       cancelled = true;
     };
-    // `args` is a constant per caller; its JSON is what the subscription keys on.
+    // The key follows the serialized args so a fresh object doesn't restart a rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sub.data, kind, name, convex]);
+  }, [sub.data, key, kind, name, convex]);
 
-  return { data: args === "skip" ? undefined : splitOn ? data : sub.data, error: splitOn && sub.error && rejectsSplit(sub.error) ? undefined : sub.error };
+  const data = splitOn ? (key === resolved?.key ? resolved.data : undefined) : sub.data;
+  return { data, error: splitOn && sub.error && rejectsSplit(sub.error) ? undefined : sub.error };
 }
