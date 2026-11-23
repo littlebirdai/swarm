@@ -649,9 +649,9 @@ describe("a hosted status row is not a daemon's", () => {
   test("a running turn's heartbeat never vouches for the user's daemon", () => {
     const now = Math.floor(Date.now() / 60_000) * 60_000;
     const maps = sessionMapsFromManagedRows([
-      { conversation_id: "hosted", last_heartbeat: now, agent_status: "working", hosted: true },
-      { conversation_id: "local", last_heartbeat: now - 30 * 60 * 1000, agent_status: "working" },
-    ], now);
+      { conversation_id: "hosted", agent_status: "working", hosted: true },
+      { conversation_id: "local", agent_status: "working" },
+    ], [now, now - 30 * 60 * 1000], now);
     expect(maps.latestHeartbeat).toBe(now - 30 * 60 * 1000);
     expect(maps.userDaemonAlive).toBe(false);
     expect(maps.liveConvIds.has("hosted")).toBe(true);

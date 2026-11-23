@@ -36,3 +36,21 @@ describe("mergeDuplicateUser and digests", () => {
     expect(byId.d_team.team_id).toBe(TEAM);
   });
 });
+
+test("mergeDuplicateUser moves a managed session and its indexed heartbeat together", async () => {
+  const tables = {
+    users: [{ _id: FROM, email: "same@example.test" }, { _id: TO, email: "same@example.test" }],
+    managed_sessions: [{ _id: "managed_session", user_id: FROM, last_heartbeat: 123 }],
+    session_heartbeats: [{ _id: "heartbeat", managed_session_id: "managed_session", user_id: FROM, heartbeat_at: 123 }],
+  };
+  const ctx = { db: makeFakeDb(tables, { indexes: schemaIndexes(schema as any) }) };
+  const res = await (mergeDuplicateUser as any)._handler(ctx, {
+    from_user_id: FROM,
+    to_user_id: TO,
+    dry_run: false,
+    delete_source: true,
+  });
+  expect(res.source_deleted).toBe(true);
+  expect(tables.managed_sessions[0].user_id).toBe(TO);
+  expect(tables.session_heartbeats[0]).toMatchObject({ user_id: TO, heartbeat_at: 123 });
+});

@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
 import { mutation, query, internalAction, internalMutation, internalQuery } from "./functions";
 import { deliverSessionNotification, deliverSessionNotificationToParties, idleDigestOn } from "./lib/sessionNotify";
@@ -585,7 +586,8 @@ export async function deriveConversationVerdict(
   session: any,
   now: number,
 ): Promise<ConversationVerdict> {
-  const heartbeatFresh = !!session?.last_heartbeat && now - session.last_heartbeat < HEARTBEAT_ALIVE_MS;
+  const beat = await heartbeatOf(ctx, session);
+  const heartbeatFresh = beat !== 0 && now - beat < HEARTBEAT_ALIVE_MS;
   const agentStatus = trustedAgentStatus(
     session?.agent_status, conv.updated_at, now, heartbeatFresh,
     openTasksVouchForWaiting(session?.open_tasks_at, session?.open_tasks?.length ?? 0, heartbeatFresh),
@@ -650,7 +652,8 @@ export async function deriveConversationVerdict(
         .query("managed_sessions")
         .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", c._id))
         .first();
-      const childAlive = !!childSession?.last_heartbeat && now - childSession.last_heartbeat < HEARTBEAT_ALIVE_MS;
+      const childBeat = await heartbeatOf(ctx, childSession);
+      const childAlive = childBeat !== 0 && now - childBeat < HEARTBEAT_ALIVE_MS;
       if (childAlive && subagentIsProducing({
         isSubagent: true, convStatus: c.status, updatedAt: c.updated_at,
         isLive: true, agentStatus: trustedAgentStatus(childSession?.agent_status, c.updated_at, now), now,

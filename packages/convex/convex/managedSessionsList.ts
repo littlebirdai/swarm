@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./lib/sessionHeartbeat";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { isDaemonManagedRow, listLiveManagedSessions } from "./lib/liveSessions";
@@ -92,7 +93,7 @@ export async function performListActiveSessions(ctx: { db: QueryCtx["db"] }, use
       pid: session.pid,
       tmux_session: session.tmux_session,
       started_at: session.started_at,
-      last_heartbeat: session.last_heartbeat,
+      last_heartbeat: await heartbeatOf(ctx, session),
       agent_status: session.agent_status,
       agent_status_updated_at: session.agent_status_updated_at,
       hibernated_at: session.hibernated_at,

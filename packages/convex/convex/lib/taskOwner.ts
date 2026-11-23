@@ -1,3 +1,4 @@
+import { heartbeatOf } from "./sessionHeartbeat";
 // A task has one owning session: the conversation whose active_task_id points
 // at it. `cast task start`, the board's "assign to agent", a task-linked
 // session create and a handoff all bind through claimTaskOwnership, so the
@@ -62,7 +63,7 @@ export async function isSessionWorking(ctx: { db: any }, conv: any, now: number)
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
     .first();
   if (managed && managed.agent_status !== "hibernated" && managed.agent_status !== "stopped"
-    && now - (managed.last_heartbeat ?? 0) < HEARTBEAT_ALIVE_MS) return true;
+    && now - await heartbeatOf(ctx, managed) < HEARTBEAT_ALIVE_MS) return true;
   return now - (conv.updated_at ?? 0) < RECENT_ACTIVITY_MS;
 }
 

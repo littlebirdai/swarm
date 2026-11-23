@@ -1,3 +1,4 @@
+import { heartbeatsFor } from "./sessionHeartbeat";
 // Server half of the shared send outcome (shared/comments/sendOutcome.ts):
 // whether a message just queued for a session will be read now or waits.
 import { HEARTBEAT_ALIVE_MS, MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
@@ -18,7 +19,8 @@ export async function sessionWaiting(
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
     .collect();
-  const live = sessions.filter((s: any) => now - (s.last_heartbeat ?? 0) < HEARTBEAT_ALIVE_MS);
+  const beats = await heartbeatsFor(ctx, sessions);
+  const live = sessions.filter((_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS);
   if (live.length === 0) return "offline";
   return live.some((s: any) => s.agent_status && MID_TURN_AGENT_STATUSES.has(s.agent_status)) ? "busy" : null;
 }

@@ -1,3 +1,4 @@
+import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
 import { mutation, query, internalQuery } from "./functions";
@@ -1116,7 +1117,7 @@ export async function performClaimDeviceAccount(
       .collect();
     for (const row of managed) {
       if (row.user_id?.toString() === args.previousUserId.toString()) {
-        await ctx.db.patch(row._id, { user_id: callerId });
+        await transferManagedSession(ctx, row._id, callerId);
       }
     }
   }

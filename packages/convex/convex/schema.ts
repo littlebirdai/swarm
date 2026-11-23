@@ -3632,6 +3632,16 @@ export default defineSchema({
     .index("by_conversation_heartbeat", ["conversation_id", "last_heartbeat"])
     .index("by_heartbeat", ["last_heartbeat"]),
 
+  // Use the managed document id because the daemon can rename or reuse its session id.
+  session_heartbeats: defineTable({
+    managed_session_id: v.id("managed_sessions"),
+    user_id: v.id("users"),
+    heartbeat_at: v.number(),
+  })
+    .index("by_managed_session", ["managed_session_id"])
+    .index("by_user_heartbeat", ["user_id", "heartbeat_at"])
+    .index("by_heartbeat", ["heartbeat_at"]),
+
   session_metrics: defineTable({
     session_id: v.string(),
     user_id: v.id("users"),

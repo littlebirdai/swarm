@@ -1,3 +1,4 @@
+import { heartbeatOf, heartbeatsFor, heartbeatsForUser } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
 import { sanitizeConvexObjectKeys } from "./lib/convexFieldNames";
@@ -7377,10 +7378,10 @@ export const feedForCLI = query({
     const liveStatusMap = new Map<string, string | undefined>();
     const managedMap = new Map<string, any>();
     for (const conv of filteredConversations) {
-      const managed = await classifier.managedFor(conv);
-      if (managed) managedMap.set(conv._id.toString(), managed);
-      if (classifier.isLiveManaged(managed)) {
-        liveStatusMap.set(conv._id.toString(), managed.agent_status);
+      const facts = await classifier.managedFor(conv);
+      if (facts.session) managedMap.set(conv._id.toString(), facts.session);
+      if (classifier.isLiveManaged(facts)) {
+        liveStatusMap.set(conv._id.toString(), facts.session.agent_status);
       }
     }
     if (args.live_only) {
@@ -8252,7 +8253,7 @@ async function buildUserSessionMaps(
     .query("managed_sessions")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
-  return sessionMapsFromManagedRows(managedSessions, now);
+  return sessionMapsFromManagedRows(managedSessions, await heartbeatsForUser(ctx, userId, managedSessions), now);
 }
 
 // Liveness maps for a NAMED set of conversations, for a caller that asked for
@@ -8310,7 +8311,7 @@ export async function buildNamedSessionMaps(
       .collect())),
   ]);
   const own = rowLists.flat().filter((s: any) => s.user_id?.toString() === uid);
-  return { maps: sessionMapsFromManagedRows(own, now, user?.daemon_last_seen), children: childLists.flat() };
+  return { maps: sessionMapsFromManagedRows(own, await heartbeatsFor(ctx, own), now, user?.daemon_last_seen), children: childLists.flat() };
 }
 
 // The one derivation of InboxSessionMaps from managed_sessions rows, shared by
@@ -8319,19 +8320,21 @@ export async function buildNamedSessionMaps(
 // the caller read fewer than all of them.
 export function sessionMapsFromManagedRows(
   managedSessions: any[],
+  beats: number[],
   now: number,
   userLatestHeartbeat?: number,
 ): InboxSessionMaps {
   const liveConvIds = new Set<string>();
   const lastHeartbeatMap = new Map<string, number>();
   let latestHeartbeat: number | undefined;
-  for (const s of managedSessions) {
+  for (const [i, s] of managedSessions.entries()) {
+    const beat = beats[i];
     // Only a daemon's heartbeat vouches for the user's other sessions; a
     // hosted row's heartbeat is a running turn and stays on its own row.
-    if (isDaemonManagedRow(s) && typeof s.last_heartbeat === "number" && (latestHeartbeat === undefined || s.last_heartbeat > latestHeartbeat)) {
-      latestHeartbeat = s.last_heartbeat;
+    if (isDaemonManagedRow(s) && (latestHeartbeat === undefined || beat > latestHeartbeat)) {
+      latestHeartbeat = beat;
     }
-    if (s.conversation_id) noteHeartbeat({ lastHeartbeatMap, liveConvIds }, s.conversation_id.toString(), s.last_heartbeat, now);
+    if (s.conversation_id) noteHeartbeat({ lastHeartbeatMap, liveConvIds }, s.conversation_id.toString(), beat, now);
   }
 
   const agentStatusMap = new Map<string, any>();
@@ -8415,12 +8418,13 @@ async function mergeForeignConversationLiveness(
     .query("managed_sessions")
     .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
     .first()));
+  const beats = await Promise.all(managedRows.map((row: any) => heartbeatOf(ctx, row)));
   for (let i = 0; i < convs.length; i++) {
     const conv = convs[i];
     const cid = conv._id.toString();
     const managed = managedRows[i];
     if (!managed) continue;
-    noteHeartbeat(maps, cid, managed.last_heartbeat, now);
+    noteHeartbeat(maps, cid, beats[i], now);
     if (managed.tmux_session) maps.tmuxSessionMap.set(cid, managed.tmux_session);
     if (managed.backend === "sdk") maps.sdkBackendConvIds.add(cid);
     if (managed.permission_mode) maps.permissionModeMap.set(cid, managed.permission_mode);
@@ -11584,7 +11588,7 @@ export const setSessionError = mutation({
         .withIndex("by_conversation_id", (q) => q.eq("conversation_id", convId))
         .collect();
       const now = Date.now();
-      if (managed.some((s) => now - s.last_heartbeat < 2 * 60 * 1000)) return;
+      if ((await heartbeatsFor(ctx, managed)).some((beat) => now - beat < 2 * 60 * 1000)) return;
     }
     await ctx.db.patch(convId, {
       session_error: args.error,
@@ -11895,8 +11899,11 @@ export async function retireRefusal(ctx: { db: any }, conv: any, expectedMessage
   // A pin is a person keeping it in their inbox: theirs to end, not the run's.
   if (conv.inbox_pinned_at) return "a person pinned it";
   if ((conv.message_count ?? 0) !== expectedMessageCount) return `it has moved since the run read it (${expectedMessageCount} messages then, ${conv.message_count ?? 0} now)`;
-  const liveAgent = async (id: Id<"conversations">) => (await ctx.db.query("managed_sessions").withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", id)).collect())
-    .filter((m: any) => now - (m.last_heartbeat ?? 0) < HEARTBEAT_ALIVE_MS);
+  const liveAgent = async (id: Id<"conversations">) => {
+    const rows = await ctx.db.query("managed_sessions").withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", id)).collect();
+    const beats = await heartbeatsFor(ctx, rows);
+    return rows.filter((_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS);
+  };
   const held = await queuedOrArmed(ctx, conv._id);
   if (held) return `${held} for it`;
   if ((await liveAgent(conv._id)).some((m: any) => RETIRE_BUSY_STATUSES.has(m.agent_status ?? ""))) return "it is working";
@@ -13700,10 +13707,14 @@ export async function resolveRestartTarget(
       .query("managed_sessions")
       .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversationId))
       .collect();
-    const newest = managed
-      .filter((m) => m.user_id === userId)
-      .reduce((a: any, b: any) => ((b.last_heartbeat ?? 0) > (a?.last_heartbeat ?? 0) ? b : a), null);
-    sessionId = newest?.session_id;
+    const own = managed.filter((m) => m.user_id === userId);
+    const beats = await heartbeatsFor(ctx, own);
+    let newest = 0;
+    for (const [i, beat] of beats.entries()) {
+      if (beat <= newest) continue;
+      newest = beat;
+      sessionId = own[i].session_id;
+    }
   }
   if (!sessionId) {
     // Deleted row and no recoverable session — nothing to bind a daemon

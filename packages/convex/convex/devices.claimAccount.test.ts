@@ -46,6 +46,9 @@ function fixtures(over: { prevSeen?: number; conv?: Record<string, any> } = {}) 
     managed_sessions: [
       { _id: "ms1", session_id: "sess-1", conversation_id: "conv1", user_id: PREV, pid: 1, last_heartbeat: NOW },
     ],
+    session_heartbeats: [
+      { _id: "beat1", managed_session_id: "ms1", user_id: PREV, heartbeat_at: NOW },
+    ],
   });
 }
 
@@ -64,6 +67,7 @@ describe("performClaimDeviceAccount", () => {
     expect(conv(db).owner_device_id).toBe("mini");
     expect(conv(db, "conv-other").user_id).toBe(PREV);
     expect(db._tables.managed_sessions[0].user_id).toBe(NEXT);
+    expect(db._tables.session_heartbeats[0]).toMatchObject({ user_id: NEXT, heartbeat_at: NOW });
     expect(db._tables.daemon_commands ?? []).toEqual([]);
   });
 
