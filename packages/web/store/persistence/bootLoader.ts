@@ -2,7 +2,7 @@ import { authPrincipal } from "../../lib/authPrincipal";
 import { COLLECTION_RETENTION, expireExcludeTombstones, partitionSessionRetention } from "../cacheRetention";
 import { collectionRowHydrator, collectionRowValidator } from "../clientSyncRegistry";
 import { queuedMessagesFromPending } from "../pendingMessageJournal";
-import { lastPersisted } from "./collectionWriter";
+import { lastPersisted, noteConversationRetentionDrops } from "./collectionWriter";
 import { COLLECTION_TABLES, db } from "./db";
 import { ensureCacheOwnership as resolveOwnership } from "./ownership";
 import { loadPendingInput } from "./pendingInputJournal";
@@ -91,7 +91,7 @@ export async function loadCache(
       void db.meta.bulkDelete(RETIRED_META_KEYS).catch(() => {});
     }
 
-    // Meta lookup first — the sessions retention pass below needs
+    // Meta lookup first — the session and conversation retention pass needs
     // liveInboxIdList and lastFocusedConversationId from the same snapshot.
     const metaByKey: Record<string, any> = { ...context };
     for (const row of metaRows) {
@@ -116,7 +116,7 @@ export async function loadCache(
       // the registry) are excluded from hydration AND removed from disk, so the
       // cache self-heals instead of resurrecting phantoms on every load.
       const invalid: string[] = [];
-      if (key === "sessions" && rows.length > 0) {
+      if ((key === "sessions" || key === "conversations") && rows.length > 0) {
         const { keep, drop } = partitionSessionRetention(
           rows,
           metaByKey.liveInboxIdList,
@@ -124,7 +124,10 @@ export async function loadCache(
           Date.now(),
         );
         rows = keep;
-        if (drop.length) table.bulkDelete(drop).catch(() => {});
+        if (drop.length) {
+          if (key === "conversations") noteConversationRetentionDrops();
+          else table.bulkDelete(drop).catch(() => {});
+        }
       }
       // Collections that bound themselves at boot (COLLECTION_RETENTION).
       const retain = COLLECTION_RETENTION[key];
@@ -145,6 +148,9 @@ export async function loadCache(
           result[key] = map;
           hasData = true;
         }
+      } else if (key === "conversations" && collectionResults[i].length > 0) {
+        result[key] = {};
+        hasData = true;
       }
       if (invalid.length) table.bulkDelete(invalid).catch(() => {});
       if (trimmed.length) table.bulkPut(trimmed).catch(() => {});
@@ -164,23 +170,6 @@ export async function loadCache(
         result.queuedMessages = queuedMessagesFromPending(result.pendingMessages);
         hasData = true;
       }
-    }
-
-    // The conversations map is the sessions cache's twin (same ids, richer
-    // metadata) persisted as ONE meta blob — every put structured-clones the
-    // whole thing on the main thread, so an unpruned blob (measured at ~2,700
-    // entries) costs hundreds of ms per write and at boot. Apply the same
-    // retention policy; the pruned blob reaches disk on its next natural put.
-    if (result.conversations && typeof result.conversations === "object") {
-      const { keep } = partitionSessionRetention(
-        Object.values(result.conversations),
-        metaByKey.liveInboxIdList,
-        metaByKey.lastFocusedConversationId,
-        Date.now(),
-      );
-      const pruned: Record<string, any> = {};
-      for (const row of keep) pruned[row._id] = row;
-      result.conversations = pruned;
     }
 
     if (result.pending && typeof result.pending === "object") {

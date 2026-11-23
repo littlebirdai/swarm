@@ -183,6 +183,7 @@ export const CLIENT_SYNC_REGISTRY = {
   },
   conversations: {
     writtenBy: ["conversations", "peerTransfers"],
+    // The web cache maps this to a table in persistence/schema.ts.
     persistence: { kind: "meta", key: "conversations" },
     localFirst: true,
     dispatchTable: { table: "conversations", kind: "collection" },

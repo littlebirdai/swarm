@@ -11,7 +11,7 @@ const local = mapStorage();
 (globalThis as any).localStorage = local;
 
 const { default: Dexie } = await import("dexie");
-const { COLLECTION_INDEXES } = await import("../../clientSyncRegistry");
+const { WEB_COLLECTION_INDEXES, SYSTEM_TABLES } = await import("../../persistence/schema");
 
 const scenario = process.env.SCENARIO!;
 // The token the browser holds when the cache module boots: in localStorage
@@ -39,7 +39,7 @@ const ROW = { _id: "a".repeat(32), session_id: "sess", updated_at: Date.now(), t
 // `stamp`: the owner stamp row (null writes the signed-out tombstone).
 async function seed(opts: { owner?: string | null; stamp?: string | null; rows?: boolean; outbox?: boolean; pendingFor?: string }) {
   const db = new Dexie("codecast-store");
-  db.version(CACHE_SCHEMA_VERSION).stores({ ...COLLECTION_INDEXES, meta: "key", conversationMessages: "convId, latestTimestamp", conversationUserMessages: "convId", dispatchOutbox: "id" });
+  db.version(CACHE_SCHEMA_VERSION).stores({ ...WEB_COLLECTION_INDEXES, ...SYSTEM_TABLES });
   await db.open();
   if (opts.owner !== undefined) await db.table("meta").put({ key: "currentUser", value: opts.owner ? { _id: opts.owner, email: "x@y" } : null });
   if (opts.stamp !== undefined) await db.table("meta").put({ key: "cacheOwner", value: { principal: opts.stamp, at: 1, reason: "seed" } });

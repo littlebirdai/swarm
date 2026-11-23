@@ -1,4 +1,5 @@
 import type { Patch } from "mutative";
+import { partitionSessionRetention } from "../cacheRetention";
 import { createCoalescedWriter, deleteAllowed, diffCollection, diffPatchedRows, durableDeletes, hasSnapshotDrops, patchedIds } from "../idbCollectionDiff";
 import { connectLivenessLane, flushLivenessWrites, holdLiveMeta, holdLivenessRows, holdLivenessSyncMeta, resetLivenessLane } from "../idbLivenessLane";
 import { COLLECTION_TABLES, db } from "./db";
@@ -13,6 +14,12 @@ import { _hydrating } from "./hydration";
 // Seeded from loadCache so the first post-hydrate write diffs against disk, not
 // an empty set (which would leave pruned rows stranded as ghosts).
 export const lastPersisted = new Map<string, Map<string, any>>();
+
+let conversationPrunePending = false;
+
+export function noteConversationRetentionDrops() {
+  conversationPrunePending = true;
+}
 
 // Test hook: the shadow lives at module scope and would otherwise leak across
 // tests that reset the underlying storage out from under it.
@@ -82,6 +89,19 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
             if (puts.length) await table.bulkPut(puts);
           }).catch(() => {});
         }
+        // Followers also hydrate. Leave disk retention to the next host write.
+        if (key === "conversations" && conversationPrunePending) {
+          conversationPrunePending = false;
+          void db.transaction("rw", table, async () => {
+            // A different host can update a row between this window's boot and its first write.
+            const { drop } = partitionSessionRetention(
+              await table.toArray(), state.liveInboxIdList, state.lastFocusedConversationId, Date.now(),
+            );
+            const shadow = lastPersisted.get(key);
+            const absent = drop.filter((id) => !(id in data) && !shadow?.has(id));
+            if (absent.length) await table.bulkDelete(absent);
+          }).catch(noteConversationRetentionDrops);
+        }
       }
     } else if (key === "pending") {
       // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
@@ -108,4 +128,5 @@ export function resetCollectionWrites() {
   metaWriter.drop();
   resetLivenessLane();
   lastPersisted.clear();
+  conversationPrunePending = false;
 }

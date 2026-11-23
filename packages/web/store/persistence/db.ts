@@ -1,9 +1,9 @@
 import Dexie from "dexie";
 import { DOCS_SHOTS } from "../../lib/docsShots/flag";
 import { recordCacheEvent } from "../cacheEvents";
-import { COLLECTION_INDEXES, COLLECTION_STORE_KEYS } from "../clientSyncRegistry";
+import { conversationsToRows } from "./migrations/conversationsToRows";
 import type { OutboxEntry } from "./outbox";
-import { CACHE_SCHEMA_VERSION, SYSTEM_TABLES } from "./schema";
+import { CACHE_SCHEMA_VERSION, SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "./schema";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
 export const PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
@@ -16,7 +16,10 @@ class CacheDB extends Dexie {
 
   constructor() {
     super("codecast-store");
-    this.version(CACHE_SCHEMA_VERSION).stores({ ...COLLECTION_INDEXES, ...SYSTEM_TABLES });
+    this.version(CACHE_SCHEMA_VERSION)
+      .stores({ ...WEB_COLLECTION_INDEXES, ...SYSTEM_TABLES })
+      // Keep this callback on the current version for users who skip releases.
+      .upgrade(conversationsToRows);
   }
 }
 
@@ -79,6 +82,7 @@ if (PERSISTENCE_AVAILABLE) {
   });
 }
 
+const COLLECTION_STORE_KEYS = Object.keys(WEB_COLLECTION_INDEXES);
 export const COLLECTION_TABLES: Record<string, Dexie.Table<any, string>> = Object.fromEntries(
   COLLECTION_STORE_KEYS.filter((key) => (db as any)[key]).map((key) => [key, (db as any)[key]])
 );

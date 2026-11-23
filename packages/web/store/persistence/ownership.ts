@@ -4,7 +4,7 @@ import { PENDING_INPUT_PREFIX } from "./schema";
 
 const ownershipApi = createCacheOwnership({
   db,
-  sessions: COLLECTION_TABLES.sessions,
+  residueTables: [COLLECTION_TABLES.sessions, COLLECTION_TABLES.conversations],
   pendingInputPrefix: PENDING_INPUT_PREFIX,
   onServed: markCacheServed,
 });
