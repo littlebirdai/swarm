@@ -7,14 +7,21 @@
 // memory: no persist middleware, no IndexedDB, no localStorage writes.
 
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const storeDir = join(import.meta.dir, "..");
 const read = (file: string) => readFileSync(join(storeDir, file), "utf8");
 
 /** The persisted layer: what it imports is what can end up on disk. */
-const GUARDED = ["inboxStore.ts", "clientSyncRegistry.ts", "idbCache.ts"];
+const GUARDED = [
+  "inboxStore.ts",
+  "clientSyncRegistry.ts",
+  "idbCache.ts",
+  ...readdirSync(join(storeDir, "persistence"))
+    .filter((file) => file.endsWith(".ts"))
+    .map((file) => `persistence/${file}`),
+];
 
 /** Module specifiers that carry eval data or its types. */
 const EVALS_MODULE = /(?:contracts\/evalsApi|\/evals\/|evalsStore|lib\/evals\b|components\/evals\b)/;
