@@ -1,14 +1,15 @@
-import { json, nonEmptyString, object, oneOf, optional, parser, tagged } from "./parse";
+import { json, nonEmptyString, object, oneOf, optional, parser, responseObject, tagged } from "./parse";
 import { readV1 } from "./version";
+import { response } from "./response";
 import { fence } from "./claims";
 import { daemon } from "./link";
 
 const command = { command_id: nonEmptyString, name: nonEmptyString, args: json };
 const commandsNextRequest = object({ v: readV1, ...daemon });
-const commandsNextResponse = tagged("status", {
-  command: object({ v: readV1, status: oneOf("command"), ...command, claim: optional(object(fence)) }),
-  empty: object({ v: readV1, status: oneOf("empty") }),
-});
+const commandsNextResponse = response(tagged("status", {
+  command: responseObject({ v: readV1, status: oneOf("command"), ...command, claim: optional(responseObject(fence)) }),
+  empty: responseObject({ v: readV1, status: oneOf("empty") }),
+}));
 const commandsResultRequest = object({
   v: readV1,
   ...daemon,
@@ -17,7 +18,7 @@ const commandsResultRequest = object({
   outcome: oneOf("completed", "failed", "unsupported"),
   output: json,
 });
-const commandsResultResponse = object({ v: readV1, status: oneOf("recorded", "duplicate", "stale") });
+const commandsResultResponse = response(responseObject({ v: readV1, status: oneOf("recorded", "duplicate", "stale") }));
 
 export type CommandsNextRequest = ReturnType<typeof commandsNextRequest>;
 export type CommandsNextResponse = ReturnType<typeof commandsNextResponse>;

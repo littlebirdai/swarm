@@ -2,7 +2,6 @@
   "request": {
     "v": 1,
     "session": "session-1",
-    "run": 3,
     "machine": "machine-laptop",
     "boot": "boot-1",
     "claim_id": "attempt-1"

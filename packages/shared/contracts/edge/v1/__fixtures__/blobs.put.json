@@ -4,11 +4,12 @@
     "machine": "machine-laptop",
     "boot": "boot-1",
     "content_type": "text/plain",
-    "data_base64": "ZXhhbXBsZQ=="
+    "data_base64": "ZXhhbXBsZQ==",
+    "sha256": "50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c"
   },
   "response": {
     "v": 1,
-    "blob_id": "blob-1",
+    "blob_id": "blob-2",
     "size_bytes": 7
   }
 }

@@ -7,6 +7,8 @@
   "source": "provider",
   "kind": "message.delta",
   "body": {
-    "text": "I read"
+    "text": "I read",
+    "message_id": "message-1",
+    "offset": 0
   }
 }

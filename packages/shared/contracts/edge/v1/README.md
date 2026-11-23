@@ -2,43 +2,83 @@
 
 This is the JSON contract between the codecast daemon and server. Import it from
 `@codecast/shared/contracts/edge/v1`. Each verb has request and response parsers.
-They return the parsed value or an `EdgeParseError` with a field path and error
-code. Parsers reject unknown fields in fixed wire objects.
+They return the parsed value or an `EdgeParseError` with a field path and code.
 
-## Versions
+## Versions and compatibility
 
-`hello` is the bootstrap exchange. The daemon sends the versions it speaks.
-The server selects the highest shared version or returns `upgrade_required`.
-The server supports its newest released version and the previous version when
-one exists. The first release supports v1. Subsequent v1 messages carry `v: 1`.
+`hello` selects the highest shared version. If every offered version is newer
+than the server supports, it returns `server_behind`. Other failures to agree
+return `upgrade_required`. The server supports the newest released version and
+the previous one when both exist. Versioned messages carry `v: 1`.
 
-The v1 wire format freezes on release. Any wire field change, including an
-addition, goes in v2. Keep the v1 parsers and fixtures when a new version ships.
+The v1 requests and the meaning of its responses freeze on release. The server
+rejects unknown request fields, including nested fields in fixed wire objects.
+The daemon validates known response fields and ignores added fields, including
+policy settings. This lets the server add optional response fields and policy
+settings in v1. A changed request, a changed response field, or a new response
+variant requires v2.
+
+## Backpressure and limits
+
+Any verb can return an error with `v`, `status: "error"`, `code`, `retryable`,
+and an optional `retry_after_ms`. A retryable error can carry a minimum wait
+before the daemon tries again.
+
+Policy sets the uplink interval and caps the event count and encoded request
+size for one append. It also caps the decoded size of one blob. The server
+enforces these limits. The wire parsers validate the policy without applying it.
 
 ## Events and claims
 
-An event has a session ID, a run epoch, and a sequence number for that session.
-Sequence numbers are positive safe integers and continue across run epochs.
-`at` and `expires_at` use Unix time in milliseconds. A null `turn` means the
-event has no associated turn. Event batches use one session and run claim,
-with events in increasing sequence order. `message.delta` is a relay frame with
-its own parser and does not consume a durable event sequence number.
+Each event carries a session ID, a run epoch, and a sequence number for that
+session. Sequence numbers are positive safe integers and continue across run
+epochs. Timestamps and expirations use Unix time in milliseconds. A null
+`turn` means the event has no associated turn.
 
-The server grants a fencing token for a session and run epoch. The daemon sends
-it with event appends, inbox writes, claim renewals and releases, and results
-for commands that carry a claim. Blob uploads and machine commands use the
-machine and boot identity. The server verifies the token and expiry against its
-current claim before it accepts a claimed write. For command results, the
-server checks whether the original command requires a claim.
-The daemon reuses its `claim_id` when it retries the same claim request.
+One append can carry several event groups. Each group has one session, epoch,
+and fencing token. The events in a group are contiguous. The server returns one
+result per group, in request order. A gap reports the next expected sequence
+number. A conflict reports the sequence number of a stored event with different
+content. A stale claim affects only its own group.
+
+The live transcript relay channel carries `message.delta`. The delta offset
+counts UTF-16 code units from the start of the message. Deltas use the same
+`message_id` as the final assistant event and do not consume a durable
+sequence number.
+
+The server assigns the run epoch and grants a fencing token. The daemon sends
+the token with event groups, inbox writes, claim renewals and releases, and
+results for commands that carry a claim. The server checks the current claim
+and its expiry before it accepts a claimed write. The daemon reuses its
+`claim_id` when it retries the same acquisition request.
+
+## Blobs
+
+`blobs.put` carries the lowercase hexadecimal SHA-256 digest of the decoded
+bytes. The server verifies the digest and uses it to return the same blob ID
+for repeated uploads within the caller's authorized storage scope.
+
+A tool result can use `{ "blob_id": "…" }` as its output. A top-level
+`blob_id` in the output identifies a reference. User events can include
+references in `attachments`. A delivery permit can carry text and blob parts
+in order. Each blob part supplies the content type.
 
 ## Delivery policy
 
-The server supplies the effective intent on each permit. The sender identifies
-a person or an agent session. The server issues `queue` for agent senders by
-default and can issue `steer` after the session owner grants that sender steer.
-The permit's `seq` orders deliveries within the session. The daemon echoes the
-permit fields and reports the delivery outcome.
+The server supplies the effective intent on each permit. An agent sender
+queues by default. The server can issue steer after the session owner grants
+it to that sender.
+
+The permit's `seq` orders deliveries within the session. The daemon echoes
+the permit fields, including `attempt_id`. A permit marked `started` or a
+start response of `already_started` requires recovery before another effect.
+The daemon checks the transcript for the original effect. If the result is
+uncertain, it reports `in_doubt`. It reports `failed` with `retryable` only
+when it can prove the attempt had no effect. The server decides whether to
+issue another attempt.
+
+`delivery.settle` is the source of delivery outcomes. A receipt event records
+only the observed delivery ID.
 
 ## Migration order
 

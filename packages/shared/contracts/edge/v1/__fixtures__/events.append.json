@@ -1,241 +1,285 @@
 {
   "request": {
     "v": 1,
-    "session": "session-1",
-    "run": 3,
-    "fencing_token": "claim-token-1",
-    "events": [
+    "batches": [
       {
-        "v": 1,
         "session": "session-1",
         "run": 3,
-        "turn": null,
-        "seq": 1,
-        "at": 1795453200000,
-        "source": "observed",
-        "kind": "session.started",
-        "body": {
-          "machine": "machine-laptop",
-          "provider": "claude"
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": null,
-        "seq": 2,
-        "at": 1795453200001,
-        "source": "observed",
-        "kind": "session.moved",
-        "body": {
-          "from_machine": "machine-old",
-          "to_machine": "machine-laptop"
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 3,
-        "at": 1795453200002,
-        "source": "provider",
-        "kind": "turn.started",
-        "body": {}
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 4,
-        "at": 1795453200003,
-        "source": "provider",
-        "kind": "message.user",
-        "body": {
-          "text": "Review complete.",
-          "delivery_id": "delivery-1",
-          "authors": [
-            {
-              "kind": "agent",
-              "id": "session-2"
-            },
-            {
-              "kind": "person",
-              "id": "person-1"
+        "fencing_token": "claim-token-1",
+        "events": [
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": null,
+            "seq": 1,
+            "at": 1795453200000,
+            "source": "observed",
+            "kind": "session.started",
+            "body": {
+              "machine": "machine-laptop",
+              "provider": "claude"
             }
-          ]
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 5,
-        "at": 1795453200004,
-        "source": "observed",
-        "kind": "receipt",
-        "body": {
-          "delivery_id": "delivery-1",
-          "outcome": "applied"
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 6,
-        "at": 1795453200005,
-        "source": "provider",
-        "kind": "message.assistant",
-        "body": {
-          "text": "I read the review."
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 7,
-        "at": 1795453200006,
-        "source": "provider",
-        "kind": "tool.call",
-        "body": {
-          "call_id": "call-1",
-          "name": "Read",
-          "input": {
-            "path": "README.md"
-          }
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 8,
-        "at": 1795453200007,
-        "source": "provider",
-        "kind": "tool.result",
-        "body": {
-          "call_id": "call-1",
-          "output": {
-            "text": "Example content"
-          }
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 9,
-        "at": 1795453200008,
-        "source": "provider",
-        "kind": "prompt.opened",
-        "body": {
-          "prompt_id": "prompt-1",
-          "kind": "permission"
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 10,
-        "at": 1795453200009,
-        "source": "provider",
-        "kind": "prompt.settled",
-        "body": {
-          "prompt_id": "prompt-1",
-          "by": {
-            "kind": "person",
-            "id": "person-1"
           },
-          "answer": {
-            "allow": true
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": null,
+            "seq": 2,
+            "at": 1795453200001,
+            "source": "observed",
+            "kind": "session.moved",
+            "body": {
+              "from_machine": "machine-old",
+              "to_machine": "machine-laptop"
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 3,
+            "at": 1795453200002,
+            "source": "provider",
+            "kind": "turn.started",
+            "body": {}
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 4,
+            "at": 1795453200003,
+            "source": "provider",
+            "kind": "message.user",
+            "body": {
+              "text": "Review complete.",
+              "delivery_id": "delivery-1",
+              "authors": [
+                {
+                  "kind": "agent",
+                  "id": "session-2"
+                },
+                {
+                  "kind": "person",
+                  "id": "person-1"
+                }
+              ],
+              "attachments": [
+                {
+                  "blob_id": "blob-1"
+                }
+              ]
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 5,
+            "at": 1795453200004,
+            "source": "observed",
+            "kind": "receipt",
+            "body": {
+              "delivery_id": "delivery-1"
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 6,
+            "at": 1795453200005,
+            "source": "provider",
+            "kind": "message.assistant",
+            "body": {
+              "text": "I read the review.",
+              "message_id": "message-1"
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 7,
+            "at": 1795453200006,
+            "source": "provider",
+            "kind": "tool.call",
+            "body": {
+              "call_id": "call-1",
+              "name": "Read",
+              "input": {
+                "path": "README.md"
+              }
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 8,
+            "at": 1795453200007,
+            "source": "provider",
+            "kind": "tool.result",
+            "body": {
+              "call_id": "call-1",
+              "output": {
+                "blob_id": "blob-2"
+              },
+              "is_error": false
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 9,
+            "at": 1795453200008,
+            "source": "provider",
+            "kind": "prompt.opened",
+            "body": {
+              "prompt_id": "prompt-1",
+              "kind": "permission"
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 10,
+            "at": 1795453200009,
+            "source": "provider",
+            "kind": "prompt.settled",
+            "body": {
+              "prompt_id": "prompt-1",
+              "by": {
+                "kind": "person",
+                "id": "person-1"
+              },
+              "answer": {
+                "allow": true
+              }
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 11,
+            "at": 1795453200010,
+            "source": "provider",
+            "kind": "context",
+            "body": {
+              "data": {
+                "remaining_tokens": 71000
+              }
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 12,
+            "at": 1795453200011,
+            "source": "provider",
+            "kind": "usage",
+            "body": {
+              "input_tokens": 77,
+              "output_tokens": 18,
+              "cache_read_tokens": 13,
+              "cache_write_tokens": 21,
+              "model": "example-model"
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 13,
+            "at": 1795453200012,
+            "source": "provider",
+            "kind": "error",
+            "body": {
+              "class": "provider_timeout",
+              "message": "Provider did not respond",
+              "retryable": true
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": "turn-2",
+            "seq": 14,
+            "at": 1795453200013,
+            "source": "provider",
+            "kind": "turn.ended",
+            "body": {
+              "reason": "timeout"
+            }
+          },
+          {
+            "v": 1,
+            "session": "session-1",
+            "run": 3,
+            "turn": null,
+            "seq": 15,
+            "at": 1795453200014,
+            "source": "observed",
+            "kind": "session.ended",
+            "body": {
+              "reason": "stopped"
+            }
           }
-        }
+        ]
       },
       {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 11,
-        "at": 1795453200010,
-        "source": "provider",
-        "kind": "context",
-        "body": {
-          "data": {
-            "remaining_tokens": 71000
+        "session": "session-2",
+        "run": 1,
+        "fencing_token": "claim-token-2",
+        "events": [
+          {
+            "v": 1,
+            "session": "session-2",
+            "run": 1,
+            "turn": null,
+            "seq": 7,
+            "at": 1795453200000,
+            "source": "observed",
+            "kind": "session.started",
+            "body": {
+              "machine": "machine-laptop",
+              "provider": "claude"
+            }
           }
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 12,
-        "at": 1795453200011,
-        "source": "provider",
-        "kind": "usage",
-        "body": {
-          "input_tokens": 77,
-          "output_tokens": 18
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 13,
-        "at": 1795453200012,
-        "source": "provider",
-        "kind": "error",
-        "body": {
-          "class": "provider_timeout",
-          "message": "Provider did not respond"
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": "turn-2",
-        "seq": 14,
-        "at": 1795453200013,
-        "source": "provider",
-        "kind": "turn.ended",
-        "body": {
-          "reason": "timeout"
-        }
-      },
-      {
-        "v": 1,
-        "session": "session-1",
-        "run": 3,
-        "turn": null,
-        "seq": 15,
-        "at": 1795453200014,
-        "source": "observed",
-        "kind": "session.ended",
-        "body": {
-          "reason": "stopped"
-        }
+        ]
       }
     ]
   },
   "response": {
     "v": 1,
-    "status": "appended",
-    "through_seq": 15
+    "results": [
+      {
+        "session": "session-1",
+        "status": "appended",
+        "through_seq": 15
+      },
+      {
+        "session": "session-2",
+        "status": "stale"
+      }
+    ]
   }
 }

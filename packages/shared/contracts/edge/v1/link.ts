@@ -1,5 +1,6 @@
-import { array, count, nonEmptyString, object, oneOf, parser, positiveInteger, tagged } from "./parse";
-import { readV1 } from "./version";
+import { array, count, nonEmptyString, object, oneOf, parser, positiveInteger, responseObject, tagged } from "./parse";
+import { readServerBehind, readUpgradeRequired, readV1 } from "./version";
+import { response } from "./response";
 
 export const daemon = {
   machine: nonEmptyString,
@@ -11,9 +12,15 @@ const capacity = object({
   memory_available_bytes: count,
   live_agents: count,
 });
-const policy = object({
+const policy = responseObject({
   revision: positiveInteger,
   heartbeat_interval_ms: positiveInteger,
+  uplink_interval_ms: positiveInteger,
+  limits: responseObject({
+    max_batch_events: positiveInteger,
+    max_batch_bytes: positiveInteger,
+    max_blob_bytes: positiveInteger,
+  }),
   capabilities: array(nonEmptyString),
 });
 
@@ -25,17 +32,15 @@ const helloRequest = object({
   runtimes: array(object({ host: nonEmptyString, isolation: nonEmptyString })),
   capacity,
 });
-const helloResponse = tagged("status", {
-  ok: object({ status: oneOf("ok"), version: positiveInteger, policy }),
-  upgrade_required: object({
-    status: oneOf("upgrade_required"),
-    supported_versions: array(positiveInteger),
-  }),
-});
+const helloResponse = response(tagged("status", {
+  ok: responseObject({ status: oneOf("ok"), version: positiveInteger, policy }),
+  upgrade_required: readUpgradeRequired,
+  server_behind: readServerBehind,
+}));
 const heartbeatRequest = object({ ...linkedDaemon, capacity });
-const heartbeatResponse = object({ v: readV1, policy_revision: positiveInteger });
+const heartbeatResponse = response(responseObject({ v: readV1, policy_revision: positiveInteger }));
 const policyGetRequest = object(linkedDaemon);
-const policyGetResponse = object({ v: readV1, policy });
+const policyGetResponse = response(responseObject({ v: readV1, policy }));
 
 export type HelloRequest = ReturnType<typeof helloRequest>;
 export type HelloResponse = ReturnType<typeof helloResponse>;

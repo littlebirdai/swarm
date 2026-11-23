@@ -18,6 +18,18 @@
       "kind": "agent",
       "id": "session-2"
     },
-    "text": "Review complete."
+    "attempt_id": "attempt-1",
+    "state": "new",
+    "input": [
+      {
+        "type": "text",
+        "text": "Review complete."
+      },
+      {
+        "type": "blob",
+        "blob_id": "blob-1",
+        "content_type": "image/png"
+      }
+    ]
   }
 }

@@ -14,6 +14,8 @@ import deliveryStart from "./__fixtures__/delivery.start.json";
 import deliverySettle from "./__fixtures__/delivery.settle.json";
 import commandsNext from "./__fixtures__/commands.next.json";
 import commandsResult from "./__fixtures__/commands.result.json";
+import responseVariants from "./__fixtures__/response-variants.json";
+import errors from "./__fixtures__/errors.json";
 
 function expectParsed(result: edge.EdgeParseResult<unknown>, value: unknown) {
   expect(result).toEqual({ ok: true, value });
@@ -46,18 +48,26 @@ const verbs = [
   ["release", release, edge.parseReleaseRequest, edge.parseReleaseResponse],
 ] as const;
 
+const alternateResponses: Partial<Record<(typeof verbs)[number][0], readonly unknown[]>> = responseVariants;
+
 for (const [verb, fixture, parseRequest, parseResponse] of verbs) {
   describe(verb, () => {
     test("preserves the golden request and response", () => {
       expectParsed(parseRequest(fixture.request), fixture.request);
       expectParsed(parseResponse(fixture.response), fixture.response);
+      for (const variant of alternateResponses[verb] ?? []) {
+        expectParsed(parseResponse(variant), variant);
+      }
+      for (const error of errors) {
+        expectParsed(parseResponse(error), error);
+      }
     });
 
-    test("rejects malformed requests and responses", () => {
+    test("rejects malformed messages and accepts additive response fields", () => {
       expectParseError(parseRequest(null), "invalid_type", "$");
       expectParseError(parseResponse([]), "invalid_type", "$");
       expectParseError(parseRequest({ ...fixture.request, extra: 1 }), "unknown_field", "$.extra");
-      expectParseError(parseResponse({ ...fixture.response, extra: 1 }), "unknown_field", "$.extra");
+      expectParsed(parseResponse({ ...fixture.response, extra: 1 }), fixture.response);
     });
 
     if (verb !== "hello") {
@@ -92,8 +102,41 @@ describe("version negotiation", () => {
   });
 });
 
+test("reports server_behind when every offered version is newer", () => {
+  expect(edge.negotiateEdgeVersion([4, 3], new Set([1, 2]))).toEqual({
+    status: "server_behind",
+    supported_versions: [2, 1],
+  });
+  expect(edge.negotiateEdgeVersion([4, 1], new Set([2, 3])).status).toBe("upgrade_required");
+});
+
+test("ignores added policy settings while checking known fields", () => {
+  const { policy } = policyGet.response;
+  const limits = { ...policy.limits, max_sessions: 50 };
+  expectParsed(edge.parsePolicyGetResponse({
+    ...policyGet.response,
+    policy: { ...policy, limits, future_policy: true },
+  }), policyGet.response);
+  expectParseError(edge.parsePolicyGetResponse({
+    ...policyGet.response,
+    policy: { ...policy, limits: { ...limits, max_batch_bytes: "large" } },
+  }), "invalid_type", "$.policy.limits.max_batch_bytes");
+});
+
+test("validates the shared backpressure response", () => {
+  const [limited] = errors;
+  expectParsed(edge.parseEdgeErrorResponse({ ...limited, future: true }), limited);
+  expectParseError(edge.parseEdgeErrorResponse({ ...limited, retryable: 1 }), "invalid_type", "$.retryable");
+  expectParseError(edge.parsePolicyGetResponse({ ...limited, retry_after_ms: -1 }), "invalid_value", "$.retry_after_ms");
+});
+
 describe("canonical events", () => {
-  const first = eventsAppend.request.events[0];
+  const [batch] = eventsAppend.request.batches;
+  const [first] = batch.events;
+
+  const append = (events: unknown[]) => edge.parseEventsAppendRequest({
+    v: 1, batches: [{ ...batch, events }],
+  });
 
   test("rejects unknown kinds, absent sequence numbers, and wrong field types", () => {
     expectParseError(edge.parseCanonicalEvent({ ...first, kind: "other" }), "invalid_value", "$.kind");
@@ -120,24 +163,55 @@ describe("canonical events", () => {
   test("keeps the relay-only delta out of durable event batches", () => {
     expectParsed(edge.parseMessageDelta(delta), delta);
     expectParseError(
-      edge.parseEventsAppendRequest({ ...eventsAppend.request, events: [{ ...delta, seq: 1 }] }),
-      "invalid_value", "$.events[0].kind",
+      append([{ ...delta, seq: 1 }]),
+      "invalid_value", "$.batches[0].events[0].kind",
     );
+    expectParseError(edge.parseMessageDelta({ ...delta, body: { ...delta.body, offset: -1 } }),
+      "invalid_value", "$.body.offset");
   });
 
   test("checks claim scope and event order within an append", () => {
     expectParseError(
-      edge.parseEventsAppendRequest({ ...eventsAppend.request, events: [{ ...first, run: first.run + 1 }] }),
-      "invalid_value", "$.events[0]",
+      append([{ ...first, run: first.run + 1 }]),
+      "invalid_value", "$.batches[0].events[0]",
     );
     expectParseError(
-      edge.parseEventsAppendRequest({ ...eventsAppend.request, events: [first, first] }),
-      "invalid_value", "$.events[1].seq",
+      append([{ ...first, session: "another-session" }]),
+      "invalid_value", "$.batches[0].events[0]",
     );
     expectParseError(
-      edge.parseEventsAppendRequest({ ...eventsAppend.request, events: [] }),
-      "invalid_value", "$.events",
+      append([first, first]),
+      "invalid_value", "$.batches[0].events[1].seq",
     );
+    expectParseError(
+      append([first, { ...first, seq: first.seq + 2 }]),
+      "invalid_value", "$.batches[0].events[1].seq",
+    );
+    expectParseError(append([]), "invalid_value", "$.batches[0].events");
+    expectParseError(edge.parseEventsAppendRequest({ v: 1, batches: [] }), "invalid_value", "$.batches");
+  });
+
+  test("validates per-group results while ignoring added fields in each result", () => {
+    const [response] = responseVariants["events.append"];
+    const results = response.results.map((result) => ({ ...result, future: "ignored" }));
+    expectParsed(edge.parseEventsAppendResponse({ ...response, results }), response);
+    expectParseError(edge.parseEventsAppendResponse({
+      v: 1, results: [{ session: "session-1", status: "gap" }],
+    }), "missing_field", "$.results[0].expected_seq");
+  });
+
+  test("validates blob references and keeps outcomes out of receipts", () => {
+    const [toolResult, receipt] = ["tool.result", "receipt"].map(
+      (kind) => batch.events.find((event) => event.kind === kind)!,
+    );
+    const inline = { ...toolResult, body: { ...toolResult.body, output: { text: "inline" } } };
+    expectParsed(edge.parseCanonicalEvent(inline), inline);
+    expectParseError(edge.parseCanonicalEvent({
+      ...toolResult, body: { ...toolResult.body, output: { blob_id: 5 } },
+    }), "invalid_type", "$.body.output.blob_id");
+    expectParseError(edge.parseCanonicalEvent({
+      ...receipt, body: { ...receipt.body, outcome: "applied" },
+    }), "unknown_field", "$.body.outcome");
   });
 
   test("validates opaque JSON payloads and blob encoding", () => {
@@ -152,6 +226,7 @@ describe("canonical events", () => {
       edge.parseBlobsPutRequest({ ...blobsPut.request, data_base64: "not-base64" }),
       "invalid_value", "$.data_base64",
     );
+    expectParseError(edge.parseBlobsPutRequest({ ...blobsPut.request, sha256: "abc" }), "invalid_value", "$.sha256");
   });
 });
 
@@ -171,9 +246,37 @@ describe("permits and claims", () => {
     );
   });
 
+  test("distinguishes uncertain effects from failures with a retry decision", () => {
+    const request = deliverySettle.request;
+    for (const outcome of ["duplicate", "rejected", "in_doubt"]) {
+      const settlement = { ...request, outcome };
+      expectParsed(edge.parseDeliverySettleRequest(settlement), settlement);
+    }
+    const failed = { ...request, outcome: "failed" };
+    for (const retryable of [true, false]) {
+      const settlement = { ...failed, retryable };
+      expectParsed(edge.parseDeliverySettleRequest(settlement), settlement);
+    }
+    expectParseError(edge.parseDeliverySettleRequest(failed), "missing_field", "$.retryable");
+    expectParseError(edge.parseDeliverySettleRequest({ ...request, retryable: true }), "unknown_field", "$.retryable");
+    const { attempt_id: _attempt, ...withoutAttempt } = request;
+    expectParseError(edge.parseDeliverySettleRequest(withoutAttempt), "missing_field", "$.attempt_id");
+  });
+
+  test("ignores added response fields in permit input and rejects them in request senders", () => {
+    const permit = permitsNext.response;
+    const input = permit.input.map((part) => ({ ...part, future: "ignored" }));
+    const sender = { ...permit.sender, future: "ignored" };
+    expectParsed(edge.parsePermitsNextResponse({ ...permit, input, sender }), permit);
+    expectParseError(edge.parseDeliveryStartRequest({ ...deliveryStart.request, sender }),
+      "unknown_field", "$.sender.future");
+    expectParseError(edge.parsePermitsNextResponse({
+      ...permit, input: [{ type: "blob", blob_id: "blob-1" }],
+    }), "missing_field", "$.input[0].content_type");
+  });
+
   test("requires a token on claimed writes", () => {
     const cases = [
-      [eventsAppend.request, edge.parseEventsAppendRequest],
       [deliveryStart.request, edge.parseDeliveryStartRequest],
       [deliverySettle.request, edge.parseDeliverySettleRequest],
       [renew.request, edge.parseRenewRequest],
@@ -183,11 +286,20 @@ describe("permits and claims", () => {
       const { fencing_token: _token, ...withoutToken } = request;
       expectParseError(parse(withoutToken), "missing_field", "$.fencing_token");
     }
+    const [batch] = eventsAppend.request.batches;
+    const { fencing_token: _eventToken, ...unfencedBatch } = batch;
+    expectParseError(edge.parseEventsAppendRequest({ v: 1, batches: [unfencedBatch] }),
+      "missing_field", "$.batches[0].fencing_token");
     const { fencing_token: _token, ...commandClaim } = commandsResult.request.claim;
     expectParseError(
       edge.parseCommandsResultRequest({ ...commandsResult.request, claim: commandClaim }),
       "missing_field", "$.claim.fencing_token",
     );
+  });
+
+  test("rejects a client-assigned run epoch on claim acquisition", () => {
+    expectParseError(edge.parseClaimRequest({ ...claim.request, run: 3 }), "unknown_field", "$.run");
+    expectParseError(edge.parseClaimResponse({ v: 1, status: "busy" }), "missing_field", "$.retry_after_ms");
   });
 
   test("accepts a machine command result without a claim", () => {

@@ -19,7 +19,7 @@ export type EdgeParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: EdgeParseError };
 
-type Reader<T> = (value: unknown, path: string) => T;
+export type Reader<T> = (value: unknown, path: string) => T;
 type Shape = Record<string, Reader<unknown> | { optional: Reader<unknown> }>;
 type Fields<S extends Shape> = {
   [K in keyof S as S[K] extends Reader<unknown> ? K : never]:
@@ -29,7 +29,7 @@ type Fields<S extends Shape> = {
     S[K] extends { optional: Reader<infer T> } ? T : never;
 };
 
-const owns = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
+export const owns = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
 
 function record(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -61,17 +61,26 @@ export function object<S extends Shape>(shape: S): Reader<Fields<S>> {
         throw new EdgeParseError("unknown_field", `${path}.${key}`, "unexpected field");
       }
     }
-    for (const [key, field] of Object.entries(shape)) {
-      const fieldPath = `${path}.${key}`;
-      if (owns(fields, key)) {
-        const read = typeof field === "function" ? field : field.optional;
-        read(fields[key], fieldPath);
-      } else if (typeof field === "function") {
-        throw new EdgeParseError("missing_field", fieldPath, "required field");
-      }
-    }
-    return fields as Fields<S>;
+    return readFields(shape, fields, path);
   };
+}
+
+export function responseObject<S extends Shape>(shape: S): Reader<Fields<S>> {
+  return (value, path) => readFields(shape, record(value, path), path);
+}
+
+function readFields<S extends Shape>(shape: S, fields: Record<string, unknown>, path: string): Fields<S> {
+  const parsed: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(shape)) {
+    const fieldPath = `${path}.${key}`;
+    if (owns(fields, key)) {
+      const read = typeof field === "function" ? field : field.optional;
+      parsed[key] = read(fields[key], fieldPath);
+    } else if (typeof field === "function") {
+      throw new EdgeParseError("missing_field", fieldPath, "required field");
+    }
+  }
+  return parsed as Fields<S>;
 }
 
 export const optional = <T>(read: Reader<T>) => ({ optional: read });
@@ -102,13 +111,21 @@ export function oneOf<const T extends readonly (string | number | null)[]>(...ch
 export function array<T>(read: Reader<T>): Reader<T[]> {
   return (value, path) => {
     if (!Array.isArray(value)) throw new EdgeParseError("invalid_type", path, "expected an array");
-    for (let index = 0; index < value.length; index++) read(value[index], `${path}[${index}]`);
-    return value as T[];
+    const parsed: T[] = [];
+    for (let index = 0; index < value.length; index++) {
+      parsed.push(read(value[index], `${path}[${index}]`));
+    }
+    return parsed;
   };
 }
 
 export const string: Reader<string> = (value, path) => {
   if (typeof value !== "string") throw new EdgeParseError("invalid_type", path, "expected a string");
+  return value;
+};
+
+export const boolean: Reader<boolean> = (value, path) => {
+  if (typeof value !== "boolean") throw new EdgeParseError("invalid_type", path, "expected a boolean");
   return value;
 };
 
