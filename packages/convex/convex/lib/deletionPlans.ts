@@ -352,6 +352,7 @@ export const LEFT_OUT: Record<string, string> = {
   user_usage_daily: "per-person counts, no content",
   user_activity_daily: "per-person counts, no content",
   project_task_counts: "counts, no content",
+  pending_message_sweep_retries: "retry markers of the stuck-message sweep: ids, a reason and a time, no content; the sweep deletes each once its message is gone",
   ci_workflows: "which workflow files of a repository are CI, read from GitHub: paths, no content",
   // Per-person pointers, indexed by person first: no index reaches them from the conversation.
   inbox_hides: "per-person pointer, no conversation-leading index",
