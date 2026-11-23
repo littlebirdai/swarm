@@ -1,3 +1,5 @@
+// Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
+// module loaded earlier in the same process keeps its pagehide flush on another window.
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { createReplicationHost } from "@platform/engine";
@@ -179,6 +181,13 @@ test("a window elected when the previous host closes persists only changed rows"
   expect(mutations).toEqual([{ table: "sessions", type: "put", keys: [changed._id] }]);
   expect(await conversations.toArray()).toEqual(rows);
   expect(await sessions.toArray()).toEqual([changed, ...rows.slice(1)]);
+
+  // The elected host keeps writing through: a later change reaches disk as one row.
+  mutations = [];
+  const later = { ...rows[1], title: "Written by the new host" };
+  state().syncTable("sessions", [later], { isDelta: true });
+  await drainWrites();
+  expect(mutations).toEqual([{ table: "sessions", type: "put", keys: [later._id] }]);
 });
 
 test("boot hydration writes only documented row trims and retention drops", async () => {
