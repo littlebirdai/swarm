@@ -24,7 +24,7 @@ Keep history flat — rebase, never merge. Pull with `git pull --rebase` (never 
 
 ## Convex deploys
 
-In Swarm, use `scripts/deploy-backend.sh` to deploy the backend.
+In Swarm, use `scripts/deploy-backend.sh` to deploy the backend. The rest of this section describes Codecast's setup: in Swarm, `packages/convex/deploy.sh` refuses, `cast ship` runs no backend deploy, and the dev watcher pushes only to your own dev deployment, with no prod-diff and no push record.
 
 Convex deploys push whole-tree snapshots: a tree behind origin/main doesn't just lack new code — it DELETES newer functions and routes from prod on push (three separate prod outages on 2026-07-15).
 
