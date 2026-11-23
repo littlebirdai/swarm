@@ -423,10 +423,6 @@ export function isFencedPendingMessage(message: any): boolean {
   return message?.delivery_protocol_version !== undefined;
 }
 
-export function legacyConversationAcceptsDaemonWork(conversation: any): boolean {
-  return conversation?.execution_protocol_state === undefined;
-}
-
 export async function beginLegacyQuiescenceInDb(
   ctx: DbCtx,
   userId: Id<"users">,

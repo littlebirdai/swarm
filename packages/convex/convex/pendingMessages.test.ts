@@ -326,7 +326,7 @@ const createDeliverCtx = (rows: Array<Record<string, any>>, convs: Record<string
       async get(id: string) {
         return convs[id] ?? null;
       },
-      query(_table: string) {
+      query(table: string) {
         return {
           withIndex(indexName: string, builder: (q: any) => unknown) {
             const eqs: Record<string, any> = {};
@@ -335,6 +335,10 @@ const createDeliverCtx = (rows: Array<Record<string, any>>, convs: Record<string
             const keyField = indexName === "by_owner_status" ? "owner_user_id" : "from_user_id";
             const matching = () => rows.filter((r) => r[keyField] === eqs[keyField] && r.status === eqs.status);
             return {
+              async first() {
+                expect(table).toBe("session_starts");
+                return null;
+              },
               async collect() {
                 return matching();
               },

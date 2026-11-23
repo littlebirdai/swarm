@@ -37,6 +37,7 @@ import {
 import { loadArmedTriggerHomes, isArmedTriggerHome, isArmedLoopHome } from "./dormancy";
 import { displayNotificationActor, rewriteNotificationMessage } from "./lib/notificationActor";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
+import { sessionStartOf } from "./lib/sessionStarts";
 import { clearPushTokenIfCurrent, reportPushFailures } from "./pushReceipts";
 import { projectNameOf, pushesStrippedFor, stripPushContent, type PushContent } from "./lib/pushPrivacy";
 
@@ -337,10 +338,7 @@ export const create = internalMutation({
 // hour at ~150 ms, 5% of prod CPU on 2026-11-12 (ct-92571). A row written before
 // the card existed reads the conversation until the backfill fills it in.
 async function conversationCardOf(ctx: { db: any }, conversationId: Id<"conversations">) {
-  const start = await ctx.db
-    .query("session_starts")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
-    .first();
+  const start = await sessionStartOf(ctx.db, conversationId);
   if (start?.card) return { _id: conversationId, agent_type: start.agent_type, ...start.card };
   return await ctx.db.get(conversationId);
 }

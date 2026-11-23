@@ -455,9 +455,8 @@ export async function servePageData(ctx: Pick<ActionCtx, "runQuery" | "runMutati
 // ── the sessions rollup ──
 
 /**
- * Fill session_starts for conversations written before it existed, newest
- * first, one page per run, each run scheduling the next. Safe to rerun:
- * a row already right is left alone.
+ * Fill missing or older session_starts projections, newest first. Each run
+ * schedules the next page and leaves current rows alone.
  */
 export const backfillSessionStarts = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())), batch: v.optional(v.number()), done: v.optional(v.number()) },

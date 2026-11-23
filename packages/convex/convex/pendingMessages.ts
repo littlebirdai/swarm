@@ -33,13 +33,14 @@ import {
   allocateFencedDeliveryMetadata,
   cancelFencedDeliveriesOnKill,
   isFencedPendingMessage,
-  legacyConversationAcceptsDaemonWork,
 } from "./executionBindings";
 import { requestRemoteWake } from "./cloudWake";
 import { clearPaneRefused } from "./lib/paneRefusal";
 import { bringNestedThreadToInbox } from "./inboxFilters";
 import { hostedInputWaits } from "./assistant/input";
-import { isConversationSafetyBlocked, type ConversationSafetyState } from "./conversationSafety";
+import { isConversationSafetyBlocked } from "./conversationSafety";
+import { daemonDeliveryStateOf, legacyConversationAcceptsDaemonWork } from "./lib/daemonDelivery";
+import { sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { countersFor } from "./lib/orgCaps";
 import { liveRolesByHandle } from "./lib/orgAccess";
@@ -223,40 +224,27 @@ export async function rehomeUndeliveredMessages(
 }
 
 export function canDaemonSeePendingMessage(
+  message: Parameters<typeof canDaemonDeliver>[0],
+  conversation: Parameters<typeof daemonDeliveryStateOf>[0] & { user_id: Id<"users"> },
+  userId: Id<"users">,
+  deviceId: string,
+): boolean {
+  return canDaemonDeliver(message, conversation, daemonDeliveryStateOf(conversation), userId, deviceId);
+}
+
+function canDaemonDeliver(
   message: {
     from_user_id: Id<"users">;
     owner_user_id?: Id<"users">;
     status: string;
     delivery_protocol_version?: number;
   },
-  conversation: ConversationSafetyState & {
-    user_id: Id<"users">;
-    owner_device_id?: string;
-    execution_protocol_state?: string;
-  },
+  conversation: { user_id: Id<"users"> },
+  delivery: ReturnType<typeof daemonDeliveryStateOf>,
   userId: Id<"users">,
   deviceId: string,
 ): boolean {
-  if (isConversationSafetyBlocked(conversation)) return false;
-  // Absence is the only legacy marker. Quiescing and fenced conversations are
-  // never permissive fallbacks, and a stamped row can never leak back into the
-  // legacy poll even if a conversation projection is stale.
-  if (isFencedPendingMessage(message) || !legacyConversationAcceptsDaemonWork(conversation)) {
-    return false;
-  }
-  // A row the web parked on the cloud host is nobody's to deliver until a local
-  // daemon has prepared the host and placed it (cloud.placeConversation). The
-  // message waits as pending and rides the real start.
-  if ((conversation as any).cloud_placement === "pending") return false;
-  // A bulk migration is moving the row between machines (sessionMigrations):
-  // the source is being quiesced and its transcript transferred, and the
-  // destination does not own it yet. Nobody delivers; the message waits as
-  // pending and rides the resume on the destination once the fence clears.
-  if ((conversation as any).migration) return false;
-  // A hosted conversation (agent_type "codecast") is run by this backend's
-  // turn engine, which consumes its pending rows itself (assistant/entry.ts).
-  // No daemon delivers into it, resumes it or launches it.
-  if (isHostedAgentType((conversation as any).agent_type)) return false;
+  if (delivery.blocked || isFencedPendingMessage(message)) return false;
   // Delivery is the TARGET owner's job, not the sender's — a teammate's message is delivered by
   // the owner's daemon. (For a self-send these are the same user.)
   if (pendingMessageOwnerId(message, conversation) !== userId.toString()) return false;
@@ -267,7 +255,7 @@ export function canDaemonSeePendingMessage(
   // so the target owns the row before it acts), never by a daemon adopting it:
   // an adopter without the checkout runs the session in its $HOME. An unowned
   // conversation is first-claim among the owner user's local daemons.
-  return !conversation.owner_device_id || conversation.owner_device_id === deviceId;
+  return !delivery.owner_device_id || delivery.owner_device_id === deviceId;
 }
 
 /** A machine reserved for one job never adopts an unowned conversation: work reaches it only by name. */
@@ -1787,10 +1775,10 @@ export const getPendingMessages = query({
 // An index eq() can't match an unset optional field, so a self-send written by a path that forgot
 // owner_user_id would be invisible to the owner scan alone — silently undeliverable. The legacy
 // from_user_id scan is the safety net that makes delivery independent of that denormalization.
-// canDaemonSeePendingMessage (which falls back owner_user_id ?? conversation.user_id) is the final
+// canDaemonDeliver (which falls back to owner_user_id ?? conversation.user_id) is the final
 // gate on every candidate, so the union never delivers anything the owner shouldn't see.
 export async function collectDeliverableForOwner(
-  ctx: { db: any },
+  ctx: Pick<QueryCtx, "db">,
   ownerUserId: Id<"users">,
   deviceId: string,
 ): Promise<any[]> {
@@ -1804,33 +1792,35 @@ export async function collectDeliverableForOwner(
   const [byOwner, bySender] = await Promise.all([
     ctx.db
       .query("pending_messages")
-      .withIndex("by_owner_status", (q: any) =>
+      .withIndex("by_owner_status", (q) =>
         q.eq("owner_user_id", ownerUserId).eq("status", "pending")
       )
       .take(DELIVERABLE_SCAN_CAP),
     ctx.db
       .query("pending_messages")
-      .withIndex("by_user_status", (q: any) =>
+      .withIndex("by_user_status", (q) =>
         q.eq("from_user_id", ownerUserId).eq("status", "pending")
       )
       .take(DELIVERABLE_SCAN_CAP),
   ]);
 
-  // DPM-02: this query reads pending rows and their conversations only. Owner
-  // mismatch is decided from the conversation row alone (canDaemonSeePendingMessage),
-  // so the subscription takes no dependency on the devices table and never
-  // refires on fleet heartbeats.
+  // DPM-02: the session start gives us the assigned device without a read
+  // of either heartbeat-written document (the device or the conversation).
   const owned = [];
   const seen = new Set<string>();
   for (const message of [...byOwner, ...bySender]) {
     const key = message._id.toString();
     if (seen.has(key)) continue;
     seen.add(key);
-    const conversation = await ctx.db.get(message.conversation_id);
+    const start = await sessionStartOf(ctx.db, message.conversation_id);
+    const projectedDelivery = start?.daemon_delivery;
+    // TODO: Remove the pre-backfill conversation fallback after
+    // pageData.backfillSessionStarts populates daemon_delivery on existing rows.
+    const conversation = projectedDelivery ? start : await ctx.db.get(message.conversation_id);
     if (!conversation) continue;
-    if (canDaemonSeePendingMessage(message, conversation, ownerUserId, deviceId)) {
-      // Stamped here so delivery can refuse a leftover Codex app-server thread
-      // after an in-place switch. The conversation row is already loaded.
+    const delivery = projectedDelivery ?? daemonDeliveryStateOf(conversation);
+    if (canDaemonDeliver(message, conversation, delivery, ownerUserId, deviceId)) {
+      // Delivery uses the current agent type to refuse leftovers after a switch.
       owned.push({ ...message, conversation_agent_type: conversation.agent_type ?? null });
     }
   }

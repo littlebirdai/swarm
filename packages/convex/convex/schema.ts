@@ -8010,6 +8010,11 @@ export default defineSchema({
       org_role_id: v.optional(v.id("org_roles")),
       standing_role_id: v.optional(v.id("org_roles")),
     })),
+    // Absent until pageData.backfillSessionStarts refreshes pre-existing rows.
+    daemon_delivery: v.optional(v.object({
+      owner_device_id: v.optional(v.string()),
+      blocked: v.boolean(),
+    })),
   })
     .index("by_conversation", ["conversation_id"])
     .index("by_visible_team_started", ["visible_team_id", "started_at"])
