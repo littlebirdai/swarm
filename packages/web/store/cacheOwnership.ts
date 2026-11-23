@@ -31,11 +31,12 @@ import { recordCacheEvent } from "./cacheEvents";
 const OWNER_STAMP_KEY = "cacheOwner";
 type OwnerStamp = { principal: string | null; at: number; reason: string };
 
+type PurgeCache = (opts: { keepPendingInputFor: string | null; reason: string; detail: Record<string, unknown> }) => Promise<void>;
+
 export type CacheOwnershipDeps = {
   db: Dexie & { meta: Dexie.Table<{ key: string; value: any }, string> };
   sessions: Dexie.Table<any, string> | undefined;
   pendingInputPrefix: string;
-  purge: (opts: { keepPendingInputFor: string | null; reason: string; detail: Record<string, unknown> }) => Promise<void>;
   onServed: () => void;
 };
 
@@ -92,7 +93,7 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
   // Disk ownership is decided by the disk alone. A caller's own idea of who is
   // signed in proves nothing about rows written by an earlier account, so it is
   // never consulted here.
-  async function resolveCacheOwnership(): Promise<string | null> {
+  async function resolveCacheOwnership(purge: PurgeCache): Promise<string | null> {
     const principal = await authPrincipal.resolve();
     boundOwner = principal;
     let evidence: Awaited<ReturnType<typeof readOwnerEvidence>>;
@@ -134,14 +135,14 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
       : evidence.stamp === null ? "signed-out-residue"
       : "no-owner-recorded";
     const detail = { reason, principal, stamp: evidence.stamp === undefined ? "absent" : evidence.stamp ?? "signed-out", user: evidence.user, foreignRows: foreign, tokenState };
-    await deps.purge({ keepPendingInputFor: principal, reason, detail });
+    await purge({ keepPendingInputFor: principal, reason, detail });
     return null;
   }
 
   /** The principal the disk cache may be served to, or null when it must not be
    *  read. Resolved per read (two cheap lookups); concurrent reads share one. */
-  function ensureCacheOwnership(): Promise<string | null> {
-    if (!ownership) ownership = resolveCacheOwnership().finally(() => { ownership = null; });
+  function ensureCacheOwnership(purge: PurgeCache): Promise<string | null> {
+    if (!ownership) ownership = resolveCacheOwnership(purge).finally(() => { ownership = null; });
     return ownership;
   }
 
