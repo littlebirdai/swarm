@@ -1,16 +1,17 @@
 import {
   array, boolean, count, json, nonEmptyString, object, oneOf, optional, owns, parser,
-  positiveInteger, string, tagged, type Reader, type EdgeJson,
+  positiveInteger, string, tagged,
 } from "./parse";
 import { readV1 } from "./version";
 import { claimScope } from "./claims";
 import { actor, blobFields } from "./inbox";
 
 const blobReference = object(blobFields);
-const toolOutput: Reader<EdgeJson> = (value, path) => (
-  typeof value === "object" && value !== null && owns(value, "blob_id")
-    ? blobReference(value, path)
-    : json(value, path)
+const inlineOutput = object({ inline: json });
+const toolOutput = (value: unknown, path: string) => (
+  typeof value === "object" && value !== null && owns(value, "inline")
+    ? inlineOutput(value, path)
+    : blobReference(value, path)
 );
 
 const eventScope = {

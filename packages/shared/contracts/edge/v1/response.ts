@@ -1,10 +1,18 @@
-import { boolean, count, oneOf, optional, owns, parser, responseObject, type Reader } from "./parse";
+import { boolean, count, nonEmptyString, oneOf, optional, owns, parser, responseObject, type Reader } from "./parse";
 import { readV1 } from "./version";
+
+export const EDGE_ERROR_CODES = {
+  RATE_LIMITED: "rate_limited",
+  TOO_LARGE: "too_large",
+  UNAUTHORIZED: "unauthorized",
+  UNAVAILABLE: "unavailable",
+  INVALID: "invalid",
+} as const;
 
 const error = responseObject({
   v: readV1,
   status: oneOf("error"),
-  code: oneOf("rate_limited", "too_large", "unauthorized", "unavailable", "invalid"),
+  code: nonEmptyString,
   retryable: boolean,
   retry_after_ms: optional(count),
 });

@@ -1,5 +1,5 @@
 import {
-  array, boolean, nonEmptyString, object, oneOf, optional, parser, positiveInteger,
+  array, boolean, EdgeParseError, nonEmptyString, object, oneOf, optional, owns, parser, positiveInteger,
   responseObject, string, tagged,
 } from "./parse";
 import { readV1 } from "./version";
@@ -49,17 +49,35 @@ const deliveryStartResponse = response(tagged("status", {
 }));
 
 const settlement = { v: readV1, ...requestDelivery, detail: optional(string) };
+const applied = { ...settlement, outcome: oneOf("applied") };
+const failed = { ...settlement, outcome: oneOf("failed"), retryable: boolean };
 const settledAttempt = object({
   ...settlement,
-  outcome: oneOf("applied", "duplicate", "rejected", "in_doubt"),
+  outcome: oneOf("duplicate", "rejected", "in_doubt"),
 });
-const deliverySettleRequest = tagged("outcome", {
-  applied: settledAttempt,
+const initialSettlement = tagged("outcome", {
+  applied: object(applied),
   duplicate: settledAttempt,
   rejected: settledAttempt,
   in_doubt: settledAttempt,
-  failed: object({ ...settlement, outcome: oneOf("failed"), retryable: boolean }),
+  failed: object(failed),
 });
+const evidence = {
+  resolution_evidence: (value: unknown, path: string) => {
+    const proof = string(value, path);
+    if (!proof.trim()) throw new EdgeParseError("invalid_value", path, "expected non-blank evidence");
+    return proof;
+  },
+};
+const resolution = tagged("outcome", {
+  applied: object({ ...applied, ...evidence }),
+  failed: object({ ...failed, ...evidence }),
+});
+const deliverySettleRequest = (value: unknown, path: string) => (
+  typeof value === "object" && value !== null && owns(value, "resolution_evidence")
+    ? resolution(value, path)
+    : initialSettlement(value, path)
+);
 const deliverySettleResponse = response(responseObject({
   v: readV1,
   status: oneOf("recorded", "duplicate", "stale"),
@@ -69,6 +87,7 @@ export type PermitsNextRequest = ReturnType<typeof permitsNextRequest>;
 export type PermitsNextResponse = ReturnType<typeof permitsNextResponse>;
 export type DeliveryStartRequest = ReturnType<typeof deliveryStartRequest>;
 export type DeliveryStartResponse = ReturnType<typeof deliveryStartResponse>;
+export type DeliveryResolutionRequest = ReturnType<typeof resolution>;
 export type DeliverySettleRequest = ReturnType<typeof deliverySettleRequest>;
 export type DeliverySettleResponse = ReturnType<typeof deliverySettleResponse>;
 

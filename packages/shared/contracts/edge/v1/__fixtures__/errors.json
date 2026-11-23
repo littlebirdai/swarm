@@ -29,5 +29,12 @@
     "status": "error",
     "code": "invalid",
     "retryable": false
+  },
+  {
+    "v": 1,
+    "status": "error",
+    "code": "not_found",
+    "retryable": true,
+    "retry_after_ms": 250
   }
 ]

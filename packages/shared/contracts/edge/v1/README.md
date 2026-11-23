@@ -22,7 +22,9 @@ variant requires v2.
 
 Any verb can return an error with `v`, `status: "error"`, `code`, `retryable`,
 and an optional `retry_after_ms`. A retryable error can carry a minimum wait
-before the daemon tries again.
+before the daemon tries again. `EDGE_ERROR_CODES` names the codes defined by
+v1. The server can add codes within v1. The daemon treats unfamiliar codes as
+opaque strings and still uses `retryable` and `retry_after_ms`.
 
 Policy sets the uplink interval and caps the event count and encoded request
 size for one append. It also caps the decoded size of one blob. The server
@@ -58,10 +60,11 @@ and its expiry before it accepts a claimed write. The daemon reuses its
 bytes. The server verifies the digest and uses it to return the same blob ID
 for repeated uploads within the caller's authorized storage scope.
 
-A tool result can use `{ "blob_id": "…" }` as its output. A top-level
-`blob_id` in the output identifies a reference. User events can include
-references in `attachments`. A delivery permit can carry text and blob parts
-in order. Each blob part supplies the content type.
+A tool result wraps inline JSON in `{ "inline": … }` or uses
+`{ "blob_id": "…" }` for a blob reference. Inline JSON can contain its own
+`blob_id` field. User events can include references in `attachments`.
+A delivery permit can carry text and blob parts in order. Each blob part
+supplies the content type.
 
 ## Delivery policy
 
@@ -79,6 +82,21 @@ issue another attempt.
 
 `delivery.settle` is the source of delivery outcomes. A receipt event records
 only the observed delivery ID.
+
+### Resolving an in-doubt attempt
+
+An attempt settled as `in_doubt` stays open. The daemon sends another
+`delivery.settle` for the same `attempt_id` when it establishes the effect.
+It uses `applied` for a correlated delivery or `failed` for proven no effect.
+Both resolutions require non-blank `resolution_evidence`. The server rejects
+a resolution without evidence and returns `recorded` when it accepts one.
+
+For `failed`, `retryable: true` lets the server consider a new attempt.
+`retryable: false` ends automatic retry. A settle response of `duplicate`
+means the server already recorded the identical outcome for that attempt,
+including the same retryability for `failed`. A transition out of
+`in_doubt` is a new outcome. Abandonment is a person or server action outside
+the daemon protocol.
 
 ## Migration order
 

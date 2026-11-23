@@ -1,6 +1,6 @@
 export { EDGE_PROTOCOL_VERSION, negotiateEdgeVersion, type EdgeVersionNegotiation } from "./version";
 export { EdgeParseError, type EdgeParseErrorCode, type EdgeParseResult, type EdgeJson } from "./parse";
-export { parseEdgeErrorResponse, type EdgeErrorResponse } from "./response";
+export { EDGE_ERROR_CODES, parseEdgeErrorResponse, type EdgeErrorResponse } from "./response";
 export { parseCanonicalEvent, parseMessageDelta, type CanonicalEvent, type MessageDelta } from "./envelope";
 export {
   parseHelloRequest, parseHelloResponse,
@@ -18,6 +18,7 @@ export {
   parseDeliverySettleRequest, parseDeliverySettleResponse,
   type PermitsNextRequest, type PermitsNextResponse,
   type DeliveryStartRequest, type DeliveryStartResponse,
+  type DeliveryResolutionRequest,
   type DeliverySettleRequest, type DeliverySettleResponse,
 } from "./inbox";
 export {

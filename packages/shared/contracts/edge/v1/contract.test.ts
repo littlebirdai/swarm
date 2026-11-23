@@ -12,10 +12,12 @@ import delta from "./__fixtures__/message.delta.json";
 import permitsNext from "./__fixtures__/permits.next.json";
 import deliveryStart from "./__fixtures__/delivery.start.json";
 import deliverySettle from "./__fixtures__/delivery.settle.json";
+import deliveryResolution from "./__fixtures__/delivery-resolution.json";
 import commandsNext from "./__fixtures__/commands.next.json";
 import commandsResult from "./__fixtures__/commands.result.json";
 import responseVariants from "./__fixtures__/response-variants.json";
 import errors from "./__fixtures__/errors.json";
+import inlineToolResult from "./__fixtures__/tool-result-inline.json";
 
 function expectParsed(result: edge.EdgeParseResult<unknown>, value: unknown) {
   expect(result).toEqual({ ok: true, value });
@@ -130,6 +132,12 @@ test("validates the shared backpressure response", () => {
   expectParseError(edge.parsePolicyGetResponse({ ...limited, retry_after_ms: -1 }), "invalid_value", "$.retry_after_ms");
 });
 
+test("preserves retry instructions for an unknown server error code", () => {
+  const error = errors.find(({ code }) => code === "not_found")!;
+  expectParsed(edge.parseEdgeErrorResponse(error), error);
+  expectParsed(edge.parsePolicyGetResponse(error), error);
+});
+
 describe("canonical events", () => {
   const [batch] = eventsAppend.request.batches;
   const [first] = batch.events;
@@ -200,15 +208,19 @@ describe("canonical events", () => {
     }), "missing_field", "$.results[0].expected_seq");
   });
 
-  test("validates blob references and keeps outcomes out of receipts", () => {
-    const [toolResult, receipt] = ["tool.result", "receipt"].map(
-      (kind) => batch.events.find((event) => event.kind === kind)!,
-    );
-    const inline = { ...toolResult, body: { ...toolResult.body, output: { text: "inline" } } };
-    expectParsed(edge.parseCanonicalEvent(inline), inline);
+  test("distinguishes inline JSON containing blob_id from a blob reference", () => {
+    expectParsed(edge.parseCanonicalEvent(inlineToolResult), inlineToolResult);
     expectParseError(edge.parseCanonicalEvent({
-      ...toolResult, body: { ...toolResult.body, output: { blob_id: 5 } },
+      ...inlineToolResult, body: { ...inlineToolResult.body, output: { blob_id: 5 } },
     }), "invalid_type", "$.body.output.blob_id");
+    expectParseError(edge.parseCanonicalEvent({
+      ...inlineToolResult,
+      body: { ...inlineToolResult.body, output: { inline: null, blob_id: "blob-1" } },
+    }), "unknown_field", "$.body.output.blob_id");
+  });
+
+  test("keeps outcomes out of receipt events", () => {
+    const receipt = batch.events.find((event) => event.kind === "receipt")!;
     expectParseError(edge.parseCanonicalEvent({
       ...receipt, body: { ...receipt.body, outcome: "applied" },
     }), "unknown_field", "$.body.outcome");
@@ -231,6 +243,25 @@ describe("canonical events", () => {
 });
 
 describe("permits and claims", () => {
+  for (const [label, steps] of Object.entries(deliveryResolution)) {
+    test(`records the ${label} resolution of an in-doubt attempt and identifies its replay`, () => {
+      for (const { request, response } of steps) {
+        expectParsed(edge.parseDeliverySettleRequest(request), request);
+        expectParsed(edge.parseDeliverySettleResponse(response), response);
+      }
+    });
+  }
+
+  test("rejects blank evidence and evidence on outcomes that cannot resolve an attempt", () => {
+    const correlated = deliveryResolution["correlated delivery"][1].request;
+    expectParseError(edge.parseDeliverySettleRequest({
+      ...correlated, resolution_evidence: " \n ",
+    }), "invalid_value", "$.resolution_evidence");
+    expectParseError(edge.parseDeliverySettleRequest({
+      ...correlated, outcome: "in_doubt",
+    }), "invalid_value", "$.outcome");
+  });
+
   test("parses an authorized steer permit for an agent sender", () => {
     const permit = { ...permitsNext.response, intent: "steer" };
     expectParsed(edge.parsePermitsNextResponse(permit), permit);
