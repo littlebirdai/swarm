@@ -4,8 +4,9 @@ import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { AUTH_JWT_STORAGE_KEY, issueFakeToken } from "./fixtures/fakeAuthToken";
+import { session } from "./bucketFixtures";
 
-test("the shell claim starts hydration, replication, host election, and badge reporting", async () => {
+test("claim starts hydration, replication, and badge reporting, and sign-out clears the badge", async () => {
   const dom = new JSDOM("<div id='root'></div>", { url: "https://codecast.sh/inbox" });
   const { window } = dom;
   let pushRole!: (role: { spare?: boolean }) => void;
@@ -50,6 +51,9 @@ test("the shell claim starts hydration, replication, host election, and badge re
   const { useIsSyncHost, useSyncReplication } = await import("../../hooks/useSyncRole");
   const { replicationChannelName, replicationLockName } = await import("../syncReplication");
   const { DesktopBadge } = await import("../../components/DesktopBadge");
+  const { installAuthPrincipalBoundary } = await import("../principalBoundary");
+  const { durableAuthStorage } = await import("../../lib/durableAuthStorage");
+  const stopAuthBoundary = installAuthPrincipalBoundary();
 
   function Feeders() {
     useSyncReplication(true);
@@ -62,7 +66,7 @@ test("the shell claim starts hydration, replication, host election, and badge re
     await db.meta.put({ key: "currentUser", value: { _id: "userA" } });
     await db.meta.put({ key: "cacheOwner", value: { principal: "userA", at: 1, reason: "seed" } });
     const id = "a".repeat(32);
-    await db.table("sessions").put({ _id: id, session_id: "cached", updated_at: Date.now() });
+    await db.table("sessions").put(session(id, { session_id: "cached", user_id: "userA", awaiting_input: true }));
     db.close({ disableAutoOpen: false });
 
     installWindowRoleTracker();
@@ -89,9 +93,14 @@ test("the shell claim starts hydration, replication, host election, and badge re
     expect(channels).toContain(replicationChannelName("userA"));
     expect(locks).toEqual([replicationLockName("userA")]);
     expect(container.textContent).toBe("Host feeders");
-    expect(badgeCounts).toEqual([0]);
+    expect(badgeCounts).toEqual([1]);
+
+    await act(async () => { durableAuthStorage.removeItem(AUTH_JWT_STORAGE_KEY); });
+    expect(useInboxStore.getState().clientStateInitialized).toBe(false);
+    expect(badgeCounts).toEqual([1, 0]);
   } finally {
     await act(async () => { root.unmount(); });
+    stopAuthBoundary();
     db.close();
     closeDomWindow(dom);
     restore();

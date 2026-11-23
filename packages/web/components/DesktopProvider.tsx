@@ -44,6 +44,7 @@ import { useInboxStore } from "../store/inboxStore";
 import { showBrowserHandoffToast } from "./BrowserHandoffToast";
 import { usePresenceReporter } from "../hooks/usePresenceReporter";
 import { useNotificationDelivery } from "../hooks/useNotificationDelivery";
+import { useDesktopStoreReady } from "../hooks/useDesktopStoreReady";
 import { agentAlertsSuppressed } from "../lib/notificationDelivery";
 import { requestAnsweredSince } from "../hooks/useSyncInboxSessions";
 
@@ -127,14 +128,16 @@ export function DesktopProvider() {
   };
 
   const hydrated = useInboxStore((s) => s.clientStateInitialized);
-  const canReportWindowState = hydrated || !isDesktop();
+  const storeReady = useDesktopStoreReady();
+  const canReportWindowState = storeReady || !isDesktop();
+  const canDeliverNotifications = hydrated || !isDesktop();
 
   // Report "a human is at this desktop" so the server holds mobile pushes
   // while you're here (pushRouter.ts). Runs on web and Electron alike.
   usePresenceReporter();
 
   const notifications = useQueryNoThrow(api.notifications.list, {}).data;
-  useNotificationDelivery(canReportWindowState && isAuthenticated && notifications !== undefined);
+  useNotificationDelivery(canDeliverNotifications && isAuthenticated && notifications !== undefined);
   // The latest rows, for a banner asking at show time whether its row still stands.
   const notificationsRef = useRef(notifications);
   notificationsRef.current = notifications;
@@ -163,7 +166,7 @@ export function DesktopProvider() {
   readinessRef.current = readiness;
 
   useWatchEffect(() => {
-    if (!canReportWindowState || !notifications) return;
+    if (!canDeliverNotifications || !notifications) return;
     if (isPaletteWindow()) return;
     const canNotify = isDesktop() || hasBrowserNotificationPermission();
 
@@ -268,7 +271,7 @@ export function DesktopProvider() {
       }
     }
     seenIdsRef.current = new Set(notifications.map((n) => n._id).filter((id) => !waiting.has(id)));
-  }, [canReportWindowState, notifications, chatRowsHeld]);
+  }, [canDeliverNotifications, notifications, chatRowsHeld]);
 
   const updateDismissed = useInboxStore(s => s.updateClientDismissed);
 

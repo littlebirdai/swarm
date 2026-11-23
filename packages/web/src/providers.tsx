@@ -20,6 +20,7 @@ import { bridge } from "@/lib/desktop";
 import { TipProvider } from "@/tips/TipProvider";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useDesktopStoreReady } from "@/hooks/useDesktopStoreReady";
 import { identifyUser, keepReplay, resetUser } from "@/lib/analytics";
 import { ClientResourceTelemetry } from "@/lib/telemetry/clientResourceTelemetry";
 import { CodecastAuthRoot } from "@/lib/authRoot";
@@ -32,14 +33,14 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 // shortcut catalog. Rebinding in settings, on another device, or by an agent
 // through `cast shortcuts` all land in the store, and from there here.
 function KeyBindingsSync() {
-  const s = useTrackedStore([(s) => s.clientState.ui?.key_bindings, (s) => s.clientStateInitialized]);
+  const s = useTrackedStore([(s) => s.clientState.ui?.key_bindings]);
   const bindings = s.clientState.ui?.key_bindings;
-  const hydrated = s.clientStateInitialized;
+  const storeReady = useDesktopStoreReady();
   useWatchEffect(() => {
     setKeyBindings(bindings);
     // The desktop menu bar repeats a few chords natively; it follows too.
-    if (hydrated) bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
-  }, [bindings, hydrated]);
+    if (storeReady) bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
+  }, [bindings, storeReady]);
   return null;
 }
 

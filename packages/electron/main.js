@@ -698,9 +698,15 @@ function openWarmWindow(navPath, place, coldArgs = []) {
       `(${waitForWarmWindowPaint})(${SPARE_REVEAL_TIMEOUT_MS})`
     );
     sendNavigate(win, navPath);
-    painted
+    // A reload can strand the page's promise and its timer.
+    let revealTimer;
+    const deadline = new Promise((resolve) => {
+      revealTimer = setTimeout(resolve, SPARE_REVEAL_TIMEOUT_MS + 100);
+    });
+    Promise.race([painted, deadline])
       .catch(() => {})
       .then(() => {
+        clearTimeout(revealTimer);
         if (!win.isDestroyed()) win.show();
       });
   } else {
@@ -3443,7 +3449,8 @@ function applyStagedUpdateOnQuit() {
 
 // IPC handlers
 shellIpc.handle("get-app-version", () => app.getVersion());
-shellIpc.handle("set-badge-count", (_e, count) => {
+shellIpc.handle("set-badge-count", (e, count) => {
+  if (e.sender === spareTabWindow?.webContents) return;
   app.setBadgeCount(count);
   trayNeedsInput = count;
   applyTrayState();

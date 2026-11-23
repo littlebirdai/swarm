@@ -88,6 +88,32 @@ test("the preload sees the current role when a spare reloads after claim", (t) =
   assert.equal(boot(), false);
 });
 
+test("only claimed windows can update the badge", (t) => {
+  const { rig, spare } = warmSpare(t);
+  const counts = [];
+  rig.electron.app.setBadgeCount = (count) => counts.push(count);
+  const setBadgeCount = rig.handlers.get("set-badge-count");
+  const event = rig.event(spare.webContents);
+  setBadgeCount(rig.event(), 3);
+  setBadgeCount(event, 0);
+  assert.deepEqual(counts, [3]);
+  rig.handlers.get("detach-tab")(rig.event(), "/inbox");
+  setBadgeCount(event, 0);
+  assert.deepEqual(counts, [3, 0]);
+});
+
+test("main reveals the claimed spare if the renderer never answers", async (t) => {
+  const { rig, spare } = warmSpare(t);
+  spare.webContents.executeJavaScript = () => new Promise(() => {});
+  rig.handlers.get("detach-tab")(rig.event(), "/inbox");
+  t.mock.timers.tick(499);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(spare.isVisible(), false);
+  t.mock.timers.tick(1);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(spare.isVisible(), true);
+});
+
 for (const hydrates of [true, false]) {
   test(hydrates ? "reveal waits for hydration and the painted route" : "reveal has a deadline if hydration stalls", async (t) => {
     const { rig, spare } = warmSpare(t);
