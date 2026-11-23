@@ -401,7 +401,7 @@ describe("invariants", () => {
     await planted(world, "INV-outbox", "conversations.kill (ob-1) {\"conversation_id\":\"ada/s0\"}", { onRow: false });
   });
 
-  test("INV-triggers: cached history is valid, but a ghost trigger and an incorrect armed kind are violations", async () => {
+  test("INV-triggers: cached history is valid, but a ghost trigger, a drifted cached trigger and an incorrect armed kind are violations", async () => {
     const world = fixture(11);
     const finished = [];
     for (let i = 0; i < 51; i++) {
@@ -421,6 +421,8 @@ describe("invariants", () => {
     world.labels.register(ghost, "trigger:ghost");
     await plant(ada, (s) => ({ agentTasks: { ...s.agentTasks, [ghost]: { _id: ghost, user_id: ADA, title: "ghost" } } }));
     await planted(world, "INV-triggers", "trigger:ghost");
+    await plant(ada, (s) => ({ agentTasks: { ...s.agentTasks, [cached._id]: { ...cached, status: "scheduled" } } }));
+    await planted(world, "INV-triggers", "a cached trigger disagrees with the stored row", { onRow: false });
   });
 
   test("INV-pending-sends: a bubble still in flight, and a client_id on two rows", async () => {
