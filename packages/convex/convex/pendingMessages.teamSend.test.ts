@@ -5,11 +5,12 @@ import {
   claimPendingMessageForDaemon,
   markPendingDelivered,
   updatePendingMessageStatusForDaemon,
-  healAndNotifyStuckMessages,
+  applyStuckMessages,
+  DEAD_SESSION_REVIVES_PER_PASS,
   enqueuePendingMessage,
   resetConversationPendingMessages,
   retryPendingMessageForUser,
-  planStuckMessageIds,
+  planStuckMessages,
   planStuckSendNotify,
   stuckSendReach,
   STUCK_SEND_NOTIFY_DEADLINE_MS,
@@ -21,7 +22,7 @@ import {
 // ── In-memory Convex-ish DB ──────────────────────────────────────────────────
 // A small fake `ctx.db` that's faithful enough to run the REAL send / poll / claim / heal code
 // end-to-end across two users and a team. withIndex ignores the index NAME and matches on the
-// eq/gt constraints the query builder declares — equivalent to the real index for these queries.
+// index constraints the query builder declares — equivalent to the real index for these queries.
 // We deliberately never pass client_id, so enqueue's `.filter()` dedup branch is never taken
 // (the fake's query chain doesn't implement .filter).
 
@@ -53,7 +54,7 @@ function createDb(seed: Record<string, Rec[]>) {
       Object.assign(row, patch);
     },
     query(table: string) {
-      const constraints: Array<{ field: string; op: "eq" | "gt"; val: any }> = [];
+      const constraints: Array<{ field: string; op: "eq" | "gt" | "lte"; val: any }> = [];
       const q: any = {
         eq(field: string, val: any) {
           constraints.push({ field, op: "eq", val });
@@ -63,13 +64,17 @@ function createDb(seed: Record<string, Rec[]>) {
           constraints.push({ field, op: "gt", val });
           return q;
         },
+        lte(field: string, val: any) {
+          constraints.push({ field, op: "lte", val });
+          return q;
+        },
       };
       const run = () =>
         (tables[table] ?? []).filter((r) =>
           constraints.every((c) =>
             c.op === "eq"
               ? String(r[c.field]) === String(c.val)
-              : (r[c.field] ?? -Infinity) > c.val
+              : c.op === "gt" ? (r[c.field] ?? -Infinity) > c.val : r[c.field] <= c.val
           )
         );
       let descending = false;
@@ -97,6 +102,12 @@ function createDb(seed: Record<string, Rec[]>) {
     },
   };
   return { ctx: { db }, db, tables };
+}
+
+function applySweepPage(ctx: { db: unknown }, now: number, ids: string[]) {
+  return (applyStuckMessages as any)._handler(ctx, {
+    ids, now, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+  });
 }
 
 // Shared world: Alice and Bob are on team T. Bob has a shared session (convBob) and a private one
@@ -542,13 +553,13 @@ describe("settled recipient recovery end to end", () => {
     const msg = tables.pending_messages[0];
     await db.patch(msg._id, { status: "undeliverable", retry_count: 10, created_at: now - 600000 });
     await db.patch("msBob", { agent_status: agentStatus, agent_status_updated_at: now - 60000 });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0, waiting: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 1 });
     await db.patch("msBob", { agent_status_updated_at: now - 300000 });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 1, waiting: 0 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 0 });
     expect(await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob"))
       .toMatchObject({ content: msg.content, status: "pending", retry_count: 0 });
     await markPendingDelivered(ctx as any, msg);
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0 });
     expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
   });
 
@@ -561,13 +572,13 @@ describe("settled recipient recovery end to end", () => {
     await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 9 * 60_000 });
     await db.patch(msg._id, { created_at: now - 10 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0, failedUnconfirmed: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, failedUnconfirmed: 1 });
     expect(await db.get(msg._id)).toMatchObject({ status: "failed", delivery_disposition_reason: "unconfirmed" });
     // The sending session is told once that it may have landed.
     const notices = tables.pending_messages.filter((r: any) => r.conversation_id === "convAlice" && /never confirmed/.test(r.content));
     expect(notices).toHaveLength(1);
     expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
-    expect(await healAndNotifyStuckMessages(ctx as any, now + 60_000)).toMatchObject({ revived: 0, failedUnconfirmed: 0 });
+    expect(await applySweepPage(ctx, now + 60_000, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, failedUnconfirmed: 0 });
     expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toHaveLength(0);
     // The sender's retry control puts it back in line.
     expect(await retryPendingMessageForUser(ctx as any, "uAlice" as any, "convBob" as any, { messageId: msg._id })).toBe("pending");
@@ -584,7 +595,7 @@ describe("settled recipient recovery end to end", () => {
     await db.patch(msg._id, { created_at: now - 10 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
     await db.patch("convAlice", { status: "completed", inbox_killed_at: now - 60_000 });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ failedUnconfirmed: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 1 });
     expect(tables.pending_messages.filter((r: any) => r.conversation_id === "convAlice")).toHaveLength(0);
     expect(await db.get("convAlice")).toMatchObject({ status: "completed" });
     expect((await db.get(msg._id))?.sender_notified_at).toBeDefined();
@@ -597,7 +608,7 @@ describe("settled recipient recovery end to end", () => {
     const msg = tables.pending_messages[0];
     await db.patch(msg._id, { created_at: now - 4 * 60_000 });
     await db.patch("msBob", { agent_status: "working" });
-    await healAndNotifyStuckMessages(ctx as any, now);
+    await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
     const receipts = () => tables.pending_messages.filter((r: any) => r.conversation_id === "convAlice");
     expect(receipts()).toHaveLength(0);
 
@@ -605,7 +616,7 @@ describe("settled recipient recovery end to end", () => {
     await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 9 * 60_000 });
     await db.patch(msg._id, { created_at: now - 10 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ failedUnconfirmed: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 1 });
     expect(receipts()).toHaveLength(1);
     expect(receipts()[0].content).toMatch(/never confirmed/);
     expect(receipts()[0].content).toContain("> Heads-up from Alice. Root cause: the verifier");
@@ -620,7 +631,7 @@ describe("settled recipient recovery end to end", () => {
     await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 5 * 60_000 });
     await db.patch(msg._id, { created_at: now - 6 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    await healAndNotifyStuckMessages(ctx as any, now);
+    await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
     expect(await db.get(msg._id)).toMatchObject({ status: "failed", delivery_disposition_reason: "unconfirmed" });
 
     expect(await resetConversationPendingMessages(ctx as any, "convBob" as any)).toBe(0);
@@ -633,7 +644,7 @@ describe("settled recipient recovery end to end", () => {
     const second = await enqueuePendingMessage(ctx as any, await db.get("convBob"), "uBob" as any, { content: wake, origin: "scheduler" });
     expect(second).not.toBe(first);
 
-    expect(await healAndNotifyStuckMessages(ctx as any, now + 25 * 60 * 60_000)).toMatchObject({ expiredUnconfirmed: 2 });
+    expect(await applySweepPage(ctx, now + 25 * 60 * 60_000, tables.pending_messages.map((row) => row._id))).toMatchObject({ expiredUnconfirmed: 2 });
     expect([(await db.get(msg._id))?.status, (await db.get(first))?.status]).toEqual(["cancelled", "cancelled"]);
   });
 
@@ -646,10 +657,10 @@ describe("settled recipient recovery end to end", () => {
     await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 5 * 60_000 });
     await db.patch(msg._id, { created_at: now - 60 * 60_000 });
     await db.patch("msBob", { last_heartbeat: now - 10 * 60_000 });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ failedUnconfirmed: 0 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 0 });
     expect((await db.get(msg._id))?.status).toBe("injected");
     await db.patch(msg._id, { paste_verified_at: now - 40 * 60_000 });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ failedUnconfirmed: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 1 });
     expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
   });
 
@@ -665,12 +676,12 @@ describe("settled recipient recovery end to end", () => {
     await db.patch("msBob", { agent_status: agentStatus });
 
     expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toHaveLength(0);
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 1, waiting: 0 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 0 });
     const deliverable = await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob");
     expect(deliverable.map(row => row._id)).toEqual([msg._id]);
     expect(await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob")).toMatchObject({ content: originalContent, status: "pending", retry_count: 0 });
     await markPendingDelivered(ctx as any, await db.get(msg._id) as any);
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0 });
     expect((await db.get(msg._id))?.status).toBe("delivered");
     expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
   });
@@ -682,7 +693,7 @@ describe("settled recipient recovery end to end", () => {
     const msg = tables.pending_messages[0];
     await db.patch(msg._id, { status: "injected", created_at: now - 600_000, retry_count: 6 });
     await db.patch("msBob", { agent_status: agentStatus });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0, waiting: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 1 });
     expect(msg).toMatchObject({ status: "injected", retry_count: 6 });
   });
 
@@ -695,14 +706,14 @@ describe("settled recipient recovery end to end", () => {
     const msg = tables.pending_messages[0];
     await db.patch(msg._id, { status: "injected", created_at: now - 600_000, retry_count: 2 });
     await db.patch("msBob", { agent_status: "dormant" });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 1, waiting: 0 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 0 });
     expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toEqual([expect.objectContaining({ _id: msg._id })]);
     expect(await db.get(msg._id)).toMatchObject({ status: "pending", retry_count: 0, dead_session_revived_at: now });
     expect((await db.get("convBob"))?.has_pending_messages).toBe(true);
 
     // The resumed session failed again: the row waits for readiness like any other.
     await db.patch(msg._id, { status: "injected" });
-    expect(await healAndNotifyStuckMessages(ctx as any, now + 600_000)).toMatchObject({ revived: 0, waiting: 1 });
+    expect(await applySweepPage(ctx, now + 600_000, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 1 });
   });
 
   test("an old or exhausted message on a session with no live process keeps waiting", async () => {
@@ -712,7 +723,7 @@ describe("settled recipient recovery end to end", () => {
     await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "spent" });
     await db.patch(tables.pending_messages[0]._id, { status: "injected", created_at: now - DEAD_SESSION_REVIVE_WINDOW_MS });
     await db.patch(tables.pending_messages[1]._id, { status: "undeliverable", created_at: now - 600_000 });
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0, waiting: 2 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 2 });
   });
 
   test("planDeadSessionRevive", () => {
@@ -743,7 +754,7 @@ describe("remote not responding — feedback to the sending session", () => {
       _id: "msAlice", conversation_id: "convAlice", agent_status: "idle", last_heartbeat: now,
     });
 
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 1, waiting: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 1 });
     expect(orphan).toMatchObject({ status: "failed", retry_count: 3, content: "Keep this message" });
     expect(healthy.status).toBe("pending");
     expect(await ctx.db.get("convAlice")).toMatchObject({ has_pending_messages: true });
@@ -757,7 +768,7 @@ describe("remote not responding — feedback to the sending session", () => {
     msg.created_at = now - STUCK_SEND_NOTIFY_DEADLINE_MS - 60_000;
     tables.conversations = tables.conversations.filter((row) => row._id !== "convBob");
 
-    expect(await healAndNotifyStuckMessages(ctx as any, now)).toMatchObject({ revived: 0, notified: 1 });
+    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, notified: 1 });
     expect(msg.status).toBe("cancelled");
     expect(tables.pending_messages.find((row) => row.conversation_id === "convAlice")?.content)
       .toContain("could not be delivered");
@@ -770,14 +781,14 @@ describe("remote not responding — feedback to the sending session", () => {
     const msg = tables.pending_messages[0];
     msg.created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await healAndNotifyStuckMessages(ctx as any, now)).notified).toBe(0);
+    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
     expect(msg.status).toBe("pending");
     expect(tables.pending_messages.filter((m) => m.conversation_id === "convAlice")).toHaveLength(0);
 
     // Bob's daemon returns and the session settles: the cron's readiness gate is all that held it.
     tables.managed_sessions.push({ _id: "msBobBack", conversation_id: "convBob", agent_status: "idle", last_heartbeat: now + 60_000 });
     msg.status = "undeliverable";
-    expect((await healAndNotifyStuckMessages(ctx as any, now + 60_000)).revived).toBe(1);
+    expect((await applySweepPage(ctx, now + 60_000, tables.pending_messages.map((row) => row._id))).revived).toBe(1);
     expect(msg.status).toBe("pending");
   });
 
@@ -788,7 +799,7 @@ describe("remote not responding — feedback to the sending session", () => {
     const msg = tables.pending_messages[0];
     msg.created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await healAndNotifyStuckMessages(ctx as any, now)).notified).toBe(0);
+    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
     expect(msg.status).toBe("pending");
     expect(tables.pending_messages.filter((m) => m.conversation_id === "convAlice")).toHaveLength(0);
   });
@@ -800,8 +811,8 @@ describe("remote not responding — feedback to the sending session", () => {
     tables.pending_messages[0].created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
     tables.pending_messages[0].delivery_disposition_reason = "runs in Ghostty, which Codecast can't type into";
 
-    const first = await healAndNotifyStuckMessages(ctx as any, now);
-    const second = await healAndNotifyStuckMessages(ctx as any, now + 60_000);
+    const first = await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
+    const second = await applySweepPage(ctx, now + 60_000, tables.pending_messages.map((row) => row._id));
     expect(first.notified).toBe(1);
     expect(second.notified).toBe(0);
     const receipts = tables.pending_messages.filter((m) => m.conversation_id === "convAlice");
@@ -815,7 +826,7 @@ describe("remote not responding — feedback to the sending session", () => {
     await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "fresh" });
     tables.pending_messages[0].created_at = now - 30_000; // young
 
-    const summary = await healAndNotifyStuckMessages(ctx as any, now);
+    const summary = await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
     expect(summary.notified).toBe(0);
     expect(tables.pending_messages[0].status).toBe("pending");
     expect(tables.pending_messages.filter((m) => m.conversation_id === "convAlice")).toHaveLength(0);
@@ -832,7 +843,7 @@ describe("a session's own agents: a wait is never reported", () => {
     const msg = tables.pending_messages[0];
     msg.created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await healAndNotifyStuckMessages(ctx as any, now)).notified).toBe(0);
+    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
     expect(msg.status).not.toBe("cancelled");
     expect(tables.pending_messages.filter((m) => m.conversation_id === "convBobPriv")).toHaveLength(0);
   });
@@ -843,7 +854,7 @@ describe("a session's own agents: a wait is never reported", () => {
     await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", from: "jxbobpv", body: "plan is ready" });
     tables.pending_messages[0].created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await healAndNotifyStuckMessages(ctx as any, now)).notified).toBe(0);
+    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
     expect(tables.pending_messages.filter((m) => m.conversation_id === "convBobPriv")).toHaveLength(0);
   });
 });
@@ -1006,11 +1017,11 @@ describe("stuck message pass split into plan and apply", () => {
     await db.patch("msBob", { agent_status: "idle" });
     const before = JSON.stringify(tables.pending_messages);
 
-    const planned = await planStuckMessageIds(ctx as any, now);
-    expect(planned).toEqual([[msg._id]]);
+    const { groups: planned } = await (planStuckMessages as any)._handler(ctx, { now });
+    expect(planned).toEqual([{ conversationId: msg.conversation_id, ids: [msg._id] }]);
     expect(JSON.stringify(tables.pending_messages)).toBe(before);
 
-    expect(await healAndNotifyStuckMessages(ctx as any, now, planned[0])).toMatchObject({ revived: 1, waiting: 0 });
+    expect(await applySweepPage(ctx, now, planned[0].ids)).toMatchObject({ revived: 1, waiting: 0 });
     expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toHaveLength(1);
   });
 
@@ -1024,8 +1035,8 @@ describe("stuck message pass split into plan and apply", () => {
     await db.patch("msBob", { agent_status: "idle" });
     const [bob1, alice, bob2] = tables.pending_messages.map((m: any) => m._id);
 
-    const planned = await planStuckMessageIds(ctx as any, now);
-    expect(planned.map((g) => [...g].sort())).toEqual([[bob1, bob2].sort(), [alice]]);
+    const { groups: planned } = await (planStuckMessages as any)._handler(ctx, { now });
+    expect(planned.map((g: { ids: string[] }) => [...g.ids].sort())).toEqual([[bob1, bob2].sort(), [alice]]);
   });
 
   test("a row waiting on a busy session is not planned", async () => {
@@ -1034,6 +1045,6 @@ describe("stuck message pass split into plan and apply", () => {
     await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "later" });
     await db.patch(tables.pending_messages[0]._id, { status: "undeliverable", retry_count: 10, created_at: now - 600000 });
     await db.patch("msBob", { agent_status: "working", agent_status_updated_at: now - 60000 });
-    expect(await planStuckMessageIds(ctx as any, now)).toEqual([]);
+    expect(await (planStuckMessages as any)._handler(ctx, { now })).toMatchObject({ groups: [] });
   });
 });

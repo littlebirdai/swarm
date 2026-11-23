@@ -4,7 +4,7 @@ import { addMessage, addMessages } from "./messages";
 import { setSessionError } from "./conversations";
 import {
   claimPendingMessageForDaemon, collectDeliverableForOwner, enqueuePendingMessage,
-  getConversationPendingMessage, healAndNotifyStuckMessages, retryMessage,
+  getConversationPendingMessage, applyStuckMessages, DEAD_SESSION_REVIVES_PER_PASS, retryMessage,
 } from "./pendingMessages";
 import { PendingDeliveryHeldError, requirePendingDeliveryAdmission } from "../../cli/src/pendingDeliveryAdmission";
 
@@ -84,7 +84,9 @@ describe("safety stop survives transcript ingestion and delivery recovery", () =
     expect(await collectDeliverableForOwner(ctx, USER, "device")).toEqual([]);
     const before = { ...await ctx.db.get(id) };
     await (retryMessage as any)._handler(ctx, { message_id: id, device_id: "device" });
-    expect(await healAndNotifyStuckMessages(ctx, Date.now() + 24 * 60 * 60 * 1000)).toMatchObject({ revived: 0, notified: 0 });
+    expect(await (applyStuckMessages as any)._handler(ctx, {
+      ids: [id], now: Date.now() + 24 * 60 * 60 * 1000, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+    })).toMatchObject({ revived: 0, notified: 0 });
     expect(await ctx.db.get(id)).toEqual(before);
     expect(await (getConversationPendingMessage as any)._handler(ctx, { conversation_id: CONVERSATION }))
       .toMatchObject({ content: "Please review the update", status: "pending", retry_count: 0 });
@@ -111,7 +113,9 @@ describe("safety stop survives transcript ingestion and delivery recovery", () =
     await ctx.db.patch(id, { created_at: 1, from_conversation_id: "conversations_sender" });
     const before = { ...await ctx.db.get(id) };
     expect(await claimPendingMessageForDaemon(ctx, id, USER, "device")).toBeNull();
-    expect(await healAndNotifyStuckMessages(ctx, Date.now())).toMatchObject({ revived: 0, notified: 0, waiting: 1 });
+    expect(await (applyStuckMessages as any)._handler(ctx, {
+      ids: [id], now: Date.now(), deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+    })).toMatchObject({ revived: 0, notified: 0, waiting: 1 });
     expect(await ctx.db.get(id)).toEqual(before);
   });
 

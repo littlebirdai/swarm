@@ -13,7 +13,7 @@ import { declineText, defineTool, Type, type Tool } from "@platform/agent";
 import schema from "../schema";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { enqueuePendingMessage, healAndNotifyStuckMessages } from "../pendingMessages";
+import { enqueuePendingMessage, DEAD_SESSION_REVIVES_PER_PASS } from "../pendingMessages";
 import { finalizeAnswer } from "../sessionDecisions";
 import { decisionAnswerClientId } from "@codecast/shared/contracts";
 import { ROUTINE_SHOWS_UP } from "@codecast/shared/contracts/assistant";
@@ -467,10 +467,10 @@ describe("approvals", () => {
 
   test("a routine firing while the card is open waits for the answer", async () => {
     const { t, user, conversationId } = await parkOnApproval();
-    await t.run(async (ctx) => {
+    const routine = await t.run(async (ctx) => {
       const conversation = await ctx.db.get(conversationId);
       // enqueuePendingMessage wakes a hosted conversation itself.
-      await enqueuePendingMessage(ctx, conversation, user, { content: "Daily: check the inbox", origin: "scheduler" });
+      return enqueuePendingMessage(ctx, conversation, user, { content: "Daily: check the inbox", origin: "scheduler" });
     });
     await settle(t);
     let s = await expectBalanced(t, conversationId, user);
@@ -479,7 +479,9 @@ describe("approvals", () => {
     expect(s.messages.some((m) => m.tool_results?.some((r) => r.tool_use_id === "call_send"))).toBe(false);
     expect(await t.run((ctx) => hostedInputWaits(ctx, conversationId))).toBe(true);
     // The stuck-message sweep leaves it alone for as long as the card is open.
-    const swept = await t.run((ctx) => healAndNotifyStuckMessages(ctx, Date.now() + 60 * 60_000));
+    const swept = await t.mutation(internal.pendingMessages.applyStuckMessages, {
+      ids: [routine], now: Date.now() + 60 * 60_000, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+    });
     expect(swept.rewoken).toBe(0);
 
     // The answer runs the call, then the routine gets a turn of its own.

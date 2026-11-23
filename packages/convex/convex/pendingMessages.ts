@@ -8,11 +8,11 @@ import { clientRunAnswerRefusal } from "./lib/commandRuns";
 import { formatShare, formatTokens, wakeCost, wakeFieldsOf } from "./wakeCost";
 import { noteWriteCause } from "./lifecycleEvents";
 import type { RegisteredMutation } from "convex/server";
-import { mutation, query, internalMutation, internalQuery, internalAction } from "./functions";
-import { v } from "convex/values";
+import { mutation, query, internalMutation, internalQuery, internalAction, type QueryCtx } from "./functions";
+import { v, type Infer } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
-import { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { HOSTED_IMAGE_REFUSAL, HOSTED_INPUT_MAX_CHARS, type WakeCause } from "@codecast/shared/contracts/assistant";
 import { findConversationByAnyRef, findConversationByAnyRefWhere } from "./conversationSessionLookup";
@@ -2148,28 +2148,13 @@ export function planDeadSessionRevive(
 // regardless of what the agent is doing) and `ready` (live AND the agent is idle, so it can take a
 // message right now). The cross-user notifier needs `live` to tell "busy" (alive but not idle)
 // apart from "offline" (no live daemon); both keep the message queued.
-async function liveAndReadyConversationIds(
-  ctx: { db: any },
-  now: number,
-  conversationIds?: Id<"conversations">[],
-): Promise<{ ready: Set<string>; live: Set<string> }> {
-  // Named conversations read only their own sessions: the range over every
-  // live heartbeat changes each second, and a mutation holding it never commits.
-  const sessions = conversationIds
-    ? (await Promise.all([...new Set(conversationIds.map(String))].map((id) => ctx.db
-      .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", id))
-      .collect()))).flat().filter((s: any) => (s.last_heartbeat ?? 0) > now - HEARTBEAT_ALIVE_MS)
-    : await ctx.db
-      .query("managed_sessions")
-      .withIndex("by_heartbeat", (q: any) => q.gt("last_heartbeat", now - HEARTBEAT_ALIVE_MS))
-      .collect();
+function liveAndReadyConversationIds(sessions: Doc<"managed_sessions">[], now: number) {
   const ready = new Set<string>();
   const live = new Set<string>();
   for (const s of sessions) {
-    if (!s.conversation_id) continue;
-    live.add(s.conversation_id.toString());
-    if (managedSessionReady(s, now)) ready.add(s.conversation_id.toString());
+    if (!s.conversation_id || s.last_heartbeat <= now - HEARTBEAT_ALIVE_MS) continue;
+    live.add(s.conversation_id);
+    if (managedSessionReady(s, now)) ready.add(s.conversation_id);
   }
   return { ready, live };
 }
@@ -2320,259 +2305,456 @@ export async function notifyStuckSend(
   if (giveUp) await patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const });
 }
 
-// The cron's pass, in two halves. A query reads the whole backlog (every
-// non-terminal row and every live session) and names the rows a pass would
-// act on; short mutations then re-decide and act on just those. One
-// mutation doing both read ranges that heartbeats and status writes change
-// every second, so it failed OCC on every retry and never committed: the
-// backstop was off and the cron re-ran back to back (2026-11-07).
-// Each conversation applies in its own mutation, and one that fails waits for
-// the next pass without stopping the rest. Batches of 50 rows across many
-// conversations held the rows daemons were retrying and every one of their
-// sessions' heartbeats, so the first batch failed every pass and the action
-// threw before reaching the others (61 of 61 passes, 2026-11-07 16:00 UTC).
+// The query reads a bounded page. Each conversation gets its own mutation
+// because heartbeat and delivery writes made the former multi-conversation
+// mutation fail OCC on all 61 attempts in an hour.
+export const STUCK_MESSAGES_PER_PAGE = 16;
+export const STUCK_MESSAGE_PAGES_PER_RUN = 32;
+export const STUCK_SESSIONS_PER_CONVERSATION = 4;
+export const STUCK_MESSAGE_RUN_BUDGET_MS = 40_000;
+// The recent page covers deadlines measured from created_at (the 2-minute
+// injected repend and the 3-minute sender notice). Rules measured from
+// paste_verified_at (fail_unconfirmed, the no-daemon wait, the unconfirmed
+// expiry) can fall due outside it and wait for the sweep. So can a burst of
+// more than one page of due rows: the newest page holds the slots.
+const FRESH_STUCK_MESSAGE_WINDOW_MS = 30 * 60_000;
+const NON_TERMINAL_STATUSES = ["pending", "injected", "failed", "undeliverable"] as const;
+const stuckCursor = v.object({
+  through: v.number(),
+  createdAt: v.number(),
+  creationTime: v.number(),
+});
+type StuckCursor = Infer<typeof stuckCursor>;
+type StuckGroup = { conversationId: Id<"conversations">; ids: Id<"pending_messages">[] };
+type StuckPlan = { groups: StuckGroup[]; next?: StuckCursor | null };
+const retryReason = v.union(v.literal("apply_failed"), v.literal("dead_revive_limit"));
+const retryUpdate = v.object({
+  conversationId: v.id("conversations"),
+  messageId: v.id("pending_messages"),
+  reason: v.optional(retryReason),
+});
+type RetryUpdate = Infer<typeof retryUpdate>;
+type ApplyStuckResult = Awaited<ReturnType<typeof healAndNotifyStuckMessages>>;
+
 export const retryStuckMessages = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
-    const groups: Id<"pending_messages">[][] = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now: Date.now() });
+    const now = Date.now();
+    const deadline = now + STUCK_MESSAGE_RUN_BUDGET_MS;
+    const deadRevived = new Set<Id<"conversations">>();
+    const hostedChecked = new Set<Id<"conversations">>();
+    const attempted = new Set<Id<"pending_messages">>();
     let failed = 0;
     let firstError: unknown;
-    for (const ids of groups) {
-      try {
-        await ctx.runMutation(internal.pendingMessages.applyStuckMessages, { ids });
-      } catch (error) {
-        failed++;
-        firstError ??= error;
+
+    async function applyPage(groups: StuckGroup[], clearCompleted: boolean): Promise<RetryUpdate[]> {
+      const updates: RetryUpdate[] = [];
+      for (const { conversationId, ids: groupIds } of groups) {
+        const ids = groupIds.filter((id) => !attempted.has(id));
+        if (clearCompleted) {
+          // A failed or deferred attempt was already stamped with this tick
+          // and cannot appear in the retry query again.
+          for (const messageId of groupIds) {
+            if (attempted.has(messageId)) updates.push({ conversationId, messageId });
+          }
+        }
+        if (ids.length === 0) continue;
+        for (const id of ids) attempted.add(id);
+
+        try {
+          const result: ApplyStuckResult = await ctx.runMutation(internal.pendingMessages.applyStuckMessages, {
+            ids,
+            now: Date.now(),
+            deadRevivesRemaining: deadRevived.has(conversationId) ? 1 : DEAD_SESSION_REVIVES_PER_PASS - deadRevived.size,
+            allowHostedWake: !hostedChecked.has(conversationId),
+          });
+          if (result.deadRevived > 0) deadRevived.add(conversationId);
+          if (result.checkedHosted) hostedChecked.add(conversationId);
+          const deferred = new Set(result.deferred);
+          for (const messageId of ids) {
+            if (deferred.has(messageId)) updates.push({ conversationId, messageId, reason: "dead_revive_limit" });
+            else if (clearCompleted) updates.push({ conversationId, messageId });
+          }
+        } catch (error) {
+          failed++;
+          firstError ??= error;
+          for (const messageId of ids) updates.push({ conversationId, messageId, reason: "apply_failed" });
+        }
+      }
+      return updates;
+    }
+
+    const fresh: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planFreshStuckMessages, { now });
+    const freshUpdates = await applyPage(fresh, true);
+    if (freshUpdates.length > 0) {
+      await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates: freshUpdates });
+    }
+
+    // Advance both queues while there is time. Repeated apply failures can
+    // use the retry budget without holding the normal sweep cursor.
+    let retriesRemain = true;
+    let sweepRemains = true;
+    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN && (retriesRemain || sweepRemains); page++) {
+      if (Date.now() >= deadline) break;
+      if (retriesRemain) {
+        const groups: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planStuckMessageRetries, { now });
+        retriesRemain = groups.length > 0;
+        if (retriesRemain) {
+          const updates = await applyPage(groups, true);
+          await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates });
+        }
+      }
+
+      if (Date.now() >= deadline) break;
+      if (sweepRemains) {
+        const { groups, next }: StuckPlan = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now });
+        const updates = await applyPage(groups, false);
+        if (next !== undefined || updates.length > 0) {
+          await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates, next });
+        }
+        sweepRemains = next != null;
       }
     }
+
     if (failed) {
-      console.warn(`retryStuckMessages: ${failed} of ${groups.length} conversation(s) left for the next pass: ${String(firstError).slice(0, 300)}`);
+      console.warn(`retryStuckMessages: ${failed} conversation apply failure(s) queued for retry: ${String(firstError).slice(0, 300)}`);
     }
   },
 });
 
 export const planStuckMessages = internalQuery({
   args: { now: v.number() },
-  handler: async (ctx, args): Promise<Id<"pending_messages">[][]> => planStuckMessageIds(ctx, args.now),
-});
-
-/** The rows a full pass would act on, one group per conversation, from a run against a db that drops every write. */
-export async function planStuckMessageIds(ctx: { db: any }, now: number): Promise<Id<"pending_messages">[][]> {
-    const dryDb = {
-      get: (...a: any[]) => ctx.db.get(...a),
-      query: (...a: any[]) => ctx.db.query(...a),
-      normalizeId: (...a: any[]) => ctx.db.normalizeId?.(...a),
-      system: ctx.db.system,
-      insert: async () => "dry" as any,
-      patch: async () => {},
-      replace: async () => {},
-      delete: async () => {},
-    };
-    const dryScheduler = { runAfter: async () => "dry" as any, runAt: async () => "dry" as any };
-    const result = await healAndNotifyStuckMessages({ db: dryDb, scheduler: dryScheduler as any }, now);
-    const byConversation = new Map<string, Id<"pending_messages">[]>();
-    for (const id of result.acted) {
-      const key = String((await ctx.db.get(id))?.conversation_id);
-      byConversation.set(key, [...(byConversation.get(key) ?? []), id]);
-    }
-    return [...byConversation.values()];
-}
-
-export const applyStuckMessages: RegisteredMutation<"internal", { ids: Id<"pending_messages">[] }, Promise<void>> = internalMutation({
-  args: { ids: v.array(v.id("pending_messages")) },
-  handler: async (ctx, args) => {
-    noteWriteCause(ctx, "cron:retryStuckMessages");
-    await healAndNotifyStuckMessages(ctx, Date.now(), args.ids);
+  handler: async (ctx, args): Promise<StuckPlan> => {
+    const state = await ctx.db.query("pending_message_sweep_state").first();
+    const cursor = state?.cursor ?? null;
+    const { candidates, next } = await readStuckMessagePage(ctx.db, args.now, cursor);
+    const groups = await planStuckMessageGroups(ctx, args.now, candidates);
+    return { groups, ...(next || cursor ? { next } : {}) };
   },
 });
 
-// The cron's work, extracted so it can be driven deterministically in tests with a fixed `now`.
-// Two jobs: (1) revive stranded messages once their session is idle (the never-drop backstop),
-// and (2) tell the sending session when a cross-user message is stuck past the deadline.
-export async function healAndNotifyStuckMessages(ctx: { db: any; scheduler?: WakeScheduler }, now: number, only?: Id<"pending_messages">[]): Promise<{
-  revived: number;
-  controlsAcked: number;
-  failedUnconfirmed: number;
-  expiredUnconfirmed: number;
-  notified: number;
-  waiting: number;
-  rewoken: number;
-  /** The rows this pass wrote something for (planStuckMessages). */
-  acted: Id<"pending_messages">[];
-}> {
-  {
-    // Scan every non-terminal state. `delivered`/`cancelled` are terminal so they're skipped.
-    // `pending` is included because a dropped daemon status-write (markInjectedBestEffort) can
-    // strand a never-delivered message there with no other backstop; planStuckMessageHeal only
-    // revives a pending row once it's older than any legitimate in-flight delivery, so fresh
-    // pending (the daemon's live work) is left untouched.
-    // Read ONLY non-terminal rows via the by_status index. The previous
-    // `.filter().collect()` scanned the entire pending_messages table (every
-    // delivered/cancelled row in history) on every 30s run, holding a read
-    // dependency on the whole table that OCC-conflicted with every addMessages
-    // pending-write — a self-amplifying stampede that timed out syncs and let the
-    // backlog (and thus the scan cost) grow without bound.
-    // `only` narrows the pass to named rows (applyStuckMessages), read by id.
-    const candidates: any[] = [];
-    if (only) {
-      for (const id of only) {
-        const row = await ctx.db.get(id);
-        if (row && (NON_TERMINAL_STATUSES as readonly string[]).includes(row.status)) candidates.push(row);
+export const planFreshStuckMessages = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, { now }): Promise<StuckGroup[]> => {
+    const pages = await Promise.all(NON_TERMINAL_STATUSES.map(async (status) => {
+      const grace = status === "pending" ? STUCK_SEND_NOTIFY_DEADLINE_MS
+        : status === "injected" ? INJECT_ACK_GRACE_MS : 0;
+      const rows = await ctx.db.query("pending_messages")
+        .withIndex("by_status_created", (q) =>
+          q.eq("status", status).gt("created_at", now - FRESH_STUCK_MESSAGE_WINDOW_MS).lte("created_at", now - grace))
+        .order("desc")
+        .take(STUCK_MESSAGES_PER_PAGE);
+      const page = rows.map((row) => ({ row, dueAt: row.created_at + grace }));
+      const remaining = STUCK_MESSAGES_PER_PAGE - rows.length;
+      if (status === "pending" && remaining > 0) {
+        // Pending text can heal before its sender is due a notice. Only spare room
+        // on the page is used, so with a queued backlog the repend waits for the notice tick.
+        const younger = await ctx.db.query("pending_messages")
+          .withIndex("by_status_created", (q) =>
+            q.eq("status", "pending").gt("created_at", now - grace).lte("created_at", now - INJECT_ACK_GRACE_MS))
+          .order("desc")
+          .take(remaining);
+        page.push(...younger.map((row) => ({ row, dueAt: row.created_at + INJECT_ACK_GRACE_MS })));
       }
-    } else {
-      for (const status of NON_TERMINAL_STATUSES) {
-        const rows = await ctx.db
-          .query("pending_messages")
-          .withIndex("by_status", (q: any) => q.eq("status", status))
-          .collect();
-        candidates.push(...rows);
+      return page;
+    }));
+    // Favor rows that just crossed their age threshold. Older rows keep
+    // moving through the chronological sweep even if this page is full.
+    const candidates = pages.flat().sort((a, b) => b.dueAt - a.dueAt || b.row._creationTime - a.row._creationTime)
+      .slice(0, STUCK_MESSAGES_PER_PAGE)
+      .map(({ row }) => row);
+    return planStuckMessageGroups(ctx, now, candidates);
+  },
+});
+
+export const planStuckMessageRetries = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, { now }): Promise<StuckGroup[]> => {
+    const failures = await ctx.db.query("pending_message_sweep_retries")
+      .withIndex("by_reason_attempted", (q) => q.eq("reason", "apply_failed").lt("attempted_at", now))
+      .take(STUCK_MESSAGES_PER_PAGE);
+    const remaining = STUCK_MESSAGES_PER_PAGE - failures.length;
+    const deferred = remaining > 0 ? await ctx.db.query("pending_message_sweep_retries")
+      .withIndex("by_reason_attempted", (q) => q.eq("reason", "dead_revive_limit").lt("attempted_at", now))
+      .take(remaining) : [];
+    return groupStuckMessages([...failures, ...deferred]);
+  },
+});
+
+export const checkpointStuckMessagePage = internalMutation({
+  args: { now: v.number(), next: v.optional(v.union(stuckCursor, v.null())), updates: v.array(retryUpdate) },
+  handler: async (ctx, { now, next, updates }): Promise<void> => {
+    if (next !== undefined) {
+      const state = await ctx.db.query("pending_message_sweep_state").first();
+      if (state) await ctx.db.patch(state._id, { cursor: next });
+      else if (next) await ctx.db.insert("pending_message_sweep_state", { cursor: next });
+    }
+    for (const { conversationId, messageId, reason } of updates) {
+      const retry = await ctx.db.query("pending_message_sweep_retries")
+        .withIndex("by_message_id", (q) => q.eq("message_id", messageId)).first();
+      if (reason === undefined) {
+        if (retry) await ctx.db.delete(retry._id);
+      } else if (retry) {
+        await ctx.db.patch(retry._id, { attempted_at: now, reason });
+      } else {
+        await ctx.db.insert("pending_message_sweep_retries", {
+          message_id: messageId, conversation_id: conversationId, attempted_at: now, reason,
+        });
       }
     }
+  },
+});
 
-    const { ready, live } = await liveAndReadyConversationIds(ctx, now, only ? candidates.map((m) => m.conversation_id) : undefined);
-    const acted = new Set<Id<"pending_messages">>();
+async function readStuckMessagePage(db: QueryCtx["db"], now: number, cursor: StuckCursor | null) {
+  // Fix the high-water mark until wraparound so fresh messages cannot keep
+  // an older row that becomes eligible behind the cursor out of the sweep.
+  const through = cursor?.through ?? now;
+  const pages = await Promise.all(NON_TERMINAL_STATUSES.map(async (status) => {
+    const equalTime = cursor ? await db.query("pending_messages")
+      .withIndex("by_status_created", (q) =>
+        q.eq("status", status).eq("created_at", cursor.createdAt).gt("_creationTime", cursor.creationTime))
+      .take(STUCK_MESSAGES_PER_PAGE) : [];
+    const remaining = STUCK_MESSAGES_PER_PAGE - equalTime.length;
+    if (remaining === 0) return equalTime;
+    const later = await db.query("pending_messages")
+      .withIndex("by_status_created", (q) => {
+        const range = q.eq("status", status);
+        return (cursor ? range.gt("created_at", cursor.createdAt) : range).lte("created_at", through);
+      })
+      .take(remaining);
+    return equalTime.concat(later);
+  }));
+  const candidates = pages.flat()
+    .sort((a, b) => a.created_at - b.created_at || a._creationTime - b._creationTime)
+    .slice(0, STUCK_MESSAGES_PER_PAGE);
+  const last = candidates.at(-1);
+  const next = last && candidates.length === STUCK_MESSAGES_PER_PAGE
+    ? { through, createdAt: last.created_at, creationTime: last._creationTime }
+    : null;
+  return { candidates, next };
+}
 
-    let revived = 0;
-    let controlsAcked = 0;
-    let failedUnconfirmed = 0;
-    let expiredUnconfirmed = 0;
-    let waiting = 0;
-    let notified = 0;
-    const reflag = new Set<Id<"conversations">>();
-    const safetyBlocked = new Map<string, boolean>();
-    const gone = new Set<string>();
-    const deadRevived = new Set<string>();
-    // Hosted conversations are served by their turn engine, not a daemon: a
-    // stale row there means a wake was lost, so the backstop wakes the
-    // conversation again (once per pass) instead of re-pending for a daemon.
-    const hosted = new Map<string, any>();
-    const rewoken = new Set<string>();
-    const hostedChecked = new Set<string>();
-    for (const msg of candidates) {
-      // Fenced rows use delivery attempts and permits; legacy elapsed-time
-      // healing must never reinterpret their state or synthesize a retry.
-      if (isFencedPendingMessage(msg)) continue;
-      const conversationId = String(msg.conversation_id);
-      if (!safetyBlocked.has(conversationId)) {
-        const conversation = await ctx.db.get(msg.conversation_id);
-        safetyBlocked.set(conversationId, !!conversation && isConversationSafetyBlocked(conversation));
-        if (conversation && isHostedAgentType(conversation.agent_type)) hosted.set(conversationId, conversation);
-        if (!conversation) {
-          gone.add(conversationId);
-          ready.delete(conversationId);
-          live.delete(conversationId);
+async function planStuckMessageGroups(ctx: { db: QueryCtx["db"] }, now: number, candidates: Doc<"pending_messages">[]): Promise<StuckGroup[]> {
+  const sessionsByConversation = await Promise.all(
+    queryStuckSessions(ctx.db, candidates, now).map((query) => query.take(STUCK_SESSIONS_PER_CONVERSATION)),
+  );
+  const readiness = liveAndReadyConversationIds(sessionsByConversation.flat(), now);
+  const uncertain = new Set(sessionsByConversation
+    .filter((sessions) => sessions.length === STUCK_SESSIONS_PER_CONVERSATION)
+    .map((sessions) => sessions[0].conversation_id!)
+    .filter((id) => !readiness.ready.has(id)));
+  const { acted } = await healStuckCandidates(ctx, now, candidates, readiness, candidates.length, true, async () => true);
+
+  // Treat a full session sample as inconclusive. The apply mutation checks
+  // all live sessions for that conversation before it can revive anything.
+  const actedIds = new Set(acted);
+  return groupStuckMessages(candidates
+    .filter((msg) => actedIds.has(msg._id) || (uncertain.has(msg.conversation_id) && !isFencedPendingMessage(msg)))
+    .map((msg) => ({ message_id: msg._id, conversation_id: msg.conversation_id })));
+}
+
+function groupStuckMessages(rows: { message_id: Id<"pending_messages">; conversation_id: Id<"conversations"> }[]): StuckGroup[] {
+  const groups = new Map<Id<"conversations">, StuckGroup>();
+  for (const row of rows) {
+    const group = groups.get(row.conversation_id);
+    if (group) group.ids.push(row.message_id);
+    else groups.set(row.conversation_id, { conversationId: row.conversation_id, ids: [row.message_id] });
+  }
+  return [...groups.values()];
+}
+
+export const applyStuckMessages: RegisteredMutation<"internal", {
+  ids: Id<"pending_messages">[];
+  now: number;
+  deadRevivesRemaining: number;
+  allowHostedWake: boolean;
+}, Promise<ApplyStuckResult>> = internalMutation({
+  args: { ids: v.array(v.id("pending_messages")), now: v.number(), deadRevivesRemaining: v.number(), allowHostedWake: v.boolean() },
+  handler: async (ctx, args) => {
+    noteWriteCause(ctx, "cron:retryStuckMessages");
+    return healAndNotifyStuckMessages(ctx, args.now, args.ids, args.deadRevivesRemaining, args.allowHostedWake);
+  },
+});
+
+async function healAndNotifyStuckMessages(
+  ctx: { db: QueryCtx["db"]; scheduler?: WakeScheduler },
+  now: number,
+  ids: Id<"pending_messages">[],
+  deadRevivesRemaining: number,
+  allowHostedWake: boolean,
+) {
+  const candidates = (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter(
+    (row): row is Doc<"pending_messages"> => row !== null && NON_TERMINAL_STATUSES.some((status) => status === row.status),
+  );
+  const sessions = (await Promise.all(queryStuckSessions(ctx.db, candidates, now).map((query) => query.collect()))).flat();
+  return healStuckCandidates(ctx, now, candidates, liveAndReadyConversationIds(sessions, now), deadRevivesRemaining, allowHostedWake, (effect) => effect());
+}
+
+function queryStuckSessions(db: QueryCtx["db"], candidates: Doc<"pending_messages">[], now: number) {
+  const conversations = new Set(candidates.filter((msg) => !isFencedPendingMessage(msg)).map((msg) => msg.conversation_id));
+  return [...conversations].map((id) => db.query("managed_sessions")
+    .withIndex("by_conversation_heartbeat", (q) => q.eq("conversation_id", id).gt("last_heartbeat", now - HEARTBEAT_ALIVE_MS)));
+}
+
+// A plan records eligible effects without running them. Receipts and hosted
+// approval checks can read other queues, so they run only in apply.
+async function healStuckCandidates(
+  ctx: { db: any; scheduler?: WakeScheduler },
+  now: number,
+  candidates: Doc<"pending_messages">[],
+  { ready, live }: ReturnType<typeof liveAndReadyConversationIds>,
+  deadRevivesRemaining: number,
+  allowHostedWake: boolean,
+  perform: (effect: () => Promise<boolean | void>) => Promise<boolean | void>,
+) {
+  const acted = new Set<Id<"pending_messages">>();
+  const deferred: Id<"pending_messages">[] = [];
+
+  let revived = 0;
+  let controlsAcked = 0;
+  let failedUnconfirmed = 0;
+  let expiredUnconfirmed = 0;
+  let waiting = 0;
+  let notified = 0;
+  const reflag = new Set<Id<"conversations">>();
+  const safetyBlocked = new Map<string, boolean>();
+  const gone = new Set<string>();
+  const deadRevived = new Set<string>();
+  // Hosted conversations are served by their turn engine, not a daemon: a
+  // stale row there means a wake was lost, so the backstop wakes the
+  // conversation again (once per pass) instead of re-pending for a daemon.
+  const hosted = new Map<string, any>();
+  const rewoken = new Set<string>();
+  const hostedChecked = new Set<string>();
+  for (const msg of candidates) {
+    // Fenced rows use delivery attempts and permits; legacy elapsed-time
+    // healing must never reinterpret their state or synthesize a retry.
+    if (isFencedPendingMessage(msg)) continue;
+    const conversationId = String(msg.conversation_id);
+    if (!safetyBlocked.has(conversationId)) {
+      const conversation = await ctx.db.get(msg.conversation_id);
+      safetyBlocked.set(conversationId, !!conversation && isConversationSafetyBlocked(conversation));
+      if (conversation && isHostedAgentType(conversation.agent_type)) hosted.set(conversationId, conversation);
+      if (!conversation) {
+        gone.add(conversationId);
+        ready.delete(conversationId);
+        live.delete(conversationId);
+      }
+    }
+    if (safetyBlocked.get(conversationId)) {
+      waiting++;
+      continue;
+    }
+    if (planStuckMessageHeal(msg, now).kind === "expire_unconfirmed") {
+      acted.add(msg._id);
+      await perform(() => patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const }));
+      expiredUnconfirmed++;
+      continue;
+    }
+    const hostedConversation = hosted.get(conversationId);
+    if (hostedConversation) {
+      if (allowHostedWake && planStuckMessageHeal(msg, now).kind !== "skip" && !hostedChecked.has(conversationId)) {
+        hostedChecked.add(conversationId);
+        // Input waiting on an open approval card stays pending on purpose,
+        // for as long as the card is open: the answer, a dismissal or the
+        // person's next message wakes it, so the sweep does not.
+        if (await perform(async () => !await hostedInputWaits(ctx, msg.conversation_id)
+          && await wakeHostedConversation(ctx, hostedConversation, "continue"))) {
+          rewoken.add(conversationId);
+          acted.add(msg._id);
+        } else {
+          waiting++;
         }
       }
-      if (safetyBlocked.get(conversationId)) {
+      continue;
+    }
+    // Sender feedback runs regardless of the target's readiness: a send past the deadline that
+    // the sender must act on (target gone, or held in a terminal) tells its sending session.
+    const reach = stuckSendReach(msg, { gone: gone.has(conversationId), live: live.has(conversationId), ready: ready.has(conversationId) });
+    const senderNotify = planStuckSendNotify(msg, reach, now);
+    if (senderNotify.kind === "notify") {
+      acted.add(msg._id);
+      await perform(() => notifyStuckSend(ctx, msg, senderNotify.reach));
+      notified++;
+      if (senderNotify.reach === "gone") continue; // cancelled — nothing more to do with this row
+    }
+    // A dialog hold describes a pane: the screen the daemon read on it. Once no daemon is
+    // serving the session there is no pane, and the card would go on saying "waiting for a
+    // human answer" about a terminal that is gone (jx78gaw, three days, 2026-10-13). Drop
+    // the hold so the row reads as what it is: queued for a session that is offline.
+    if (msg.delivery_hold_screen && !live.has(conversationId)) {
+      acted.add(msg._id);
+      await perform(() => ctx.db.patch(msg._id, { delivery_disposition_reason: undefined, delivery_hold_screen: undefined }));
+    }
+    // Session not ready to receive (busy / blocked / stopped / gone): leave the message
+    // exactly as-is — preserved, never dropped — and revive it once the session is idle.
+    // A session with no live process is the exception: see planDeadSessionRevive.
+    // No daemon serves the session any more: a submitted row it never confirmed
+    // will not confirm now, so it fails visibly rather than holding Working.
+    // A daemon that only paused (a laptop asleep, a restart) comes back and
+    // syncs the echo, so this waits far longer than the idle case.
+    if (!ready.has(conversationId) && !live.has(conversationId) && !gone.has(conversationId)
+      && (msg.paste_verified_at ?? now) <= now - UNSERVED_UNCONFIRMED_WAIT_MS
+      && planStuckMessageHeal(msg, now).kind === "fail_unconfirmed") {
+      acted.add(msg._id);
+      await perform(() => failUnconfirmed(ctx, msg));
+      failedUnconfirmed++;
+      continue;
+    }
+    if (!ready.has(conversationId)) {
+      const revivable = !live.has(conversationId) && !gone.has(conversationId) && planDeadSessionRevive(msg, now);
+      if (!revivable) {
         waiting++;
         continue;
       }
-      if (planStuckMessageHeal(msg, now).kind === "expire_unconfirmed") {
-        acted.add(msg._id);
-        await patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const });
-        expiredUnconfirmed++;
+      if (!deadRevived.has(conversationId) && deadRevived.size >= deadRevivesRemaining) {
+        deferred.push(msg._id);
+        waiting++;
         continue;
       }
-      const hostedConversation = hosted.get(conversationId);
-      if (hostedConversation) {
-        if (planStuckMessageHeal(msg, now).kind !== "skip" && !hostedChecked.has(conversationId)) {
-          hostedChecked.add(conversationId);
-          // Input waiting on an open approval card stays pending on purpose,
-          // for as long as the card is open: the answer, a dismissal or the
-          // person's next message wakes it, so the sweep does not.
-          if (await hostedInputWaits(ctx, msg.conversation_id)) {
-            waiting++;
-          } else {
-            rewoken.add(conversationId);
-            acted.add(msg._id);
-            await wakeHostedConversation(ctx, hostedConversation, "continue");
-          }
-        }
-        continue;
-      }
-      // Sender feedback runs regardless of the target's readiness: a send past the deadline that
-      // the sender must act on (target gone, or held in a terminal) tells its sending session.
-      const reach = stuckSendReach(msg, { gone: gone.has(conversationId), live: live.has(conversationId), ready: ready.has(conversationId) });
-      const senderNotify = planStuckSendNotify(msg, reach, now);
-      if (senderNotify.kind === "notify") {
-        acted.add(msg._id);
-        await notifyStuckSend(ctx, msg, senderNotify.reach);
-        notified++;
-        if (senderNotify.reach === "gone") continue; // cancelled — nothing more to do with this row
-      }
-      // A dialog hold describes a pane: the screen the daemon read on it. Once no daemon is
-      // serving the session there is no pane, and the card would go on saying "waiting for a
-      // human answer" about a terminal that is gone (jx78gaw, three days, 2026-10-13). Drop
-      // the hold so the row reads as what it is: queued for a session that is offline.
-      if (msg.delivery_hold_screen && !live.has(conversationId)) {
-        acted.add(msg._id);
-        await ctx.db.patch(msg._id, { delivery_disposition_reason: undefined, delivery_hold_screen: undefined });
-      }
-      // Session not ready to receive (busy / blocked / stopped / gone): leave the message
-      // exactly as-is — preserved, never dropped — and revive it once the session is idle.
-      // A session with no live process is the exception: see planDeadSessionRevive.
-      // No daemon serves the session any more: a submitted row it never confirmed
-      // will not confirm now, so it fails visibly rather than holding Working.
-      // A daemon that only paused (a laptop asleep, a restart) comes back and
-      // syncs the echo, so this waits far longer than the idle case.
-      if (!ready.has(conversationId) && !live.has(conversationId) && !gone.has(conversationId)
-        && (msg.paste_verified_at ?? now) <= now - UNSERVED_UNCONFIRMED_WAIT_MS
-        && planStuckMessageHeal(msg, now).kind === "fail_unconfirmed") {
-        acted.add(msg._id);
-        await failUnconfirmed(ctx, msg);
-        failedUnconfirmed++;
-        continue;
-      }
-      if (!ready.has(conversationId)) {
-        const revivable = !live.has(conversationId) && !gone.has(conversationId)
-          && planDeadSessionRevive(msg, now)
-          && (deadRevived.has(conversationId) || deadRevived.size < DEAD_SESSION_REVIVES_PER_PASS);
-        if (!revivable) {
-          waiting++;
-          continue;
-        }
-        deadRevived.add(conversationId);
-        acted.add(msg._id);
-        if (await rependPendingMessage(ctx, msg, 0)) {
-          await ctx.db.patch(msg._id, { dead_session_revived_at: now });
-          reflag.add(msg.conversation_id);
-          revived++;
-        }
-        continue;
-      }
-      const action = planStuckMessageHeal(msg, now);
-      if (action.kind === "skip") continue;
       acted.add(msg._id);
-      if (action.kind === "deliver_control") {
-        await markPendingDelivered(ctx, msg);
-        controlsAcked++;
-        continue;
-      }
-      if (action.kind === "fail_unconfirmed") {
-        await failUnconfirmed(ctx, msg);
-        failedUnconfirmed++;
-        continue;
-      }
-      if (await rependPendingMessage(ctx, msg, 0)) {
+      if (await perform(async () => {
+        if (!await rependPendingMessage(ctx, msg, 0)) return false;
+        await ctx.db.patch(msg._id, { dead_session_revived_at: now });
+        return true;
+      })) {
+        deadRevived.add(conversationId);
         reflag.add(msg.conversation_id);
         revived++;
       }
+      continue;
     }
+    const action = planStuckMessageHeal(msg, now);
+    if (action.kind === "skip") continue;
+    acted.add(msg._id);
+    if (action.kind === "deliver_control") {
+      await perform(() => markPendingDelivered(ctx, msg));
+      controlsAcked++;
+      continue;
+    }
+    if (action.kind === "fail_unconfirmed") {
+      await perform(() => failUnconfirmed(ctx, msg));
+      failedUnconfirmed++;
+      continue;
+    }
+    if (await perform(() => rependPendingMessage(ctx, msg, 0))) {
+      reflag.add(msg.conversation_id);
+      revived++;
+    }
+  }
+  await perform(async () => {
     for (const convId of reflag) {
       await ctx.db.patch(convId, { has_pending_messages: true });
     }
-
     if (revived > 0 || controlsAcked > 0 || failedUnconfirmed > 0 || expiredUnconfirmed > 0 || notified > 0 || rewoken.size > 0) {
       console.log(`retryStuckMessages: revived ${revived} for idle sessions, acked ${controlsAcked} control msg(s), failed ${failedUnconfirmed} unconfirmed, expired ${expiredUnconfirmed}, notified ${notified} stuck cross-user send(s), rewoke ${rewoken.size} hosted conversation(s), ${waiting} waiting on a busy/offline session`);
     }
-    return { revived, controlsAcked, failedUnconfirmed, expiredUnconfirmed, notified, waiting, rewoken: rewoken.size, acted: [...acted] };
-  }
+  });
+  return {
+    revived, controlsAcked, failedUnconfirmed, expiredUnconfirmed, notified, waiting, rewoken: rewoken.size,
+    acted: [...acted], deadRevived: deadRevived.size, checkedHosted: hostedChecked.size > 0, deferred,
+  };
 }
-
-// Non-terminal states: a message in any of these is still "in flight" and keeps the
-// conversation's has_pending_messages flag true (and the inbox card in "Working").
-const NON_TERMINAL_STATUSES = ["pending", "injected", "failed", "undeliverable"] as const;
-
 
 const NON_TERMINAL_PENDING_STATUSES = [
   "pending",

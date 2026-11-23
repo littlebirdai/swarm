@@ -3014,14 +3014,30 @@ export default defineSchema({
     // The daemon polls by the TARGET owner (owner_user_id), not the sender, so a teammate's
     // message lands in the right daemon's queue. Replaces by_user_status for delivery routing.
     .index("by_owner_status", ["owner_user_id", "status"])
-    // Lets the global retryStuckMessages cron read ONLY the handful of non-terminal
-    // rows instead of `.filter()`-scanning the entire table (which read-conflicts
-    // with every addMessages pending-write → OCC stampede → 60s sync timeouts).
     .index("by_status", ["status"])
+    .index("by_status_created", ["status", "created_at"])
     .index("by_conversation_sequence", ["conversation_id", "conversation_sequence"])
     .index("by_conversation_client_id", ["conversation_id", "client_id"])
     // `cast send --status`: one sender's sends into one target, newest first.
     .index("by_from_conversation", ["from_conversation_id", "conversation_id"]),
+
+  // Singleton storage for the stuck-message cron's current sweep.
+  pending_message_sweep_state: defineTable({
+    cursor: v.union(v.null(), v.object({
+      through: v.number(),
+      createdAt: v.number(),
+      creationTime: v.number(),
+    })),
+  }),
+
+  pending_message_sweep_retries: defineTable({
+    conversation_id: v.id("conversations"),
+    message_id: v.id("pending_messages"),
+    attempted_at: v.number(),
+    reason: v.union(v.literal("apply_failed"), v.literal("dead_revive_limit")),
+  })
+    .index("by_reason_attempted", ["reason", "attempted_at"])
+    .index("by_message_id", ["message_id"]),
 
   // One authoritative ordering/fencing row per conversation. Convex OCC on
   // this row serializes enqueue, delivery-slot acquisition, terminal-prefix
@@ -3613,6 +3629,7 @@ export default defineSchema({
     // addMessages asks whether its session is idle or blocked here: while the
     // session works the range is empty, so heartbeats never conflict with it.
     .index("by_conversation_status", ["conversation_id", "agent_status"])
+    .index("by_conversation_heartbeat", ["conversation_id", "last_heartbeat"])
     .index("by_heartbeat", ["last_heartbeat"]),
 
   session_metrics: defineTable({
