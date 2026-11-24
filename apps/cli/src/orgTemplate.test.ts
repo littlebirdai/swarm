@@ -7,7 +7,7 @@ import {
   applyProposalChanges,
   extractOrgProposal,
 } from "@codecast/org/orgProposal";
-import { withTemplateLoader } from "@codecast/shared/contracts/orgTemplateManifest";
+import { withTemplateLoader } from "@codecast/org-templates/orgTemplateManifest";
 import {
   atomicJson,
   canonicalDirectory,

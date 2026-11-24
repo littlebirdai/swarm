@@ -8,7 +8,7 @@
 // refused with why, never swapped for another.
 import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
-import { compareVersions } from "@codecast/shared/contracts/orgTemplateManifest";
+import { compareVersions } from "@codecast/org-templates/orgTemplateManifest";
 import { isDeviceOnline } from "../ccAccountsShared";
 
 /** The first cast whose `workflow run-daemon` fetches a placed run's change (cli workflow/placedChange.ts). An older

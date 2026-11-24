@@ -33,7 +33,7 @@ import {
   validateTemplate,
   withTemplateLoader,
   type OrgTemplate,
-} from "@codecast/shared/contracts/orgTemplateManifest";
+} from "@codecast/org-templates/orgTemplateManifest";
 import {
   type ReleaseChanges,
   type ReleaseClass,
@@ -47,7 +47,7 @@ import {
   releaseNote,
   updateOffer,
   withClasses,
-} from "@codecast/shared/contracts/orgTemplateRelease";
+} from "@codecast/org-templates/orgTemplateRelease";
 import {
   markSetup,
   nextHumanAsk,
@@ -57,13 +57,13 @@ import {
   setupRows,
   type InstanceState,
   type SetupText,
-} from "@codecast/shared/contracts/orgTemplateState";
+} from "@codecast/org-templates/orgTemplateState";
 import {
   routineState,
   type RoutineReadiness,
-} from "@codecast/shared/contracts/orgTemplateReadiness";
+} from "@codecast/org-templates/orgTemplateReadiness";
 import { bindNote, type RoutineRow } from "./lib/orgTemplateBindNote";
-import type { LessonKind } from "@codecast/shared/contracts/orgTemplateLearning";
+import type { LessonKind } from "@codecast/org-templates/orgTemplateLearning";
 import { applyActivate, getArmableTask } from "./agentTasks";
 import { performUpdateRole, standingConversationOf } from "./orgRoles";
 import { DEVICE_ONLINE_MS, pickOwnerDevice } from "./deviceRouting";
@@ -73,7 +73,7 @@ import type {
   OrgTemplateBindArgs,
   OrgTemplateBindResult,
   OrgTemplateBindSecret,
-} from "@codecast/shared/contracts/orgTemplateBind";
+} from "@codecast/org-templates/orgTemplateBind";
 import { truncateStr } from "@codecast/render/format";
 import { roleCharterOf } from "./lib/roleCharter";
 

@@ -10,9 +10,9 @@ import {
   playbookRuleSignals,
   structuralSignals,
   workspaceTerms,
-} from "./orgTemplateLearning";
+} from "../src/orgTemplateLearning";
 import { parsePlaybook } from "@codecast/org/rolePlaybook";
-import type { OrgTemplate } from "./orgTemplateManifest";
+import type { OrgTemplate } from "../src/orgTemplateManifest";
 
 // The learning loop's rules (org-hire.md H12): what counts as a signal, what a
 // lesson may not carry out of a workspace, and when lessons become a release.

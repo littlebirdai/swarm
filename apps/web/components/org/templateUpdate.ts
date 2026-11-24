@@ -5,7 +5,7 @@
 import type {
   ReleaseChanges,
   ReleaseClass,
-} from "@codecast/shared/contracts/orgTemplateRelease";
+} from "@codecast/org-templates/orgTemplateRelease";
 
 /** Names from the offered release's manifest, so an added routine, input or setup step reads by its title. */
 export type UpdateNames = {

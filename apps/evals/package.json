@@ -14,6 +14,7 @@
     "@codecast/fence": "workspace:*",
     "@codecast/goals": "workspace:*",
     "@codecast/org": "workspace:*",
+    "@codecast/org-templates": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/ship": "workspace:*",

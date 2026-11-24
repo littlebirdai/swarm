@@ -230,7 +230,7 @@ trip table carries it). `cast initiative create|set --parent` and
 name, `metricKeyOf`). The values live in `initiatives.scoreboard` under the
 key, the template scoreboard's own shape, and are written by the one
 reporting path `cast org template report` uses: `recordScores`
-(shared/contracts/orgTemplateState) takes any declaring set of keys, so
+(@codecast/org-templates/orgTemplateState) takes any declaring set of keys, so
 `cast initiative report in-N key=value --source <href> [--observed-at]`
 (`initiatives.report`, `/cli/initiatives/report`) refuses an undeclared key,
 an empty value and a source nobody can open the same way. Who may report is

@@ -29,7 +29,7 @@ import { copyToClipboard } from "../../lib/utils";
 import { inWorkspace } from "../../lib/workspaceScope";
 import { SelectBox } from "../ui/select-box";
 import type { OrgRole, OrgTree } from "./orgTypes";
-import type { TemplateInput } from "@codecast/shared/contracts/orgTemplateManifest";
+import type { TemplateInput } from "@codecast/org-templates/orgTemplateManifest";
 import {
   buildOrgTemplateCommand,
   type TemplateDraft,
