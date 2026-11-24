@@ -2,7 +2,7 @@
 // deploy target's live reader). Convex runs these from inside codecast's
 // network, beside services and the cloud metadata endpoint, so before any
 // request leaves:
-//   - the URL's literal host must be public (shared/contracts/internalHost);
+//   - the URL's literal host must be public (@codecast/network/internalHost);
 //   - a host name must resolve, and every address it resolves to must be
 //     public, so a public name pointing at 10.x is refused. Convex actions
 //     cannot resolve DNS themselves, so names are resolved over DNS-over-HTTPS;
@@ -15,7 +15,7 @@ import {
   internalAddressRefusal,
   internalHostRefusal as literalHostRefusal,
   isIpLiteral,
-} from "@codecast/shared/contracts/internalHost";
+} from "@codecast/network/internalHost";
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 /** A host name's addresses, [] when it has none, or null when no resolver answered. */

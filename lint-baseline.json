@@ -28855,6 +28855,9 @@
   "packages/network/src/index.ts": {
     "swarm/no-comments": 1
   },
+  "packages/network/src/internalHost.ts": {
+    "swarm/no-comments": 22
+  },
   "packages/policy/src/managedPolicy.ts": {
     "swarm/no-comments": 68
   },
@@ -29385,9 +29388,6 @@
   },
   "packages/shared/contracts/initiativeRecord.test.ts": {
     "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/internalHost.ts": {
-    "swarm/no-comments": 22
   },
   "packages/shared/contracts/jointMessage.ts": {
     "swarm/no-comments": 10
