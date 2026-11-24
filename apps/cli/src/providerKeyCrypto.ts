@@ -12,7 +12,7 @@ import {
   PROVIDER_KEY_HKDF_INFO,
   PROVIDER_KEY_GCM_TAG_BYTES,
   type EncryptedProviderKeyPayload,
-} from "@codecast/shared/contracts";
+} from "@codecast/provider-keys/providerKeyCrypto";
 import {
   readProviderKeyStore,
   writeProviderKeyStore,

@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { KeyRound, ExternalLink, Trash2, Loader2, Check } from "lucide-react";
 import {
   CLOUD_AGENT_PROVIDERS,
+  type CloudAgentProviderSpec,
+} from "@codecast/shared/contracts";
+import {
   PROVIDER_KEYS,
   getProviderKeySpec,
-  type CloudAgentProviderSpec,
   type ProviderKeySpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/provider-keys/providerKeys";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import {

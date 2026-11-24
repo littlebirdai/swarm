@@ -92,10 +92,10 @@ import {
   withSafetyBlock,
   describeDecision,
   peggedWindowLabel,
-  oauthApprovalCode,
   CONTEXT_RECOVERY_DELAY_MS,
   fleetModels,
 } from "@codecast/shared/contracts";
+import { oauthApprovalCode } from "@codecast/provider-keys/oauthCodePaste";
 import { spendCapsOf, withSpendCap } from "./lib/spendCaps";
 import {
   hasUndeliveredContinue,

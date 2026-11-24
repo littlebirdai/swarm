@@ -258,9 +258,11 @@ import {
   isInboxRowField,
   settingsAfterSnippet,
   type DeviceSnippetChange,
+} from "@codecast/shared/contracts";
+import {
   managedIdsAfter,
   type ProviderKeyCommand,
-} from "@codecast/shared/contracts";
+} from "@codecast/provider-keys/providerKeyCrypto";
 import { DEFAULT_TEAM_FEATURES } from "@codecast/policy/teamFeatures";
 import { formatCapabilitySlug } from "@codecast/capabilities/capabilities";
 import { agentStatusAt, liveFactsOf } from "../lib/liveness";

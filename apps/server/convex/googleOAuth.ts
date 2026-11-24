@@ -70,7 +70,7 @@ import {
   PROVIDER_KEY_AES_KEY_BITS,
   PROVIDER_KEY_GCM_IV_BYTES,
   PROVIDER_KEY_HKDF_HASH,
-} from "@codecast/shared/contracts";
+} from "@codecast/provider-keys/providerKeyCrypto";
 
 // googleOAuth enters the generated api/dataModel typings only after the
 // schema.ts splice + codegen land (both handoffs); the casts keep this module

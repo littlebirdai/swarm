@@ -11,7 +11,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import * as Haptics from "expo-haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { oauthApprovalCode } from "@codecast/shared/contracts";
+import { oauthApprovalCode } from "@codecast/provider-keys/oauthCodePaste";
 import { Text as RNText, TextInput } from "@/components/Themed";
 import { Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { readClipboard } from "@/lib/clipboard";

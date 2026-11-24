@@ -28903,6 +28903,21 @@
   "packages/policy/test/vendorCoverage.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/provider-keys/src/oauthCodePaste.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/provider-keys/src/providerKeyCrypto.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/provider-keys/src/providerKeys.ts": {
+    "swarm/no-comments": 25
+  },
+  "packages/provider-keys/test/oauthCodePaste.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/provider-keys/test/providerKeyCrypto.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/pull-requests/src/commitDiffs.ts": {
     "swarm/no-comments": 1
   },
@@ -29548,12 +29563,6 @@
   "packages/shared/contracts/newSessionDefaults.ts": {
     "swarm/no-comments": 12
   },
-  "packages/shared/contracts/oauthCodePaste.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/oauthCodePaste.ts": {
-    "swarm/no-comments": 13
-  },
   "packages/shared/contracts/openPlans.ts": {
     "swarm/no-comments": 7
   },
@@ -29709,15 +29718,6 @@
   },
   "packages/shared/contracts/proposalCard.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/providerKeyCrypto.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/providerKeyCrypto.ts": {
-    "swarm/no-comments": 29
-  },
-  "packages/shared/contracts/providerKeys.ts": {
-    "swarm/no-comments": 25
   },
   "packages/shared/contracts/recordingAudio.test.ts": {
     "swarm/no-comments": 20

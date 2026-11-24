@@ -29,6 +29,7 @@
     "@codecast/network": "workspace:*",
     "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
+    "@codecast/provider-keys": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",

@@ -10,7 +10,7 @@
 import {
   PROVIDER_KEY_HKDF_INFO,
   type EncryptedProviderKeyPayload,
-} from "@codecast/shared/contracts";
+} from "@codecast/provider-keys/providerKeyCrypto";
 
 function toB64(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);

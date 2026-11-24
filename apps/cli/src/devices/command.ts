@@ -8,18 +8,20 @@
 import type { Command } from "commander";
 import {
   CLOUD_AGENT_PROVIDERS,
-  PROVIDER_KEYS,
   STALE_MACHINE_MS,
   cloudAgentSetupSentence,
   deviceDisplayName,
   distinctDeviceNames,
-  getProviderKeySpec,
   isMachineSetting,
   machineOutOfService,
   snippetBySlug,
 } from "@codecast/shared/contracts";
 import type { AgentToolSetupStatus } from "@codecast/capabilities/agentToolSetup";
 import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
+import {
+  PROVIDER_KEYS,
+  getProviderKeySpec,
+} from "@codecast/provider-keys/providerKeys";
 import { commandGroup } from "../commandGroups.js";
 import { fmt, icons } from "../colors.js";
 import { formatAgeShort } from "../publishCommand.js";

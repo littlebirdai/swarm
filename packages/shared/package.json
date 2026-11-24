@@ -164,6 +164,7 @@
     "@codecast/hash": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/policy": "workspace:*",
+    "@codecast/provider-keys": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",

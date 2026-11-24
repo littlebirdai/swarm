@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { managedIdsAfter } from "./providerKeyCrypto";
+import { managedIdsAfter } from "../src/providerKeyCrypto";
 
 // The server mirrors this onto the device row and the web paints it first.
 describe("managedIdsAfter", () => {

@@ -91,12 +91,14 @@ import { isValidBrowserStreamKey } from "@codecast/browser/browserStream";
 import {
   CLOUD_START_RUN_MS,
   canonicalSlashCommand,
-  codePasteSignInUrl,
-  deviceCodePrompt,
   isHomeDirectoryPath,
   stampDeliveryId,
   withoutDeliveryId,
 } from "@codecast/shared/contracts";
+import {
+  codePasteSignInUrl,
+  deviceCodePrompt,
+} from "@codecast/provider-keys/oauthCodePaste";
 import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,

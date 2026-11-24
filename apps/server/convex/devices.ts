@@ -15,13 +15,15 @@ import {
   settingsAfterSnippet,
   stableModeOf,
   type DeviceSnippetChange,
-  managedIdsAfter,
-  type ProviderKeyCommand,
   cloudAgentProviderOfSession,
   isCloudAgentActionName,
   isCloudAgentLoginState,
   type CloudAgentLoginStateName,
 } from "@codecast/shared/contracts";
+import {
+  managedIdsAfter,
+  type ProviderKeyCommand,
+} from "@codecast/provider-keys/providerKeyCrypto";
 import {
   isAgentSetupTool,
   type AgentToolSetupStatus,

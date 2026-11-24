@@ -4,7 +4,7 @@ import {
   deviceCodePrompt,
   oauthApprovalCode,
   OAUTH_CODE_PASTE_REDIRECT,
-} from "./oauthCodePaste";
+} from "../src/oauthCodePaste";
 
 // Captured from `claude auth login --claudeai` on 2.1.289 (one PKCE pair).
 const browserUrl =

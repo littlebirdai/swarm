@@ -1,7 +1,7 @@
 // The host step of a hire from a template, run by a daemon for the web
 // (docs/architecture/org-hire.md H3, H4). One shape from the mutation that
 // enqueues the `org_template_bind` command to the daemon that executes it.
-import type { EncryptedProviderKeyPayload } from "./providerKeyCrypto";
+import type { EncryptedProviderKeyPayload } from "@codecast/provider-keys/providerKeyCrypto";
 
 /** A secret input's value, sealed in the browser to the target device's
  *  provider-key public key. `payload.provider` carries the input's key. */
