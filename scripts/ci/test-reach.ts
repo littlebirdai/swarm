@@ -18,7 +18,7 @@
 // `bun scripts/ci/test-reach.ts` prints each job's reach with one example chain
 // per area, and its crossing tests.
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import {
   readWorkspaces,
@@ -26,7 +26,6 @@ import {
   workspaceImport,
 } from "../workspace-packages";
 import { AREAS, JOB_AREAS, areaOf, type Area } from "./changed-path-scope";
-import { testFiles } from "./package-tests";
 
 export const TREE_WIDE_TEST =
   /\.(guard|ratchet)\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -51,9 +50,34 @@ export const JOB_TEST_EXCLUDES: Record<string, string[]> = {
   "test-cli": ["apps/cli/src/computer/"],
 };
 
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  ".vite",
+  ".next",
+  "build",
+  ".turbo",
+  "coverage",
+  "out",
+]);
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/;
+const TEST_FILE = /\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const READS_DISK =
   /\b(readFileSync|readdirSync|readFile|readdir|existsSync|statSync|Bun\.file|Bun\.Glob|new Glob|globSync|scanSync)\b/;
+
+export function testFiles(dir: string, out: string[] = []): string[] {
+  if (!existsSync(dir)) return out;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith(".")) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (!SKIP_DIRS.has(entry.name)) testFiles(full, out);
+    } else if (TEST_FILE.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
 
 const WORKSPACE_ROOTS = ["apps", "packages", "tests"];
 const workspacePaths = WORKSPACE_ROOTS.flatMap((root) =>
@@ -99,7 +123,6 @@ export function resolveImport(spec: string, fromFile: string): string | null {
   if (spec.startsWith("@platform/")) return PLATFORM_MARKER;
   const workspace = workspaceImport(WORKSPACES, spec);
   if (workspace) {
-    // An unresolved subpath still lands in the package's area.
     const { dir, target } = workspace;
     return (target && resolveFile(target, dir)) || join(dir, "package.json");
   }

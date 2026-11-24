@@ -30290,7 +30290,7 @@
     "swarm/no-comments": 17
   },
   "scripts/ci/test-reach.ts": {
-    "swarm/no-comments": 42
+    "swarm/no-comments": 41
   },
   "scripts/ci/vendor-manifest.test.ts": {
     "swarm/no-comments": 31
