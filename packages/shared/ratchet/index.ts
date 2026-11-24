@@ -205,6 +205,16 @@ export function syncAllowlist(spec: RatchetSpec, offenders: readonly RatchetOffe
  * allowlist downward before checking.
  */
 export function checkRatchet(spec: RatchetSpec): RatchetResult {
+  // A folder that moved is skipped by the walk, so the ratchet would guard
+  // less than it says and a prune would drop the moved files' entries.
+  const missing = (spec.dirs ?? []).filter((dir) => !existsSync(join(spec.root, dir)));
+  if (missing.length) {
+    return {
+      problems: missing.map((dir) => `${spec.name}: ${dir} does not exist under the scan root, so this ratchet no longer guards it. Point dirs at the folder's current path.`),
+      offenders: [],
+      scanned: 0,
+    };
+  }
   const { scanned, offenders } = scan(spec);
   const write = process.env.RATCHET_WRITE;
   if (write === "prune" || write === "init") syncAllowlist(spec, offenders, write);

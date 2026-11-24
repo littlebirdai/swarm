@@ -87,6 +87,22 @@ describe("shrink-only ratchet", () => {
     expect(problems.some((p) => p.includes("guarding nothing"))).toBe(true);
   });
 
+  test("a listed folder that no longer exists fails, and a prune leaves the allowlist alone", () => {
+    const root = fixture({ "a.ts": "banned();\n" });
+    writeFileSync(join(root, "allowlist.txt"), "moved/b.ts 1\n");
+    const spec = { ...specFor(root, 1), dirs: ["src", "moved"] };
+    const prior = process.env.RATCHET_WRITE;
+    process.env.RATCHET_WRITE = "prune";
+    try {
+      const { problems } = checkRatchet(spec);
+      expect(problems).toEqual([expect.stringContaining("moved does not exist under the scan root")]);
+      expect(readFileSync(spec.allowlist, "utf8")).toBe("moved/b.ts 1\n");
+    } finally {
+      if (prior === undefined) delete process.env.RATCHET_WRITE;
+      else process.env.RATCHET_WRITE = prior;
+    }
+  });
+
   test("prune drops gone entries and lowers numbers, and adds nothing", () => {
     const root = fixture({ "a.ts": "banned();\n", "b.ts": "banned();\n", "c.ts": "allowed();\n" });
     const spec = specFor(root, 1);
