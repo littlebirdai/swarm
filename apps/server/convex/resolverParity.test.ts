@@ -10,7 +10,7 @@ import { resolveCapabilities } from "@codecast/shared/contracts";
 
 const DIR = path.join(
   __dirname,
-  "..", "..", "shared", "contracts", "__fixtures__", "resolver",
+  "..", "..", "..", "packages", "shared", "contracts", "__fixtures__", "resolver",
 );
 
 describe("resolver golden parity (convex runtime)", () => {
