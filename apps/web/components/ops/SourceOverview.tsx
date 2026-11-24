@@ -34,7 +34,7 @@ import {
   parseAppManifest,
   watchKey,
   type AppManifest,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import {
   appWatchVerdict,
   titleLookup,

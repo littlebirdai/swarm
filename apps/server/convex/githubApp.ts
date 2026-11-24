@@ -19,10 +19,12 @@ import { normalizeRepository, repositoryOwner } from "./lib/gitRefs";
 import {
   newGithubAppInstallNonce,
   githubAppInstallUrlFor,
-  isAppConnectionScope,
   GITHUB_INSTALL_INTENT_TTL_MS,
+} from "@codecast/connectors/githubAppInstallState";
+import {
+  isAppConnectionScope,
   type AppConnectionScope,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import { sha256Hex } from "./lib/hash";
 import {

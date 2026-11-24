@@ -15,7 +15,10 @@ import { useState } from "react";
 import { useAction } from "convex/react";
 import { toast } from "sonner";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { APP_DESCRIPTORS, type AppId } from "@codecast/shared/contracts";
+import {
+  APP_DESCRIPTORS,
+  type AppId,
+} from "@codecast/connectors/appDescriptors";
 import {
   parseConnectorReturn,
   strippedUrl,

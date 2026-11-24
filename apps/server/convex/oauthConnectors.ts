@@ -290,7 +290,7 @@ import {
 import {
   isAppConnectionScope,
   type AppConnectionScope,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 export { accessExpiresAt, needsRefresh, REFRESH_MARGIN_MS, REFRESH_LEASE_MS };
 
 /* ==========================================================================

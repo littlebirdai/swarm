@@ -22,7 +22,7 @@ import {
   sourceHasGrants,
   type AppManifest,
   type GrantableAction,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {
   useOpsApp,

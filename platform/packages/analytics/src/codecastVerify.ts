@@ -11,7 +11,7 @@
 //   const result = await verifier.verify(request);           // a Fetch Request
 //   if (!result.ok) return new Response(result.error, { status: 401 });
 //
-// The scheme is codecast's packages/shared/contracts/codecastSignature.ts,
+// The scheme is codecast's packages/connectors/src/codecastSignature.ts,
 // spelled again here because the platform package must not import codecast;
 // codecast's codecastSignature.drift.test.ts checks this copy against the
 // committed vectors. WebCrypto only: Node 20+, Bun, Deno, workers, browsers.

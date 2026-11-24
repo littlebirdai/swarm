@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { SIGNATURE_HEADERS, canonicalSignatureString, bodySha256Hex, createCodecastVerifier, nonceMemory, verifyCodecastSignature, type CodecastPublicKey } from "./codecastVerify";
 
-// The signing half lives in codecast (packages/shared/contracts/codecastSignature.ts),
+// The signing half lives in codecast (packages/connectors/src/codecastSignature.ts),
 // which also checks this copy against its committed vectors. These tests sign
 // the way it does, from the documented canonical string.
 

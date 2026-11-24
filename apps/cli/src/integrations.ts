@@ -22,8 +22,8 @@ import {
   type AppId,
   type AppConnectionStatus,
   type TokenConfigField,
-} from "@codecast/shared/contracts";
-import { describeConnectorError } from "@codecast/shared/contracts/connectorReasons";
+} from "@codecast/connectors/appDescriptors";
+import { describeConnectorError } from "@codecast/connectors/connectorReasons";
 import { commandGroup } from "./commandGroups.js";
 import { ago, fail, optionKey } from "./externalDataCli.js";
 import { promptHiddenSecret } from "./hiddenSecret.js";

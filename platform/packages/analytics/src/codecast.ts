@@ -73,7 +73,7 @@ export type CodecastIngestItem =
 
 /**
  * codecast.json, the committed codecast config (codecast
- * packages/shared/contracts/codecastConfig.ts; spelled here because the
+ * packages/connectors/src/codecastConfig.ts; spelled here because the
  * platform package must not import codecast). Nothing in it is secret.
  */
 export interface CodecastJson {

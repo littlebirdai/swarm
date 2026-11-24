@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import vectors from "./__fixtures__/codecastSignature.vectors.json";
+import vectors from "../src/__fixtures__/codecastSignature.vectors.json";
 import {
   CODECAST_KEYS_PATH,
   SIGNATURE_HEADERS,
@@ -15,12 +15,12 @@ import {
   verifyCodecastRequest,
   type CodecastJwk,
   type VerifyInput,
-} from "./codecastSignature";
+} from "../src/codecastSignature";
 import {
   codecastKeysUrlOf,
   mergeCodecastConfig,
   parseCodecastConfig,
-} from "./codecastConfig";
+} from "../src/codecastConfig";
 
 const NOW = 1_790_000_000_000;
 const source = { id: "src-12", workspace: "team:k57abc" };

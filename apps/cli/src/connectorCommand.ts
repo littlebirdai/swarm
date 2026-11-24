@@ -40,7 +40,7 @@ import {
   type AppReader,
   type GrantableAction,
   type JsonSchema,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 
 export interface Capabilities {
   source: {

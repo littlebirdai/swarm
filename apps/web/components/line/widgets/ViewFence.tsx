@@ -9,7 +9,7 @@ import { readViewFence } from "../../../lib/productViewRefs";
 import { CodeBlock } from "../../CodeBlock";
 import { MomentView } from "./MomentView";
 import { ProductView } from "./ProductView";
-import { formatProductViewRef } from "@codecast/shared/contracts/productView";
+import { formatProductViewRef } from "@codecast/connectors/productView";
 
 export default function ViewFence({ code }: { code: string }) {
   const read = useMemo(() => readViewFence(code), [code]);

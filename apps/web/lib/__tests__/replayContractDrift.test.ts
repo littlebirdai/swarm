@@ -14,7 +14,7 @@ import {
 import {
   parseCodecastConfig,
   REPLAY_DOM_MODES,
-} from "@codecast/shared/contracts/codecastConfig";
+} from "@codecast/connectors/codecastConfig";
 import codecastJson from "../../codecast.json";
 import {
   INGEST_LIMITS,

@@ -74,7 +74,7 @@ import {
   VENDOR_ACTIONS,
   sentryStatusAction,
   writeRefusal,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import {
   FETCH_TIMEOUT_MS,
   type IssueStatus,

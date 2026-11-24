@@ -483,7 +483,7 @@ apps/web/app/settings/devices/page.tsx 900
 apps/web/app/settings/migrate/page.tsx 1050
 apps/web/app/settings/sync/page.tsx 1450
 apps/web/app/tasks/[id]/page.tsx 1300
-apps/web/app/tasks/page.tsx 2300
+apps/web/app/tasks/page.tsx 2250
 apps/web/app/team/[username]/page.tsx 1050
 apps/web/app/triggers/[id]/page.tsx 900
 apps/web/app/triggers/page.tsx 1750
@@ -763,6 +763,7 @@ packages/calls/test/callRecordings.test.ts 850
 packages/capabilities/src/capabilities.ts 950
 packages/capabilities/src/fleetDiff.ts 900
 packages/capabilities/test/fleetDiff.test.ts 1200
+packages/connectors/src/appConnector.ts 1000
 packages/docs/src/drafting.ts 950
 packages/entities/src/index.ts 1650
 packages/ingest/src/ingest.ts 1100
@@ -775,7 +776,6 @@ packages/render/test/render.test.ts 850
 packages/replay/src/mobile.ts 900
 packages/replay/src/rrweb.ts 850
 packages/replay/test/replay.test.ts 1350
-packages/shared/contracts/appConnector.ts 1000
 packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350

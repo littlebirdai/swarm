@@ -7,7 +7,7 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 import {
   parseAppManifest,
   type AppReader,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import { useOpsApp, useOpsGroups, useSyncOpsApp } from "../../hooks/useSyncOps";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { MetricChart } from "./MetricChart";

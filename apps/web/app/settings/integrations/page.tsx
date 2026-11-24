@@ -23,7 +23,7 @@ import {
   type AppConnectionScope,
   type AppConnectionStatus,
   type AppConnectionsResult,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import { useSettingsData } from "../../../hooks/useSyncSettings";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { useConnectorReturn } from "../../../hooks/useConnectorReturn";

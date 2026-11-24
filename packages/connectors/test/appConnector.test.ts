@@ -19,7 +19,7 @@ import {
   VENDOR_ACTIONS,
   type AppWatch,
   type JsonSchema,
-} from "./appConnector";
+} from "../src/appConnector";
 import { validateIngestBatch } from "@codecast/ingest/ingest";
 
 const manifest = {

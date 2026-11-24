@@ -3,7 +3,7 @@
 // holding one private Ed25519 JWK, or a JSON array of them: the first signs,
 // every one is published at /.well-known/codecast-keys.json. Generate one with
 // `bun apps/server/scripts/codecast-signing-key.ts`. The scheme itself is
-// @codecast/shared/contracts/codecastSignature. A leaf with no Convex imports.
+// @codecast/connectors/codecastSignature. A leaf with no Convex imports.
 import {
   CODECAST_SIGNING_KEY_ENV,
   parseSigningKeys,
@@ -12,7 +12,7 @@ import {
   type CodecastJwk,
   type CodecastJwks,
   type SignInput,
-} from "@codecast/shared/contracts/codecastSignature";
+} from "@codecast/connectors/codecastSignature";
 
 export const SIGNING_NOT_CONFIGURED = `Request signing not configured (${CODECAST_SIGNING_KEY_ENV})`;
 

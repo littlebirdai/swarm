@@ -6,10 +6,8 @@
 // (ct-92432). A test drives this real handler (githubApp.install.test.ts).
 import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import {
-  parseGithubAppInstallState,
-  type AppConnectionScope,
-} from "@codecast/shared/contracts";
+import { parseGithubAppInstallState } from "@codecast/connectors/githubAppInstallState";
+import { type AppConnectionScope } from "@codecast/connectors/appDescriptors";
 import { sha256Hex } from "./hash";
 
 export const GITHUB_API_BASE = "https://api.github.com";

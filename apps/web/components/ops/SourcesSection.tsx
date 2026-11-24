@@ -33,7 +33,7 @@ import {
 } from "../../hooks/useSyncOps";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import type { CreateOpsSourceInput } from "../../store/opsSlice";
-import type { AppConnectionsResult } from "@codecast/shared/contracts";
+import type { AppConnectionsResult } from "@codecast/connectors/appDescriptors";
 import { CONVEX_URL } from "../../lib/convexUrl";
 import { copyText } from "../../lib/copyText";
 import { relTimeShort } from "../../lib/utils";

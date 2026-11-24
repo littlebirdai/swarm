@@ -9,7 +9,7 @@
 
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { BookMarked, Loader2 } from "lucide-react";
-import type { AppConnectionScope } from "@codecast/shared/contracts";
+import type { AppConnectionScope } from "@codecast/connectors/appDescriptors";
 import { LedgerLine } from "./parts";
 
 export function GithubInstallDetail({

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { grantPagePath } from "@codecast/shared/contracts/appConnector";
+import { grantPagePath } from "@codecast/connectors/appConnector";
 import {
   OPS_TABS,
   isOpsPath,

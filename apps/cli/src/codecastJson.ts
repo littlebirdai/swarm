@@ -1,6 +1,6 @@
 // Writing a product's codecast.json from `cast sources add` and `key rotate`
 // (docs/architecture/external-data.md X1, "Committed config"). The schema and
-// the merge are @codecast/shared/contracts/codecastConfig; this is only where
+// the merge are @codecast/connectors/codecastConfig; this is only where
 // the file is and the read-merge-write around it.
 import fs from "node:fs";
 import path from "node:path";
@@ -10,7 +10,7 @@ import {
   mergeCodecastConfig,
   parseCodecastConfig,
   type CodecastConfigSource,
-} from "@codecast/shared/contracts/codecastConfig";
+} from "@codecast/connectors/codecastConfig";
 
 /** The checkout root above `dir` (the nearest directory holding .git), or null outside a checkout. */
 function checkoutRoot(dir: string): string | null {

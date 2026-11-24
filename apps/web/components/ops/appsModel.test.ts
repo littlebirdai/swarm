@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AppWatch } from "@codecast/shared/contracts/appConnector";
+import type { AppWatch } from "@codecast/connectors/appConnector";
 import {
   appHealth,
   callActor,

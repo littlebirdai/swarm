@@ -32,7 +32,7 @@ import {
   isAppConnectionScope,
   type AppConnectionScope,
   type AppId,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import { encryptRefreshToken, decryptRefreshToken } from "./googleOAuth";
 import {
   connectionForWork,

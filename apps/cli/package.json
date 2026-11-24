@@ -30,6 +30,7 @@
     "@codecast/capabilities": "workspace:*",
     "@codecast/cloud-hosts": "workspace:*",
     "@codecast/comments": "workspace:*",
+    "@codecast/connectors": "workspace:*",
     "@codecast/convex-errors": "workspace:*",
     "@codecast/daemon": "workspace:*",
     "@codecast/decisions": "workspace:*",

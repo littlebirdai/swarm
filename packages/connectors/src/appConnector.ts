@@ -259,7 +259,7 @@ export interface AppManifest {
   readers: AppReader[];
   actions: AppAction[];
   watches: AppWatch[];
-  /** The app's own screens codecast may frame (contracts/productView.ts), each opened through the `views.token` action. */
+  /** The app's own screens codecast may frame (packages/connectors/src/productView.ts), each opened through the `views.token` action. */
   views: ProductViewDef[];
 }
 

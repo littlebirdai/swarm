@@ -1502,7 +1502,7 @@ function ListSkeleton({ bare = false }: { bare?: boolean }) {
   return bare ? body : <div className="ops-pad">{body}</div>;
 }
 
-/** The setting that makes a recorder keep a recording with each error (codecast.config.json, contracts/codecastConfig.ts). */
+/** The setting that makes a recorder keep a recording with each error (codecast.config.json, packages/connectors/src/codecastConfig.ts). */
 const REPLAY_ON_ERROR_CONFIG = `"replay": { "dom": "onError" }`;
 
 /**

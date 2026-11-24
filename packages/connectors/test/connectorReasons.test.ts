@@ -3,7 +3,7 @@ import {
   CONNECTOR_FAILED,
   describeConnectorError,
   describeReturnReason,
-} from "./connectorReasons";
+} from "../src/connectorReasons";
 
 describe("describeConnectorError (an action's reply)", () => {
   test("turns our own reason codes into sentences", () => {

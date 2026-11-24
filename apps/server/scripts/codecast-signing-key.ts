@@ -6,7 +6,7 @@
 //
 // To rotate, set the env var to a JSON array with the new key first and the
 // old one second; drop the old one after five minutes.
-import { generateSigningKey } from "@codecast/shared/contracts/codecastSignature";
+import { generateSigningKey } from "@codecast/connectors/codecastSignature";
 
 const key = await generateSigningKey(process.argv[2]);
 process.stdout.write(JSON.stringify(key));

@@ -15,7 +15,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { makeFakeDb } from "./testDb";
-import { newGithubAppInstallNonce } from "@codecast/shared/contracts";
+import { newGithubAppInstallNonce } from "@codecast/connectors/githubAppInstallState";
 import { sha256Hex } from "./lib/hash";
 import { installCallbackHandler } from "./lib/githubInstallCallback";
 import {
