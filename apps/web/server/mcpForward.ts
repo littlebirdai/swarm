@@ -7,7 +7,7 @@ import {
   MCP_CALLER_IP_HEADER,
   MCP_CALLER_SIG_HEADER,
   signCallerAddress,
-} from "@codecast/shared/contracts/agentAccess";
+} from "@codecast/capabilities/agentAccess";
 
 export async function mcpForwardHeaders(
   inbound: Headers,

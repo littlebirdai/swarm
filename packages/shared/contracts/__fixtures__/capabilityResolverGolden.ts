@@ -12,7 +12,10 @@
 // case pins the two things that decide behaviour: what the machine ends up
 // with, and which binding decided it.
 
-import type { CapabilityBinding, DesiredState } from "../capabilities";
+import type {
+  CapabilityBinding,
+  DesiredState,
+} from "@codecast/capabilities/capabilities";
 import type { ScopeContext } from "../capabilityResolver";
 
 export interface GoldenCase {

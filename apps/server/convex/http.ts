@@ -6635,7 +6635,7 @@ import {
   register as mcpRegister,
   token as mcpToken,
 } from "./mcpHttp";
-import { MCP_ROUTES } from "@codecast/shared/contracts/agentAccess";
+import { MCP_ROUTES } from "@codecast/capabilities/agentAccess";
 for (const method of ["POST", "GET", "OPTIONS"] as const)
   http.route({ path: MCP_ROUTES["/mcp"], method, handler: mcpServer });
 http.route({

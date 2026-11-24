@@ -5,11 +5,11 @@
  * same steps; each surface only decides how they look.
  */
 
+import { BROWSER_EXTENSION_STORE_URL } from "@codecast/shared/contracts";
 import {
-  BROWSER_EXTENSION_STORE_URL,
   type AgentSetupTool,
   type AgentToolSetupStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/agentToolSetup";
 
 export interface AgentSetupStep {
   label: string;

@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { signCallerAddress, verifyCallerAddress } from "./agentAccess";
+import {
+  signCallerAddress,
+  verifyCallerAddress,
+} from "@codecast/capabilities/agentAccess";
 
 test("a caller address signed with the shared secret verifies, and nothing else does", async () => {
   const sig = await signCallerAddress("s3cret", "203.0.113.9");

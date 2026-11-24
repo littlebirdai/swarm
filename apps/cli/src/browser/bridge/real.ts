@@ -36,7 +36,7 @@ import {
   requestTabName,
   type EngineOptions,
 } from "../engine.js";
-import { agentSetupLines } from "@codecast/shared/contracts";
+import { agentSetupLines } from "@codecast/capabilities/agentToolSetup";
 import { fmt } from "../../colors.js";
 import {
   bridgeEndpoint,

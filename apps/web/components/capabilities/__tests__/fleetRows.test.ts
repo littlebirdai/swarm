@@ -11,7 +11,7 @@
 // wrong answer it rules out.
 
 import { describe, expect, test } from "bun:test";
-import { type FleetDiffCell } from "@codecast/shared/contracts";
+import { type FleetDiffCell } from "@codecast/capabilities/fleetDiff";
 import {
   buildFleetRows,
   FLEET_FILTERS,

@@ -62,6 +62,8 @@ import { usePendingMessageStatus } from "../../../hooks/useSyncPendingPermission
 import {
   extractAgentSetup,
   hasAgentSetupMarker,
+} from "@codecast/capabilities/agentToolSetup";
+import {
   isHostedAgentType,
   stripMentionContext,
   stripPastedContent,

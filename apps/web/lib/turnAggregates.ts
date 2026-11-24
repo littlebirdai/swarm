@@ -1,4 +1,4 @@
-import { hasAgentSetupMarker } from "@codecast/shared/contracts";
+import { hasAgentSetupMarker } from "@codecast/capabilities/agentToolSetup";
 import { sameMessageAuthor } from "./messageAuthors";
 import {
   isAlwaysVisibleToolCall,

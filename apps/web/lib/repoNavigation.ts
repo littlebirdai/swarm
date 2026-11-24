@@ -1,4 +1,4 @@
-import { repositoryFromRemote } from "@codecast/shared/contracts";
+import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
 import { parseGitHubLocationUrl } from "@codecast/shared/entities";
 import {
   formatLineHash,

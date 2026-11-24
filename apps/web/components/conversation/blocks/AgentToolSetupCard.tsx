@@ -11,9 +11,9 @@ import { Check, ExternalLink, Loader2, RotateCw } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import {
   AGENT_SETUP_CONTINUE_MESSAGE,
-  deviceDisplayName,
   type AgentSetupTool,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/agentToolSetup";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import {
   agentSetupSteps,
   type AgentSetupStep,

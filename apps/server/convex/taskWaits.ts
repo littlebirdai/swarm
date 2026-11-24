@@ -79,8 +79,8 @@ import {
 import {
   inlineForeignText,
   normalizeRepository,
-  repositoryKeyOfRemote,
 } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 
 type Ctx = MutationCtx;
 type Task = Doc<"tasks">;

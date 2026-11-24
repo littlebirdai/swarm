@@ -3,7 +3,7 @@ import {
   MCP_CALLER_IP_HEADER,
   MCP_CALLER_SIG_HEADER,
   verifyCallerAddress,
-} from "@codecast/shared/contracts/agentAccess";
+} from "@codecast/capabilities/agentAccess";
 import { mcpForwardHeaders } from "./mcpForward";
 
 test("forwarding drops inbound copies of the caller headers and signs Cloudflare's address", async () => {

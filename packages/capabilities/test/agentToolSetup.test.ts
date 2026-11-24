@@ -3,7 +3,7 @@ import {
   agentSetupMarker,
   extractAgentSetup,
   hasAgentSetupMarker,
-} from "./agentToolSetup";
+} from "@codecast/capabilities/agentToolSetup";
 
 describe("agent setup marker", () => {
   test("a marker line names the tool and leaves the output", () => {

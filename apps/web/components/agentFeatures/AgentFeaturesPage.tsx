@@ -7,12 +7,14 @@ import {
   SNIPPET_CATALOG,
   SNIPPET_CATEGORIES,
   STABLE_MODES,
-  isAgentSetupTool,
   snippetAvailableForTeams,
-  type AgentSetupTool,
   type SnippetDescriptor,
   type StableMode,
 } from "@codecast/shared/contracts";
+import {
+  isAgentSetupTool,
+  type AgentSetupTool,
+} from "@codecast/capabilities/agentToolSetup";
 import { AuthGuard } from "../AuthGuard";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { KeyCap } from "../KeyboardShortcutsHelp";

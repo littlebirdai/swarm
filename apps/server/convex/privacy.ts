@@ -1,10 +1,10 @@
 import { matchDirectoryMapping } from "@codecast/team/directoryRules";
 import {
   isRunLog,
-  repositoryKeyOfRemote,
   teamVisibleConvTeam as sharedTeamVisibleConvTeam,
   type RunLogIdentity,
 } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { Doc, Id } from "./_generated/dataModel";
 import { isSessionOwner } from "./sessionOwners";
 import {

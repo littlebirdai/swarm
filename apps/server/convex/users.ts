@@ -75,8 +75,8 @@ import {
   isReservedDevice,
   isUnattendedConversation,
   isTestArtifactPath,
-  repositoryKeyOfRemote,
 } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import {
   activeTeamMembershipFor,
   canAccessTask,

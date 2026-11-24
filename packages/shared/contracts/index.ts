@@ -92,13 +92,10 @@ export * from "./convexErrors";
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four
 // workarounds for one missing export.
-export * from "./capabilities";
 export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.
-export * from "./fleetDiff";
-export * from "./capabilityScopes";
 export * from "./sanitizeText";
 // Machine-delivered message detection: web/mobile previews and the convex
 // send classifier must agree on what a human-typed message is.
@@ -107,7 +104,6 @@ export * from "./sessionEscalation";
 export * from "./vaultMessages";
 export * from "./slashCommand";
 export * from "./decisionAnswers";
-export * from "./mcpRegistry";
 export * from "./usageLimits";
 // The connectable-apps catalog (the /capabilities Apps tab): Convex answers
 // connection state in this vocabulary and the web renders it, so both need the
@@ -146,7 +142,6 @@ export {
 export * from "./unattended";
 export * from "./handoffPrompt";
 export * from "./browserExtension";
-export * from "./agentToolSetup";
 export type { AskResult, SideAnswerRow } from "./sessionAsk";
 export { SIDE_ANSWER_EXPIRE_MS, explainAskFailure } from "./sessionAsk";
 export * from "./systemResources";

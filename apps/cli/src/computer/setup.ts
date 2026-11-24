@@ -26,7 +26,7 @@
 
 import type { EventEmitter } from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
-import { agentSetupLines } from "@codecast/shared/contracts";
+import { agentSetupLines } from "@codecast/capabilities/agentToolSetup";
 import { agentSetupPageLink } from "../agentSetupPage.js";
 import { askYesNo } from "../terminalAsk.js";
 import { ComputerError } from "./errors.js";

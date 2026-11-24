@@ -12,7 +12,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { formatCapabilitySlug } from "@codecast/shared/contracts";
+import { formatCapabilitySlug } from "@codecast/capabilities/capabilities";
 import { readInventory, type InventoryItem } from "./inventory.js";
 import {
   folderHash,

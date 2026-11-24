@@ -28,7 +28,7 @@ import { fmt, icons } from "../colors.js";
 import { readStdinBody } from "../sendBody.js";
 import { inlineImageMarker } from "../inlineImage.js";
 import { offerShotFile } from "../browser/shotFile.js";
-import { agentSetupLines } from "@codecast/shared/contracts/agentToolSetup";
+import { agentSetupLines } from "@codecast/capabilities/agentToolSetup";
 import { asComputerError, ComputerError, grantSetupLines } from "./errors.js";
 import { actionVerdict, failedActionVerdict, verdictLine } from "./verdict.js";
 import {

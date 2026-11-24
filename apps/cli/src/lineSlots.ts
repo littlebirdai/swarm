@@ -15,7 +15,7 @@
  * it has room again, so admission places nothing there.
  */
 import { execFileSync } from "./proc.js";
-import { normalizeGitOrigin } from "@codecast/shared/contracts";
+import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import type { Config } from "./config/types.js";
 import { diskFullHold } from "./diskFull.js";
 

@@ -17,7 +17,7 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type {
   AgentSetupTool,
   AgentToolSetupStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/agentToolSetup";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { captureError } from "./analytics";
 import { useWatchedCommand } from "./useProviderKeyCommand";

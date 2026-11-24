@@ -11,10 +11,8 @@
 
 import type { Command } from "commander";
 import { execSync } from "child_process";
-import {
-  buildProjectScopeKey,
-  requiresExplicitConsent,
-} from "@codecast/shared/contracts";
+import { buildProjectScopeKey } from "@codecast/capabilities/capabilityScopes";
+import { requiresExplicitConsent } from "@codecast/capabilities/capabilities";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import { deviceId } from "../remote/device.js";
 

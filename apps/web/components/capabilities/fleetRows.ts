@@ -8,8 +8,8 @@ import {
   type DeviceReport,
   type FleetDiffCell,
   type FleetDiffRow,
-  type ObservedScope,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/fleetDiff";
+import { type ObservedScope } from "@codecast/capabilities/capabilities";
 import type { CapabilityDevice, CapabilityKind } from "./kinds";
 
 /** What `claude plugin details` reports a capability costs in context. */

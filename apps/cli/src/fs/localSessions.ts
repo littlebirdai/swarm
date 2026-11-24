@@ -22,7 +22,7 @@ import {
   watchDirFilter,
 } from "../syncScope.js";
 import { extractCodexCwd } from "../codexSessionMeta.js";
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { checkoutRootOf } from "./checkoutOf.js";
 import type { Config } from "../config/types.js";
 

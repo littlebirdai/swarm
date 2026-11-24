@@ -25,7 +25,7 @@ import { useCollectionRows } from "../hooks/useCollectionRows";
 import { useNeedsInputCount } from "../hooks/useNeedsInputCount";
 import { useDecisionQueue } from "../hooks/useDecisionQueue";
 import { useThreadUnread } from "../hooks/useThreadsSync";
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import {
   conversationProjectRoot,
   foldCheckoutsByRepository,

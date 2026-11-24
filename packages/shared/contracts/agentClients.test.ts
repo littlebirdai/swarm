@@ -30,7 +30,10 @@ import {
   pinnedLaunchOptions,
   pinnedPickerOptions,
 } from "./agentPins";
-import { CAPABILITY_KINDS, type CapabilityKind } from "./capabilities";
+import {
+  CAPABILITY_KINDS,
+  type CapabilityKind,
+} from "@codecast/capabilities/capabilities";
 
 // fromConvexAgentType is the single convex-spelling -> daemon-spelling translation.
 // The daemon launch/resume mutations (users.startSession, conversations.switchSessionAgent,

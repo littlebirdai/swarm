@@ -17,13 +17,15 @@ import {
   type DeviceSnippetChange,
   managedIdsAfter,
   type ProviderKeyCommand,
-  isAgentSetupTool,
-  type AgentToolSetupStatus,
   cloudAgentProviderOfSession,
   isCloudAgentActionName,
   isCloudAgentLoginState,
   type CloudAgentLoginStateName,
 } from "@codecast/shared/contracts";
+import {
+  isAgentSetupTool,
+  type AgentToolSetupStatus,
+} from "@codecast/capabilities/agentToolSetup";
 import { verifyApiToken } from "./apiTokens";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";

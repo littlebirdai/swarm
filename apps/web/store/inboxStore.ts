@@ -260,9 +260,9 @@ import {
   type DeviceSnippetChange,
   managedIdsAfter,
   type ProviderKeyCommand,
-  formatCapabilitySlug,
   DEFAULT_TEAM_FEATURES,
 } from "@codecast/shared/contracts";
+import { formatCapabilitySlug } from "@codecast/capabilities/capabilities";
 import { agentStatusAt, liveFactsOf } from "../lib/liveness";
 import {
   closeFactsOf,

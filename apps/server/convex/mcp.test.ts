@@ -23,7 +23,7 @@ import {
   MCP_CALLER_SIG_HEADER,
   MCP_ROUTES,
   signCallerAddress,
-} from "@codecast/shared/contracts/agentAccess";
+} from "@codecast/capabilities/agentAccess";
 
 beforeAll(() => {
   process.env.MCP_OAUTH_ENABLED = "1";

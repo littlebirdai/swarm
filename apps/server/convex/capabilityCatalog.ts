@@ -6,10 +6,10 @@
 
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import { CAPABILITY_SOURCE_PREFIX } from "@codecast/shared/contracts";
+import { CAPABILITY_SOURCE_PREFIX } from "@codecast/capabilities/capabilities";
 import { internalMutation, query } from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { MAX_CAPABILITY_SLUG_LENGTH } from "@codecast/shared/contracts";
+import { MAX_CAPABILITY_SLUG_LENGTH } from "@codecast/capabilities/capabilities";
 import {
   CATALOG_STALE_MS,
   LIVENESS_WRITE_INTERVAL_MS,
@@ -301,8 +301,8 @@ import {
   parseRegistryPage,
   browsableServers,
   describeServerSurface,
-  formatCapabilitySlug,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/mcpRegistry";
+import { formatCapabilitySlug } from "@codecast/capabilities/capabilities";
 
 /** Pages per refresh. The registry holds ~200 servers at 100/page today; a
  *  ceiling keeps a runaway cursor from turning one cron into a crawl. */

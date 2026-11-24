@@ -6,11 +6,11 @@ import { FakeExtension, testBridgeHost } from "./bridge/host.testutil.js";
 import {
   BROWSER_EXTENSION_STORE_URL,
   BROWSER_SNIPPET,
-  agentSetupPageUrl,
   guideText,
   renderSectionBody,
   snippetBySlug,
 } from "@codecast/shared/contracts";
+import { agentSetupPageUrl } from "@codecast/capabilities/agentToolSetup";
 
 const dirs: string[] = [];
 const test = (name: string, fn: () => void | Promise<unknown>) =>

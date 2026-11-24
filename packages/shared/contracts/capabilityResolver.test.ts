@@ -3,7 +3,7 @@ import {
   SCOPE_KINDS,
   type CapabilityBinding,
   type ScopeKind,
-} from "./capabilities";
+} from "@codecast/capabilities/capabilities";
 import {
   desiredCapabilities,
   desiredCapabilitySlugs,

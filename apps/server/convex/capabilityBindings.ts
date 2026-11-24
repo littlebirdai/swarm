@@ -166,7 +166,7 @@ export const sweepCapabilityEvents = internalMutation({
  * Bindings — the write path (ct-42845)
  * ========================================================================== */
 
-import { scopeKeyValidForTeam } from "@codecast/shared/contracts";
+import { scopeKeyValidForTeam } from "@codecast/capabilities/capabilityScopes";
 import { requireTeamAdmin } from "./lib/access";
 
 /** Bump the user's convergence revision. USER level, deliberately: most

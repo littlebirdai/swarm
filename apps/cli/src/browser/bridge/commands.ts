@@ -12,7 +12,7 @@
  */
 
 import type { Command } from "commander";
-import { agentSetupLines } from "@codecast/shared/contracts";
+import { agentSetupLines } from "@codecast/capabilities/agentToolSetup";
 import { fmt, icons } from "../../colors.js";
 import { realChromePid } from "../localChrome.js";
 import type { StartOptions } from "../managedBrowser.js";

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { InstalledEntry, ObservedScope } from "./capabilities";
+import type {
+  InstalledEntry,
+  ObservedScope,
+} from "@codecast/capabilities/capabilities";
 import {
   buildFleetDiff,
   capabilityIdentity,
@@ -8,7 +11,7 @@ import {
   type FleetDiff,
   type FleetDiffRow,
   type ReportedInventory,
-} from "./fleetDiff";
+} from "@codecast/capabilities/fleetDiff";
 
 // ---------------------------------------------------------------- fixtures
 //

@@ -13,7 +13,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { deriveExecutionSurfaces } from "@codecast/shared/contracts";
+import { deriveExecutionSurfaces } from "@codecast/capabilities/capabilities";
 import {
   parseMarketplaceManifest,
   parseMcpJson,

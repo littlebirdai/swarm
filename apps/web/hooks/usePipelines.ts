@@ -21,7 +21,7 @@ import {
   type PipelineRun,
 } from "../lib/line/pipelineModel";
 import { useInboxStore } from "../store/inboxStore";
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { sessionRemoteOf } from "./useRepoFlows";
 import type { Pipeline } from "../lib/line/pipelineTypes";
 
