@@ -98,6 +98,7 @@ test("nested launcher uses the current pane stamp or a fresh launch receipt, and
       ORIGIN_TEST_PANE: pane,
     });
     expect(r.code).not.toBe(0);
+    expect(r.err).toContain("Cannot identify the sending session");
     expect(r.out).toBe("");
   }
 });
@@ -124,6 +125,9 @@ test("explicit sender overrides inherited context, while unresolved sender print
     ["--bad"],
   ]) {
     const r = await run(args, config);
+    expect(r.err).toContain(
+      args[0] === "--bad" ? "Usage:" : "Cannot identify the sending session",
+    );
     expect(r.code).not.toBe(0);
     expect(r.out).toBe("");
   }
@@ -143,6 +147,7 @@ test("conflicting inherited identities require an explicit sender", async () => 
     };
     const ambiguous = await run([], config, env);
     expect(ambiguous.code).not.toBe(0);
+    expect(ambiguous.err).toContain("Ambiguous sending session");
     expect(ambiguous.out).toBe("");
     expect((await run(["--from", parent], config, env)).code).toBe(0);
   }

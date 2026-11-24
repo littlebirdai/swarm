@@ -41,10 +41,9 @@ export async function registerAuthRequest(
     deviceName: string;
     deviceId?: string;
   },
-  fetchImpl: typeof cliFetch = cliFetch,
 ): Promise<boolean> {
   try {
-    const res = await fetchImpl(
+    const res = await cliFetch(
       `${convexSiteUrl}/cli/auth-request`,
       {
         method: "POST",
@@ -68,16 +67,13 @@ export function startRelayPoller(
   convexSiteUrl: string,
   nonce: string,
   opts: {
-    intervalMs?: number;
-    fetchImpl?: typeof cliFetch;
     verifier?: string;
   } = {},
 ): RelayPoller {
-  const baseFetch = opts.fetchImpl ?? cliFetch;
   const verifier = opts.verifier;
   const fetchImpl: typeof cliFetch = verifier
     ? (url, init, o) =>
-        baseFetch(
+        cliFetch(
           url,
           {
             ...init,
@@ -88,9 +84,8 @@ export function startRelayPoller(
           },
           o,
         )
-    : baseFetch;
+    : cliFetch;
   return startPackageRelayPoller(convexSiteUrl, nonce, {
-    intervalMs: opts.intervalMs,
     fetchImpl,
   });
 }

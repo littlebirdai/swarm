@@ -301,9 +301,3 @@ export function referenceCallFrames(
   }
   return replaced;
 }
-
-/** Test seam: forget the Read memory and the cached index. */
-export function resetCallFrameMemory(): void {
-  readPaths.clear();
-  cache = null;
-}

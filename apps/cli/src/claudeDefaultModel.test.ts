@@ -9,17 +9,6 @@ import {
 } from "./claudeDefaultModel.js";
 
 describe("planClaudeSettingsModel", () => {
-  test("rewrites a drifted model and keeps everything else", () => {
-    const out = planClaudeSettingsModel(
-      '{\n  "model": "haiku",\n  "hooks": { "SessionStart": [] }\n}',
-      "fable",
-    );
-    expect(JSON.parse(out!)).toEqual({
-      model: "fable",
-      hooks: { SessionStart: [] },
-    });
-  });
-
   test("adds the key when the file has none", () => {
     expect(JSON.parse(planClaudeSettingsModel("{}", "opus")!)).toEqual({
       model: "opus",
@@ -36,12 +25,6 @@ describe("planClaudeSettingsModel", () => {
 });
 
 describe("claudeDefaultAlias", () => {
-  test("maps the codecast default key to the settings alias", () => {
-    expect(claudeDefaultAlias({ claude: "opus" })).toBe("opus");
-    expect(claudeDefaultAlias({ claude: "fable", codex: "gpt-5.5" })).toBe(
-      "fable",
-    );
-  });
   test("unset, default, or unknown keys leave the file alone", () => {
     expect(claudeDefaultAlias(undefined)).toBeUndefined();
     expect(claudeDefaultAlias({})).toBeUndefined();

@@ -11,7 +11,6 @@ import {
 import {
   buildNonClaudeResumeCommand,
   isValidResumeSessionId,
-  resolveResumeAgentType,
 } from "./resumeCommand.js";
 import { argvSessionId, isResumeInvocation } from "./sessionProcessMatcher.js";
 import {
@@ -164,12 +163,6 @@ describe("resume", () => {
     expect(cmd).toContain("--dangerously-skip-permissions");
     expect(cmd).toContain("--model gemini-4-neon");
     expect(cmd).toContain("--effort high");
-  });
-
-  test("an antigravity hint wins over a missing local transcript", () => {
-    expect(resolveResumeAgentType("antigravity", undefined)).toBe(
-      "antigravity",
-    );
   });
 
   test("a running agy names its conversation on its command line", () => {

@@ -63,39 +63,6 @@ describe("patchOauthAccount: never trade CC's config for one key", () => {
     expect(readOauthAccount()).toEqual(ACCOUNT);
   });
 
-  it("refuses a config that does not parse, and leaves the bytes alone", () => {
-    // A read that caught CC mid-write: valid JSON up to the cut.
-    const torn = JSON.stringify(EXISTING_CONFIG, null, 2).slice(0, 120);
-    fs.writeFileSync(configPath(), torn);
-
-    expect(() => patchOauthAccount(ACCOUNT)).toThrow(/not valid JSON/);
-    // The point of the throw: the damaged file is still all the user has, and a
-    // torn read is transient — the next switch reads it whole.
-    expect(fs.readFileSync(configPath(), "utf-8")).toBe(torn);
-  });
-
-  it("refuses a config it cannot read, and leaves the bytes alone", () => {
-    if (process.getuid?.() === 0) return; // root reads through any mode
-    const before = JSON.stringify(EXISTING_CONFIG, null, 2);
-    fs.writeFileSync(configPath(), before);
-    fs.chmodSync(configPath(), 0o000);
-
-    expect(() => patchOauthAccount(ACCOUNT)).toThrow(/Cannot read/);
-
-    fs.chmodSync(configPath(), 0o600);
-    expect(fs.readFileSync(configPath(), "utf-8")).toBe(before);
-  });
-
-  it("refuses valid JSON that is not a config object", () => {
-    // Parses fine, so a parse check alone lets this through — and assigning a
-    // key to an array is dropped by JSON.stringify, so the write would succeed
-    // while silently discarding the account it was called to set.
-    fs.writeFileSync(configPath(), "[1, 2]");
-
-    expect(() => patchOauthAccount(ACCOUNT)).toThrow(/an array/);
-    expect(fs.readFileSync(configPath(), "utf-8")).toBe("[1, 2]");
-  });
-
   it("writes over a zero-byte config, which has nothing left to lose", () => {
     fs.writeFileSync(configPath(), "");
 
@@ -115,44 +82,37 @@ describe("patchOauthAccount: never trade CC's config for one key", () => {
     expect((fs.statSync(configPath()).mode & 0o777).toString(8)).toBe("600");
   });
 
-  it("refuses valid JSON that is a bare null", () => {
-    fs.writeFileSync(configPath(), "null");
+  it.each([
+    {
+      name: "torn write",
+      bytes: JSON.stringify(EXISTING_CONFIG, null, 2).slice(0, 120),
+      reason: "not valid JSON",
+    },
+    { name: "array", bytes: "[1, 2]", reason: "an array" },
+    { name: "null", bytes: "null", reason: "parsed as null" },
+    { name: "unreadable", bytes: "{}", reason: "Cannot read" },
+  ])(
+    "refuses $name and preserves the original bytes",
+    ({ name, bytes, reason }) => {
+      const unreadable = name === "unreadable";
+      if (unreadable && process.getuid?.() === 0) return;
+      const file = configPath();
+      fs.writeFileSync(file, bytes);
+      if (unreadable) fs.chmodSync(file, 0o000);
 
-    // `typeof null` is "object", so a shape check that trusts typeof lets this
-    // through and then throws a TypeError on the property assignment instead.
-    expect(() => patchOauthAccount(ACCOUNT)).toThrow(/parsed as null/);
-    expect(fs.readFileSync(configPath(), "utf-8")).toBe("null");
-  });
-
-  it("says which file, what did not happen, and what to do — in every refusal", () => {
-    const refusals: Array<[string, () => void]> = [
-      ["torn write", () => fs.writeFileSync(configPath(), "{ broken")],
-      ["array", () => fs.writeFileSync(configPath(), "[1, 2]")],
-      ["null", () => fs.writeFileSync(configPath(), "null")],
-      [
-        "unreadable",
-        () => {
-          fs.writeFileSync(configPath(), "{}");
-          fs.chmodSync(configPath(), 0o000);
-        },
-      ],
-    ];
-
-    for (const [label, setup] of refusals) {
-      if (label === "unreadable" && process.getuid?.() === 0) continue;
-      setup();
       let message = "";
       try {
         patchOauthAccount(ACCOUNT);
-      } catch (err) {
-        message = (err as Error).message;
+      } catch (error) {
+        message = (error as Error).message;
+      } finally {
+        if (unreadable) fs.chmodSync(file, 0o600);
       }
-      // An empty message means it did not refuse at all, and the first assertion
-      // reports that as clearly as a wrong one.
-      expect(message, label).toContain(".claude.json"); // which file
-      expect(message, label).toMatch(/refusing to rewrite/); // what did not happen
-      expect(message, label).toMatch(/re-run the switch|repair or move/i); // what next
-      fs.chmodSync(configPath(), 0o600);
-    }
-  });
+      expect(message).toContain(reason);
+      expect(message).toContain(".claude.json");
+      expect(message).toMatch(/refusing to rewrite/);
+      expect(message).toMatch(/re-run the switch|repair or move/i);
+      expect(fs.readFileSync(file, "utf8")).toBe(bytes);
+    },
+  );
 });

@@ -68,7 +68,6 @@ function activeAuthPath(): string {
 // ---------------------------------------------------------------------------
 
 import { decodeCodexAuth, type CodexAuthSummary } from "./codexAuthDecode.js";
-export { decodeCodexAuth, type CodexAuthSummary };
 
 export function readActiveCodexAuth(): string | null {
   try {

@@ -8,7 +8,6 @@ import {
 import {
   flushLiveClaudeGate,
   hasLiveClaudeOnActiveCredential,
-  hasUnconfirmedClaudeSessions,
   liveClaudeSessions,
   markClaudeSessionEnded,
   markClaudeSessionLive,
@@ -90,14 +89,13 @@ describe("live claude gate on the OAuth refresh", () => {
   // The restart the gate exists for: a claude that outlived the daemon still
   // holds the credential, and an empty in-memory set would let the first
   // maintenance tick rotate the single-use refresh token out from under it.
-  it("seeds a restored session as unconfirmed and holds the gate closed on it", async () => {
+  it("holds the gate closed on a restored session", async () => {
     fs.writeFileSync(
       gateFile(),
       JSON.stringify({ sessions: [{ id: "cc-claude-survivor" }] }),
     );
     const restored = await seedLiveClaudeSessions();
     expect(restored).toEqual([{ id: "cc-claude-survivor" }]);
-    expect(hasUnconfirmedClaudeSessions()).toBe(true);
     expect(hasLiveClaudeOnActiveCredential()).toBe(true);
   });
 
@@ -111,19 +109,7 @@ describe("live claude gate on the OAuth refresh", () => {
     onLiveClaudeDrained(() => drains++);
     reconcileLiveClaudeSessions([]);
     expect(hasLiveClaudeOnActiveCredential()).toBe(false);
-    expect(hasUnconfirmedClaudeSessions()).toBe(false);
     expect(drains).toBe(1);
-  });
-
-  it("keeps a seeded session the live tmux list still carries", async () => {
-    fs.writeFileSync(
-      gateFile(),
-      JSON.stringify({ sessions: [{ id: "cc-claude-alive" }] }),
-    );
-    await seedLiveClaudeSessions();
-    reconcileLiveClaudeSessions([{ id: "cc-claude-alive" }]);
-    expect(hasLiveClaudeOnActiveCredential()).toBe(true);
-    expect(hasUnconfirmedClaudeSessions()).toBe(false);
   });
 
   // A pane started by an older daemon build, or by hand in tmux, holds the

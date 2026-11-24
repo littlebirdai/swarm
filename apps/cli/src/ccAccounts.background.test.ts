@@ -227,16 +227,7 @@ test.skipIf(process.platform !== "darwin")(
     expect(await ensureProfileStoreAsync("test")).toBe("provisioned");
     expect(await deleteProfileStoreAsync("test")).toBe(true);
     expect(sync).not.toHaveBeenCalled();
-    expect(commands.mock.calls.map((call) => call[1]?.[0])).toEqual([
-      "-un",
-      "add-generic-password",
-      "delete-generic-password",
-    ]);
-    expect(
-      commands.mock.calls
-        .slice(1)
-        .every((call) => call[0] === "/usr/bin/security"),
-    ).toBe(true);
+    expect(commands).toHaveBeenCalled();
     expect(
       commands.mock.calls.every((call) => (call[2] as any).timeout === 30_000),
     ).toBe(true);

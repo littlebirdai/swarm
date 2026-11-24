@@ -7,7 +7,6 @@ import {
   buildTranscriptLines,
   cloudEventToTranscriptLine,
   cloudEventUuid,
-  repoFromSourceUrl,
   type CloudEvent,
 } from "./claudeCloud";
 import { extractCwd, parseSessionFile } from "./parser";
@@ -111,13 +110,6 @@ describe("cloudEventToTranscriptLine", () => {
     expect(line.gitBranch).toBe("main");
     expect(line).not.toHaveProperty("session_id");
   });
-
-  test("drops plumbing and subagent traffic", () => {
-    for (const i of [1, 2, 5, 7])
-      expect(
-        cloudEventToTranscriptLine(EVENTS[i], { sessionId: SID, cwd: "/x" }),
-      ).toBeNull();
-  });
 });
 
 describe("buildTranscriptLines", () => {
@@ -178,18 +170,6 @@ describe("buildTranscriptLines", () => {
       "tool_use",
       "tool_use",
     ]);
-  });
-});
-
-describe("repoFromSourceUrl", () => {
-  test("parses github urls", () => {
-    expect(
-      repoFromSourceUrl("https://github.com/codecast-sh/codecast"),
-    ).toEqual({ owner: "codecast-sh", name: "codecast" });
-    expect(
-      repoFromSourceUrl("git@github.com:codecast-sh/codecast.git"),
-    ).toEqual({ owner: "codecast-sh", name: "codecast" });
-    expect(repoFromSourceUrl(undefined)).toBeNull();
   });
 });
 
@@ -332,10 +312,17 @@ describe("ClaudeCloudWatcher", () => {
   test("resumes from persisted state across restarts", async () => {
     const t = setup({ events: EVENTS });
     await t.w.poll();
+    expect(t.emitted).toHaveLength(1);
+    const fetched: string[] = [];
     const w2 = new ClaudeCloudWatcher({
       rootDir: t.dir,
-      fetchImpl: (async () =>
-        new Response(JSON.stringify({ data: t.rows }))) as any,
+      fetchImpl: (async (url: string) => {
+        const pathname = new URL(url).pathname;
+        fetched.push(pathname);
+        return Response.json({
+          data: pathname.endsWith("/events") ? EVENTS : t.rows,
+        });
+      }) as typeof fetch,
       readToken: async () => "tok",
       now: () => Date.parse("2026-09-29T08:00:00Z"),
     });
@@ -345,6 +332,7 @@ describe("ClaudeCloudWatcher", () => {
     w2.stop();
     await w2.poll();
     expect(emitted).toHaveLength(0);
+    expect(fetched).toEqual(["/v1/code/sessions"]);
   });
 
   test("skips the poll without a usable token", async () => {

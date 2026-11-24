@@ -168,11 +168,16 @@ interface InstallRun {
 }
 
 /** One `cast …` run against a scratch HOME. Throws on any non-zero exit. */
-function runCli(home: string, args: string[], attempt = ""): string {
+function runCli(
+  home: string,
+  args: string[],
+  attempt = "",
+  extraEnv: Record<string, string> = {},
+): string {
   const proc = spawnSync(process.execPath, [cliEntry, ...args], {
     // As a person's shell runs it: an agent session's id in the env makes every command deliver its plan log, which
     // needs an auth the scratch HOME does not have.
-    env: { ...personEnv(process.env), HOME: home, NO_COLOR: "1" },
+    env: { ...personEnv(process.env), HOME: home, NO_COLOR: "1", ...extraEnv },
     encoding: "utf8",
     timeout: 60_000,
   });
@@ -648,4 +653,115 @@ describe("cast install — golden output per catalog slug", () => {
         `delete the fixed slug from STDOUT_NAMES_A_FILE_IT_DID_NOT_WRITE.`,
     );
   });
+});
+
+describe("installed skills", () => {
+  test("headless sign-in installs skills by default", async () => {
+    const home = scratchHome();
+    const requests: Array<{ route: string; deviceId?: string }> = [];
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      async fetch(request): Promise<Response> {
+        const route = new URL(request.url).pathname;
+        if (route === "/cli/exchange-token") {
+          const body = (await request.json()) as { device_id?: string };
+          requests.push({ route, deviceId: body.device_id });
+          return Response.json({
+            user_id: "fixture-user",
+            auth_token: "fixture-token",
+            convex_url: server.url.origin,
+          });
+        }
+        return Response.json({});
+      },
+    });
+    try {
+      const configDir = path.join(home, ".codecast");
+      const child = Bun.spawn(
+        [process.execPath, cliEntry, "login", "fixture-setup-token"],
+        {
+          env: {
+            ...personEnv(process.env),
+            HOME: home,
+            CODECAST_DIR: configDir,
+            CLAUDE_CONFIG_DIR: path.join(home, ".claude"),
+            CODEX_HOME: path.join(home, ".codex"),
+            CODECAST_NO_AUTO_UPDATE: "1",
+            CODECAST_NO_AUTOSTART: "1",
+            CONVEX_URL: server.url.origin,
+            NO_COLOR: "1",
+          },
+          stdin: "ignore",
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      const [stdout, stderr, code] = await Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
+      ]);
+      expect(code, stdout + stderr).toBe(0);
+      expect(requests).toEqual([
+        { route: "/cli/exchange-token", deviceId: expect.any(String) },
+      ]);
+      expect(requests[0].deviceId).toBeTruthy();
+      const skill = path.join(
+        home,
+        ".claude",
+        "skills",
+        "cast-org",
+        "SKILL.md",
+      );
+      expect(fs.readFileSync(skill, "utf8")).toContain("name: cast-org");
+      const config = JSON.parse(
+        fs.readFileSync(path.join(configDir, "config.json"), "utf8"),
+      );
+      expect(config.skills_enabled).toBe(true);
+      expect(config.skills_version).toBeTruthy();
+    } finally {
+      server.stop(true);
+    }
+  }, 60_000);
+
+  test("refresh restores an enabled skill and either disable path keeps it off", () => {
+    const home = scratchHome();
+    const env = { CODECAST_DIR: path.join(home, ".codecast") };
+    const skill = path.join(home, ".claude", "skills", "cast-org", "SKILL.md");
+    for (const disable of [
+      ["install", "skills", "--disable"],
+      ["install", "--disable"],
+    ]) {
+      runCli(home, ["install", "skills"], "", env);
+      const installed = fs.readFileSync(skill, "utf8");
+      expect(installed).toContain("name: cast-org");
+      fs.unlinkSync(skill);
+      runCli(home, ["snippets-refresh"], "", env);
+      expect(fs.readFileSync(skill, "utf8")).toBe(installed);
+      runCli(home, disable, "", env);
+      expect(fs.existsSync(skill)).toBe(false);
+      runCli(home, ["snippets-refresh"], "", env);
+      expect(fs.existsSync(skill)).toBe(false);
+    }
+  }, 60_000);
+
+  test("uninstall removes the installed skills", () => {
+    const home = scratchHome();
+    const bin = path.join(home, "bin");
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, "launchctl"), "#!/bin/sh\nexit 0\n", {
+      mode: 0o755,
+    });
+    const env = {
+      CODECAST_DIR: path.join(home, ".codecast"),
+      CODEX_HOME: path.join(home, ".codex"),
+      PATH: `${bin}:/usr/bin:/bin`,
+    };
+    const skill = path.join(home, ".claude", "skills", "cast-org", "SKILL.md");
+    runCli(home, ["install", "skills"], "", env);
+    expect(fs.existsSync(skill)).toBe(true);
+    runCli(home, ["uninstall", "--yes", "--keep-config"], "", env);
+    expect(fs.existsSync(skill)).toBe(false);
+  }, 60_000);
 });

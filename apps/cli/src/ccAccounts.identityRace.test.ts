@@ -109,7 +109,10 @@ describe("profile identity stays attached to the captured credential", () => {
       return result;
     }) as typeof fs.readFileSync);
     try {
+      const beforeSave = Date.now();
       expect(saveProfile("alpha").email).toBe("alpha@example.com");
+      expect(readSnapshot("alpha").saved_at).toBeGreaterThanOrEqual(beforeSave);
+      expect(readSnapshot("alpha").saved_at).toBeLessThanOrEqual(Date.now());
       expect(switched).toBe(true);
       expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe(
         "alpha-access-2",

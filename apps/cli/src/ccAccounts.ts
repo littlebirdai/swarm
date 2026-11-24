@@ -33,11 +33,6 @@ import {
   parseScopedRateLimitWindow,
   type RateLimitFingerprint,
 } from "./ccRateLimitHeaders.js";
-export {
-  parseRateLimitFingerprint,
-  parseScopedRateLimitWindow,
-  type RateLimitFingerprint,
-};
 import {
   renderProviderEnvFile,
   sourceFilePrefix,

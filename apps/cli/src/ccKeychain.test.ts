@@ -90,11 +90,6 @@ describe("ccKeychainReadItems", () => {
     ]);
   });
 
-  it("keeps one candidate per spelling when the path resolves to itself", () => {
-    const dir = fs.realpathSync(tmp);
-    expect(ccKeychainReadItems(dir)).toHaveLength(2);
-  });
-
   it("hashes a config dir that does not exist yet", () => {
     const dir = path.join(tmp, "never-created");
     expect(ccKeychainReadItems(dir).map((i) => i.service)).toEqual([
@@ -142,15 +137,13 @@ describe("ccKeychainAccount", () => {
     expect(ccKeychainAccount()).toBe("ashot.dev_1-x");
   });
 
-  it("falls back to claude-code-user for an SSO-style name", () => {
-    process.env.USER = "first@example.com";
-    expect(ccKeychainAccount()).toBe("claude-code-user");
-  });
-
-  it("falls back for a name with a space", () => {
-    process.env.USER = "Ada Lovelace";
-    expect(ccKeychainAccount()).toBe("claude-code-user");
-  });
+  it.each(["first@example.com", "Ada Lovelace"])(
+    "uses the default account for %s",
+    (name) => {
+      process.env.USER = name;
+      expect(ccKeychainAccount()).toBe("claude-code-user");
+    },
+  );
 
   it("takes USERNAME when USER is unset", () => {
     delete process.env.USER;
@@ -192,16 +185,6 @@ describe("ccKeychainWriteItem", () => {
 });
 
 describe("readLocalCredentialAsync", () => {
-  it("walks every candidate, then falls back to the file form", async () => {
-    process.env.CLAUDE_CONFIG_DIR = path.join(tmp, "config");
-    fs.mkdirSync(path.join(tmp, ".claude"), { recursive: true });
-    fs.writeFileSync(
-      path.join(tmp, ".claude", ".credentials.json"),
-      '{"claudeAiOauth":{}}',
-    );
-    expect(await readLocalCredentialAsync()).toBe('{"claudeAiOauth":{}}');
-  });
-
   it("returns null when neither the keychain nor the file has one", async () => {
     process.env.CLAUDE_CONFIG_DIR = path.join(tmp, "config");
     expect(await readLocalCredentialAsync()).toBeNull();

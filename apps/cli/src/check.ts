@@ -875,7 +875,7 @@ export type WatchEvent =
   | { kind: "done"; errors: number }
   | { kind: "line" };
 
-export function classifyWatchLine(line: string): WatchEvent {
+function classifyWatchLine(line: string): WatchEvent {
   if (
     /Starting compilation in watch mode|File change detected\. Starting incremental compilation/.test(
       line,

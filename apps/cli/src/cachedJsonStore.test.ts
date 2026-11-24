@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { pollUntil } from "./test-helpers/pollUntil.js";
 import { CachedJsonStore } from "./cachedJsonStore.js";
 
 let dir: string;
@@ -136,25 +137,16 @@ describe("CachedJsonStore", () => {
     expect(read()).toEqual({ a: 1 });
   });
 
-  it("async debounced flush coalesces a burst into a single durable write", async () => {
+  it("an async flush preserves keys from the previous flush", async () => {
     const store = new CachedJsonStore<number>({
       filePath: file,
       flushDelayMs: 5,
     });
     store.set("a", 1);
-    await new Promise((r) => setTimeout(r, 20));
+    await pollUntil(() => read()?.a === 1, "first key written");
     store.set("b", 2);
-    // Poll rather than sleep a fixed 20ms: the debounce timer competes with
-    // suite load, and a fixed wait loses that race just often enough to flake
-    // the deploy gate. The deadline is generous; the pass condition is exact.
-    const deadline = Date.now() + 2000;
-    let last: Record<string, unknown> | null = null;
-    while (Date.now() < deadline) {
-      last = read();
-      if (last && last.a === 1 && last.b === 2) break;
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    expect(last).toEqual({ a: 1, b: 2 });
+    await pollUntil(() => read()?.b === 2, "second key written");
+    expect(read()).toEqual({ a: 1, b: 2 });
   });
 });
 

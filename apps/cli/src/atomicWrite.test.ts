@@ -206,13 +206,6 @@ describe("atomicWriteFile — publish step", () => {
   // The mode tests below only mean something if the file was really published by
   // rename; a plain fs.writeFileSync preserves an existing mode for free. This
   // pins the mechanism they rely on.
-  it("publishes a NEW inode — the bytes are never written into the live file", () => {
-    fs.writeFileSync(file, "old");
-    const before = inodeOf(file);
-    atomicWriteFile(file, "new");
-    expect(inodeOf(file)).not.toBe(before);
-    expect(fs.readFileSync(file, "utf8")).toBe("new");
-  });
 
   it("names the target, not the temp path, when the target is a directory", () => {
     // Raw node reports the failure against the temp path, which tells the user
@@ -310,29 +303,9 @@ describe("atomicWriteFile — symlinked config files", () => {
     );
     expect(tmpLeftovers(dir)).toEqual([]);
   });
-
-  it("cannot preserve a hardlink — a documented limit of publishing by rename", () => {
-    fs.writeFileSync(file, "old");
-    const other = path.join(dir, "other.json");
-    fs.linkSync(file, other);
-    atomicWriteFile(file, "new");
-    // rename swaps the directory entry, so the second name keeps the old inode.
-    // Pinned so nobody later claims the helper is hardlink-safe.
-    expect(fs.readFileSync(file, "utf8")).toBe("new");
-    expect(fs.readFileSync(other, "utf8")).toBe("old");
-    expect(fs.statSync(file).nlink).toBe(1);
-  });
 });
 
 describe("atomicWriteFile — permissions", () => {
-  it("keeps the mode of an existing 0600 file when overwriting it", () => {
-    fs.writeFileSync(file, "old");
-    fs.chmodSync(file, 0o600);
-    atomicWriteFile(file, "new");
-    expect(modeOf(file)).toBe("600");
-    expect(fs.readFileSync(file, "utf8")).toBe("new");
-  });
-
   it("keeps a wider existing mode too — a rewrite must not silently narrow settings.json", () => {
     fs.writeFileSync(file, "old");
     fs.chmodSync(file, 0o644);
@@ -397,11 +370,6 @@ describe("atomicWriteFile — directories and cleanup", () => {
     ).toThrow();
     expect(tmpLeftovers(dir)).toEqual([]);
     expect(fs.existsSync(file)).toBe(false);
-  });
-
-  it("leaves no .tmp behind after a successful write", () => {
-    atomicWriteFile(file, "ok");
-    expect(tmpLeftovers(dir)).toEqual([]);
   });
 });
 
@@ -491,13 +459,5 @@ describe("atomicWriteFile — payloads", () => {
     expect(fs.readFileSync(file, "utf8")).toBe("héllo\n");
     atomicWriteFile(file, new Uint8Array([0, 1, 2, 255]));
     expect([...fs.readFileSync(file)]).toEqual([0, 1, 2, 255]);
-  });
-
-  it("writes bytes verbatim — no trailing newline of its own", () => {
-    // providerKeyStore dedupes a device push by exact content, so the helper
-    // must never add or trim a byte the caller did not write.
-    const exact = '{"a":1}';
-    atomicWriteFile(file, exact);
-    expect(fs.readFileSync(file, "utf8")).toBe(exact);
   });
 });

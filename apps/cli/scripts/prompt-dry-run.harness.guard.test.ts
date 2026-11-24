@@ -28,35 +28,35 @@ describe("prompt-dry-run.ts: the harness's argv contract and turns", () => {
     expect(fs.existsSync(path.join(h.runDir, "args.json"))).toBe(false);
   }, 30_000);
 
-  test("--call refuses --then, and --system needs --call", () => {
-    const h = harnessWorld([]);
-    expect(
-      h.run(
+  test.each([
+    {
+      flags: (prompt: string, _system: string) => ["--call", "--then", prompt],
+      message:
+        "--then does not apply to --call: a call is one turn with no tools",
+    },
+    {
+      flags: (_prompt: string, system: string) => ["--system", system],
+      message: "--system applies only to --call",
+    },
+  ])(
+    "$message",
+    ({ flags, message }) => {
+      const h = harnessWorld([]);
+      const result = h.run(
         "--run",
         h.runDir,
         "--prompt",
         h.prompt,
         "--model",
         "m",
-        "--call",
-        "--then",
-        h.prompt,
-      ).code,
-    ).toBe(2);
-    expect(
-      h.run(
-        "--run",
-        h.runDir,
-        "--prompt",
-        h.prompt,
-        "--model",
-        "m",
-        "--system",
-        h.system,
-      ).code,
-    ).toBe(2);
-    expect(h.recorded("argv")).toBeNull();
-  }, 30_000);
+        ...flags(h.prompt, h.system),
+      );
+      expect(result.code).toBe(2);
+      expect(result.err).toContain(message);
+      expect(h.recorded("argv")).toBeNull();
+    },
+    30_000,
+  );
 
   test("--call sends the prompt as the whole message with no tools, one turn and the cap in env", () => {
     const h = harnessWorld([

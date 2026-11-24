@@ -36,35 +36,14 @@ afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test("sync and async credential readers prefer the scoped login", async () => {
-  const item = ccKeychainWriteItem();
-  const sync = spyOn(proc, "execFileSync").mockImplementation(((
-    _cmd: string,
-    args: string[],
-  ) => {
-    expect(args).toEqual(["find-generic-password", "-s", item.service, "-w"]);
-    return "scoped-login\n";
-  }) as any);
-  const asyncRead = spyOn(proc, "keychainReadAsync").mockImplementation(
-    async (args) => {
-      expect(args).toEqual(["find-generic-password", "-s", item.service, "-w"]);
-      return "scoped-login";
-    },
-  );
-  spies.push(sync, asyncRead);
-  expect(readLocalCredential()).toBe("scoped-login");
-  expect(await readLocalCredentialAsync()).toBe("scoped-login");
-  expect(sync).toHaveBeenCalledTimes(1);
-  expect(asyncRead).toHaveBeenCalledTimes(1);
-});
-
 test("readers exhaust scoped candidates before the machine login and file fallback", async () => {
   const services = ccKeychainReadItems().map((i) => i.service);
   const seen: string[] = [];
+  let match: string | undefined = services[0];
   const read = (args: string[]) => {
     seen.push(args[2]!);
-    if (args[2] !== services.at(-1)) throw new Error("missing scoped item");
-    return "legacy-login";
+    if (args[2] !== match) throw new Error("missing Keychain item");
+    return match === services[0] ? "scoped-login" : "legacy-login";
   };
   const sync = spyOn(proc, "execFileSync").mockImplementation(((
     _cmd: string,
@@ -74,6 +53,10 @@ test("readers exhaust scoped candidates before the machine login and file fallba
     async (args) => read(args),
   );
   spies.push(sync, asyncRead);
+  expect(readLocalCredential()).toBe("scoped-login");
+  expect(await readLocalCredentialAsync()).toBe("scoped-login");
+  expect(seen.splice(0)).toEqual([services[0], services[0]]);
+  match = services.at(-1);
   expect(readLocalCredential()).toBe("legacy-login");
   expect(await readLocalCredentialAsync()).toBe("legacy-login");
   expect(seen).toEqual([...services, ...services]);

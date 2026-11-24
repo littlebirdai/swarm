@@ -37,9 +37,6 @@ export interface LiveClaudeSession {
 
 interface GateEntry {
   account?: string;
-  /** Restored from disk and not yet seen in a live tmux list. Holds the gate
-   *  closed until a reconcile either confirms or releases it. */
-  unconfirmed?: boolean;
 }
 
 interface GateFile {
@@ -230,19 +227,10 @@ export async function seedLiveClaudeSessions(): Promise<LiveClaudeSession[]> {
       typeof session.account === "string" && session.account
         ? session.account
         : undefined;
-    live.set(session.id, {
-      ...(account ? { account } : {}),
-      unconfirmed: true,
-    });
+    live.set(session.id, account ? { account } : {});
     restored.push({ id: session.id, ...(account ? { account } : {}) });
   }
   return restored;
-}
-
-/** True while any restored id is still waiting for its first reconcile. */
-export function hasUnconfirmedClaudeSessions(): boolean {
-  for (const entry of live.values()) if (entry.unconfirmed) return true;
-  return false;
 }
 
 /**

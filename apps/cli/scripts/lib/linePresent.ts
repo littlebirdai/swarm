@@ -272,7 +272,7 @@ export function parseDecideArgv(args: string[]): {
 const STDIN_TEXT_OPTIONS = ["question", "context", "doc", "note"] as const;
 
 /** Stdin for each `-` value: one `-` takes it whole (less the transport newline), several split it on lines holding only `---`. */
-export function stdinSections(stdin: string | null, count: number): string[] {
+function stdinSections(stdin: string | null, count: number): string[] {
   const body = (stdin ?? "").replace(/\r?\n$/, "");
   if (count <= 1) return [body];
   return body
@@ -547,7 +547,7 @@ function productViewPills(html: string): string {
 }
 
 /** Markdown the way a decision's context renders: prose through the markdown renderer, each cast-canvas fence as a framed canvas. */
-export function renderDecisionMarkdown(md: string): string {
+function renderDecisionMarkdown(md: string): string {
   const parts: string[] = [];
   let last = 0;
   for (const m of md.matchAll(CANVAS_FENCE)) {

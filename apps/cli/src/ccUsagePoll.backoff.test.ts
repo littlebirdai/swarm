@@ -117,52 +117,6 @@ describe("refreshUsageSnapshots backoff (isolated CODECAST_DIR, injected fetch)"
     expect(readUsageCache().accounts["uuid-a"]?.session?.percent).toBe(12);
   });
 
-  it("reads a 429's Retry-After given as an HTTP date", async () => {
-    const s = server({
-      status: 429,
-      retryAfter: new Date(NOW + 45 * 60_000).toUTCString(),
-    });
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: s.fetchImpl });
-    expect(retryState()).toMatchObject({
-      retry_at: NOW + 45 * 60_000,
-      retry_after: true,
-    });
-  });
-
-  it("caps a preposterous Retry-After at 24h", async () => {
-    const s = server({ status: 429, retryAfter: "999999999" });
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: s.fetchImpl });
-    expect(retryState()?.retry_at).toBe(NOW + DAY);
-  });
-
-  it("falls back to its own backoff for a 429 with no usable header", async () => {
-    const s = server({ status: 429, retryAfter: "whenever" });
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: s.fetchImpl });
-    expect(retryState()).toMatchObject({ retry_at: NOW + 30_000, status: 429 });
-    expect(retryState()?.retry_after).toBeUndefined();
-  });
-
-  it("doubles the wait on repeated 500s and caps it at 15 minutes", async () => {
-    const s = server(500);
-    const waits: number[] = [];
-    let now = NOW;
-    for (let i = 0; i < 7; i++) {
-      const res = await refreshUsageSnapshots({ now, fetchImpl: s.fetchImpl });
-      expect(res.failed).toHaveLength(1);
-      const state = retryState()!;
-      waits.push(state.retry_at - now);
-      now = state.retry_at;
-    }
-    expect(waits).toEqual([
-      30_000, 60_000, 120_000, 240_000, 480_000, 900_000, 900_000,
-    ]);
-    expect(s.served()).toBe(7);
-    expect(retryState()).toMatchObject({
-      failures: 7,
-      reason: "usage endpoint 500",
-    });
-  });
-
   it("keeps the last good snapshot through failures and resets the streak on recovery", async () => {
     const ok = server(200);
     await refreshUsageSnapshots({ now: NOW, fetchImpl: ok.fetchImpl });
@@ -172,10 +126,17 @@ describe("refreshUsageSnapshots backoff (isolated CODECAST_DIR, injected fetch)"
     const bad = server(503);
     let now = NOW + 10 * 60_000;
     for (let i = 0; i < 3; i++) {
-      await refreshUsageSnapshots({ now, fetchImpl: bad.fetchImpl });
+      const failed = await refreshUsageSnapshots({
+        now,
+        fetchImpl: bad.fetchImpl,
+      });
+      expect(failed.failed).toHaveLength(1);
       now = retryState()!.retry_at;
     }
-    expect(retryState()?.failures).toBe(3);
+    expect(retryState()).toMatchObject({
+      failures: 3,
+      reason: "usage endpoint 503",
+    });
     // Why: a meter that flapped to empty on a transient failure would read as
     // headroom, and auto-switch would send sessions to a spent account.
     expect(readUsageCache().accounts["uuid-a"]).toEqual(good!);

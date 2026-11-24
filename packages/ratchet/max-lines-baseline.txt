@@ -31,7 +31,7 @@ apps/cli/src/browser/provisionLinux.test.ts 1150
 apps/cli/src/browser/provisionLinux.ts 1300
 apps/cli/src/browser/snapshot.ts 950
 apps/cli/src/browser/watchServer.test.ts 850
-apps/cli/src/callSnap.test.ts 3550
+apps/cli/src/callSnap.test.ts 3450
 apps/cli/src/callSnap.ts 4050
 apps/cli/src/capabilities/inventory.test.ts 1050
 apps/cli/src/capabilities/inventory.ts 1400
@@ -39,10 +39,10 @@ apps/cli/src/capabilities/manifests.ts 1250
 apps/cli/src/capabilities/nativeCatalog.test.ts 850
 apps/cli/src/capabilities/nativeCatalog.ts 1150
 apps/cli/src/cardCommand.ts 950
-apps/cli/src/ccAccounts.test.ts 3500
+apps/cli/src/ccAccounts.test.ts 3400
 apps/cli/src/ccAccounts.ts 4150
-apps/cli/src/check.capacity.test.ts 1000
-apps/cli/src/check.test.ts 1250
+apps/cli/src/check.capacity.test.ts 950
+apps/cli/src/check.test.ts 1200
 apps/cli/src/check.ts 1550
 apps/cli/src/claudeSdk/backend.ts 900
 apps/cli/src/climb/climb.dryrun.test.ts 1350

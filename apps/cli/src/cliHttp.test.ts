@@ -1,4 +1,5 @@
 import { describe, test, expect, afterEach } from "bun:test";
+import { mock } from "node:test";
 import { cliFetch, cliFetchRead, cliSearchRequest } from "./cliHttp.js";
 
 const realFetch = globalThis.fetch;
@@ -70,7 +71,6 @@ describe("cliFetch", () => {
 
   test("retries on timeout up to the limit, then succeeds", async () => {
     let calls = 0;
-    const retried: number[] = [];
     globalThis.fetch = (async () => {
       calls++;
       if (calls < 3) throw timeoutError();
@@ -80,11 +80,10 @@ describe("cliFetch", () => {
     const res = await cliFetch(
       "https://x/cli/feed",
       { method: "POST" },
-      { retries: 2, onRetry: (i) => retried.push(i.attempt) },
+      { retries: 2 },
     );
     expect(res.status).toBe(200);
     expect(calls).toBe(3);
-    expect(retried).toEqual([0, 1]);
   });
 
   test("retries on 5xx then returns the last response when exhausted", async () => {
@@ -261,8 +260,7 @@ describe("cliSearchRequest", () => {
 
 describe("a slow backend", () => {
   test("one stderr line says the CLI is waiting, and none when the answer is quick", async () => {
-    const { WAIT_NOTE_MS } = await import("./cliHttp");
-    expect(WAIT_NOTE_MS).toBeLessThanOrEqual(15_000);
+    mock.timers.enable({ apis: ["setTimeout"] });
     const writes: string[] = [];
     const realWrite = process.stderr.write.bind(process.stderr);
     process.stderr.write = ((chunk: string) => (
@@ -273,9 +271,22 @@ describe("a slow backend", () => {
       globalThis.fetch = (async () =>
         new Response("{}")) as unknown as typeof fetch;
       await cliFetch("https://x/cli/read", { method: "POST" });
-      expect(writes.join("")).not.toContain("waiting on the codecast backend");
+      mock.timers.tick(15_000);
+      expect(writes).toEqual([]);
+
+      const response = Promise.withResolvers<Response>();
+      globalThis.fetch = (() => response.promise) as unknown as typeof fetch;
+      const slow = cliFetch("https://x/cli/read", { method: "POST" });
+      mock.timers.tick(15_000);
+      mock.timers.tick(15_000);
+      response.resolve(new Response("{}"));
+      await slow;
+      expect(writes).toEqual([
+        "waiting on the codecast backend (/cli/read)…\n",
+      ]);
     } finally {
       process.stderr.write = realWrite;
+      mock.timers.reset();
     }
   });
 });

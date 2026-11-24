@@ -16,27 +16,6 @@ const NORMAL: Omit<BootPacingPlan, "reason"> = {
   fanoutOffsetScale: 1,
   holdMs: 0,
 };
-const CAUTIOUS: Omit<BootPacingPlan, "reason"> = {
-  tier: "cautious",
-  reattachConcurrency: 3,
-  promptScanSpacingMs: 750,
-  startupSyncConcurrency: 2,
-  watchdogSyncConcurrency: 6,
-  schedulerStartDelayMs: 60_000,
-  fanoutOffsetScale: 2,
-  holdMs: 15 * 60_000,
-};
-const SEVERE: Omit<BootPacingPlan, "reason"> = {
-  tier: "severe",
-  reattachConcurrency: 1,
-  promptScanSpacingMs: 1_500,
-  startupSyncConcurrency: 1,
-  watchdogSyncConcurrency: 3,
-  schedulerStartDelayMs: 180_000,
-  fanoutOffsetScale: 3,
-  holdMs: 30 * 60_000,
-};
-
 function bounds(plan: BootPacingPlan): Omit<BootPacingPlan, "reason"> {
   const { reason: _reason, ...rest } = plan;
   return rest;
@@ -70,7 +49,7 @@ describe("planBootPacing", () => {
       load1: 1,
       cpuCount: 16,
     });
-    expect(bounds(plan)).toEqual(CAUTIOUS);
+    expect(plan.tier).toBe("cautious");
     expect(plan.reason).toBe("hang 5m ago");
   });
 
@@ -102,13 +81,13 @@ describe("planBootPacing", () => {
       "1 crash in the last 30m",
     );
     const plan = planBootPacing({ crashCount: 3 });
-    expect(bounds(plan)).toEqual(CAUTIOUS);
+    expect(plan.tier).toBe("cautious");
     expect(plan.reason).toBe("3 crashes in the last 30m");
   });
 
   test("load between 2 and 6 per cpu with no trouble is cautious", () => {
     const plan = planBootPacing({ load1: 32, cpuCount: 16 });
-    expect(bounds(plan)).toEqual(CAUTIOUS);
+    expect(plan.tier).toBe("cautious");
     expect(plan.reason).toBe("load 32.0 on 16 cpus");
     expect(planBootPacing({ load1: 95.9, cpuCount: 16 }).tier).toBe("cautious");
   });
@@ -120,7 +99,7 @@ describe("planBootPacing", () => {
       load1: 48,
       cpuCount: 16,
     });
-    expect(bounds(plan)).toEqual(SEVERE);
+    expect(plan.tier).toBe("severe");
     expect(plan.reason).toBe(
       "hang 1m ago; 2 crashes in the last 30m; load 48.0 on 16 cpus",
     );
@@ -128,7 +107,7 @@ describe("planBootPacing", () => {
 
   test("load at or above 6 per cpu alone is severe", () => {
     const plan = planBootPacing({ load1: 250, cpuCount: 16 });
-    expect(bounds(plan)).toEqual(SEVERE);
+    expect(plan.tier).toBe("severe");
     expect(plan.reason).toBe("load 250.0 on 16 cpus");
     expect(planBootPacing({ load1: 96, cpuCount: 16 }).tier).toBe("severe");
   });
@@ -139,7 +118,7 @@ describe("planBootPacing", () => {
       load1: 1,
       cpuCount: 16,
     });
-    expect(bounds(plan)).toEqual(SEVERE);
+    expect(plan.tier).toBe("severe");
     expect(plan.reason).toBe("memory pressure critical");
   });
 

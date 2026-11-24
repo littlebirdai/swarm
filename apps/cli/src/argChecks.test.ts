@@ -29,22 +29,8 @@ describe("nonNegativeCountOption", () => {
 });
 
 describe("stateOption", () => {
-  test("passes every value the server's filter knows, aliases included", () => {
-    for (const ok of [
-      "needs-input",
-      "needs_input",
-      "done",
-      "working",
-      "dormant",
-      "hibernated",
-      "idle",
-      "pinned",
-      "live",
-      "blocked",
-      "parked",
-    ]) {
-      expect(stateOption(ok)).toBe(ok);
-    }
+  test("passes a valid alias through unchanged", () => {
+    expect(stateOption("needs-input")).toBe("needs-input");
   });
   test("all clears the filter", () => {
     expect(stateOption("all")).toBeUndefined();

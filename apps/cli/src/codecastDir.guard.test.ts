@@ -37,14 +37,12 @@ const HANDROLLED = [
 ];
 
 /** Naming one of these writes positions.json or sync-ledger.json. */
-const STATE_WRITERS = [
-  "setPosition(",
-  "clearPosition(",
-  "markSynced(",
-  "markExamined(",
-  "updateSyncRecord(",
-  "processSessionFile(",
-];
+const STATE_WRITERS = {
+  "positionTracker.ts": ["setPosition", "clearPosition"],
+  "syncLedger.ts": ["markSynced", "markExamined", "updateSyncRecord"],
+  "daemon.ts": ["processSessionFile"],
+};
+const writerNames = Object.values(STATE_WRITERS).flat();
 
 /** Any of these puts the writes somewhere other than the human's ~/.codecast. */
 const REDIRECTS = [
@@ -121,7 +119,7 @@ describe("no test writes the human's sync state", () => {
     if (file === THIS_FILE) continue; // this guard names every writer it looks for
     const lines = codeLines(fs.readFileSync(file, "utf8"));
     const writes = lines.filter(({ line }) =>
-      STATE_WRITERS.some((w) => line.includes(w)),
+      writerNames.some((name) => line.includes(`${name}(`)),
     );
     if (writes.length === 0) continue;
     if (lines.some(({ line }) => REDIRECTS.some((re) => re.test(line))))
@@ -132,6 +130,16 @@ describe("no test writes the human's sync state", () => {
   }
 
   test("every test that records a position or a sync record redirects CODECAST_DIR first", () => {
+    for (const [file, names] of Object.entries(STATE_WRITERS)) {
+      const source = codeLines(fs.readFileSync(path.join(SRC, file), "utf8"))
+        .map(({ line }) => line)
+        .join("\n");
+      for (const name of names) {
+        expect(source, name).toMatch(
+          new RegExp(`\\bfunction\\s+${name}\\s*\\(`),
+        );
+      }
+    }
     expect(offenders).toEqual([]);
   });
 

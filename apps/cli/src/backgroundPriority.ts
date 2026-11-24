@@ -122,11 +122,3 @@ function replace(set: Set<string>, ids: readonly string[]): boolean {
   for (const id of next) set.add(id);
   return true;
 }
-
-export function resetBackgroundForTest(): void {
-  byPerson.clear();
-  byGovernor.clear();
-  applied.clear();
-  delivering.clear();
-  lastSeen = [];
-}
