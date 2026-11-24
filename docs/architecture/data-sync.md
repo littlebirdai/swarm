@@ -11,7 +11,7 @@ A repo declares a folder in `.codecast/workspace.toml`:
 data = ["~/.local/share/<tool>/<dir>"]
 ```
 
-`cast datasync add <dir>` registers one with no manifest. Either way the server records the folder for the person (`data_folders`), and from then on every machine of theirs syncs it. A folder must sit at least two levels under `$HOME` and outside credential and agent folders (`.ssh`, `.aws`, `.codecast`, `.claude` and the like); `packages/shared/contracts/dataSync.ts` holds the rule both sides enforce.
+`cast datasync add <dir>` registers one with no manifest. Either way the server records the folder for the person (`data_folders`), and from then on every machine of theirs syncs it. A folder must sit at least two levels under `$HOME` and outside credential and agent folders (`.ssh`, `.aws`, `.codecast`, `.claude` and the like); `packages/machines/src/dataSync.ts` holds the rule both sides enforce.
 
 The daemon finds declarations in the repos of its codecast panes (`@codecast_project_path`); `cast datasync now` also reads the repo it runs in.
 

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { evaluateOffloadRequirements } from "./resourceOffloadPolicy";
-import type { OffloadRequirements } from "./resourceOffloadPolicy";
+import { evaluateOffloadRequirements } from "../src/resourceOffloadPolicy";
+import type { OffloadRequirements } from "../src/resourceOffloadPolicy";
 const input = (): OffloadRequirements => ({
   processes: [
     { pid: 1, ppid: 0, name: "node", kind: "tool", cpu: 10, rss: 100 },

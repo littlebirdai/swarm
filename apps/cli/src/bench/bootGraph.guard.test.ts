@@ -279,7 +279,7 @@ describe("command groups stay off the boot graph", () => {
       // workspace manifest and transcript redaction took the Vault contract
       // (secrets.ts with productView.ts) for a name check and two size limits, so
       // those pure rules moved to the leaf contracts/secretRules.ts, and the new
-      // contracts/teamHosts.ts left the barrel for a subpath import. What stays is
+      // packages/machines/src/teamHosts.ts left the barrel for a subpath import. What stays is
       // directoryTeam.ts (stableContext), loginShellPath.ts, shellQuote.ts
       // (launchCommand), secretShapes.ts (redaction) and render/structuredResult.ts.
       // 326 on 2026-10-26: ccAdoptLogin.ts, the cloud Mac's keychain adopt job,
@@ -372,7 +372,7 @@ describe("command groups stay off the boot graph", () => {
       // 372 the same day: ccRateLimitHeaders.ts, the rate-limit header parsers
       // split out of ccAccounts.ts for its max-lines pin, no new code. 369 the
       // same day: `plan verify` loads workspace/detect.ts on demand, which took
-      // detect.ts, share.ts, manifest.ts and contracts/dataSync.ts off the graph.
+      // detect.ts, share.ts, manifest.ts and packages/machines/src/dataSync.ts off the graph.
       // 370 the same day: contracts/fileAttachment.ts, the [File <path>] tag a
       // web attachment becomes (no imports), carried by the contracts barrel.
       // 372 on 2026-11-22: Antigravity CLI (agy) as a client: contracts/
@@ -403,7 +403,7 @@ describe("command groups stay off the boot graph", () => {
       // new card line in contracts/threadState.ts (+2.6 KB), and the longer
       // Thread state section in snippets.ts (+0.6 KB). No new file.
       // 4360 on 2026-10-24: that day's ship added 68.7 KB here after the Vault
-      // contract and contracts/teamHosts.ts were taken off (see the count above).
+      // contract and packages/machines/src/teamHosts.ts were taken off (see the count above).
       // The Vault's redaction leads it (secretShapes.ts +10.8, secretRules.ts +7,
       // knownValueRedaction.ts +4.4), then installed guidance in snippets.ts
       // (+8.3), render/structuredResult.ts (+7.8) and handoffPrompt.ts (+4.8).
@@ -687,7 +687,7 @@ describe("command groups stay off the boot graph", () => {
       // 510 on 2026-10-24, the daemon's own work from that day's ship: the Vault's
       // redaction source (secrets/redactionSource.ts with the secrets contract,
       // productView.ts, secretShapes.ts and the secretRules.ts leaf), the team
-      // host marker (hosts/teamMarker.ts, contracts/teamHosts.ts), the agent
+      // host marker (hosts/teamMarker.ts, packages/machines/src/teamHosts.ts), the agent
       // preflight's loginShellPath.ts and shellQuote.ts, permissionHookWait.ts,
       // loadGovernor.ts, directoryTeam.ts and render/structuredResult.ts.
       // 511 on 2026-10-26: cursorDbPath.ts, the leaf every Cursor database open

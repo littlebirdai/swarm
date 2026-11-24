@@ -13,15 +13,10 @@ export * from "./apiErrorBanner";
 // Cloud placement: the one predicate the web composer and the Convex start
 // chokepoint share for "does this launch need a laptop to prepare the host".
 export * from "./newSessionDefaults";
-// Cloud workspace mode (isolated worktree vs the host's shared checkout) and
-// the ONE occupancy rule Convex, the CLI and `cast hosts ls` apply to it.
-export * from "./worktrees";
-export * from "./deviceName";
 export * from "./orgTemplateBind";
 export * from "./snippets";
 export * from "./featureExplainers";
 export * from "./agentSwitch";
-export * from "./machineSwitch";
 export * from "./forkSeed";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
 export * from "./stableContext";
@@ -71,6 +66,4 @@ export * from "./unattended";
 export * from "./handoffPrompt";
 export type { AskResult, SideAnswerRow } from "./sessionAsk";
 export { SIDE_ANSWER_EXPIRE_MS, explainAskFailure } from "./sessionAsk";
-export * from "./systemResources";
-export * from "./resourceOffloadPolicy";
 // Codecast for outside agents (MCP): the address, the read tools, what a connection can do.

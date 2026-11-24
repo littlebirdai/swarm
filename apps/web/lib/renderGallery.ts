@@ -24,7 +24,6 @@ import {
   formatHuddleSummaryTag,
   formatScreenRecordingMessage,
   screenRecordingBrief,
-  formatMachineSwitchNotice,
   formatScheduledTask,
   formatSessionMessage,
   formatUserMessage,
@@ -37,6 +36,7 @@ import {
   wrapMentionContext,
 } from "@codecast/shared/contracts";
 import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
+import { formatMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,

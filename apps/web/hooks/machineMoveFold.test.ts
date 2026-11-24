@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatMachineSwitchNotice } from "@codecast/shared/contracts";
+import { formatMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import { classifyUserMessage } from "../components/conversation/classify";
 import type {
   Message,

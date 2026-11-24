@@ -12,7 +12,7 @@ import {
   envNameProblem,
   secretNameProblem,
 } from "@codecast/shared/contracts/secretRules";
-import { dataFolderFromManifest } from "@codecast/shared/contracts/dataSync";
+import { dataFolderFromManifest } from "@codecast/machines/dataSync";
 import type {
   BrowserSpec,
   HostSpec,

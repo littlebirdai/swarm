@@ -15,6 +15,7 @@ const PACKAGE_SOURCES = fs
   .filter((dir) => fs.existsSync(path.join(ROOT, dir)));
 const SCANNED = [
   "apps/cli/src",
+  "packages/machines/src",
   "packages/shared/contracts",
   ...PACKAGE_SOURCES,
   "apps/server/convex",

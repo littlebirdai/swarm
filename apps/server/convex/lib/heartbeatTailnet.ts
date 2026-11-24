@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import {
   normalizePeerTailnet,
   samePeerTailnet,
-} from "@codecast/shared/contracts/peerTransport";
+} from "@codecast/machines/peerTransport";
 
 export const tailnetValidator = v.object({
   ip: v.string(),

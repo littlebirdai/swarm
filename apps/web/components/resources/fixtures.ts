@@ -7,7 +7,7 @@ import type {
   ResourceKind,
   ResourcePoint,
   ResourceProcess,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import type {
   OffloadPlan,
   OffloadRun,

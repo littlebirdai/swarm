@@ -7,7 +7,7 @@ import {
   setBackgroundSessions,
   setGovernorBackground,
 } from "./backgroundPriority";
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 
 const proc = (
   pid: number,

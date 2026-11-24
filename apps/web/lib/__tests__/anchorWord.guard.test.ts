@@ -23,6 +23,7 @@ const ROOTS = [
   join(MOBILE_ROOT, "components"),
   join(MOBILE_ROOT, "lib"),
   join(REPO, "apps", "cli", "src"),
+  join(REPO, "packages", "machines", "src"),
   join(REPO, "packages", "shared", "contracts"),
   ...PACKAGE_SOURCES,
   join(REPO, "apps", "server", "convex"),

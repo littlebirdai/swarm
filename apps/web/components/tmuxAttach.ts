@@ -8,13 +8,13 @@
  * nothing.
  */
 
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import {
   localTmuxAttachCommand,
   sshTmuxAttachCommand,
   wslTmuxAttachCommand,
 } from "@codecast/daemon/sshAttach";
-import { tailnetShortName } from "@codecast/shared/contracts/peerTransport";
+import { tailnetShortName } from "@codecast/machines/peerTransport";
 import { visitorPlatform } from "../lib/visitorPlatform";
 
 export type SessionMachine = {

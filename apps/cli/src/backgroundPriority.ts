@@ -9,7 +9,7 @@
 // every resource report, and each tick applies it to every process the session
 // owns, so the renders it starts later inherit nothing and are caught anyway.
 import { execFileAsync } from "./proc.js";
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 import { sameStartedAt } from "./resourceMonitor.js";
 
 export type SetPriority = (

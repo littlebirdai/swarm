@@ -12,7 +12,7 @@ import {
   processesStartedOutside,
   summarizeProcesses,
 } from "./systemResources";
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 
 const procargs = (args: string[], env: string[]) => {
   const body = Buffer.from(

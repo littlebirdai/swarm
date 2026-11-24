@@ -321,7 +321,7 @@ export const deployTables = {
     updated_at: v.number(),
   }).index("by_workspace_repository", ["workspace", "repository"]),
 
-  // One checkout of a repository on one device (contracts/checkouts.ts,
+  // One checkout of a repository on one device (packages/machines/src/checkouts.ts,
   // ct-98780): where it stands against origin's default branch, its
   // uncommitted work by session, and the level sweep's state on it, as the
   // device's daemon last reported it (on change only). Keyed by device and path;
@@ -340,7 +340,7 @@ export const deployTables = {
     reporter_user_id: v.id("users"),
     reported_at: v.number(),
     updated_at: v.number(),
-    // Asks a person made from the pipeline page on a stuck checkout (checkouts.ask): contracts/checkouts CheckoutPageAsk.
+    // Asks a person made from the pipeline page on a stuck checkout (checkouts.ask): packages/machines/src/checkouts CheckoutPageAsk.
     // A report never writes them; the page reads them as told while the episode they were made in lasts.
     asks: v.optional(
       v.array(

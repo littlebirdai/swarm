@@ -143,7 +143,7 @@ export type MigrationBatchRow = {
 };
 
 export type MigrationBatch = {
-  resource_offload?: import("@codecast/shared/contracts/resourceOffloadIntent").ResourceOffloadIntent;
+  resource_offload?: import("@codecast/machines/resourceOffloadIntent").ResourceOffloadIntent;
   batch_id: string;
   to_device_id: string;
   created_at: number;

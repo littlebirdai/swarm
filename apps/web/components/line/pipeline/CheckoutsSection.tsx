@@ -35,7 +35,7 @@ import {
   type CheckoutView,
 } from "../../../lib/line/checkoutsModel";
 import type { Pipeline } from "../../../lib/line/pipelineTypes";
-import { toldOf } from "@codecast/shared/contracts/checkouts";
+import { toldOf } from "@codecast/machines/checkouts";
 import { PipelineDrawer } from "./PipelineDrawer";
 import { PipelineTrack } from "./PipelineTrack";
 

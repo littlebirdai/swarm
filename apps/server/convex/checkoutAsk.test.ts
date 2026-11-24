@@ -19,8 +19,7 @@ afterAll(() => {
 });
 const { askCheckoutCore } = await import("./checkoutAsk");
 const { forTeam, report } = await import("./checkouts");
-const { levelAskClientId } =
-  await import("@codecast/shared/contracts/checkouts");
+const { levelAskClientId } = await import("@codecast/machines/checkouts");
 
 const TEAM = "team_1" as any;
 const ME = "user_me";

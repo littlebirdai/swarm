@@ -1,6 +1,6 @@
 import { api as _typedApi } from "@codecast/convex/convex/_generated/api";
 import { DEVICE_ONLINE_MS } from "@codecast/convex/convex/deviceRouting";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useCoarseNow } from "./useCoarseNow";
 import { formatDuration } from "./useDaemonHealth";

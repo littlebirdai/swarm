@@ -1201,7 +1201,7 @@ export const CLIENT_SYNC_REGISTRY = {
     feeds: ["pipelines.forTeam"],
   },
   // Every device's checkouts of a team's repositories (ct-98780,
-  // contracts/checkouts.ts): ahead/behind, uncommitted work by session, the
+  // packages/machines/src/checkouts.ts): ahead/behind, uncommitted work by session, the
   // level sweep's state. One row per device and path; the feed returns a
   // team's whole set.
   checkouts: {

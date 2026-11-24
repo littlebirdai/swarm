@@ -5,7 +5,7 @@ import {
   peerLinkState,
   tailnetShortName,
   type PeerLinkState,
-} from "@codecast/shared/contracts/peerTransport";
+} from "@codecast/machines/peerTransport";
 import { useInboxStore } from "../../store/inboxStore";
 import { localDeviceIdOf } from "../../hooks/useLocalDeviceId";
 import { cmpVersions } from "../../lib/desktopFloor";

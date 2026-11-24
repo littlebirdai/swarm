@@ -11,14 +11,16 @@
 
 import {
   AGENT_SWITCH_NOTICE_PREFIX,
-  MACHINE_SWITCH_NOTICE_PREFIX,
-  MACHINE_MOVE_NOTICE_PREFIX,
   isAgentContextMessage,
   isBootstrapPrompt,
   isCompactionSummaryMessage,
   isPollResponsePayload,
   isTurnInterruptionNotice,
 } from "@codecast/shared/contracts";
+import {
+  MACHINE_SWITCH_NOTICE_PREFIX,
+  MACHINE_MOVE_NOTICE_PREFIX,
+} from "@codecast/machines/machineSwitch";
 
 export type FilterableMessage = {
   _id: string;

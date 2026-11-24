@@ -15,7 +15,7 @@ import {
   type ResourceIncident,
   type ResourcePoint,
   type ResourcePressure,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {
   joinMachines,

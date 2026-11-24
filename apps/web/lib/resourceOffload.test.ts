@@ -14,7 +14,7 @@ import type {
   OffloadCandidate,
   OffloadPlan,
 } from "../components/resources/types";
-import type { ResourcePoint } from "@codecast/shared/contracts";
+import type { ResourcePoint } from "@codecast/machines/systemResources";
 const point = (at: number): ResourcePoint => ({
   at,
   cpuPercent: 95,

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { isHomeDirectoryPath } from "@codecast/shared/contracts";
+import { isHomeDirectoryPath } from "@codecast/machines/machineSwitch";
 
 /**
  * Reproduce Claude Code's cwd → ~/.claude/projects/<dir> slug EXACTLY.

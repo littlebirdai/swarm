@@ -12,7 +12,7 @@ import {
 import {
   sustainedResourcePressure,
   type ResourcePoint,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 
 describe("machine resource attribution", () => {
   test("I/O excludes duplicate address rows, tunnels and disk partitions", () => {

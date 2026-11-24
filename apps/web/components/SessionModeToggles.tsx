@@ -9,7 +9,7 @@
  * becomes the workspace pick (own worktree vs the host's shared checkout).
  */
 
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import {
   type CloudAgentLaunch,
   type CloudAgentProviderSpec,

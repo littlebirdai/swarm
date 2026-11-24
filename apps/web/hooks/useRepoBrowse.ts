@@ -28,7 +28,7 @@ import { filterByWorkspace } from "../lib/workspaceScope";
 import {
   WORKTREES_KIND,
   type WorktreesPayload,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/worktrees";
 
 // `api` is a proxy, so naming a function prod has not deployed yet still
 // produces a reference; the call then fails and the surface reports it as an

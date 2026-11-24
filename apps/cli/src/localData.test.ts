@@ -8,7 +8,7 @@ import {
   summarizeOpenFiles,
   type OpenFile,
 } from "./localData";
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 
 const HOME = "/Users/me";
 const GB = 1024 ** 3;

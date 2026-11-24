@@ -6,15 +6,15 @@ import { resourceSnapshot } from "./machineResourcesSchema";
 import {
   RESOURCE_HISTORY_LIMIT,
   RESOURCE_PROCESS_LIMIT,
-  deviceDisplayName,
   fmtBytes,
   fmtCpu,
-  isUnattendedConversation,
   sustainedResourcePressure,
   type MachineResourceSnapshot,
   type ResourceIncident,
   type ResourcePoint,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
+import { isUnattendedConversation } from "@codecast/shared/contracts";
 import { emitNotification } from "./notificationRouter";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";

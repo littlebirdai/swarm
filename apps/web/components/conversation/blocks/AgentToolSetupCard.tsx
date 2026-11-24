@@ -13,7 +13,7 @@ import {
   AGENT_SETUP_CONTINUE_MESSAGE,
   type AgentSetupTool,
 } from "@codecast/capabilities/agentToolSetup";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import {
   agentSetupSteps,
   type AgentSetupStep,

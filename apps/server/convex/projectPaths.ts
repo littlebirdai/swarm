@@ -2,10 +2,8 @@
 // shown by the recent-projects picker. Pure (shared contracts only) so it can be unit
 // tested with `bun test` (see projectPaths.test.ts).
 
-import {
-  isHomeDirectoryPath,
-  worktreeOfPath,
-} from "@codecast/shared/contracts";
+import { isHomeDirectoryPath } from "@codecast/machines/machineSwitch";
+import { worktreeOfPath } from "@codecast/machines/worktrees";
 
 /** Temp dirs and bare home directories or shallower: never a real project. */
 function isPhantomProjectPath(p: string): boolean {

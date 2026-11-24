@@ -73,15 +73,15 @@ import {
   isRecoveryContinueClientId,
   type ApiErrorBannerKind,
   type DeviceSnippetSettings,
-  type ResourceProcess,
   type StableLaunchPrefs,
   isMachineDeliveredMessage,
   snippetBySlug,
-  worktreeOfPath,
-  isHomeDirectoryPath,
   stampDeliveryId,
   withoutDeliveryId,
 } from "@codecast/shared/contracts";
+import { type ResourceProcess } from "@codecast/machines/systemResources";
+import { worktreeOfPath } from "@codecast/machines/worktrees";
+import { isHomeDirectoryPath } from "@codecast/machines/machineSwitch";
 import { type AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
 import { CODEX_EFFORT_LEVELS } from "@codecast/agent-clients/modelOptions";
 import { isCloudAgentActionName } from "@codecast/agent-clients/cloudAgents";
@@ -8351,7 +8351,7 @@ async function claimDeviceAccountIfNeeded(): Promise<void> {
 
 let heartbeatTailnet:
   | ReturnType<
-      typeof import("@codecast/shared/contracts/peerTransport").heartbeatTailnetField
+      typeof import("@codecast/machines/peerTransport").heartbeatTailnetField
     >
   | undefined;
 async function sendHeartbeat(): Promise<void> {
@@ -8421,7 +8421,7 @@ async function sendHeartbeat(): Promise<void> {
     // A slow tailscaled never holds the beat: past the wait this beat says
     // nothing about the tailnet and the call fills the cache for the next one.
     const { heartbeatTailnetField, reportedPeerTailnet } =
-      await import("@codecast/shared/contracts/peerTransport");
+      await import("@codecast/machines/peerTransport");
     heartbeatTailnet ??= heartbeatTailnetField();
     const tailnet = await heartbeatTailnet(
       localTailnetAsync().then((status) =>

@@ -10,7 +10,7 @@ import {
   isAgentSetupTool,
   type AgentSetupTool,
 } from "@codecast/capabilities/agentToolSetup";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { useDevices, type Device } from "@/components/DeviceBadge";
 import { useLocalDeviceId } from "@/hooks/useLocalDeviceId";

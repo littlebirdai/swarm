@@ -36,7 +36,7 @@ import {
   type CloudAgentLaunch,
   type CloudAgentProviderSpec,
 } from "@codecast/agent-clients/cloudAgents";
-import { compareMachineChips } from "@codecast/shared/contracts";
+import { compareMachineChips } from "@codecast/machines/deviceName";
 import { useLiveSessionMeta } from "../../hooks/useLiveSessionMeta";
 import { commitModelChange } from "../../lib/modelSwitchWeb";
 import { useCloudAgentStatus } from "../cloudAgents/machine";

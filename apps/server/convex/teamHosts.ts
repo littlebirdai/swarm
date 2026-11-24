@@ -12,12 +12,12 @@ import { mintSetupToken, splitPresentedToken } from "@platform/auth/convex";
 import {
   cpuBusy,
   type MachineResourceSnapshot,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import {
   TEAM_HOST_JOIN_STALE_MS,
   isLinuxUserName,
   pickLinuxUser,
-} from "@codecast/shared/contracts/teamHosts";
+} from "@codecast/machines/teamHosts";
 import { mutation, query } from "./functions";
 import { requireUserOrToken } from "./lib/auth";
 import { verifyApiToken } from "./apiTokens";

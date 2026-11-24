@@ -1,6 +1,6 @@
 /**
  * What this machine's checkouts look like to the rest of the team
- * (contracts/checkouts.ts, ct-98780): each root the level sweep visits, where
+ * (packages/machines/src/checkouts.ts, ct-98780): each root the level sweep visits, where
  * it stands against origin's default branch, the uncommitted work in it by the
  * session that wrote it (attribute.ts, as `cast ship checkout` reads it), and
  * the sweep's state on it. Reported when that changes, never every minute.
@@ -30,7 +30,7 @@ import {
   type CheckoutReport,
   type CheckoutSession,
   type CheckoutTold,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import { defaultConfigDir } from "../config/configDir.js";
 import { gitTry } from "../wipSnapshot.js";
 import { attributeEdits, isMidTurn, type Attribution } from "./attribute.js";

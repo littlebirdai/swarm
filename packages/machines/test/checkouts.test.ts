@@ -5,7 +5,7 @@ import {
   withPageAsks,
   type CheckoutLevel,
   type CheckoutSession,
-} from "./checkouts";
+} from "../src/checkouts";
 
 const H = 3600_000;
 const session = (
