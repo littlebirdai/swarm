@@ -60,93 +60,96 @@ export function WatchTerm() {
   );
 }
 
-/** Two sessions side by side, with a message crossing between them. */
-export function SendMock() {
-  const Lane = ({
-    agent,
-    title,
-    id,
-    children,
-  }: {
-    agent: string;
-    title: string;
-    id: string;
-    children: ReactNode;
-  }) => (
-    <div className="min-w-0 rounded-xl overflow-hidden" style={frame}>
-      <div
-        className="flex items-center gap-2 px-3 py-2 font-mono text-meta"
-        style={{ borderBottom: `1px solid ${SOL.base2}`, color: SOL.base1 }}
-      >
-        <AgentTag agent={agent} size="xs" />
-        <span
-          className="min-w-0 truncate font-semibold"
-          style={{ color: SOL.base02 }}
-        >
-          {title}
-        </span>
-        <span className="ml-auto shrink-0">{id}</span>
-      </div>
-      <div className="grid grid-cols-1 gap-2.5 px-3 py-3">{children}</div>
-    </div>
-  );
-  const Line = ({ who, children }: { who: string; children: ReactNode }) => (
-    <div className="text-[12.5px] leading-[1.55]" style={{ color: SOL.base01 }}>
+const SendLane = ({
+  agent,
+  title,
+  id,
+  children,
+}: {
+  agent: string;
+  title: string;
+  id: string;
+  children: ReactNode;
+}) => (
+  <div className="min-w-0 rounded-xl overflow-hidden" style={frame}>
+    <div
+      className="flex items-center gap-2 px-3 py-2 font-mono text-meta"
+      style={{ borderBottom: `1px solid ${SOL.base2}`, color: SOL.base1 }}
+    >
+      <AgentTag agent={agent} size="xs" />
       <span
-        className="mr-1.5 font-mono text-meta font-semibold"
-        style={{ color: AGENT_COLOR[who] }}
+        className="min-w-0 truncate font-semibold"
+        style={{ color: SOL.base02 }}
       >
-        {who}
+        {title}
       </span>
+      <span className="ml-auto shrink-0">{id}</span>
+    </div>
+    <div className="grid grid-cols-1 gap-2.5 px-3 py-3">{children}</div>
+  </div>
+);
+
+const SendLine = ({ who, children }: { who: string; children: ReactNode }) => (
+  <div className="text-[12.5px] leading-[1.55]" style={{ color: SOL.base01 }}>
+    <span
+      className="mr-1.5 font-mono text-meta font-semibold"
+      style={{ color: AGENT_COLOR[who] }}
+    >
+      {who}
+    </span>
+    {children}
+  </div>
+);
+
+const SendEnvelope = ({
+  from,
+  children,
+}: {
+  from: string;
+  children: ReactNode;
+}) => (
+  <div
+    className="rounded-md px-2.5 py-2"
+    style={{
+      borderLeft: `2px solid ${SOL.cyan}`,
+      backgroundColor: "rgba(42,161,152,0.07)",
+    }}
+  >
+    <div
+      className="flex items-center gap-1.5 font-mono text-mark font-medium uppercase tracking-wide"
+      style={{ color: SOL.cyan }}
+    >
+      <span aria-hidden>↳</span>Message from
+      <span
+        className="rounded border px-1.5 py-px normal-case tracking-normal"
+        style={{ borderColor: `${SOL.cyan}55`, backgroundColor: PAPER }}
+      >
+        {from}
+      </span>
+    </div>
+    <div
+      className="mt-0.5 text-[12.5px] leading-[1.5]"
+      style={{ color: SOL.base01 }}
+    >
       {children}
     </div>
-  );
-  const Envelope = ({
-    from,
-    children,
-  }: {
-    from: string;
-    children: ReactNode;
-  }) => (
-    <div
-      className="rounded-md px-2.5 py-2"
-      style={{
-        borderLeft: `2px solid ${SOL.cyan}`,
-        backgroundColor: "rgba(42,161,152,0.07)",
-      }}
-    >
-      <div
-        className="flex items-center gap-1.5 font-mono text-mark font-medium uppercase tracking-wide"
-        style={{ color: SOL.cyan }}
-      >
-        <span aria-hidden>↳</span>Message from
-        <span
-          className="rounded border px-1.5 py-px normal-case tracking-normal"
-          style={{ borderColor: `${SOL.cyan}55`, backgroundColor: PAPER }}
-        >
-          {from}
-        </span>
-      </div>
-      <div
-        className="mt-0.5 text-[12.5px] leading-[1.5]"
-        style={{ color: SOL.base01 }}
-      >
-        {children}
-      </div>
-    </div>
-  );
+  </div>
+);
+
+/** Two sessions side by side, with a message crossing between them. */
+export function SendMock() {
   return (
     <div
       className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-10"
       role="img"
       aria-label="An API session sends a message to a web session, which answers with the commit it made"
     >
-      <Lane agent="claude" title="Rename the user endpoint" id="jx7c6zk">
-        <Line who="claude">
+      <SendLane agent="claude" title="Rename the user endpoint" id="jx7c6zk">
+        <SendLine who="claude">
           Renamed <span className="font-mono">/v1/user</span> to{" "}
           <span className="font-mono">/v1/account</span>. The web client still
           calls the old path.
-        </Line>
+        </SendLine>
         <div
           className="rounded-md px-2.5 py-1.5 font-mono text-meta whitespace-pre-wrap sm:overflow-x-auto sm:whitespace-nowrap"
           style={{ backgroundColor: SOL.base03, color: SOL.base2 }}
@@ -154,15 +157,17 @@ export function SendMock() {
           <span style={{ color: SOL.green }}>$ </span>cast send jx7d1mp
           &quot;/v1/user is now /v1/account&quot;
         </div>
-        <Envelope from="jx7d1mp">
+        <SendEnvelope from="jx7d1mp">
           Done in a4c91e2. Both calls moved, typecheck green.
-        </Envelope>
-      </Lane>
-      <Lane agent="codex" title="Settings page polish" id="jx7d1mp">
-        <Envelope from="jx7c6zk">
+        </SendEnvelope>
+      </SendLane>
+      <SendLane agent="codex" title="Settings page polish" id="jx7d1mp">
+        <SendEnvelope from="jx7c6zk">
           /v1/user is now /v1/account. Your settings page calls it twice.
-        </Envelope>
-        <Line who="codex">Updating both calls before I touch the form.</Line>
+        </SendEnvelope>
+        <SendLine who="codex">
+          Updating both calls before I touch the form.
+        </SendLine>
         <div
           className="rounded-md px-2.5 py-1.5 font-mono text-meta whitespace-pre-wrap sm:overflow-x-auto sm:whitespace-nowrap"
           style={{ backgroundColor: SOL.base03, color: SOL.base2 }}
@@ -170,7 +175,7 @@ export function SendMock() {
           <span style={{ color: SOL.green }}>$ </span>cast send jx7c6zk
           &quot;Done in a4c91e2. …&quot;
         </div>
-      </Lane>
+      </SendLane>
     </div>
   );
 }

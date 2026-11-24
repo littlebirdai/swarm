@@ -384,6 +384,43 @@ export function HireHeadOfPeopleCard({
   );
 }
 
+type AssistantReach = "global" | "team" | "personal_team";
+
+function AssistantReachOption({
+  value,
+  label,
+  hint,
+  selected,
+  onSelect,
+}: {
+  value: AssistantReach;
+  label: string;
+  hint: string;
+  selected: boolean;
+  onSelect: (value: AssistantReach) => void;
+}) {
+  return (
+    <label
+      className={`flex items-start gap-2 rounded-md border px-2.5 py-2 cursor-pointer ${selected ? "border-sol-cyan/50 bg-sol-cyan/5" : "border-sol-border/60 hover:bg-sol-bg-highlight/40"}`}
+      data-assistant-reach={value}
+    >
+      <input
+        type="radio"
+        name="assistant-reach"
+        className="mt-[3px]"
+        checked={selected}
+        onChange={() => onSelect(value)}
+      />
+      <span className="min-w-0">
+        <span className="block text-[12.5px] font-medium">{label}</span>
+        <span className="block text-meta text-sol-text-dim leading-snug">
+          {hint}
+        </span>
+      </span>
+    </label>
+  );
+}
+
 /** Hire an Executive Assistant (org-staffing.md S30): the person's right hand,
  *  named, global by default; a team's, or the person's own for one team,
  *  when asked. The seat lands through the anchors feed and becomes the
@@ -398,9 +435,7 @@ export function HireAssistantCard({
   const { tree } = useSyncOrgTree();
   const team = tree?.workspace.kind === "team" ? tree.workspace : null;
   const [name, setName] = useState("");
-  const [reach, setReach] = useState<"global" | "team" | "personal_team">(
-    "global",
-  );
+  const [reach, setReach] = useState<AssistantReach>("global");
   const [project, setProject] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -448,35 +483,6 @@ export function HireAssistantCard({
     }
   };
 
-  const Option = ({
-    value,
-    label,
-    hint,
-  }: {
-    value: typeof reach;
-    label: string;
-    hint: string;
-  }) => (
-    <label
-      className={`flex items-start gap-2 rounded-md border px-2.5 py-2 cursor-pointer ${reach === value ? "border-sol-cyan/50 bg-sol-cyan/5" : "border-sol-border/60 hover:bg-sol-bg-highlight/40"}`}
-      data-assistant-reach={value}
-    >
-      <input
-        type="radio"
-        name="assistant-reach"
-        className="mt-[3px]"
-        checked={reach === value}
-        onChange={() => setReach(value)}
-      />
-      <span className="min-w-0">
-        <span className="block text-[12.5px] font-medium">{label}</span>
-        <span className="block text-meta text-sol-text-dim leading-snug">
-          {hint}
-        </span>
-      </span>
-    </label>
-  );
-
   return (
     <div
       className={`h-full flex items-center justify-center ${compact ? "px-5" : "px-6"}`}
@@ -521,21 +527,27 @@ export function HireAssistantCard({
             </span>
           </div>
           <div className="space-y-1.5">
-            <Option
+            <AssistantReachOption
               value="global"
+              selected={reach === "global"}
+              onSelect={setReach}
               label="Across all your workspaces"
               hint="Yours alone. Sees what you see, everywhere you work."
             />
             {team && (
-              <Option
+              <AssistantReachOption
                 value="team"
+                selected={reach === "team"}
+                onSelect={setReach}
                 label={`For ${team.name}, shared with the team`}
                 hint="Every member can talk to it; it answers in chat and Slack."
               />
             )}
             {team && (
-              <Option
+              <AssistantReachOption
                 value="personal_team"
+                selected={reach === "personal_team"}
+                onSelect={setReach}
                 label={`For ${team.name}, yours alone`}
                 hint="Your own assistant for this team's work."
               />
