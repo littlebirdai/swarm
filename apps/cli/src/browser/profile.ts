@@ -47,10 +47,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { defaultConfigDir } from "../config/configDir.js";
-import {
-  OWN_LOGIN_HOSTS,
-  keepsOwnLogin,
-} from "@codecast/shared/contracts/secrets";
+import { OWN_LOGIN_HOSTS, keepsOwnLogin } from "@codecast/secrets/secrets";
 
 /** Where managed clones live. Mode 0700 — these hold live session cookies. */
 export function browserHome(): string {

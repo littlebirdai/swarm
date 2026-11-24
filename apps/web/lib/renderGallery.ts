@@ -20,12 +20,12 @@ import { composeContextRecoveryPrompt } from "@codecast/messages/handoffPrompt";
 import {
   formatAgentSwitchNotice,
   formatDecisionAnswer,
-  formatVaultReady,
   LIMIT_BANNER_PREFIX,
   SAFETY_BANNER_PREFIX,
   THROTTLE_BANNER_PREFIX,
   CLIENT_ERROR_BANNER_PREFIX,
 } from "@codecast/shared/contracts";
+import { formatVaultReady } from "@codecast/secrets/vaultMessages";
 import {
   formatScheduledTask,
   formatSessionMessage,

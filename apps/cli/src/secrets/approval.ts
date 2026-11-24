@@ -3,7 +3,7 @@
 // and the decision that person answers. Every read path (get, run, env, otp,
 // cast dev, the browser's sign-in) says it the same way and stops with
 // NEEDS_APPROVAL_EXIT, so a script can tell "wait for a person" from a failure.
-import type { SecretNeedsApproval } from "@codecast/shared/contracts/secrets";
+import type { SecretNeedsApproval } from "@codecast/secrets/secrets";
 
 /** The exit code of a read held for a person's approval. */
 export const NEEDS_APPROVAL_EXIT = 3;

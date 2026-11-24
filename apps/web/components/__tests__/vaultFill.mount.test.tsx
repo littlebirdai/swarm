@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { ConvexProvider } from "convex/react";
 import { MemoryRouter } from "react-router";
 import { getFunctionName } from "convex/server";
-import type { SecretMeta } from "@codecast/shared/contracts/secrets";
+import type { SecretMeta } from "@codecast/secrets/secrets";
 import { useInboxStore } from "../../store/inboxStore";
 import { syncMetaKey } from "../../hooks/syncMetaKeys";
 import { closeDomWindow } from "../../test-helpers/domGlobals";

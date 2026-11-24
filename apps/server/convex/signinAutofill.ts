@@ -16,7 +16,7 @@ import {
   cleanSecretSites,
   keepsOwnLogin,
   siteProblem,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { requireTeamMembership, workspaceKey } from "./lib/access";
 import { pickOnlineLocalDevice } from "./cloud";
 

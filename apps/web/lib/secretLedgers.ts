@@ -1,9 +1,6 @@
 // The Vault's confirm ledgers (components/consequential): what each
 // consequential press on a secret shows before it runs.
-import type {
-  SecretMeta,
-  SecretVersionMeta,
-} from "@codecast/shared/contracts/secrets";
+import type { SecretMeta, SecretVersionMeta } from "@codecast/secrets/secrets";
 import type {
   SwitchFigure,
   SwitchLedger,

@@ -7,7 +7,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import type { SecretKind } from "@codecast/shared/contracts/secrets";
+import type { SecretKind } from "@codecast/secrets/secrets";
 import type { VaultScope } from "../hooks/useSyncSecrets";
 import { KIND_LOOK } from "../components/secrets/vaultModel";
 

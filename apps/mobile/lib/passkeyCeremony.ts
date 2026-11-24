@@ -9,10 +9,7 @@
 //
 // Pure (no React Native) so passkeyCeremony.test.ts runs it under bun.
 
-import type {
-  PresenceAction,
-  PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+import type { PresenceAction, PresenceGrant } from "@codecast/secrets/secrets";
 
 type Json = Record<string, any>;
 

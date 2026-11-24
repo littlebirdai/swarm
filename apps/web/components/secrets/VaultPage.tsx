@@ -28,10 +28,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import {
-  type SecretKind,
-  type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+import { type SecretKind, type SecretMeta } from "@codecast/secrets/secrets";
 import {
   useLinkedSecret,
   useSecrets,

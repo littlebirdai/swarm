@@ -37,10 +37,7 @@
     "./contracts/expectations": "./contracts/expectations.ts",
     "./render/changeCardHtml": "./render/changeCardHtml.ts",
     "./tasks": "./tasks/index.ts",
-    "./tasks/resumeSources": "./tasks/resumeSources.ts",
-    "./contracts/secrets": "./contracts/secrets.ts",
-    "./contracts/secretRules": "./contracts/secretRules.ts",
-    "./contracts/secretShapes": "./contracts/secretShapes.ts"
+    "./tasks/resumeSources": "./tasks/resumeSources.ts"
   },
   "dependencies": {
     "@codecast/agent-clients": "workspace:*",
@@ -64,6 +61,7 @@
     "@codecast/projects": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/replay": "workspace:*",
+    "@codecast/secrets": "workspace:*",
     "@codecast/sessions": "workspace:*",
     "@codecast/signals": "workspace:*",
     "@codecast/team": "workspace:*",

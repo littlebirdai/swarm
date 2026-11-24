@@ -9,7 +9,7 @@ import { useConvex } from "convex/react";
 import { useSearchParams } from "next/navigation";
 import { Check, Clock, Fingerprint, Loader2, Lock } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { PRESENCE_PHRASE } from "@codecast/shared/contracts/secrets";
+import { PRESENCE_PHRASE } from "@codecast/secrets/secrets";
 import { KeyCap } from "../../components/KeyCap";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useEventListener } from "../../hooks/useEventListener";

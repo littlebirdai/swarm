@@ -9,7 +9,7 @@ import {
   runResultText,
   MAX_RUN_OUTPUT,
 } from "./commandRun";
-import { APPROVE_FOR_SESSION } from "./secrets";
+import { APPROVE_FOR_SESSION } from "@codecast/secrets/secrets";
 import { formatDecisionAnswer, parseDecisionAnswer } from "./decisionAnswers";
 
 test("a pasted command line parses to the argv the machine runs, and prints back the same", () => {

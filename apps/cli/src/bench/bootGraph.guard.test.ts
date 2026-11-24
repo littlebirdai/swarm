@@ -278,7 +278,7 @@ describe("command groups stay off the boot graph", () => {
       // Held at 325 on 2026-10-24 when the ship of that day brought 8 files: the
       // workspace manifest and transcript redaction took the Vault contract
       // (secrets.ts with productView.ts) for a name check and two size limits, so
-      // those pure rules moved to the leaf contracts/secretRules.ts, and the new
+      // those pure rules moved to the leaf packages/secrets/src/secretRules.ts, and the new
       // packages/machines/src/teamHosts.ts left the barrel for a subpath import. What stays is
       // directoryTeam.ts (stableContext), loginShellPath.ts, shellQuote.ts
       // (launchCommand), secretShapes.ts (redaction) and render/structuredResult.ts.
@@ -307,7 +307,7 @@ describe("command groups stay off the boot graph", () => {
       // (the mapLimit knownValueRedaction.ts reads with instead of readdirSync),
       // packages/deploys/src/deployTargets.ts (workspace/manifest.ts's deploy targets), and
       // the barrels' contracts/slashCommand.ts and render/structuredMessage.ts.
-      // 338 the same day, three leaves: contracts/vaultMessages.ts (the vault's
+      // 338 the same day, three leaves: packages/secrets/src/vaultMessages.ts (the vault's
       // message tags, split out of the barrel's secrets contract), and
       // replay/events.ts with the packages/replay/src/replay.ts it reads, which
       // entities/index.ts now loads for the replay link's ?t (parseReplayT,

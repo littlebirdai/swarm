@@ -61,6 +61,7 @@
     "@codecast/render": "workspace:*",
     "@codecast/replay": "workspace:*",
     "@codecast/search": "workspace:*",
+    "@codecast/secrets": "workspace:*",
     "@codecast/sessions": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/ship": "workspace:*",

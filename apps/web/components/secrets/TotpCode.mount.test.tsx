@@ -3,7 +3,7 @@
 // without revealing it first.
 // Run: cd apps/web && bun test components/secrets/TotpCode.mount.test.tsx
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { totp } from "@codecast/shared/contracts/secrets";
+import { totp } from "@codecast/secrets/secrets";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
 const SEED = "JBSWY3DPEHPK3PXP";

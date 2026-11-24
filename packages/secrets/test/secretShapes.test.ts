@@ -4,7 +4,7 @@ import {
   replaceSecrets,
   vaultReference,
   withoutSecrets,
-} from "./secretShapes";
+} from "../src/secretShapes";
 
 // Built at runtime so no credential-shaped literal sits in the source.
 const body = (n: number) => "a1B2c3D4e5F6g7H8".repeat(4).slice(0, n);

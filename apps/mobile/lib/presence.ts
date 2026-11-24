@@ -9,7 +9,7 @@ import {
   PRESENCE_TTL_MS,
   type PresenceAction,
   type PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   addPasskeyViaWeb,
   confirmPresenceViaWeb,

@@ -1,7 +1,7 @@
 import {
   LABELED_SECRET_SHAPES,
   SECRET_SHAPES,
-} from "@codecast/shared/contracts/secretShapes";
+} from "@codecast/secrets/secretShapes";
 
 // The server's last pass over text from any client (messages, titles). Vendor
 // tokens, private key blocks and labeled secrets are secretShapes', the list

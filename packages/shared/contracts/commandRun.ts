@@ -6,7 +6,7 @@
 // answer. Shared by the CLI (parse on ask), the server (validate, settle,
 // deliver), the daemon (run) and the apps (render, gate the Run press).
 
-import { approvesSecretRead } from "./secrets";
+import { approvesSecretRead } from "@codecast/secrets/secrets";
 import { shellArg, shellWords } from "@codecast/daemon/shellWords";
 import { APPROVAL_ANSWERS } from "@codecast/decisions/approvalAnswers";
 

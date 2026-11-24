@@ -37,7 +37,7 @@ import {
   type SecretNeedsApproval,
   type SigninCookie,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { exitForApproval, isNeedsApproval } from "./approval.js";
 import {
   accountHint,

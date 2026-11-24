@@ -1,6 +1,6 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { PRESENCE_ACTIONS } from "@codecast/shared/contracts/secrets";
+import { PRESENCE_ACTIONS } from "@codecast/secrets/secrets";
 
 /**
  * Passkeys and the presence grants they earn (passkeys.ts, vault.md "Ask

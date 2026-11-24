@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatVaultReady } from "@codecast/shared/contracts";
+import { formatVaultReady } from "@codecast/secrets/vaultMessages";
 import {
   cleanUserMessage,
   foldNudgeRuns,

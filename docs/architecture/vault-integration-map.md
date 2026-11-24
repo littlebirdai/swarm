@@ -332,7 +332,7 @@ One dynamic route, `mobile/app/settings/[section].tsx`, renders `SETTINGS_PAGES[
 
 ## Constraints added after the first waves (2026-10-22)
 
-- Import Vault contracts from `@codecast/shared/contracts/secrets`, never the
+- Import Vault contracts from `@codecast/secrets/secrets`, never the
   `@codecast/shared/contracts` barrel: the barrel no longer re-exports them,
   so secrets.ts stays off the CLI's and the daemon's boot graphs.
 - `formatVaultReady` takes `vars: string[]` (the caller passes

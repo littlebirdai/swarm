@@ -1,5 +1,5 @@
 import { test, it, expect, describe } from "bun:test";
-import { formatVaultReady } from "@codecast/shared/contracts";
+import { formatVaultReady } from "@codecast/secrets/vaultMessages";
 import {
   buildNavigatorRows,
   filterNavigatorRows,

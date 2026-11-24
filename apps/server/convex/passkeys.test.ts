@@ -17,7 +17,7 @@ import { androidAppOrigin, originsFor } from "./passkeys";
 import {
   isPresenceRequired,
   type PresenceAction,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 
 setDefaultTimeout(60_000);
 

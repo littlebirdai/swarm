@@ -1,4 +1,4 @@
-import { PRESENCE_REQUIRED } from "@codecast/shared/contracts/secrets";
+import { PRESENCE_REQUIRED } from "@codecast/secrets/secrets";
 
 /**
  * The person-facing reason inside a server refusal: the last refusal in a

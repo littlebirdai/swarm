@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useConvex, useMutation } from "convex/react";
 import { Fingerprint, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { PasskeyMeta } from "@codecast/shared/contracts/secrets";
+import type { PasskeyMeta } from "@codecast/secrets/secrets";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import {
   formatFullTimestamp,

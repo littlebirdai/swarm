@@ -31,8 +31,8 @@ import {
   cleanSecretEdit,
   type SecretMeta,
   type SecretMetaEdit,
-} from "@codecast/shared/contracts/secrets";
-import { withoutSecrets } from "@codecast/shared/contracts/secretShapes";
+} from "@codecast/secrets/secrets";
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import {
   followersSig,
   sameViewAnchor,

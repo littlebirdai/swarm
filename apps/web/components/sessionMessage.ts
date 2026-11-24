@@ -40,7 +40,7 @@ import {
   SESSION_MESSAGE_RE,
   type SessionMessageIntent,
 } from "@codecast/messages/machineMessages";
-import { parseVaultReady } from "@codecast/shared/contracts";
+import { parseVaultReady } from "@codecast/secrets/vaultMessages";
 import { LRUCache } from "../lib/lruCache";
 export type { HuddleSummaryTag } from "@codecast/calls/huddleDigest";
 

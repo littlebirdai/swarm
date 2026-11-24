@@ -6,10 +6,7 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  type SecretKind,
-  type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+import { type SecretKind, type SecretMeta } from "@codecast/secrets/secrets";
 import {
   useFillRequest,
   useSwapValue,

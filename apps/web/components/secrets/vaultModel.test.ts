@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   SECRET_VERSION_TTL_MS,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
-import { findSecrets } from "@codecast/shared/contracts/secretShapes";
+} from "@codecast/secrets/secrets";
+import { findSecrets } from "@codecast/secrets/secretShapes";
 import {
   classifyPaste,
   fillRequest,

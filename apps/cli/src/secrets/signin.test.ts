@@ -7,7 +7,7 @@ import {
   signinSite,
   type SecretMeta,
   type SigninCookie,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   SIGNIN_REFRESH_EVERY_MS,
   accountHint,

@@ -31,7 +31,7 @@ import {
   validatePayload,
   type SecretMeta,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   captureFromAgentBrowser,
   captureFromChrome,

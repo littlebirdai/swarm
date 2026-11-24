@@ -24,13 +24,13 @@ import {
   isNoResponseStub,
   CLIENT_ERROR_BANNER_PREFIX,
   parseDecisionAnswer,
-  parseVaultReady,
   isAgentSwitchNotice,
   parseAgentSwitchNotice,
   isModelSwitchCommandName,
   isModelSwitchStdout,
   modelSwitchStdoutLabel,
 } from "@codecast/shared/contracts";
+import { parseVaultReady } from "@codecast/secrets/vaultMessages";
 import { isSessionEscalationMessage } from "@codecast/messages/machineMessages";
 import { parseSessionEscalation } from "@codecast/messages/sessionEscalation";
 import {
