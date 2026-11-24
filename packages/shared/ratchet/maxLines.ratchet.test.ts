@@ -118,6 +118,8 @@ import { join } from "node:path";
 // lib/mods/collectionQuery.ts). PIN 245.
 // 2026-11-20: a role's charter moved to its doc and its fold migration ran,
 // taking convex/migrations.ts under the cap. PIN 244.
+// 2026-11-23: idbCache.ts split into store/persistence/ modules, under the
+// cap. PIN 243.
 
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 const ALLOWLIST = join(import.meta.dir, "max-lines-baseline.txt");
@@ -134,7 +136,7 @@ function pinnedSize(source: string): number {
 }
 
 /** How many files are over the cap today. May only fall. */
-const PIN = 244;
+const PIN = 243;
 
 const result = checkRatchet({
   name: "max lines",

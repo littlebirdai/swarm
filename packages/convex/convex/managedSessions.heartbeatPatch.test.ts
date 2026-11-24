@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { HEARTBEAT_FLUSH_INTERVAL_MS } from "@codecast/shared/contracts";
 import { makeFakeDb } from "./testDb";
-import { buildHeartbeatPatch, heartbeatBatch } from "./managedSessions";
+import { heartbeatBatch } from "./managedSessions";
+import { buildHeartbeatPatch } from "./lib/heartbeatPatch";
 
 // The daemon beats every session each flush with its current status and a
 // fresh client_ts. Count the row writes an hour of beats costs one session.

@@ -110,7 +110,7 @@ packages/convex/convex/issueSync.ts 1900
 packages/convex/convex/lib/callRecordingRuns.ts 1100
 packages/convex/convex/lineTrial.test.ts 900
 packages/convex/convex/lineTrial.ts 2150
-packages/convex/convex/managedSessions.ts 1300
+packages/convex/convex/managedSessions.ts 1250
 packages/convex/convex/messages.ts
 packages/convex/convex/notifications.needsInput.test.ts 900
 packages/convex/convex/notifications.ts
@@ -243,7 +243,6 @@ packages/web/store/capabilities.ts 1300
 packages/web/store/chatSlice.ts 1650
 packages/web/store/clientSyncRegistry.ts
 packages/web/store/idbCache.native.ts 900
-packages/web/store/idbCache.ts 900
 packages/web/store/inboxStore.ts
 packages/web/store/orgSlice.ts 1600
 packages/web/store/strandedStub.test.ts 950
