@@ -19,7 +19,7 @@ import {
   isVaultMarkdownPath,
   VAULT_DOC_DIRS,
   type VaultFileEntry,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 
 /** Walk bounds. A vault is a notes directory, not a source tree: these are high
  *  enough to never bite a real vault and low enough that pointing the daemon at

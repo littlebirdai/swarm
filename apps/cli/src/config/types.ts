@@ -16,7 +16,7 @@
  */
 
 import type { AgentClientId } from "@codecast/agent-clients/agentClients";
-import type { VaultInfo } from "@codecast/shared/contracts";
+import type { VaultInfo } from "@codecast/vault/vaultProtocol";
 import type { CloudSessionSyncField } from "@codecast/agent-clients/cloudSessionSync";
 import type { HeartbeatTeamPolicy } from "@codecast/policy/managedPolicy";
 import { policyRefusal } from "./managedPolicy.js";

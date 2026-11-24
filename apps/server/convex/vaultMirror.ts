@@ -28,7 +28,7 @@ import {
   VAULT_MIRROR_MAX_LINKS,
   VAULT_MIRROR_MAX_STAMP_BATCH,
   VAULT_MIRROR_MAX_TAGS,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultMirror";
 
 // One push carries at most this many notes. The daemon already chunks by
 // serialized bytes (the syncService lesson: a multi-MB mutation can't commit

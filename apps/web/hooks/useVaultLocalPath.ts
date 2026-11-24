@@ -3,7 +3,7 @@ import { captureException } from "@sentry/react";
 import {
   isVaultAssetPath,
   isVaultMarkdownPath,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import { useWatchEffect } from "./useWatchEffect";
 import { useVaultStore } from "../store/vaultStore";
 import { locateVault, VaultRequestError } from "../lib/vault/client";

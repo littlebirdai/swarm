@@ -7,7 +7,7 @@
 // answers; the scan diff then patches whatever changed.
 
 import Dexie, { type EntityTable } from "dexie";
-import type { VaultFileEntry, VaultInfo } from "@codecast/shared/contracts";
+import type { VaultFileEntry, VaultInfo } from "@codecast/vault/vaultProtocol";
 import type { BookmarkItem } from "./bookmarks";
 
 export interface VaultMetaRow {

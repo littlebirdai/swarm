@@ -6,7 +6,7 @@ import {
   vaultFileKind,
   VAULT_MAX_PREVIEW_BYTES,
   VAULT_MAX_SERVE_BYTES,
-} from "./vaultProtocol";
+} from "../src/vaultProtocol";
 
 describe("vaultFileKind", () => {
   test("markdown outranks everything — it is the one kind that also edits", () => {

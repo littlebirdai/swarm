@@ -8,7 +8,6 @@
   },
   "exports": {
     "./contracts": "./contracts/index.ts",
-    "./contracts/vaultProtocol": "./contracts/vaultProtocol.ts",
     "./contracts/flowMap": "./contracts/flowMap.ts",
     "./contracts/lineFunnel": "./contracts/lineFunnel.ts",
     "./contracts/lineVolume": "./contracts/lineVolume.ts",

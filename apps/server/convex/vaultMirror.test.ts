@@ -3,7 +3,7 @@ import { clampMirrorNote, mirrorRowNeedsWrite } from "./vaultMirror";
 import {
   VAULT_MIRROR_MAX_LINKS,
   VAULT_MIRROR_MAX_TAGS,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultMirror";
 
 const row = {
   content_hash: "aaaa",

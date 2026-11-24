@@ -9456,7 +9456,7 @@ export default defineSchema(
     // user turned mirroring on for (`cast vault mirror <dir> --on`). The daemon on
     // the owning device is the only writer; the browser reads. Mirroring is opt-in
     // and off by default, so a row existing here IS the user's consent. See
-    // convex/vaultMirror.ts and shared/contracts/vaultMirror.ts.
+    // convex/vaultMirror.ts and packages/vault/src/vaultMirror.ts.
     vault_mirrors: defineTable({
       user_id: v.id("users"),
       // Which machine's disk this mirror projects. A vault id is derived from the
