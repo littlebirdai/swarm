@@ -4,7 +4,7 @@ import { fuzzyMatch, rankPaths } from "../fuzzyPath";
 const PATHS = [
   "packages/web/components/repo/RepoPullsContent.tsx",
   "packages/web/components/repo/RepoChrome.tsx",
-  "packages/convex/convex/repos.ts",
+  "apps/server/convex/repos.ts",
   "packages/web/lib/repoView.ts",
   "README.md",
 ];

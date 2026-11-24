@@ -1,6 +1,6 @@
 // Vault remote mirror protocol — the contract between the daemon's pusher
 // (packages/cli/src/vault/vaultMirror.ts), the Convex functions that store the
-// mirror (packages/convex/convex/vaultMirror.ts), and the web reader.
+// mirror (apps/server/convex/vaultMirror.ts), and the web reader.
 //
 // The mirror is a PROJECTION, never a source. The local filesystem stays
 // canonical and the loopback bridge (vaultProtocol.ts) stays the primary

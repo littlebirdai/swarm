@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {SyncService} from '../../syncService.js';
-const backend=path.resolve(import.meta.dir,'../../../../convex/convex');
+const backend=path.resolve(import.meta.dir,'../../../../../apps/server/convex');
 const {create}=await import(path.join(backend,'tasks.ts'));
 const {makeFakeDb}=await import(path.join(backend,'testDb.ts'));
 const {hashToken}=await import(path.join(backend,'apiTokens.ts'));

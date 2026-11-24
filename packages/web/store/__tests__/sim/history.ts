@@ -25,7 +25,7 @@ export const SIM_HOME_ENV = "CODECAST_SIM_HOME";
 /** The newest sessions kept whole; older ones survive only when something in them failed. */
 export const KEEP_SESSIONS = 200;
 /** What the sim loads: a dirty file outside these cannot change a run. */
-export const SIM_SOURCES = ["packages/web", "packages/convex", "packages/shared", "platform/packages"];
+export const SIM_SOURCES = ["packages/web", "apps/server", "packages/shared", "platform/packages"];
 
 type Env = Record<string, string | undefined>;
 

@@ -16,7 +16,7 @@ export async function coreReview(f:any) {
   const receipt={pid:process.pid,servicePath,sha256:createHash('sha256').update(fs.readFileSync(servicePath)).digest('hex')};
   console.error('F3_CORE_SERVICE_SOURCE '+JSON.stringify(receipt));
   const service:any=new SyncService({convexUrl:'http://127.0.0.1:1',userId:'fixture-user',authToken:'fixture-token'});
-  const backendPath=path.resolve(import.meta.dir,'../../../../convex/convex/messages.ts'),dbPath=path.resolve(import.meta.dir,'../../../../convex/convex/testDb.ts');
+  const backendPath=path.resolve(import.meta.dir,'../../../../../apps/server/convex/messages.ts'),dbPath=path.resolve(import.meta.dir,'../../../../../apps/server/convex/testDb.ts');
   const {addMessages}=await import(backendPath),{makeFakeDb}=await import(dbPath);
   const backendReceipt={pid:process.pid,backendPath,backendSha256:createHash('sha256').update(fs.readFileSync(backendPath)).digest('hex'),dbPath,dbSha256:createHash('sha256').update(fs.readFileSync(dbPath)).digest('hex')};
   const db=makeFakeDb({conversations:[],messages:[]}),ctx={db,auth:{getUserIdentity:async()=>({subject:'fixture-user|session'})},scheduler:{runAfter:async()=>{}}};

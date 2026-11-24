@@ -10,8 +10,8 @@
   "include": [
     "src/**/*",
     "fixtures/**/*.ts",
-    "../convex/convex/lib/anthropic.ts",
-    "../convex/convex/idleSummary.ts",
+    "../../apps/server/convex/lib/anthropic.ts",
+    "../../apps/server/convex/idleSummary.ts",
     "../cli/src/cliHttp.ts",
     "../cli/src/config/readAuthConfig.ts",
     "../cli/src/conversationRef.ts",

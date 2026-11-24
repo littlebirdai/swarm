@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { composeHandoffPrompt } from '../../../../shared/contracts/handoffPrompt';
-import { handoffBriefInput, handoffBriefRequest, shapeHandoffTranscript } from '../../../../convex/convex/handoff';
+import { handoffBriefInput, handoffBriefRequest, shapeHandoffTranscript } from '../../../../../apps/server/convex/handoff';
 import type { Fixture } from '../../adapters/resolver';
 import { REPO_ROOT } from '../../paths';
 import type { CallResult, ReplayCtx, ReplayResult, SurfaceRequest } from '../../surface';

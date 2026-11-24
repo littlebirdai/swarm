@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 HERE = os.path.dirname(os.path.abspath(__file__))
 # AC3's gap as delivery enforces it today (3 minutes until Oct 22, 1 since).
-CONTEXT_GAP_MS = int(re.search(r"CONTEXT_MIN_GAP_MS = ([\d_]+)", open(os.path.join(REPO, "packages/convex/convex/transcripts.ts")).read()).group(1).replace("_", ""))
+CONTEXT_GAP_MS = int(re.search(r"CONTEXT_MIN_GAP_MS = ([\d_]+)", open(os.path.join(REPO, "apps/server/convex/transcripts.ts")).read()).group(1).replace("_", ""))
 HOME = os.path.join(os.environ.get("CODECAST_EVALS_HOME") or os.path.expanduser("~/.local/share/codecast/evals"), "org-comms")
 HARNESS = os.path.join(REPO, "packages/cli/scripts/prompt-dry-run.ts")
 BASELINE = os.path.join(HOME, "baseline.json")
@@ -36,7 +36,7 @@ USER_ENV = "CODECAST_ORG_COMMS_USER"
 
 def convex_data(table, limit, out):
     """`npx convex data` against prod, with the repo-root .env.local moved aside
-    the way packages/convex/run.sh does (its anonymous pointer hijacks the CLI)."""
+    the way apps/server/run.sh does (its anonymous pointer hijacks the CLI)."""
     env_local, hold = os.path.join(REPO, ".env.local"), os.path.join(REPO, ".env.local.orgcomms-hold")
     moved = os.path.exists(env_local)
     if moved: os.rename(env_local, hold)
@@ -44,7 +44,7 @@ def convex_data(table, limit, out):
         env = {k: v for k, v in os.environ.items() if k != "CONVEX_DEPLOYMENT"}
         with open(out, "w") as f:
             subprocess.run(["npx", "convex", "data", table, "--limit", str(limit), "--format", "jsonl"],
-                           cwd=os.path.join(REPO, "packages/convex"), env=env, stdout=f, stderr=subprocess.DEVNULL, check=True)
+                           cwd=os.path.join(REPO, "apps/server"), env=env, stdout=f, stderr=subprocess.DEVNULL, check=True)
     finally:
         if moved and os.path.exists(hold): os.rename(hold, env_local)
 

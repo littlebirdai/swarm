@@ -556,7 +556,7 @@ The before-merge steps are the `[[ship.deploy]]` steps with
 `stage = "before_push"` that the default branch's own line profile names (read
 at the commit the change is rebased onto, so a change never decides its own
 deploys), whose `when` globs match the change's files. They run from the
-rebased tree (codecast: the typing guard and `packages/convex/deploy.sh`, from
+rebased tree (codecast: the typing guard and `apps/server/deploy.sh`, from
 a tree that holds origin/main). Any of these starts another round on the new
 default branch, up to three:
 

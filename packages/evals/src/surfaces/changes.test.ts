@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { BODY_CHARS, editionRequest, PROSE_MODEL, skipHeadline, storyPromptInput, storyRequest } from '../../../convex/convex/changesProse';
+import { BODY_CHARS, editionRequest, PROSE_MODEL, skipHeadline, storyPromptInput, storyRequest } from '../../../../apps/server/convex/changesProse';
 import { loadSurface, surfaceMeta } from '../registry';
 import type { CallResult, ReplayResult, SurfaceImpl, SurfaceRequest } from '../surface';
 import { captureFromFile, idsIn } from './changesCommon';

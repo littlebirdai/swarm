@@ -4,7 +4,7 @@
 // The integrated terminal's normal transport is a loopback PTY WebSocket
 // (terminalServer.ts) and it is unreachable from any other device by design.
 // This is the second, much cheaper transport: repeated `capture-pane` snapshots
-// pushed to the relay in packages/convex/convex/terminalStream.ts. No PTY and
+// pushed to the relay in apps/server/convex/terminalStream.ts. No PTY and
 // no attach — screens out, keystrokes in, nothing else.
 //
 // The loop is driven by a LEASE the viewer renews, and every push carries the

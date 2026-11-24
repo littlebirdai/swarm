@@ -1,6 +1,6 @@
 import type { ConvoMessage, GateResult } from '@platform/evals';
 
-import { parseSettleReply, SETTLE_TAIL_MESSAGES, settleRequest, shapeSettleTail, type SettleVerdict } from '../../../../convex/convex/idleSummary';
+import { parseSettleReply, SETTLE_TAIL_MESSAGES, settleRequest, shapeSettleTail, type SettleVerdict } from '../../../../../apps/server/convex/idleSummary';
 import { toConvoMessages, type MessageRow } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS, type SessionMoment } from '../../adapters/moment';
 import type { Captured, SurfaceImpl } from '../../surface';

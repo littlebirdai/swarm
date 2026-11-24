@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { classifyFeedMessage, isContextOnlyUserMessage, initialSubagentPromptId } from "./conversationProcessor";
-import { filterUserMessages } from "../../convex/convex/userMessagesFilter";
+import { filterUserMessages } from "../../../apps/server/convex/userMessagesFilter";
 
 test("stored Codex setup is hidden from thread, feed and message navigation", () => {
   const content = "<recommended_plugins>\nAvailable plugins\n</recommended_plugins>\n# AGENTS.md instructions for /repo";

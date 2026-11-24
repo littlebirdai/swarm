@@ -186,7 +186,7 @@ markers, ten per call, oldest first, after the merges the rule reads change; it
 stamps each deploy's `cut_at` first. `deploysBackfill:stampRunKeys` stamps
 `workflow_run` (the Actions run a deploy's url names) on deploys recorded
 before it, a page per call from `cursor`. Run them
-through `packages/convex/run.sh`.
+through `apps/server/run.sh`.
 
 ## DP7. Where deploys show
 

@@ -98,6 +98,6 @@ opens_causes = true
 # sends every shipped fix waiting to go out in one deploy. Run from the repo
 # root; deploy.sh deploys the checkout as it stands, so it takes no $sha.
 [line.deploy]
-command = "packages/convex/deploy.sh"
+command = "apps/server/deploy.sh"
 target = "backend"                   # what codecast's deploy markers name
 trigger = "person"                   # a person presses Deploy

@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { activationInstructions, type TemplateReceipt } from "./orgTemplateRun";
 
 const repo = path.dirname(fs.realpathSync(path.resolve(import.meta.dir, "../../../node_modules")));
-const backend = path.join(repo, "packages/convex/convex");
+const backend = path.join(repo, "apps/server/convex");
 const { applyActivate, applyTaskUpdate, resumeTask } = await import(path.join(backend, "agentTasks.ts"));
 const { makeFakeDb } = await import(path.join(backend, "testDb.ts"));
 const { hashToken } = await import(path.join(backend, "apiTokens.ts"));

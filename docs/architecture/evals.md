@@ -48,7 +48,7 @@ it stale; `index.ts` captures, replays and gates it.
 
 Call surfaces build their request with the same exported function prod posts
 (`titleRequest`, `settleRequest`, `insightRequest` and the rest), so the prompt
-bytes are prod's. The convex goldens under `packages/convex/convex/__golden__/`
+bytes are prod's. The convex goldens under `apps/server/convex/__golden__/`
 prove the builders still post what the actions posted.
 
 ## Every model call goes through the dry run harness

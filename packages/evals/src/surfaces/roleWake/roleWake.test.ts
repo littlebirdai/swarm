@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { formatSessionMessage, parseScheduledTask, triggerRunFrame } from '@codecast/shared/contracts';
 import { stripAnsi } from '@platform/cli-kit/render';
 
-import { ROLE_CHECK_PROMPT } from '../../../../convex/convex/lib/orgRoutine';
+import { ROLE_CHECK_PROMPT } from '../../../../../apps/server/convex/lib/orgRoutine';
 import { routeGates } from '../../adapters/replay';
 import { readFixture } from '../../adapters/resolver';
 import { runSnapshot } from '../../commands/snapshot';

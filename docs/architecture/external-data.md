@@ -975,7 +975,7 @@ codecast's side only (`convex/lib/codecastSigning.ts`): one private Ed25519
 JWK with a `kid`, or a JSON array of them. The first signs and every one is
 published as a JWKS at `GET /.well-known/codecast-keys.json` on the Convex
 site (the Caddy proxy forwards `/.well-known`; cached an hour). Generate one
-with `bun packages/convex/scripts/codecast-signing-key.ts <kid>`. To rotate,
+with `bun apps/server/scripts/codecast-signing-key.ts <kid>`. To rotate,
 put the new key first in the array (a verifier refetches the key set when a
 request names a kid it has not seen), then drop the old one once its last
 requests are past the 5 minute window. WebCrypto Ed25519 runs in Convex's
@@ -1125,4 +1125,4 @@ inline in transcripts and timelines through `registerExternalEventStyles`.
 - Every public function authenticates itself and never returns `access_token_enc`, config secrets or key hashes (`publicFunctionSecretLeak.test.ts`).
 - Codecast's signing key never leaves the deployment env; the key set route publishes only the public halves (`publicJwks`). A signed connection stores no secret at all (`access_token_enc` is empty, `tokenConnectors.SIGNED_CONNECTION`).
 - Batch caps: 500 items or 1 MB per request, 20 samples per group, 72 hourly buckets, 60 metric points.
-- Convex is deployed with `packages/convex/deploy.sh` before any web or CLI push that calls new functions.
+- Convex is deployed with `apps/server/deploy.sh` before any web or CLI push that calls new functions.

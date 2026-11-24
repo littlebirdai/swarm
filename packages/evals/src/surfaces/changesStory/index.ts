@@ -12,9 +12,9 @@ import {
   type StoryFacts,
   type StoryProse,
   type WhySource,
-} from '../../../../convex/convex/changesProse';
-import type { Doc } from '../../../../convex/convex/_generated/dataModel';
-import { parseJsonBlock } from '../../../../convex/convex/lib/anthropic';
+} from '../../../../../apps/server/convex/changesProse';
+import type { Doc } from '../../../../../apps/server/convex/_generated/dataModel';
+import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import { gate, type SurfaceImpl, type SurfaceRequest } from '../../surface';
 import { captureFromFile, describePrompt, emDashGate, fileRefForm, leakGate, sentText, type LeakWorld } from '../changesCommon';
 

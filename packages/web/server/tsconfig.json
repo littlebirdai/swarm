@@ -9,7 +9,7 @@
     "outDir": "./dist",
     "rootDir": ".",
     "paths": {
-      "@codecast/convex/*": ["../../convex/*"]
+      "@codecast/convex/*": ["../../../apps/server/*"]
     }
   },
   "include": ["./**/*.ts"]

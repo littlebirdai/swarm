@@ -170,9 +170,9 @@ and not on Union prod. Nothing exists on the Union team: no sources, no app
 connection, no role.
 
 1. Codecast, once for every product (not per product): set codecast's signing
-   key on the prod deployment, from `packages/convex`:
+   key on the prod deployment, from `apps/server`:
    `env -u CONVEX_DEPLOYMENT npx convex env set CODECAST_SIGNING_KEY "$(bun scripts/codecast-signing-key.ts ck-2026-10)"`,
-   then deploy convex with `packages/convex/deploy.sh` before pushing the web
+   then deploy convex with `apps/server/deploy.sh` before pushing the web
    and CLI that call `createSource`'s `base_url`.
    `curl https://convex.codecast.sh/.well-known/codecast-keys.json` should list
    one key.

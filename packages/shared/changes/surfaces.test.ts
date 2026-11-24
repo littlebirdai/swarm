@@ -34,6 +34,8 @@ describe("surfaces", () => {
     expect(surfaceCoversArea("desktop", "web")).toBe(true);
     expect(surfaceCoversArea("desktop", "desktop")).toBe(true);
     expect(surfaceCoversArea("desktop", "electron")).toBe(true);
+    expect(surfaceCoversArea("backend", "server")).toBe(true);
+    expect(surfaceCoversArea("backend", "convex")).toBe(true);
     expect(surfaceCoversArea("backend", "web")).toBe(false);
     expect(surfaceCoversArea("extension", "browser-extension")).toBe(true);
     expect(surfaceCoversArea("mobile", "mobile")).toBe(true);
@@ -99,8 +101,8 @@ describe("risks", () => {
   const base = { insertions: 0, deletions: 0, conversations: [], pr_ids: [], task_ids: [] };
 
   test("schema reads only the slice's own area", () => {
-    const c = commit({ sha: "a", paths: { "packages/convex/convex/schema.ts": 3, "packages/web/x.ts": 1, "docs/a.md": 1 } });
-    expect(computeRisks({ ...base, units: [{ commit: c, area: null }] }, { ships: [], linked: true })).toEqual([{ code: "schema", evidence: ["packages/convex/convex/schema.ts"] }]);
+    const c = commit({ sha: "a", paths: { "apps/server/convex/schema.ts": 3, "packages/web/x.ts": 1, "docs/a.md": 1 } });
+    expect(computeRisks({ ...base, units: [{ commit: c, area: null }] }, { ships: [], linked: true })).toEqual([{ code: "schema", evidence: ["apps/server/convex/schema.ts"] }]);
     expect(computeRisks({ ...base, units: [{ commit: c, area: "web" }] }, { ships: [], linked: true })).toEqual([]);
   });
 
@@ -121,7 +123,7 @@ describe("risks", () => {
   });
 
   test("skew needs a backend deploy marker and a newer web ship", () => {
-    const c = commit({ sha: "b", timestamp: T0 + 10 * MIN, paths: { "packages/convex/convex/x.ts": 5 } });
+    const c = commit({ sha: "b", timestamp: T0 + 10 * MIN, paths: { "apps/server/convex/x.ts": 5 } });
     const story = { ...base, units: [{ commit: c, area: null }] };
     const deploy: ShipEvent = { surface: "backend", sha: "d", at: T0, kind: "deploy" };
     const web: ShipEvent = { surface: "desktop", version: "1.1.123", sha: "w", at: T0 + 20 * MIN, kind: "release" };

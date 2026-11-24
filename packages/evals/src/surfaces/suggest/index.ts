@@ -4,9 +4,9 @@ import { UsageError } from '@platform/evals/cli';
 import { stripInjectionNoise } from '@codecast/shared/contracts';
 
 import { cliFetchRead } from '../../../../cli/src/cliHttp';
-import { NO_TEAM_CONTENT_GATE } from '../../../../convex/convex/lib/vendorGuard';
-import { contextFromRows, haikuRequest, isConversationTurn, isGenericNudge, isMachineCarrierText, normalizeForMatch, predictSuggestions, type StoredProfile } from '../../../../convex/convex/composerSuggestions';
-import { parseJsonBlock } from '../../../../convex/convex/lib/anthropic';
+import { NO_TEAM_CONTENT_GATE } from '../../../../../apps/server/convex/lib/vendorGuard';
+import { contextFromRows, haikuRequest, isConversationTurn, isGenericNudge, isMachineCarrierText, normalizeForMatch, predictSuggestions, type StoredProfile } from '../../../../../apps/server/convex/composerSuggestions';
+import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import { apiConfig, splitLineRef, toConvoMessages, toRows, type CliReadConversation, type CliReadMessage, type MessageRow } from '../../adapters/convo';
 import { JUDGE_MAX_TOKENS } from '../../adapters/judge';
 import { JUDGE_MODEL } from '../../models';

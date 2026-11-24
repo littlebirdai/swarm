@@ -1,7 +1,7 @@
 "use client";
 // One published-artifact card in the /artifacts gallery. Pure presentation —
 // the row shape is whatever api.artifacts.listForWeb returns (see
-// packages/convex/convex/artifacts.ts toCliRow + listForWeb extras).
+// apps/server/convex/artifacts.ts toCliRow + listForWeb extras).
 
 import { copyToClipboard } from "../../lib/utils";
 import { AvatarImg } from "../../lib/avatarCache";

@@ -45,7 +45,7 @@ echo "   Installing dependencies..."
 # silently rewrites the lock and hides that.
 bun install --frozen-lockfile
 
-# Build web (same as Railway). packages/convex has no build step.
+# Build web (same as Railway). apps/server has no build step.
 echo "   Building web..."
 cd packages/web
 set -o pipefail
@@ -80,7 +80,7 @@ echo ""
 # 1. Convex. THE deploy path (CLAUDE.md): it refuses a tree behind origin/main,
 # whose whole-tree snapshot would delete newer prod functions.
 echo "1. Deploying Convex functions..."
-./packages/convex/deploy.sh
+./apps/server/deploy.sh
 echo "   ✓ Convex deployed"
 echo ""
 
@@ -131,7 +131,7 @@ echo ""
 await_fleet() {
   local version="$1" minutes="$2" out total current
   for _ in $(seq 1 "$minutes"); do
-    out=$(./packages/convex/run.sh devices:fleetAdoption "{\"version\":\"$version\"}" 2>/dev/null | tr -d "\n")
+    out=$(./apps/server/run.sh devices:fleetAdoption "{\"version\":\"$version\"}" 2>/dev/null | tr -d "\n")
     total=$(echo "$out" | sed -n 's/.*"total": *\([0-9]*\).*/\1/p')
     current=$(echo "$out" | sed -n 's/.*"current": *\([0-9]*\).*/\1/p')
     if [[ -n "$total" && "$total" -gt 0 && $((current * 10)) -ge $((total * 9)) ]]; then

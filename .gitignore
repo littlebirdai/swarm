@@ -119,7 +119,7 @@ packages/cli/*
 *.tmp.[0-9]*.[0-9a-f]*
 
 # Scratch convex probes (one-off prod queries, never shipped)
-packages/convex/_*.mjs
+apps/server/_*.mjs
 _tok.json
 packages/web/public/_tok.json
 packages/web/tsconfig.*.tmp.json

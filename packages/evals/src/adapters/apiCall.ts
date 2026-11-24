@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { modelCost, postMessages, replyText } from '../../../convex/convex/lib/anthropic';
+import { modelCost, postMessages, replyText } from '../../../../apps/server/convex/lib/anthropic';
 import { testMode } from '../registry';
 import type { SurfaceRequest } from '../surface';
 

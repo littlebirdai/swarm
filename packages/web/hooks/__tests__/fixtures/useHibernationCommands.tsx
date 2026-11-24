@@ -7,8 +7,8 @@ import { useHibernationCommands } from "../../useHibernationCommands";
 import { useEnsureDispatch } from "../../useEnsureDispatch";
 import { recordSessionCommandDispatchError } from "../../../lib/sessionCommands";
 import { useInboxStore } from "../../../store/inboxStore";
-import { hibernate } from "../../../../convex/convex/sessionCommands";
-import { makeFakeDb } from "../../../../convex/convex/testDb";
+import { hibernate } from "../../../../../apps/server/convex/sessionCommands";
+import { makeFakeDb } from "../../../../../apps/server/convex/testDb";
 import { DispatchNotWiredError, isParkedDispatchError, isPermanentDispatchError, MAX_OUTBOX_BOOT_ATTEMPTS, OUTBOX_MAX_REPLAY_AGE_MS, outboxFailureDisposition } from "../../../store/mutativeMiddleware";
 
 const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "http://localhost/" });

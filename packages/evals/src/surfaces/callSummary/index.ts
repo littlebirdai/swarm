@@ -12,7 +12,7 @@ import {
   SUMMARY_MAX_CHARS,
   SUMMARY_MIN_WORDS,
   type CallSummaryKind,
-} from '../../../../convex/convex/transcripts';
+} from '../../../../../apps/server/convex/transcripts';
 import { gate, type SurfaceImpl } from '../../surface';
 
 // A call's summary replayed from its transcript lines. The source text, the

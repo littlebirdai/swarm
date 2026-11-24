@@ -21,7 +21,7 @@ describe("areaOf", () => {
     expect(areaOf("packages/cli/src/daemon.ts")).toBe("cli");
     expect(areaOf("packages/evals/src/x.ts")).toBe("evals");
     expect(areaOf("packages/web/components/DiffView.tsx")).toBe("web");
-    expect(areaOf("packages/convex/convex/tasks.ts")).toBe("convex");
+    expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
     expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
@@ -101,7 +101,7 @@ describe("classifyChangedPaths", () => {
   });
 
   test("a convex change runs the convex, web, cli and mobile tests", () => {
-    expect(ran(["packages/convex/convex/tasks.ts"])).toEqual(
+    expect(ran(["apps/server/convex/tasks.ts"])).toEqual(
       ["build", "test-cli", "test-convex", "test-mobile", "test-web", "typecheck"],
     );
   });

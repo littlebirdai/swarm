@@ -2,7 +2,7 @@
 //
 // Convex dispatches this worker into a huddle's LiveKit room under the name
 // "codecast-face" when an agent is fed into the call and its team has agent
-// faces on (packages/convex/convex/callFace.ts). The job seats a Tavus face
+// faces on (apps/server/convex/callFace.ts). The job seats a Tavus face
 // as `agent:<conversation>` and stays exactly as long as the face does: in
 // LiveKit mode Tavus keeps a face only while a participant of kind "agent" is
 // in the room, and this job is that participant. Two modes, from the dispatch:

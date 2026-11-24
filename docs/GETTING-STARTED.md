@@ -4,12 +4,12 @@
 
 A CLI daemon watches the history files coding agents write (Claude Code, Codex, Cursor, Gemini, OpenCode, pi, Grok, Muse Spark) and syncs them to a Convex backend. The web, desktop and mobile apps read from Convex live, and messages sent from them travel back through the daemon into the agent's terminal.
 
-![Local development: dev.sh runs Vite and the gated Convex pusher, cast start runs the daemon, and both talk to the Convex deployment named in packages/convex/.env.local](diagrams/dev-setup.svg)
+![Local development: dev.sh runs Vite and the gated Convex pusher, cast start runs the daemon, and both talk to the Convex deployment named in apps/server/.env.local](diagrams/dev-setup.svg)
 
 | Package | What it does |
 |---------|-------------|
 | `packages/cli` | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages |
-| `packages/convex` | Backend: schema, queries, mutations, auth, HTTP routes |
+| `apps/server` | Backend: schema, queries, mutations, auth, HTTP routes |
 | `packages/web` | React + Vite web app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff) |
 | `apps/desktop` | Desktop app (Electron wrapper around the web app) |
@@ -42,10 +42,10 @@ bun install
 
 Run these commands from the repo root. Each package also has a `.env.example` listing every variable it reads. No repo-root `.env.local` is needed; if a Convex CLI run leaves one with `CONVEX_DEPLOYMENT=anonymous`, `dev.sh` and `deploy.sh` both work around it.
 
-### `packages/convex/.env.local`
+### `apps/server/.env.local`
 
 ```bash
-cat > packages/convex/.env.local << 'EOF'
+cat > apps/server/.env.local << 'EOF'
 CONVEX_SELF_HOSTED_URL=https://convex.codecast.sh
 CONVEX_SELF_HOSTED_ADMIN_KEY=<production admin key: ask the team lead>
 CONVEX_URL=https://convex.codecast.sh
@@ -110,7 +110,7 @@ Install nginx first (`brew install nginx`); the script does not. It adds `local.
 ./dev.sh
 ```
 
-This starts Vite on port 3200 and the Convex pusher (`packages/convex/scripts/gated-push.ts`), with a watchdog that restarts either if it crashes. The pusher waits for 3 seconds of quiet in `packages/convex/convex/`, runs the whole-program typecheck, then pushes once. It refuses to start while the tree is behind `codecast-sh/codecast`'s main (step 3), because a push from a stale tree deletes newer functions from the deployment; `dev.sh` prints the pull instruction and starts the pusher once you pull. Open **http://local.codecast.sh** (https once you have added the TLS block from `nginx.dev.conf.example`) or `http://localhost:3200`.
+This starts Vite on port 3200 and the Convex pusher (`apps/server/scripts/gated-push.ts`), with a watchdog that restarts either if it crashes. The pusher waits for 3 seconds of quiet in `apps/server/convex/`, runs the whole-program typecheck, then pushes once. It refuses to start while the tree is behind `codecast-sh/codecast`'s main (step 3), because a push from a stale tree deletes newer functions from the deployment; `dev.sh` prints the pull instruction and starts the pusher once you pull. Open **http://local.codecast.sh** (https once you have added the TLS block from `nginx.dev.conf.example`) or `http://localhost:3200`.
 
 `Ctrl+C` to stop. Run `./dev.sh` again to restart; it cleans up its own leftovers.
 
@@ -129,14 +129,14 @@ cd packages/web && bun run dev       # Vite dev server (HMR) on vite's default p
 cd packages/cli && bun run dev       # the cast CLI from source (pass a command, e.g. `bun run dev status`)
 ```
 
-Leave the Convex pusher to `dev.sh`, which checks the tree is fresh before starting it. To ship Convex changes without `dev.sh`, run `packages/convex/deploy.sh`; never a raw `npx convex deploy` or `convex dev`.
+Leave the Convex pusher to `dev.sh`, which checks the tree is fresh before starting it. To ship Convex changes without `dev.sh`, run `apps/server/deploy.sh`; never a raw `npx convex deploy` or `convex dev`.
 
 ## 6. Convex Application Env Vars
 
 The `.env.local` file from step 3 handles deployment credentials. The application env vars below are already set on the production Convex deployment. You only need to run these when setting up a new instance; [Self-Hosting](SELF-HOSTING.md) lists every variable:
 
 ```bash
-cd packages/convex
+cd apps/server
 npx convex env set SITE_URL "https://codecast.sh"
 npx convex env set RESEND_API_KEY "<get-from-team-lead>"
 npx convex env set ANTHROPIC_API_KEY "<get-from-team-lead>"
@@ -220,7 +220,7 @@ Install [Codecast for Chrome](https://chromewebstore.google.com/detail/codecast/
 
 `goto` and `sweep` navigate in-app (pushState, the way a click routes) so surfaces switch in milliseconds and the store stays warm. The tab shell re-asserts its own URL when the destination is outside it (the settings pages, for one), so a bounced navigation falls back to a full document load; `--reload` forces that for every step. On local dev a full load is a vite transform pass and can take 30 seconds or more.
 
-`as-user` mints a real token pair through `packages/convex/run.sh verification:mintSession` (admin key, so only from the codecast checkout), parks every app window on a blank page, swaps the pair into localStorage and reloads. Parking matters: any live document on the origin holds an auth client that rotates a fresh refresh token the moment it sees it, and the reloaded page then boots signed out. The identity that was there is saved on the page; `as-user --restore` puts it back. It never changes the signed-in account in your own Chrome; use `--desktop` for an authorized account change in the desktop app. The user must own this machine's daemon for daemon-backed surfaces (terminal, vault, device commands) to read as online; doctor says when they do not.
+`as-user` mints a real token pair through `apps/server/run.sh verification:mintSession` (admin key, so only from the codecast checkout), parks every app window on a blank page, swaps the pair into localStorage and reloads. Parking matters: any live document on the origin holds an auth client that rotates a fresh refresh token the moment it sees it, and the reloaded page then boots signed out. The identity that was there is saved on the page; `as-user --restore` puts it back. It never changes the signed-in account in your own Chrome; use `--desktop` for an authorized account change in the desktop app. The user must own this machine's daemon for daemon-backed surfaces (terminal, vault, device commands) to read as online; doctor says when they do not.
 
 The surface list lives in `@codecast/shared/contracts/appSurfaces.ts`. A test in `routes.manifest.test.ts` fails when a param-free signed-in route is missing from it, or when it names a route the router no longer serves.
 
@@ -229,7 +229,7 @@ The surface list lives in `@codecast/shared/contracts/appSurfaces.ts`. A test in
 Some test scripts hit the Convex API directly. Get a token from `cast auth` or the Convex dashboard:
 
 ```bash
-CONVEX_API_TOKEN=your-token bun packages/convex/test-pending-messages.ts
+CONVEX_API_TOKEN=your-token bun apps/server/test-pending-messages.ts
 ```
 
 ### Typecheck
@@ -358,7 +358,7 @@ CONVEX_CLOUD_URL       # alias for CONVEX_CLOUD_ORIGIN
 | `./dev.sh` | Start Vite and the gated Convex pusher, with a watchdog |
 | `./dev.sh N` | Multi-instance (port 3200+N) |
 | `sudo ./setup-hosts.sh` | Add local domains to `/etc/hosts` and run nginx (already installed) as a launchd service |
-| `packages/convex/deploy.sh` | The only way to deploy Convex: refuses a tree behind `codecast-sh/codecast`'s main |
+| `apps/server/deploy.sh` | The only way to deploy Convex: refuses a tree behind `codecast-sh/codecast`'s main |
 | `./scripts/deploy-all.sh` | Full release in order: Convex, push (Railway builds web), CLI cut in CI, mobile OTA, desktop when `apps/desktop` changed, then waits for Railway |
 | `scripts/vendor-platform.sh` | Refresh the `platform/packages/` mirror of `~/src/platform` (`--check` reports drift) |
 
@@ -366,7 +366,7 @@ CONVEX_CLOUD_URL       # alias for CONVEX_CLOUD_ORIGIN
 
 **`dev.sh` says hostname not in `/etc/hosts`.** Run `sudo ./setup-hosts.sh`.
 
-**Convex functions not updating.** Check the `dev.sh` log. The pusher refuses a tree behind `codecast-sh/codecast`'s main (the log names the remote; pull with `git pull --rebase <remote> main`) and skips a push while the typecheck fails, so a save that lands during a failing pass can be skipped. `packages/convex/deploy.sh` pushes explicitly.
+**Convex functions not updating.** Check the `dev.sh` log. The pusher refuses a tree behind `codecast-sh/codecast`'s main (the log names the remote; pull with `git pull --rebase <remote> main`) and skips a push while the typecheck fails, so a save that lands during a failing pass can be skipped. `apps/server/deploy.sh` pushes explicitly.
 
 **Port already in use.** `dev.sh` cleans up after itself, so run it again. Or: `lsof -ti :3200 | xargs kill`.
 

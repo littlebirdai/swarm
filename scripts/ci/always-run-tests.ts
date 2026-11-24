@@ -29,7 +29,7 @@ const ROOT = join(import.meta.dir, "..", "..");
  */
 export const SUITES: Array<{ job: string; dir: string; roots: string[]; flags: string[] }> = [
   { job: "test-shared", dir: "packages/shared", roots: ["."], flags: [] },
-  { job: "test-convex", dir: "packages/convex", roots: ["convex", "scripts"], flags: [] },
+  { job: "test-convex", dir: "apps/server", roots: ["convex", "scripts"], flags: [] },
   // test-cli runs --parallel, a fresh global per file: the boot graph guards
   // count the module registry, which earlier files in one process have filled.
   { job: "test-cli", dir: "packages/cli", roots: ["src"], flags: ["--parallel"] },

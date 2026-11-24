@@ -26,7 +26,7 @@ import { spawnSync } from "node:child_process";
 import { keepOnHost, runExtractor, fileVersion, JUDGES_DIR, MOMENTS_DIR, type MomentClaim } from "../src/momentsHost";
 import { parseExtractorHeader, parseExtractorOutput, type MomentRecord } from "@codecast/shared/contracts/moments";
 import { judgeRequest, narrowBrief, parseJudgeReply, parseJudgeSpec, type ExpectationsBrief } from "@codecast/shared/contracts/judges";
-import { modelCost, postMessages, replyText } from "../../convex/convex/lib/anthropic";
+import { modelCost, postMessages, replyText } from "../../../apps/server/convex/lib/anthropic";
 import { evalsApiKey } from "../../evals/src/adapters/apiCall";
 
 const { values: a } = parseArgs({

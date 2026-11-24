@@ -7,7 +7,7 @@
 # and the CLI imports the convex generated api, whose files sit outside it).
 cli = "packages/cli/tsconfig.typecheck.json"
 web = "packages/web/tsconfig.json"
-convex = "packages/convex/convex/tsconfig.json"
+convex = "apps/server/convex/tsconfig.json"
 # The edge contract is checked before the daemon and server import it.
 contracts = "packages/shared/tsconfig.contracts.json"
 mobile = "apps/mobile/tsconfig.json"

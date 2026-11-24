@@ -1,6 +1,6 @@
 import type { ConvoMessage, ProductionReply } from '@platform/evals';
 
-import { isRefusalProse } from '../../../../convex/convex/idleSummary';
+import { isRefusalProse } from '../../../../../apps/server/convex/idleSummary';
 import {
   cleanShortTitle,
   extractTitleJson,
@@ -9,7 +9,7 @@ import {
   shortTitleRequest,
   titleRequest,
   type TitleRow,
-} from '../../../../convex/convex/titleGeneration';
+} from '../../../../../apps/server/convex/titleGeneration';
 import { toConvoMessages } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
 import { gate, type SurfaceImpl, type SurfaceRequest } from '../../surface';

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import type { Freeze } from '@platform/evals';
 
-import { parseJsonBlock } from '../../../convex/convex/lib/anthropic';
+import { parseJsonBlock } from '../../../../apps/server/convex/lib/anthropic';
 import { runCall } from '../adapters/dryRun';
 import { surfaceRuns, type SurfaceRun } from '../adapters/runs';
 import { PROD_DEFAULT_MODEL } from '../models';

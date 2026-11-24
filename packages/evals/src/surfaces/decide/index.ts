@@ -1,7 +1,7 @@
 import type { CheckResult, ConvoMessage, ProductionReply } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { parseJsonBlock } from '../../../../convex/convex/lib/anthropic';
+import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import { renderGuidanceFile } from '../../../../shared/contracts/snippets';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
 import { readConversation, toRows, type MessageRow } from '../../adapters/convo';

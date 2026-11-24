@@ -127,7 +127,7 @@ describe("riskText", () => {
   const SHA = "0123456789abcdef0123456789abcdef01234567";
 
   test("a worded risk is its line alone, without the evidence it already explains", () => {
-    const s = { risks: [{ code: "schema" as const, evidence: ["packages/convex/convex/schema.ts"] }], risk_lines: { schema: "The schema changed; deploy convex before web." } };
+    const s = { risks: [{ code: "schema" as const, evidence: ["apps/server/convex/schema.ts"] }], risk_lines: { schema: "The schema changed; deploy convex before web." } };
     expect(riskText(s)).toBe("The schema changed; deploy convex before web.");
   });
 
@@ -135,13 +135,13 @@ describe("riskText", () => {
     const s = {
       risks: [
         { code: "skew" as const, evidence: [SHA, "backend deployed 2026-10-02T10:00:00Z", `web shipped 2026-10-02T11:00:00Z at ${SHA}`] },
-        { code: "schema" as const, evidence: ["packages/convex/convex/schema.ts", "packages/old/schema.ts"] },
+        { code: "schema" as const, evidence: ["apps/server/convex/schema.ts", "packages/old/schema.ts"] },
       ],
       risk_lines: {},
     };
     expect(riskText(s)).toBe([
       "skew (0123456, backend deployed 2026-10-02T10:00:00Z, web shipped 2026-10-02T11:00:00Z at 0123456)",
-      "schema (packages/convex/convex/schema.ts)",
+      "schema (apps/server/convex/schema.ts)",
     ].join("\n"));
     // One line for a tooltip that lists several stories.
     expect(riskText(s, "; ")).toContain(")\u003b schema (");

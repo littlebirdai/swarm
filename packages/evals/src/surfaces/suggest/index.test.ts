@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import type { Freeze } from '@platform/evals';
 
-import { suggestRequest } from '../../../../convex/convex/composerSuggestions';
+import { suggestRequest } from '../../../../../apps/server/convex/composerSuggestions';
 import { toRows, type CliReadMessage } from '../../adapters/convo';
 import { routeGates } from '../../adapters/replay';
 import { JUDGE_MODEL } from '../../models';

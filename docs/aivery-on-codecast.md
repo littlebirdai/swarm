@@ -1,6 +1,6 @@
 # Aivery on Codecast — an open framework for "tag an agent into your work"
 
-> **Status (2026-10-04):** Superseded, with most phases built in another shape. Persistent sessions and bot identities (`persistent`, `is_bot`, `bot_user_id` in `packages/convex/convex/schema.ts`), the Slack webhook and mirror (`/api/webhooks/slack`, `docs/architecture/slack-chat-mirror.md`) and named agent definitions (`docs/architecture/agent-definitions.md`) shipped; personas became org roles (`docs/architecture/org-roles.md`).
+> **Status (2026-10-04):** Superseded, with most phases built in another shape. Persistent sessions and bot identities (`persistent`, `is_bot`, `bot_user_id` in `apps/server/convex/schema.ts`), the Slack webhook and mirror (`/api/webhooks/slack`, `docs/architecture/slack-chat-mirror.md`) and named agent definitions (`docs/architecture/agent-definitions.md`) shipped; personas became org roles (`docs/architecture/org-roles.md`).
 > Taking over Aivery's own Union duties is now `docs/architecture/union-ops-role.md`, which is defined but not yet created.
 
 > Status: design / discussion. Author: derived from a deep read of Anthropic's
@@ -248,7 +248,7 @@ the Aivery user its own Claude credentials. After this, a dormant persona surviv
 `cast send`. Small, surgical, mostly reuse.
 
 **Phase 2 — Slack adapter (the one new HTTP surface).**
-`/api/webhooks/slack` httpAction in `packages/convex/convex/http.ts` (mirror the GitHub handler's HMAC verify
+`/api/webhooks/slack` httpAction in `apps/server/convex/http.ts` (mirror the GitHub handler's HMAC verify
 at `http.ts:207`) → `storeWebhookEvent({ event_type:"slack_message", action:"mention"|"dm"|"thread", … })`.
 A `(channel → persona conversation_id)` map; mention → `cast send` the persona via existing delivery; a Slack
 Web API post-back the persona calls to reply *as the bot*.

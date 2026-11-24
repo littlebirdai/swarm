@@ -58,7 +58,7 @@ const envValue = (text, key) => text.match(new RegExp(`^${key}=(.*)$`, "m"))?.[1
 
 /** The local anonymous deployment the scratch copy runs, or a reason it is not there. */
 export function localDeployment() {
-  const envFile = join(SCRATCH, "packages/convex/.env.local");
+  const envFile = join(SCRATCH, "apps/server/.env.local");
   if (!existsSync(envFile)) throw new Error(`no local deployment: ${envFile} is missing (run: bun scripts/rig/stack.mjs up)`);
   const env = readFileSync(envFile, "utf8");
   const convexUrl = envValue(env, "CONVEX_URL");
@@ -69,7 +69,7 @@ export function localDeployment() {
     throw new Error(`refusing: ${envFile} names ${convexUrl} ${deployment}, not a local anonymous deployment`);
   }
   const name = deployment.slice("anonymous:".length);
-  const projectLocal = join(SCRATCH, "packages/convex/.convex/local/default/config.json");
+  const projectLocal = join(SCRATCH, "apps/server/.convex/local/default/config.json");
   const config = JSON.parse(readFileSync(existsSync(projectLocal) ? projectLocal : join(ANON_STATE, name, "config.json"), "utf8"));
   const siteUrl = `http://127.0.0.1:${config.ports?.site ?? Number(new URL(convexUrl).port) + 1}`;
   return { kind: "local", name, convexUrl, siteUrl, adminKey: config.adminKey, appUrl: `http://localhost:${WEB_PORT}` };
@@ -135,7 +135,7 @@ function copyTree() {
   for (const d of ["node_modules", ...execSync("ls -d packages/*/node_modules", { cwd: REPO, encoding: "utf8" }).trim().split("\n")]) {
     if (!existsSync(join(SCRATCH, d))) execFileSync("ln", ["-s", join(REPO, d), join(SCRATCH, d)]);
   }
-  const travelled = execSync(`find "${SCRATCH}" -name .env.local -not -path '*/node_modules/*' -not -path '${SCRATCH}/packages/convex/.env.local'`, { encoding: "utf8" }).trim();
+  const travelled = execSync(`find "${SCRATCH}" -name .env.local -not -path '*/node_modules/*' -not -path '${SCRATCH}/apps/server/.env.local'`, { encoding: "utf8" }).trim();
   if (travelled) throw new Error(`refusing: an .env.local travelled into the scratch copy:\n${travelled}`);
   writeFileSync(join(SCRATCH, "sim.env"), `CONVEX_DEPLOYMENT=anonymous:${ANON_NAME}\n`);
 }
@@ -166,7 +166,7 @@ export async function stackUp({ refresh = false, log = console.log } = {}) {
   // reads the watcher's own "✔ HH:MM:SS Convex functions ready!" line.
   const since = new Date().toTimeString().slice(0, 8);
   let pushing = false;
-  if (refresh || !existsSync(join(SCRATCH, "packages/convex/package.json"))) {
+  if (refresh || !existsSync(join(SCRATCH, "apps/server/package.json"))) {
     log(`copying the tree to ${SCRATCH}`);
     copyTree();
     pushing = true;
@@ -176,7 +176,7 @@ export async function stackUp({ refresh = false, log = console.log } = {}) {
   }
   if (!tmuxHas(TMUX_CONVEX)) {
     log("starting the local deployment (tmux smoke-deploy); the first push takes minutes");
-    execFileSync("tmux", ["new", "-d", "-s", TMUX_CONVEX, "-c", join(SCRATCH, "packages/convex")]);
+    execFileSync("tmux", ["new", "-d", "-s", TMUX_CONVEX, "-c", join(SCRATCH, "apps/server")]);
     pushing = true;
     execFileSync("tmux", ["send-keys", "-t", TMUX_CONVEX, `env -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous DATABASE_UDF_USER_TIMEOUT_SECONDS=30 ISOLATE_ANALYZE_USER_TIMEOUT_SECONDS=120 ${PORT_FLAGS ? `RIG_ANON_PORTS=1 RIG_ANON_DEPLOYMENT=${ANON_NAME} ` : ""}npx convex dev --env-file ../../sim.env --codegen disable --typecheck disable --tail-logs disable${PORT_FLAGS}`, "Enter"]);
   }

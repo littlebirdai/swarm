@@ -39,7 +39,7 @@ describe("parseStepHeading", () => {
   });
 
   test("takes the ticked path with a line range, else the last, when the title names a file in backticks too", () => {
-    expect(parseStepHeading("`deploy.sh` uses the resolved remote `packages/convex/deploy.sh:45-57`")).toEqual({ title: "`deploy.sh` uses the resolved remote", file: "packages/convex/deploy.sh", start: 45, end: 57 });
+    expect(parseStepHeading("`deploy.sh` uses the resolved remote `apps/server/deploy.sh:45-57`")).toEqual({ title: "`deploy.sh` uses the resolved remote", file: "apps/server/deploy.sh", start: 45, end: 57 });
     expect(parseStepHeading("`dev.sh:12` reads it before `scripts/dev.sh`")).toEqual({ title: "reads it before `scripts/dev.sh`", file: "dev.sh", start: 12, end: 12 });
     expect(parseStepHeading("Rename `a.ts` to `src/b.ts`")).toEqual({ title: "Rename `a.ts` to", file: "src/b.ts" });
   });

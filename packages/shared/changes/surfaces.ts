@@ -10,7 +10,7 @@ import type { ChangeCommit, ReleaseBurst, ShipEvent } from "./types";
 export const SURFACE_PATHS: Record<string, readonly string[]> = {
   cli: ["packages/cli/", "packages/shared/"],
   desktop: ["apps/desktop/", "packages/electron/", "packages/web/", "packages/shared/"],
-  backend: ["packages/convex/"],
+  backend: ["apps/server/", "packages/convex/"],
   web: ["packages/web/", "packages/shared/"],
   extension: ["apps/browser-extension/", "packages/chrome-extension/"],
   mobile: ["apps/mobile/"],

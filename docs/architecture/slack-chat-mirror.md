@@ -2,7 +2,7 @@
 
 A codecast chat channel can mirror a Slack channel in either or both directions. People who live in Slack keep talking there; the conversation appears in codecast chat, and what the team and its agents say in chat appears in Slack. This is the adoption ramp: nobody has to move before the team gets value.
 
-Shipped 2026-09-14 (plan pl-672). Backend `packages/convex/convex/slackSync.ts`, `lib/slackText.ts`, `lib/slackOutbound.ts`; web `components/chat/SlackSyncDialog.tsx`, `SlackMirrorPill.tsx`, marks in `ChatMessage.tsx`; CLI `cast chat slack`.
+Shipped 2026-09-14 (plan pl-672). Backend `apps/server/convex/slackSync.ts`, `lib/slackText.ts`, `lib/slackOutbound.ts`; web `components/chat/SlackSyncDialog.tsx`, `SlackMirrorPill.tsx`, marks in `ChatMessage.tsx`; CLI `cast chat slack`.
 
 ## Objects
 

@@ -580,7 +580,7 @@ Version diff and Restore come after the founder pages (LJ10 step 6).
 
 ## LJ9. Backend ledger
 
-Each line is an act or a fact the pages name, whether its backend exists, and what the page shows until it does. Rule 4: nothing here ships as a dead control. A convex change deploys through `packages/convex/deploy.sh` before the web that calls it.
+Each line is an act or a fact the pages name, whether its backend exists, and what the page shows until it does. Rule 4: nothing here ships as a dead control. A convex change deploys through `apps/server/deploy.sh` before the web that calls it.
 
 | # | Needed | Exists | Until it does |
 |---|---|---|---|

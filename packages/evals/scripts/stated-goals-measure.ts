@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Measures the stated goals read (packages/convex/convex/lib/statedGoals.ts)
+// Measures the stated goals read (apps/server/convex/lib/statedGoals.ts)
 // against a hand-labelled set of a workspace's real lines: precision and
 // recall per source, run-to-run stability, and what the old keyword filter
 // would have kept. The set lives in EVALS_HOME/labels/stated-goals/<ws>.json
@@ -12,8 +12,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { postMessages, replyText } from '../../convex/convex/lib/anthropic';
-import { pickStatedGoals, type GoalCandidate } from '../../convex/convex/lib/statedGoals';
+import { postMessages, replyText } from '../../../apps/server/convex/lib/anthropic';
+import { pickStatedGoals, type GoalCandidate } from '../../../apps/server/convex/lib/statedGoals';
 import { evalsApiKey } from '../src/adapters/apiCall';
 import { homePaths } from '../src/paths';
 

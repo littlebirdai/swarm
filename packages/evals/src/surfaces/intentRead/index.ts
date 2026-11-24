@@ -1,10 +1,10 @@
 import type { ConvoMessage } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { mayBeTyped, typedPart } from '../../../../convex/convex/lib/messageProvenance';
+import { mayBeTyped, typedPart } from '../../../../../apps/server/convex/lib/messageProvenance';
 import { parseDecisionAnswer } from '../../../../shared/contracts';
-import { normalizeQuote } from '../../../../convex/convex/lib/originatorChain';
-import { parseJsonBlock } from '../../../../convex/convex/lib/anthropic';
+import { normalizeQuote } from '../../../../../apps/server/convex/lib/originatorChain';
+import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import { blindDiff } from '../../../../cli/src/workflow/blindChange';
 import { fitAskerRecord } from '../../../../cli/src/workflow/flowAsker';
 import { parseWorkflowSource } from '../../../../cli/src/workflow/parser';

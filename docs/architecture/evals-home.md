@@ -402,7 +402,7 @@ Acceptance:
 **U2: One home for the Anthropic request body**
 
 Files:
-- `packages/convex/convex/lib/anthropic.ts`
+- `apps/server/convex/lib/anthropic.ts`
 - its test: extend `lib/anthropic.test.ts` if it exists, or create it
 
 Changes:
@@ -522,19 +522,19 @@ Acceptance, with no model calls:
 **U5: Title, settle, trigger title, story on shared requests**
 
 Files:
-- `packages/convex/convex/titleGeneration.ts`
+- `apps/server/convex/titleGeneration.ts`
 - `idleSummary.ts`
 - `agentTasks.ts`
 - `storyMode.ts`
 - `titleGeneration.test.ts`
 - `idleSummary.test.ts`
-- new golden files under `packages/convex/convex/__golden__/`, one per surface (`title.json`, `short-title.json`, `settle.json`)
-- new `packages/convex/convex/__golden__/golden.testkit.ts`, shared by U6 and U7. Its name has two dots so the Convex bundler skips it, since it imports `node:fs`. It holds:
+- new golden files under `apps/server/convex/__golden__/`, one per surface (`title.json`, `short-title.json`, `settle.json`)
+- new `apps/server/convex/__golden__/golden.testkit.ts`, shared by U6 and U7. Its name has two dots so the Convex bundler skips it, since it imports `node:fs`. It holds:
   - `goldenBody(req)`, the body prod posts for a request, with the fence nonce pinned
   - `captureFetch(reply)`, a fetch stub that records each posted body and answers in the Messages API shape (`type: "text"` blocks), so a reply reaches `callModel`
   - `loadGolden(name)`, which only reads; tests that check a builder against a recorded body use it
   - `recordGolden(name, actual)`, which returns the recorded cases with `actual`'s names for `expect(actual).toEqual(…)`. Under `UPDATE_GOLDENS=1` it first merges `actual` into the file case by case, so two tests sharing one golden never erase each other, and a test that only reads can never blank a golden
-- new `packages/convex/convex/__golden__/golden.testkit.test.ts`, which proves both re-record properties and that the stub's reply reaches `callModel`
+- new `apps/server/convex/__golden__/golden.testkit.test.ts`, which proves both re-record properties and that the stub's reply reaches `callModel`
 
 Changes:
 - Export `titleRequest(input)` and `shortTitleRequest(input)`, plus a pure `selectTitleInput(rows, conversation)` extracted from `getConversationForTitle`. `rows` is `{spine, latest}`: the prompt rows the three spine reads return, and the newest 20 rows newest first. The query fetches the same rows and calls the selector.
@@ -547,16 +547,16 @@ Changes:
 
 Acceptance:
 - goldens are equal
-- `grep -rn 'claude-haiku-4-5-20251001' packages/convex/convex --include=*.ts | grep -v test` leaves only `lib/anthropic.ts:7` and any U6/U7 site not yet swapped
+- `grep -rn 'claude-haiku-4-5-20251001' apps/server/convex --include=*.ts | grep -v test` leaves only `lib/anthropic.ts:7` and any U6/U7 site not yet swapped
 - the rows path (`pickSpineRows` + `selectTitleInput` + `titleRequest`, and `settleRequest(shapeSettleTail(rows))`) produces the same golden bytes as the actions
 - `cast check convex`
-- `bun test packages/convex/convex/titleGeneration.test.ts packages/convex/convex/idleSummary.test.ts packages/convex/convex/__golden__/golden.testkit.test.ts`
+- `bun test apps/server/convex/titleGeneration.test.ts apps/server/convex/idleSummary.test.ts apps/server/convex/__golden__/golden.testkit.test.ts`
 - `UPDATE_GOLDENS=1` over every golden test file leaves each golden byte for byte unchanged
 
 **U6: Insight and call summary on shared requests**
 
 Files:
-- `packages/convex/convex/sessionInsights.ts`
+- `apps/server/convex/sessionInsights.ts`
 - `transcripts.ts`
 - `transcripts.test.ts`
 - new `sessionInsights.request.test.ts`
@@ -574,16 +574,16 @@ Acceptance: goldens are equal, `cast check convex`, and both test files are gree
 **U7: Suggest pipeline seams**
 
 Files:
-- `packages/convex/convex/composerSuggestions.ts`
+- `apps/server/convex/composerSuggestions.ts`
 - `composerSuggestions.test.ts`
-- `packages/convex/convex/http.ts`: one appended route
+- `apps/server/convex/http.ts`: one appended route
 
 Changes:
 - `predictSuggestions(context, profile, provider, complete = llmComplete)`. It takes its prompt and cap from `suggestRequest`, so an injected `complete` sees exactly what `llmComplete` would.
 - The Haiku branch is shared by the suggester and the profile miner, so it gets two builders, both on `CHEAP_MODEL` and posted through `anthropicBody`: `haikuRequest(prompt, maxTokens)` (temperature 0.3, as prod) for the branch itself, and `suggestRequest(context, profile)` for one suggestion moment (`buildPrompt` at the 1200 cap). The eval replays `suggestRequest`.
 - Extract `contextFromRows(rows, conversation)` from `getSuggestionContext`. `rows` are in time order and end at the moment being predicted; the selector keeps the newest 60 and filters to real turns, so the live query and a past moment share one window.
 - New `POST /cli/suggestion-profile`, appended to http.ts. An httpAction has no db for `verifyApiToken`, so the route forwards only `api_token` to a new internal query `getOwnSuggestionProfile({api_token})`. It resolves the token to its user and reads that user's profile through the same reader as `getSuggestionProfile`. There is no `user_id` parameter; a bad or missing token is a 401. It returns the profile or null.
-- The golden is `packages/convex/convex/__golden__/suggest.json`: the bodies for three synthetic suggest moments and one miner call, recorded from the code before the refactor, in the shared `GoldenCase[]` format through `__golden__/golden.testkit.ts` like the other goldens. `UPDATE_GOLDENS=1` rewrites it on a deliberate prompt change; only a recording call writes, so a test that just reads a golden cannot blank it.
+- The golden is `apps/server/convex/__golden__/suggest.json`: the bodies for three synthetic suggest moments and one miner call, recorded from the code before the refactor, in the shared `GoldenCase[]` format through `__golden__/golden.testkit.ts` like the other goldens. `UPDATE_GOLDENS=1` rewrites it on a deliberate prompt change; only a recording call writes, so a test that just reads a golden cannot blank it.
 
 Acceptance:
 - a test shows the injected `complete` receives the same opts `llmComplete` did
@@ -626,11 +626,11 @@ Acceptance:
 - `bun test scripts/ci/` is green
 - a scope test asserts that `packages/evals/src/x.ts` sets `run_test_cli` and does not force every job
 
-**After wave 2:** run `packages/convex/deploy.sh` once from a tree that is a superset of origin/main. This deploys U5-U7 and the new route. It must happen before any push that includes them.
+**After wave 2:** run `apps/server/deploy.sh` once from a tree that is a superset of origin/main. This deploys U5-U7 and the new route. It must happen before any push that includes them.
 
 ### Wave 3 (after wave 2, parallel; each unit owns only `packages/evals/src/surfaces/<its ids>/` and `packages/evals/fixtures/<its ids>/`, plus the files named)
 
-**U10: settle** (ct-55701). Also deletes `packages/convex/scripts/settle-eval.ts`.
+**U10: settle** (ct-55701). Also deletes `apps/server/scripts/settle-eval.ts`.
 
 Steps:
 - Move the 17 inline cases (22-164) into `fixtures/settle/<case>.json` with the label inline. A fixture's `snapshot` is `{newestFirst}`, the raw rows the old `tail()` handed `shapeSettleTail`; its `label` is `{verdict}`; the old case name is its `notes`.
@@ -643,7 +643,7 @@ Acceptance:
 - a pass rate is recorded, and `model-as-pinned` and `prod-budget` pass in every rep
 - the old script is deleted, and `grep -rn settle-eval` finds only history
 
-**U11: suggest** (ct-55701). Also deletes `packages/convex/scripts/suggest-eval.ts`.
+**U11: suggest** (ct-55701). Also deletes `apps/server/scripts/suggest-eval.ts`.
 
 Steps:
 - Port `buildFixtures`' pair-finding (`isTyped`, the assistant-turn to typed-reply pairs) into the resolver over `toRows()` from `/cli/read`.

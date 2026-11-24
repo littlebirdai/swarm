@@ -215,7 +215,7 @@ function patch(st: FixtureState, sha: string): PatchResponse {
   }
   const row = st.rows.find((r) => r.treePatch === sha);
   if (!row) throw new NotFound(`no patch ${sha.slice(0, 12)}`);
-  const file = `packages/convex/convex/lib/${row.surface.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())}Prompt.ts`;
+  const file = `apps/server/convex/lib/${row.surface.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())}Prompt.ts`;
   const diff = `diff --git a/${file} b/${file}\nindex 3f1c2aa..9be04d1 100644\n--- a/${file}\n+++ b/${file}\n@@ -20,7 +20,8 @@ export const RULES = [\n   "Read the last assistant turn first.",\n-  "Answer in JSON only.",\n+  "Answer in JSON only, with no prose around it.",\n+  "When unsure between two states, pick the one the human must act on.",\n   "Never guess a state the transcript does not show.",\n ];\n`;
   return { sha, files: [{ path: file, additions: 2, deletions: 1 }], diff, truncated: false };
 }

@@ -520,7 +520,7 @@ test("pruning one harness keeps stale-pin removals already reconciled for the ot
 
 test("identical project documentation aliases are satisfied without writes and remain byte/mode/target verified", async () => {
   const root = "work/app";
-  const target = `${root}/packages/convex/convex/README.md`;
+  const target = `${root}/apps/server/convex/README.md`;
   const alias = `${root}/convex/README.md`;
   write(target, "# context\n", 0o600);
   fs.mkdirSync(path.dirname(path.join(home, alias)), { recursive: true });
@@ -584,10 +584,10 @@ test("a project alias satisfied by a git checkout: the host's umask mode counts 
 
 test("project directory aliases are verified without writing or pruning their targets", async () => {
   const root = "work/app";
-  const target = `${root}/packages/convex/README.md`;
+  const target = `${root}/apps/server/README.md`;
   const alias = `${root}/convex/README.md`;
   write(target, "same", 0o600);
-  fs.symlinkSync("packages/convex", path.join(home, root, "convex"));
+  fs.symlinkSync("apps/server", path.join(home, root, "convex"));
   const make = (include = true) => parseMirrorBundle(buildMirrorBundle(include ? [{ path: alias, kind: "verbatim", mode: "0600", bytes: Buffer.from("same") }] : [], { source: source(), target_home: home, managed_roots: [root], project_roots: [root] }).bytes);
   expect((await apply(await make())).errors).toEqual([]);
   expect(verifyMirrorStamp(home)?.complete).toBe(true);
@@ -598,24 +598,24 @@ test("project directory aliases are verified without writing or pruning their ta
   write(target, "same");
   expect((await apply(await make(false))).errors).toEqual([]);
   expect(read(target)).toBe("same");
-  expect(fs.readlinkSync(path.join(home, root, "convex"))).toBe("packages/convex");
+  expect(fs.readlinkSync(path.join(home, root, "convex"))).toBe("apps/server");
   expect(readStamp(home)?.files[alias]).toBeUndefined();
   expect(verifyMirrorStamp(home)?.complete).toBe(true);
 });
 
 test("project aliases verify after their mirrored targets even when the alias sorts first", async () => {
   const root = "work/app";
-  const target = `${root}/packages/convex/README.md`;
+  const target = `${root}/apps/server/README.md`;
   const alias = `${root}/convex/README.md`;
   write(target, "old", 0o600);
-  fs.symlinkSync("packages/convex", path.join(home, root, "convex"));
+  fs.symlinkSync("apps/server", path.join(home, root, "convex"));
   const make = (text: string) => parseMirrorBundle(buildMirrorBundle([alias, target].map((path) => ({ path, kind: "verbatim" as const, mode: "0600" as const, bytes: Buffer.from(text) })), { source: source(), target_home: home, managed_roots: [root], project_roots: [root] }).bytes);
   expect((await apply(await make("old"))).errors).toEqual([]);
   const changed = await apply(await make("new"));
   expect(changed.errors).toEqual([]);
   expect(changed.applied).toEqual([target]);
   expect(read(target)).toBe("new");
-  expect(fs.readlinkSync(path.join(home, root, "convex"))).toBe("packages/convex");
+  expect(fs.readlinkSync(path.join(home, root, "convex"))).toBe("apps/server");
   expect(verifyMirrorStamp(home)?.complete).toBe(true);
 });
 
@@ -715,18 +715,18 @@ test("a home cache the laptop now leaves out is the host's own: its edit is no c
 
 test("a file sent under a linked directory and its real path is written once, at the real path, even when neither exists yet", async () => {
   const root = "work/app";
-  fs.mkdirSync(path.join(home, root, "packages/convex/convex"), { recursive: true });
-  fs.symlinkSync("packages/convex/convex", path.join(home, root, "convex"));
+  fs.mkdirSync(path.join(home, root, "apps/server/convex"), { recursive: true });
+  fs.symlinkSync("apps/server/convex", path.join(home, root, "convex"));
   const body = Buffer.from("allow\n");
   const bundle = parseMirrorBundle(buildMirrorBundle([
     { path: `${root}/convex/allowlist.txt`, kind: "verbatim", mode: "0600", bytes: body },
-    { path: `${root}/packages/convex/convex/allowlist.txt`, kind: "verbatim", mode: "0600", bytes: body },
+    { path: `${root}/apps/server/convex/allowlist.txt`, kind: "verbatim", mode: "0600", bytes: body },
   ], { source: source(), target_home: home, managed_roots: [root], project_roots: [root] }).bytes);
   const r = await apply(await bundle);
   expect(r.errors).toEqual([]);
-  expect(read(`${root}/packages/convex/convex/allowlist.txt`)).toBe("allow\n");
+  expect(read(`${root}/apps/server/convex/allowlist.txt`)).toBe("allow\n");
   expect(fs.lstatSync(path.join(home, root, "convex")).isSymbolicLink()).toBe(true);
-  expect(readStamp(home)?.files[`${root}/convex/allowlist.txt`]?.satisfied_alias?.target).toBe(`${root}/packages/convex/convex/allowlist.txt`);
+  expect(readStamp(home)?.files[`${root}/convex/allowlist.txt`]?.satisfied_alias?.target).toBe(`${root}/apps/server/convex/allowlist.txt`);
 });
 
 test("an instruction alias into a subdirectory of its own project writes through; one leaving the project is refused", async () => {

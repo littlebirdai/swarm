@@ -100,7 +100,7 @@ CONVEX_SITE_ORIGIN=https://convex.yourdomain.com
 ### 1f. Deploy Convex functions
 
 ```bash
-cd packages/convex
+cd apps/server
 cp .env.example .env.local
 ```
 
@@ -112,7 +112,7 @@ CONVEX_SELF_HOSTED_ADMIN_KEY=codecast|your-admin-key-from-step-1c
 
 Deploy:
 ```bash
-packages/convex/deploy.sh
+apps/server/deploy.sh
 ```
 
 Always deploy through `deploy.sh`, never a raw `npx convex deploy`. A deploy pushes the whole `convex/` tree as one snapshot, so a push from a checkout that is behind your `origin/main` deletes every newer function from the deployment. `deploy.sh` fetches origin and refuses such a tree, serializes overlapping deploys, and moves a repo-root `.env.local` with a `CONVEX_DEPLOYMENT=` pointer aside so it cannot redirect the CLI.
@@ -154,7 +154,7 @@ After creating your account, grant yourself admin:
 npx convex run migrations:setStaff '{"email": "you@yourdomain.com", "staff": true}'
 ```
 
-This enables the admin dashboard (daemon logs, user management, system commands). `setStaff` is an internal mutation, so it runs only with the admin key in `packages/convex/.env.local`.
+This enables the admin dashboard (daemon logs, user management, system commands). `setStaff` is an internal mutation, so it runs only with the admin key in `apps/server/.env.local`.
 
 ---
 
@@ -214,7 +214,7 @@ Visit `https://yourdomain.com`. You should see the login page. Create an account
 
 ## Step 3: Authentication Setup
 
-Codecast supports three auth providers. Email + password works out of the box with Resend. GitHub and Apple are optional. The provider setup is shared code in `@platform/auth/convex` (vendored under `platform/packages/`); `packages/convex/convex/auth.ts` holds only codecast's settings.
+Codecast supports three auth providers. Email + password works out of the box with Resend. GitHub and Apple are optional. The provider setup is shared code in `@platform/auth/convex` (vendored under `platform/packages/`); `apps/server/convex/auth.ts` holds only codecast's settings.
 
 ### Email + Password (with Resend)
 
@@ -223,7 +223,7 @@ Codecast supports three auth providers. Email + password works out of the box wi
 3. Create an API key
 4. Set `RESEND_API_KEY` on your Convex deployment
 
-**Important:** Every email (sign-in codes, password reset, welcome) is sent from the codecast brand's sender address: `packages/convex/convex/emails/send.ts` builds it with `senderAddress(BRAND)` from `@platform/email`, with `BRAND` defined in `emails/render.ts`. Point that brand at a domain you have verified in Resend, or sends will fail.
+**Important:** Every email (sign-in codes, password reset, welcome) is sent from the codecast brand's sender address: `apps/server/convex/emails/send.ts` builds it with `senderAddress(BRAND)` from `@platform/email`, with `BRAND` defined in `emails/render.ts`. Point that brand at a domain you have verified in Resend, or sends will fail.
 
 ### GitHub OAuth
 
@@ -565,7 +565,7 @@ Each is off until its variables are set on the Convex deployment (`npx convex en
 | Token-based connections (stored API tokens) | `CONNECTION_SECRETS_KEY` (rotating it orphans every stored token) |
 | iOS push notifications | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH_KEY`, `APNS_ENV` |
 | Media (images, published-page video) | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `MEDIA_PUBLIC_BASE` |
-| Signed outbound requests | `CODECAST_SIGNING_KEY` (generate with `bun packages/convex/scripts/codecast-signing-key.ts`) |
+| Signed outbound requests | `CODECAST_SIGNING_KEY` (generate with `bun apps/server/scripts/codecast-signing-key.ts`) |
 | Sentry issue webhooks | `SENTRY_WEBHOOK_SECRET` |
 
 ### Linear
@@ -690,7 +690,7 @@ The callback URL registered in GitHub must point to your **Convex** domain: `htt
 ### Password reset email not sending
 
 1. Check that `RESEND_API_KEY` is set on the Convex deployment
-2. The `from` address built in `packages/convex/convex/emails/send.ts` must be on a domain verified in your Resend account (see "Email" above)
+2. The `from` address built in `apps/server/convex/emails/send.ts` must be on a domain verified in your Resend account (see "Email" above)
 3. Check Convex function logs: `npx convex logs`
 
 ### CLI can't connect

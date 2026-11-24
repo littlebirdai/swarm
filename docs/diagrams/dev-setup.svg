@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="t d">
   <title id="t">Local development setup</title>
-  <desc id="d">./dev.sh starts two processes: Vite, which serves the web app on port 3200 plus the instance number, and the gated Convex pusher, which pushes the convex directory only after 3 seconds of quiet, a tree that is not behind origin/main and a green typecheck. nginx, installed by setup-hosts.sh, maps local.codecast.sh to Vite. The browser loads the app from Vite and runs live queries against the Convex deployment named in packages/convex/.env.local. The cast daemon, started separately with cast start, syncs agent history to the same deployment and receives messages from it. With the team's values that deployment is production.</desc>
+  <desc id="d">./dev.sh starts two processes: Vite, which serves the web app on port 3200 plus the instance number, and the gated Convex pusher, which pushes the convex directory only after 3 seconds of quiet, a tree that is not behind origin/main and a green typecheck. nginx, installed by setup-hosts.sh, maps local.codecast.sh to Vite. The browser loads the app from Vite and runs live queries against the Convex deployment named in apps/server/.env.local. The cast daemon, started separately with cast start, syncs agent history to the same deployment and receives messages from it. With the team's values that deployment is production.</desc>
   <style>
     .page { fill: #FBF5E2 }
     .card { fill: #ffffff; stroke: #93a1a1; stroke-width: 1.25 }
@@ -89,7 +89,7 @@
   <text class="h" x="708" y="118">Convex</text>
   <text class="n" x="708" y="140">the deployment named by</text>
   <text class="n" x="708" y="156">CONVEX_SELF_HOSTED_URL in</text>
-  <text class="n" x="708" y="172">packages/convex/.env.local</text>
+  <text class="n" x="708" y="172">apps/server/.env.local</text>
   <rect class="inset" x="708" y="190" width="210" height="24" rx="5"/>
   <text class="n" x="718" y="206">functions</text>
   <rect class="inset" x="708" y="220" width="210" height="24" rx="5"/>

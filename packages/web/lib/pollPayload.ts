@@ -8,7 +8,7 @@
 // keeping a copy that can drift.
 //
 // Mirror parsers: packages/cli/src/daemon.ts (parsePollMessage) and
-// packages/convex/convex/pendingMessages.ts (isControlMessage).
+// apps/server/convex/pendingMessages.ts (isControlMessage).
 
 export type PollQuestion = {
   question: string;
