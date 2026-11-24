@@ -25,7 +25,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
-import { MESSAGING_SNIPPET } from "../../../packages/shared/contracts/snippets.ts";
+import { MESSAGING_SNIPPET } from "@codecast/snippets/snippets";
 import {
   capturePane,
   composerReady,

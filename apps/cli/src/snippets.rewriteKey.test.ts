@@ -14,7 +14,7 @@ import * as path from "path";
 import {
   SNIPPET_CATALOG,
   snippetContentHash,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import {
   installSectionToFile,
   snippetStale,

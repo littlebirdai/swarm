@@ -8,7 +8,7 @@ import {
   guideText,
   renderSectionBody,
   snippetBySlug,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { agentSetupPageUrl } from "@codecast/capabilities/agentToolSetup";
 import { BROWSER_EXTENSION_STORE_URL } from "@codecast/browser/browserExtension";
 

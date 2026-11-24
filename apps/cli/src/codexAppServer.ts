@@ -4,10 +4,8 @@ import * as os from "os";
 import * as path from "path";
 import { spawn, type ChildProcess } from "./proc.js";
 import * as readline from "readline";
-import {
-  STABLE_ENV_MODE,
-  type CodexTurnError,
-} from "@codecast/shared/contracts";
+import { STABLE_ENV_MODE } from "@codecast/snippets/stableContext";
+import { type CodexTurnError } from "@codecast/shared/contracts";
 import { codexTurnErrorMessage } from "./codexTurnError.js";
 import { agentSpawnPath } from "./agentSpawnPath.js";
 import { extractInlineImages } from "./inlineImage.js";

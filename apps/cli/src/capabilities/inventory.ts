@@ -60,7 +60,7 @@ import {
   AGENT_CLIENTS,
   LOCAL_AGENT_CLIENTS,
 } from "@codecast/agent-clients/agentClients";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 import { observedScopeRank } from "@codecast/capabilities/capabilities";
 import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 

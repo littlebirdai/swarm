@@ -22,10 +22,10 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import {
   isExcludedStableItem,
   parseStableContext,
-  type StableMode,
   type StableContextData,
   type StableContextItem,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/stableContext";
+import { type StableMode } from "@codecast/snippets/snippets";
 import { relTimeShort } from "@/lib/utils";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";

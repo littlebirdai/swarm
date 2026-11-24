@@ -138,8 +138,8 @@ import {
   snippetSection,
   type SnippetSection,
   allSnippetSlugs,
-  type VaultInfo,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
+import { type VaultInfo } from "@codecast/shared/contracts";
 import {
   callLinkHow,
   callAnchorHref,
@@ -3015,7 +3015,7 @@ async function shareProjectWithTeam(
 }
 
 // Every codecast-owned section in an agent instruction file is described by
-// the shared catalog (@codecast/shared/contracts/snippets.ts — one table with
+// the shared catalog (@codecast/snippets/snippets.ts — one table with
 // the slugs, config keys, specs and bodies) and installed by ONE algorithm
 // (`installSectionToTargets`, ./snippets.ts).
 //

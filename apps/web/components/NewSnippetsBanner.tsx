@@ -14,7 +14,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowRight, Check, Sparkles, X } from "lucide-react";
-import type { SnippetDescriptor } from "@codecast/shared/contracts";
+import type { SnippetDescriptor } from "@codecast/snippets/snippets";
 import { useInboxStore } from "../store/inboxStore";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { deviceDisplayName, useDevices } from "./DeviceBadge";

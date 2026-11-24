@@ -29836,9 +29836,6 @@
   "packages/shared/contracts/capabilityResolver.ts": {
     "swarm/no-comments": 100
   },
-  "packages/shared/contracts/capabilitySlug.test.ts": {
-    "swarm/no-comments": 7
-  },
   "packages/shared/contracts/causeHistory.ts": {
     "swarm/no-comments": 146
   },
@@ -29883,9 +29880,6 @@
   },
   "packages/shared/contracts/expectations.ts": {
     "swarm/no-comments": 61
-  },
-  "packages/shared/contracts/featureExplainers.ts": {
-    "swarm/no-comments": 12
   },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
@@ -30025,18 +30019,6 @@
   "packages/shared/contracts/secrets.ts": {
     "swarm/no-comments": 103
   },
-  "packages/shared/contracts/snippets.test.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/snippets.ts": {
-    "swarm/no-comments": 116
-  },
-  "packages/shared/contracts/snippetsWorkflow.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/stableContext.ts": {
-    "swarm/no-comments": 20
-  },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
   },
@@ -30153,6 +30135,24 @@
   },
   "packages/signals/test/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/snippets/src/featureExplainers.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/snippets/src/snippets.ts": {
+    "swarm/no-comments": 116
+  },
+  "packages/snippets/src/snippetsWorkflow.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/snippets/src/stableContext.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/snippets/test/capabilitySlug.test.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/snippets/test/snippets.test.ts": {
+    "swarm/no-comments": 16
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

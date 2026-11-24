@@ -65,6 +65,7 @@
     "@codecast/shared": "workspace:*",
     "@codecast/ship": "workspace:*",
     "@codecast/signals": "workspace:*",
+    "@codecast/snippets": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/triggers": "workspace:*",

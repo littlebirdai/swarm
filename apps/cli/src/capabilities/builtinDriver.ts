@@ -12,7 +12,7 @@
 // install-or-refresh; a slug with no entry is left exactly as it is (the user
 // may have installed it by hand and never bound it — not ours to touch).
 
-import { snippetBySlug } from "@codecast/shared/contracts";
+import { snippetBySlug } from "@codecast/snippets/snippets";
 import {
   cutOwnedSections,
   getSnippetTargets,

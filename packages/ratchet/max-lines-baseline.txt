@@ -798,7 +798,7 @@ packages/shared/contracts/inboxProjection.ts 1900
 packages/shared/contracts/judges.test.ts 1050
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
-packages/shared/contracts/snippets.ts 2050
 packages/shared/tasks/graph.test.ts 1300
 packages/shared/tasks/graph.ts 1300
+packages/snippets/src/snippets.ts 2050
 packages/usage/src/usageLimits.ts 850

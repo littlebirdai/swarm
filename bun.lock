@@ -71,6 +71,7 @@
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
         "@codecast/signals": "workspace:*",
+        "@codecast/snippets": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
@@ -126,6 +127,7 @@
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
         "@codecast/signals": "workspace:*",
+        "@codecast/snippets": "workspace:*",
         "@platform/cli-kit": "file:../../platform/packages/cli-kit",
         "@platform/evals": "file:../../platform/packages/evals",
         "@platform/snippets": "file:../../platform/packages/snippets",
@@ -417,6 +419,7 @@
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
         "@codecast/signals": "workspace:*",
+        "@codecast/snippets": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
@@ -1055,6 +1058,19 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/snippets": {
+      "name": "@codecast/snippets",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/browser": "workspace:*",
+        "@codecast/capabilities": "workspace:*",
+        "@codecast/messages": "workspace:*",
+        "@codecast/org": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/team": {
       "name": "@codecast/team",
       "version": "0.0.1",
@@ -1566,6 +1582,8 @@
     "@codecast/ship": ["@codecast/ship@workspace:packages/ship"],
 
     "@codecast/signals": ["@codecast/signals@workspace:packages/signals"],
+
+    "@codecast/snippets": ["@codecast/snippets@workspace:packages/snippets"],
 
     "@codecast/team": ["@codecast/team@workspace:packages/team"],
 

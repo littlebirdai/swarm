@@ -8,11 +8,8 @@ export * from "./executionBinding";
 export * from "./idleDigest";
 export * from "./closedSession";
 export * from "./apiErrorBanner";
-export * from "./snippets";
-export * from "./featureExplainers";
 export * from "./agentSwitch";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
-export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
 export * from "./transcriptChunk";

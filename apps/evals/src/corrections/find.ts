@@ -9,7 +9,7 @@ import {
 import { parseJsonBlock } from "../../../../apps/server/convex/lib/anthropic";
 import { typedWords } from "../../../../apps/server/convex/lib/userSend";
 import { REDIRECT_WORDS } from "@codecast/messages/redirectWords";
-import { renderGuidanceFile } from "../../../../packages/shared/contracts/snippets";
+import { renderGuidanceFile } from "@codecast/snippets/snippets";
 import {
   apiConfig,
   readConversation,

@@ -11,7 +11,7 @@ import {
   SNIPPET_CATALOG,
   type SnippetDescriptor,
   type DeviceSnippetSettings,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import {
   snippetAvailableForTeams,
   type TeamFeatures,

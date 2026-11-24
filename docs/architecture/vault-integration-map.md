@@ -280,7 +280,7 @@ File: `cli/src/browser/credentials.ts` (rationale in the header at :1-39).
 
 ## 8. Snippets (agent guidance sections)
 
-**Bodies and catalog** live in `shared/contracts/snippets.ts`:
+**Bodies and catalog** live in `snippets/src/snippets.ts`:
 
 - Each section has a body constant (`BROWSER_SNIPPET` at :651, `CHAT_SNIPPET` at :947), an end marker, and a `SectionSpec` with `{ headings: ["## Browser"], endMarker }` (`BROWSER_SECTION` at :697, `CHAT_SECTION` at :977).
 - Each is registered in `SNIPPET_CATALOG` (:1110) with `{ slug, aliases, name, category, desc, detail, writesTo, shipped, enabledKey, versionKey, section: { spec, body, reference } }`. See `chat` at :1349 and `browser` at :1384. `snippetBySlug` is at :1555.

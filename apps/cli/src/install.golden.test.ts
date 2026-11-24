@@ -93,7 +93,7 @@ import { personEnv } from "./sessionIdentity";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 
 const cliRoot = process.env.GOLDEN_CLI_ROOT ?? path.join(import.meta.dir, "..");
 const cliEntry = path.join(cliRoot, "src", "index.ts");

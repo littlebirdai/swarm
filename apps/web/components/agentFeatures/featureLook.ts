@@ -31,7 +31,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   snippetBySlug,
   type SnippetCategory,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 
 const ICONS: Record<string, LucideIcon> = {
   stable: Layers,

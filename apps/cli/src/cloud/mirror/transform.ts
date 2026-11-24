@@ -3,7 +3,7 @@ import {
   REFERENCES_SECTION,
   SNIPPET_CATALOG,
   type SectionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { findOwnedSections } from "@platform/snippets";
 import { AGENT_SCRUBBED_ENV_VARS } from "../../agentEnv.js";
 import { isCodecastHookCommand } from "../../codecastOwned.js";

@@ -251,7 +251,7 @@ item; no path reads `team_id` for access.
   agent browser) before navigating; `cast vault save-signin <site>` (and the
   web's Save sign-in) captures one.
 - **Agent guidance.** The `vault` snippet (`VAULT_SNIPPET` in
-  `shared/contracts/snippets.ts`), a `## Vault` section in the agent's
+  `snippets/src/snippets.ts`), a `## Vault` section in the agent's
   instruction file: never ask for a pasted value, hand values to the command
   (`run`, `vault://` in an `--env-file`, or stdin as
   `< <(cast vault get …)`, never `$(…)` in an argument, which `ps` shows to

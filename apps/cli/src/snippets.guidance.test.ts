@@ -18,7 +18,7 @@ import {
   stampSectionBody,
   stripSnippetStamp,
   stubSectionBody,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { guidanceSectionStatus } from "./snippets.js";
 
 const calls = snippetBySlug("calls")!;

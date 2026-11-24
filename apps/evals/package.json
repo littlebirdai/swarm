@@ -20,6 +20,7 @@
     "@codecast/shared": "workspace:*",
     "@codecast/ship": "workspace:*",
     "@codecast/signals": "workspace:*",
+    "@codecast/snippets": "workspace:*",
     "@platform/cli-kit": "file:../../platform/packages/cli-kit",
     "@platform/evals": "file:../../platform/packages/evals",
     "@platform/snippets": "file:../../platform/packages/snippets",
