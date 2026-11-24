@@ -80,9 +80,13 @@ describe("frozen payload contracts (minimum supported mobile 1.3.0)", () => {
     for (const f of ["agent_status", "is_idle", "awaiting_input", "message_count", "updated_at", "is_connected"]) {
       expect(row[f]).not.toBeUndefined();
     }
-    // The no-auth arm returns the same shape, never a bare {}.
+    // The no-auth arm of both liveness queries returns the same shape, never a bare {}.
     const src = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
-    expect(src.match(/return \{ liveness: \{\} \};/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    for (const name of ["export const sessionsLiveness = query", "export const teamSessionsLiveness = query"]) {
+      const idx = src.indexOf(name);
+      expect(idx).toBeGreaterThanOrEqual(0);
+      expect(src.slice(idx, src.indexOf("\n});", idx))).toContain(": { liveness: {} }");
+    }
   });
 
   test("the enriched channels (crawl, byIds) keep has_pending and message_count on their rows", async () => {
