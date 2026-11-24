@@ -86,14 +86,6 @@ export function rankRowsBySummary(
     );
 }
 
-export function pickRowBySummary(
-  summary: string,
-  authorTimeMs: number,
-  candidates: CommitRowLite[],
-): CommitRowLite | null {
-  return rankRowsBySummary(summary, authorTimeMs, candidates)[0] ?? null;
-}
-
 export type MatchLine = {
   text: string;
   // Newest edit timestamp that may claim this line. Committed lines pass
@@ -135,17 +127,6 @@ export function matchLinesToEdits<R extends EditRowLite>(
     }
   }
   return matched;
-}
-
-// Back-compat shape used by tests: plain uncommitted lines have no deadline.
-export function matchUncommittedLines(
-  lines: string[],
-  rows: EditRowLite[],
-): Map<string, EditRowLite> {
-  return matchLinesToEdits(
-    lines.map((text) => ({ text })),
-    rows,
-  );
 }
 
 export type OverlapMatch<R extends EditRowLite> = {

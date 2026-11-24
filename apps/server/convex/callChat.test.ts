@@ -184,27 +184,6 @@ describe("syncAgentFeeds", () => {
     });
   });
 
-  test("an ended transcript wipes every feed it had", async () => {
-    const ctx = ctxWith({
-      transcripts: [],
-      conversations: [conversation],
-      call_agent_feeds: [
-        {
-          _id: "f1",
-          conversation_id: "conv1",
-          transcript_id: "t1",
-          room_key: "session:conv1",
-          added_by: "ua",
-        },
-      ],
-      messages: [],
-    });
-    await syncAgentFeeds(ctx, transcript({ status: "ended" }) as any);
-    expect(ctx.db._deleted).toEqual(["f1"]);
-    // The call ended; nobody left. The thread gets no line for the wipe.
-    expect(ctx.db._tables.call_chat_messages ?? []).toHaveLength(0);
-  });
-
   test("a feed row inserted is an agent joining, credited to whoever added the route", async () => {
     const ctx = ctxWith({
       transcripts: [transcript()],
@@ -266,27 +245,6 @@ describe("postEvent", () => {
     });
     expect(id).toBeNull();
     expect(ctx.db._tables.call_chat_messages).toHaveLength(0);
-  });
-
-  test("a huddle event is a row with empty text and the actor as its owner", async () => {
-    const ctx = ctxWith({ call_chat_messages: [] });
-    const id = await postEvent(ctx, {
-      room_key: "channel:chan1",
-      team_id: "team1" as any,
-      user_id: "ua" as any,
-      event: "transcribe_off",
-    });
-    expect(id).not.toBeNull();
-    expect(ctx.db._tables.call_chat_messages[0]).toMatchObject({
-      room_key: "channel:chan1",
-      team_id: "team1",
-      user_id: "ua",
-      text: "",
-      event: "transcribe_off",
-    });
-    expect(
-      ctx.db._tables.call_chat_messages[0].agent_conversation_id,
-    ).toBeUndefined();
   });
 });
 
@@ -892,6 +850,9 @@ describe("the room's transcription switch", () => {
       event: "transcribe_off",
       text: "",
     });
+    expect(
+      ctx.db._tables.call_chat_messages[0].agent_conversation_id,
+    ).toBeUndefined();
     // The flag is already set: another press is not another event.
     await call(setRoomTranscribeOff, ctx, {
       room_key: "channel:chan1",

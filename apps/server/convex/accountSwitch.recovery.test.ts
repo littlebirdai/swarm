@@ -13,7 +13,6 @@ import {
   authRestartAttemptKey,
   resetCreditAttemptKey,
 } from "./ccAccountsShared";
-import { blockedKindsForAgent } from "@codecast/shared/contracts";
 import { classifyApiErrorBanner } from "./inboxFilters";
 import { makeFakeDb } from "./testDb";
 
@@ -662,18 +661,11 @@ describe("reclassifyParkedApiErrorFlags", () => {
       to: "limit",
       agent_type: "codex",
     });
+    expect(await f.run({ dry_run: true })).toEqual(res);
     // The point of a dry run: the rows still say what they said.
     expect(
       f.tables.conversations.every((c) => c.pending_api_error_kind === "error"),
     ).toBe(true);
-  });
-
-  test("dry run is what you get unless you ask for a write", async () => {
-    const f = parkFixture();
-    f.park("conversations_a");
-    expect((await f.run({})).dry_run).toBe(true);
-    expect((await f.run({ dry_run: true })).dry_run).toBe(true);
-    expect(f.tables.conversations[0].pending_api_error_kind).toBe("error");
   });
 
   test("a real run re-stamps the park, and running it again changes nothing", async () => {
@@ -771,14 +763,6 @@ describe("reclassifyParkedApiErrorFlags", () => {
     expect(f.tables.conversations.map((c) => c.pending_api_error_kind)).toEqual(
       ["auth", "throttle"],
     );
-  });
-
-  test("a re-stamped codex park is admitted by the recovery loop", async () => {
-    // The whole point: kind "error" is outside the blocked set for every agent,
-    // and "limit" is inside codex's. Re-stamping is what puts the row in front
-    // of autoSwitchCheck.
-    expect(blockedKindsForAgent("codex").has("error")).toBe(false);
-    expect(blockedKindsForAgent("codex").has("limit")).toBe(true);
   });
 });
 
@@ -1022,7 +1006,10 @@ describe("token switches through the backend handler", () => {
       }),
     );
     const res = await f.run();
-    expect(res.acted).not.toBe("continue");
+    expect(res).toEqual({
+      acted: "exhausted",
+      next_check_at: f.now + 3_600_000 + 2 * 60_000,
+    });
     expect(f.tables.daemon_commands).toHaveLength(0);
   });
 });

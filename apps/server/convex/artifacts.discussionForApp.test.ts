@@ -153,7 +153,7 @@ describe("setCommentStatusForApp", () => {
         comment_id: "c1",
         resolved: true,
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Only the page owner");
     expect(r.artifact_comments[0].status).toBe("open");
   });
 });

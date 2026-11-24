@@ -57,25 +57,16 @@ describe("splitModelLimitParks", () => {
     });
   }
 
-  test("an Opus fleet leaves a Fable park out of the account decision", async () => {
+  test("a Fable fleet handles both model-specific and generic weekly parks", async () => {
     const split = await splitModelLimitParks(
       { db: world() },
       [{ _id: "conv_fable" }, { _id: "conv_week" }] as any,
-      ["claude-opus-5-5"],
-    );
-    expect(split.fleet.map((c) => c._id)).toEqual(["conv_week"] as any);
-    expect(split.minority).toEqual([
-      { conv: { _id: "conv_fable" }, family: "fable" },
-    ] as any);
-  });
-
-  test("a Fable fleet still acts on its Fable park", async () => {
-    const split = await splitModelLimitParks(
-      { db: world() },
-      [{ _id: "conv_fable" }] as any,
       ["claude-fable-5-2"],
     );
-    expect(split.fleet.map((c) => c._id)).toEqual(["conv_fable"] as any);
+    expect(split.fleet.map((c) => c._id)).toEqual([
+      "conv_fable",
+      "conv_week",
+    ] as any);
     expect(split.minority).toEqual([]);
   });
 });

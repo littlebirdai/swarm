@@ -6,6 +6,7 @@
 // Runs the handlers against a tiny fake db (as artifacts.listForWeb.test.ts).
 import { describe, expect, test } from "bun:test";
 import { embedInfo, ownerUnlock } from "./artifacts";
+import { kTokenFor } from "./lib/artifactGates";
 
 function fakeCtx(viewer: string | null, rows: Record<string, any[]>) {
   const byId = new Map<string, any>();
@@ -105,7 +106,7 @@ const unlock = (viewer: string, args: { slug: string; decision?: string }) =>
 describe("ownerUnlock", () => {
   test("the owner opens their gated page", async () => {
     const got = await unlock("owner", { slug: "trialpage" });
-    expect(got?.k).toBeTruthy();
+    expect(got?.k).toBe(await kTokenFor("h1", "trialpage"));
     expect(got?.title).toBe("The fix");
   });
 

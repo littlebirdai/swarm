@@ -100,6 +100,7 @@ async function world(
       },
     ],
     pending_messages: [],
+    messages: [],
     ...tableOverrides,
   };
   const db = makeFakeDb(tables);
@@ -127,18 +128,24 @@ const wakes = (tables: Record<string, any[]>) =>
   tables.pending_messages.filter((m) => m.conversation_id === OWNER);
 
 describe("a once spawn run and its owner", () => {
-  test("the run nests under the session that armed the trigger", async () => {
-    const { ctx, tables } = await world();
-    await complete(ctx, {
-      summary: "All parked and resumed.",
-      run_session_uuid: RUN_UUID,
-    });
-    expect(run(tables)).toMatchObject({
-      agent_task_id: "agent_tasks_owned",
-      parent_conversation_id: OWNER,
-      is_subagent: true,
-    });
-  });
+  test.each(["once", "recurring"])(
+    "a %s run nests under the session that armed the trigger",
+    async (schedule_type) => {
+      const { ctx, tables } = await world({
+        schedule_type,
+        interval_ms: schedule_type === "recurring" ? 3_600_000 : undefined,
+      });
+      await complete(ctx, {
+        summary: "All parked and resumed.",
+        run_session_uuid: RUN_UUID,
+      });
+      expect(run(tables)).toMatchObject({
+        agent_task_id: "agent_tasks_owned",
+        parent_conversation_id: OWNER,
+        is_subagent: true,
+      });
+    },
+  );
 
   test("a clean report is posted to the owner without a wake", async () => {
     const { ctx, tables } = await world();
@@ -148,6 +155,13 @@ describe("a once spawn run and its owner", () => {
     });
     expect(wakes(tables)).toHaveLength(0);
     expect(tables.agent_tasks[0].status).toBe("completed");
+    expect(tables.messages).toEqual([
+      expect.objectContaining({
+        conversation_id: OWNER,
+        subtype: "scheduled_task_result",
+        content: "tr-887 ran in jx74v0r:\n\nAll parked and resumed.",
+      }),
+    ]);
   });
 
   test("--wake turns a clean report into the owner's turn", async () => {
@@ -161,23 +175,36 @@ describe("a once spawn run and its owner", () => {
     expect(wakes(tables)[0].origin).toBe("scheduler");
   });
 
-  test("--needs-attention wakes the owner", async () => {
-    const { ctx, tables } = await world();
-    await complete(ctx, {
-      summary: "One park never resumed.",
-      needs_attention: true,
-      run_session_uuid: RUN_UUID,
-    });
-    expect(wakes(tables)).toHaveLength(1);
-    expect(wakes(tables)[0].content).toContain("needs attention");
-  });
+  test.each(["once", "recurring"])(
+    "a %s run that needs attention wakes its parent",
+    async (schedule_type) => {
+      const { ctx, tables } = await world({
+        schedule_type,
+        interval_ms: schedule_type === "recurring" ? 3_600_000 : undefined,
+      });
+      await complete(ctx, {
+        summary: "One park never resumed.",
+        needs_attention: true,
+        run_session_uuid: RUN_UUID,
+      });
+      expect(wakes(tables)).toHaveLength(1);
+      expect(wakes(tables)[0].content).toContain("needs attention");
+      expect(wakes(tables)[0].content).toContain("One park never resumed.");
+    },
+  );
 
-  test("a run that ends without reporting wakes the owner", async () => {
-    const { ctx, tables } = await world();
-    await complete(ctx, { daemon_id: DAEMON, run_session_uuid: RUN_UUID });
-    expect(wakes(tables)).toHaveLength(1);
-    expect(wakes(tables)[0].content).toContain("ended without reporting");
-  });
+  test.each(["once", "recurring"])(
+    "a %s run that ends without reporting wakes its parent",
+    async (schedule_type) => {
+      const { ctx, tables } = await world({
+        schedule_type,
+        interval_ms: schedule_type === "recurring" ? 3_600_000 : undefined,
+      });
+      await complete(ctx, { daemon_id: DAEMON, run_session_uuid: RUN_UUID });
+      expect(wakes(tables)).toHaveLength(1);
+      expect(wakes(tables)[0].content).toContain("ended without reporting");
+    },
+  );
 
   test("the terminal failure wakes the owner; the retries before it do not", async () => {
     const { ctx, tables } = await world({ retry_count: 1 });
@@ -210,18 +237,6 @@ describe("a recurring spawn run and its parent", () => {
   const recurring = (overrides: Record<string, any> = {}) =>
     world({ schedule_type: "recurring", interval_ms: 3_600_000, ...overrides });
 
-  test("the run nests under the session that armed the trigger", async () => {
-    const { ctx, tables } = await recurring();
-    await complete(ctx, {
-      summary: "Nothing to report.",
-      run_session_uuid: RUN_UUID,
-    });
-    expect(run(tables)).toMatchObject({
-      parent_conversation_id: OWNER,
-      is_subagent: true,
-    });
-  });
-
   test("a clean report wakes nobody and posts nowhere", async () => {
     const { ctx, tables } = await recurring();
     await complete(ctx, {
@@ -229,26 +244,8 @@ describe("a recurring spawn run and its parent", () => {
       run_session_uuid: RUN_UUID,
     });
     expect(wakes(tables)).toHaveLength(0);
-  });
-
-  test("--needs-attention wakes the parent", async () => {
-    const { ctx, tables } = await recurring();
-    await complete(ctx, {
-      summary: "The collector is returning 403.",
-      needs_attention: true,
-      run_session_uuid: RUN_UUID,
-    });
-    expect(wakes(tables)).toHaveLength(1);
-    expect(wakes(tables)[0].content).toContain(
-      "The collector is returning 403.",
-    );
-  });
-
-  test("a run that ends without reporting wakes the parent", async () => {
-    const { ctx, tables } = await recurring();
-    await complete(ctx, { daemon_id: DAEMON, run_session_uuid: RUN_UUID });
-    expect(wakes(tables)).toHaveLength(1);
-    expect(wakes(tables)[0].content).toContain("ended without reporting");
+    expect(tables.messages).toHaveLength(0);
+    expect(run(tables).inbox_stashed_at).toBe(NOW);
   });
 
   test("the terminal failure wakes the parent; the retries before it do not", async () => {
@@ -371,21 +368,18 @@ describe("a spawn run with no parent", () => {
     expect(run(tables).inbox_stashed_at).toBe(NOW);
   });
 
-  test("a repeating run that ends without reporting comes back", async () => {
-    const { ctx, tables } = await orphan(recurring);
-    await complete(ctx, { daemon_id: DAEMON, run_session_uuid: RUN_UUID });
-    expect(run(tables).inbox_stashed_at).toBeUndefined();
-  });
-
-  test("a repeating run that asks for attention comes back", async () => {
-    const { ctx, tables } = await orphan(recurring);
-    await complete(ctx, {
-      summary: "Needs a person.",
-      needs_attention: true,
-      run_session_uuid: RUN_UUID,
-    });
-    expect(run(tables).inbox_stashed_at).toBeUndefined();
-  });
+  test.each([
+    ["unreported", { daemon_id: DAEMON }],
+    ["attention", { summary: "Needs a person.", needs_attention: true }],
+  ] as const)(
+    "a repeating run with no parent stays visible after %s",
+    async (_outcome, args) => {
+      const { ctx, tables } = await orphan(recurring);
+      run(tables).inbox_stashed_at = NOW - 1_000;
+      await complete(ctx, { ...args, run_session_uuid: RUN_UUID });
+      expect(run(tables).inbox_stashed_at).toBeUndefined();
+    },
+  );
 
   test("a once run stays a card", async () => {
     const { ctx, tables } = await orphan();
@@ -664,35 +658,22 @@ describe("a lapsed lease on a spawn run", () => {
   });
 
   test("a bound device that is online, or gone for over a day, is judged as before", async () => {
-    for (const lastSeen of [NOW - 1000, NOW - 25 * 3_600_000]) {
+    for (const lastSeen of [undefined, NOW - 1000, NOW - 25 * 3_600_000]) {
       const { ctx, tables } = await lapsed(
         { _creationTime: NOW - 60_000 },
         "working",
       );
       Object.assign(tables.agent_tasks[0], {
-        created_device_id: "laptop",
+        created_device_id: lastSeen === undefined ? undefined : "laptop",
         firing_claimed_at: NOW - 6 * 60_000,
       });
-      tables.devices[0].last_seen = lastSeen;
+      if (lastSeen !== undefined) tables.devices[0].last_seen = lastSeen;
       await reclaim(ctx);
       expect(tables.agent_tasks[0]).toMatchObject({
         status: "scheduled",
         retry_count: 1,
       });
     }
-  });
-
-  test("a run this firing started is still judged by its own conversation", async () => {
-    const { ctx, tables } = await lapsed(
-      { _creationTime: NOW - 60_000 },
-      "working",
-    );
-    tables.agent_tasks[0].firing_claimed_at = NOW - 6 * 60_000;
-    await reclaim(ctx);
-    expect(tables.agent_tasks[0]).toMatchObject({
-      status: "scheduled",
-      retry_count: 1,
-    });
   });
 
   test("a retried claim whose answer was lost gets the same firing; another daemon or a later one does not", async () => {
@@ -708,6 +689,7 @@ describe("a lapsed lease on a spawn run", () => {
         daemon_id,
       });
     expect(await claim(DAEMON)).toMatchObject({ status: "running" });
+    expect(tables.agent_tasks[0].firing_claimed_at).toBe(NOW);
     expect(await claim(DAEMON)).toMatchObject({
       status: "running",
       lease_holder: DAEMON,
@@ -715,20 +697,6 @@ describe("a lapsed lease on a spawn run", () => {
     expect(await claim("other-daemon")).toBeNull();
     time.mockReturnValue(NOW + 5 * 60_000);
     expect(await claim(DAEMON)).toBeNull();
-  });
-
-  test("the claim stamps when this firing began", async () => {
-    const { ctx, tables } = await world({
-      status: "scheduled",
-      lease_holder: undefined,
-      lease_expires_at: undefined,
-    });
-    await (claimTask as any)._handler(ctx, {
-      api_token: TOKEN,
-      task_id: "agent_tasks_owned",
-      daemon_id: DAEMON,
-    });
-    expect(tables.agent_tasks[0].firing_claimed_at).toBe(NOW);
   });
 });
 
@@ -971,25 +939,6 @@ describe("a run's notification opens the run", () => {
     expect(retry.tables.agent_tasks[0].status).toBe("scheduled");
   });
 
-  test("the bell works without phone push and explains the requested action", async () => {
-    const { ctx, tables } = await world(
-      { created_by_conversation_id: undefined },
-      {
-        users: [{ _id: USER }],
-        notifications: [],
-      },
-    );
-    await complete(ctx, {
-      summary: "Renew the expired credential.",
-      needs_attention: true,
-      run_session_uuid: RUN_UUID,
-    });
-    expect(tables.notifications).toHaveLength(1);
-    expect(tables.notifications[0].message).toBe(
-      "Renew the expired credential. — Report how session parking behaved",
-    );
-  });
-
   test("muted task activity stays quiet", async () => {
     const { ctx, tables } = await world(
       { created_by_conversation_id: undefined },
@@ -1006,40 +955,6 @@ describe("a run's notification opens the run", () => {
       run_session_uuid: RUN_UUID,
     });
     expect(tables.notifications).toHaveLength(0);
-  });
-
-  test("another report updates the unread alert instead of creating another", async () => {
-    const { ctx, tables } = await world(
-      { created_by_conversation_id: undefined },
-      {
-        users: [user],
-        notifications: [
-          {
-            _id: "notifications_existing",
-            recipient_user_id: USER,
-            entity_id: "agent_tasks_owned",
-            type: "task_completed",
-            read: false,
-            message: "Earlier report",
-            conversation_id: OWNER,
-            created_at: NOW - 1000,
-          },
-        ],
-      },
-    );
-    await complete(ctx, {
-      summary: "Renew the expired credential.",
-      needs_attention: true,
-      run_session_uuid: RUN_UUID,
-    });
-    expect(tables.notifications).toHaveLength(1);
-    expect(tables.notifications[0]).toMatchObject({
-      _id: "notifications_existing",
-      conversation_id: RUN,
-      created_at: NOW,
-      message:
-        "Renew the expired credential. — Report how session parking behaved",
-    });
   });
 
   test("a read alert does not swallow a later request", async () => {

@@ -2917,7 +2917,7 @@ export const webListHistory = query({
   },
 });
 
-export async function armedAndRecentlyFinished(
+async function armedAndRecentlyFinished(
   ctx: { db: any },
   userId: Id<"users">,
   finished: number,

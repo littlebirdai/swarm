@@ -324,6 +324,25 @@ describe("the wake hook in enqueuePendingMessage", () => {
   });
 });
 
+function insertDaemonRoutineHome(
+  t: ReturnType<typeof convexTest>,
+  user_id: Id<"users">,
+  session_id: string,
+) {
+  return t.run((ctx) =>
+    ctx.db.insert("conversations", {
+      user_id,
+      session_id,
+      agent_type: "claude_code",
+      status: "active",
+      message_count: 0,
+      started_at: 1,
+      updated_at: 1,
+      is_private: true,
+    }),
+  );
+}
+
 describe("routines", () => {
   async function dueTask(
     t: T,
@@ -359,9 +378,12 @@ describe("routines", () => {
     );
     const taskId = await dueTask(t, user, started.conversation_id);
 
-    expect(
-      await t.query(api.agentTasks.getDueTasks, { api_token: TOKEN }),
-    ).toHaveLength(0);
+    const local = await insertDaemonRoutineHome(t, user, "daemon-routine");
+    const localTask = await dueTask(t, user, local);
+    const daemonDue = await t.query(api.agentTasks.getDueTasks, {
+      api_token: TOKEN,
+    });
+    expect(daemonDue.map((task) => task._id)).toEqual([localTask]);
 
     const result = await t.mutation(
       internal.agentTasks.dispatchCloudTriggers,
@@ -382,29 +404,6 @@ describe("routines", () => {
     expect(await wakes(t)).toEqual([
       { conversation_id: started.conversation_id, cause: "routine" },
     ]);
-  });
-
-  test("a routine on a daemon conversation stays the daemon's", async () => {
-    const { t, user } = await setup();
-    const conv = await t.run((ctx) =>
-      ctx.db.insert("conversations", {
-        user_id: user,
-        agent_type: "claude_code",
-        session_id: "local",
-        status: "active",
-        message_count: 0,
-        started_at: Date.now(),
-        updated_at: Date.now(),
-        is_private: true,
-      }),
-    );
-    const taskId = await dueTask(t, user, conv);
-    const due = await t.query(api.agentTasks.getDueTasks, { api_token: TOKEN });
-    expect(due.map((d: any) => d._id)).toEqual([taskId]);
-    expect(
-      (await t.mutation(internal.agentTasks.dispatchCloudTriggers, {}))
-        .dispatched,
-    ).toBe(0);
   });
 
   test("a hosted routine from the routines page starts its own home and fires from the server", async () => {
@@ -1394,12 +1393,12 @@ describe("hosted_home has one definition", () => {
       {},
     );
     const DAY = 24 * 60 * 60 * 1000;
-    // Three armed rows on the hosted home, stamped as insertTask stamps them.
+    const local = await insertDaemonRoutineHome(t, user, "local-quota-home");
     await t.run(async (ctx) => {
       for (let i = 0; i < 3; i++)
         await ctx.db.insert("agent_tasks", {
           user_id: user,
-          originating_conversation_id: started.conversation_id,
+          originating_conversation_id: local,
           hosted_home: true,
           title: "Digest",
           prompt: "Read it.",

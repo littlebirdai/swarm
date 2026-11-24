@@ -187,17 +187,6 @@ describe("matchTaskTriggers team scoping", () => {
     expect(ctx.db._tables.agent_tasks[0].run_at).toBeUndefined();
   });
 
-  test("a trigger owned by a member of the team fires", async () => {
-    const ctx = teamContext(
-      [ownedTrigger("member", "user_a", filter)],
-      [{ _id: "m1", user_id: "user_a", team_id: TEAM_A }],
-    );
-    expect(await run(ctx, { ...filter, pr_number: 12, team_id: TEAM_A })).toBe(
-      1,
-    );
-    expect(ctx.db._tables.agent_tasks[0].run_at).toBeGreaterThan(0);
-  });
-
   test("the same event reaches only the owning team when both are armed", async () => {
     const ctx = teamContext(
       [

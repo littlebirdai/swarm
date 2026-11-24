@@ -110,15 +110,6 @@ describe("ask-first recovery", () => {
     expect(Math.round(d.target_percent)).toBe(41);
   });
 
-  test("re-checking does not stamp a new proposal when the recommendation is unchanged", async () => {
-    const f = fixture();
-    await f.run();
-    const first = f.device.cc_auto_switch_state.last_decision;
-    await f.run();
-    // Same object identity: the row was not re-patched for an identical ask.
-    expect(f.device.cc_auto_switch_state.last_decision).toBe(first);
-  });
-
   test("a re-check rewrites the percent when the recommended account's meter moves", async () => {
     const f = fixture();
     await f.run();
@@ -230,8 +221,12 @@ describe("the ask reaches the person, once, and does not outlive its incident", 
     expect(notes()).toHaveLength(1);
     expect(notes()[0].message).toStartWith("Switch to fresh? ");
     expect(notes()[0].message).toContain("Fable (7d) hit its limit");
+    const first = f.device.cc_auto_switch_state.last_decision.at;
+    expect(first).toBeGreaterThan(0);
+    Bun.sleepSync(2);
     await f.run();
     expect(notes()).toHaveLength(1);
+    expect(f.device.cc_auto_switch_state.last_decision.at).toBe(first);
   });
 
   test("once nothing is parked, the stale proposal is cleared", async () => {

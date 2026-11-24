@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   matchBucketByName,
   requireExactLabel,
-  findActiveBucketByExactName,
   resolveOrCreateBucket,
   assignConversationToBucketForUser,
   createBucketForUser,
@@ -89,26 +88,6 @@ function webCtx(db: ReturnType<typeof fakeDb>, userId: string | null = USER) {
     },
   } as any;
 }
-
-describe("findActiveBucketByExactName", () => {
-  const buckets = [
-    { _id: "b1", name: "API", archived_at: undefined },
-    { _id: "b2", name: "apiv2", archived_at: undefined },
-    { _id: "b3", name: "gone", archived_at: 123 },
-  ] as any[];
-
-  test("matches case-insensitively but exactly — never the substring sibling", async () => {
-    expect((await findActiveBucketByExactName(buckets, "api"))?._id).toBe("b1");
-    expect((await findActiveBucketByExactName(buckets, "APIV2"))?._id).toBe(
-      "b2",
-    );
-  });
-
-  test("ignores archived labels and unknown names", async () => {
-    expect(await findActiveBucketByExactName(buckets, "gone")).toBeNull();
-    expect(await findActiveBucketByExactName(buckets, "nope")).toBeNull();
-  });
-});
 
 describe("resolveOrCreateBucket", () => {
   test("creates a label on first use, then reuses it (no duplicate)", async () => {

@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  actedBlockedConversations,
-  isBlockedConversation,
-} from "./ccAccountsShared";
+import { actedBlockedConversations } from "./ccAccountsShared";
+import { internal } from "./_generated/api";
+import { getFunctionName } from "convex/server";
 import { insertSwitchCommands, onFreshApiErrorPark } from "./accountSwitch";
 import { makeFakeDb } from "./testDb";
 
@@ -16,19 +15,6 @@ const safety = {
 };
 
 describe("safety blockers in fleet recovery", () => {
-  test("counts Codex safety stops while keeping unrelated provider logins outside Claude recovery", () => {
-    expect(isBlockedConversation(safety)).toBe(true);
-    expect(isBlockedConversation({ ...safety, inbox_dismissed_at: 1 })).toBe(
-      false,
-    );
-    expect(isBlockedConversation({ ...safety, pending_api_error: false })).toBe(
-      false,
-    );
-    expect(
-      isBlockedConversation({ ...safety, pending_api_error_kind: "auth" }),
-    ).toBe(false);
-  });
-
   test("bulk selection excludes safety stops, including explicitly included workers", () => {
     const recoverable = {
       ...safety,
@@ -50,15 +36,17 @@ describe("safety blockers in fleet recovery", () => {
     await onFreshApiErrorPark(
       {
         scheduler: {
-          runAfter: async (ms, fn, args) => {
-            scheduled.push({ ms, fn, args });
+          runAfter: async (_ms, fn) => {
+            scheduled.push(getFunctionName(fn));
           },
         },
       },
       "users_owner" as any,
       "safety",
     );
-    expect(scheduled).toHaveLength(1);
+    expect(scheduled).toEqual([
+      getFunctionName(internal.accountSwitch.blockedNotifyCheck),
+    ]);
   });
 
   test.each([undefined, "another-account"])(

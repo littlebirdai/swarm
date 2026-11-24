@@ -189,20 +189,22 @@ describe("Phase 0 relationship boundary", () => {
         { _id: "conv_1", user_id: OWNER, team_id: TEAM, is_private: true },
       ],
       messages: [{ _id: "msg_1", conversation_id: "conv_1" }],
-      comments: [
+      review_comments: [
         {
-          _id: "comment_1",
+          _id: "review_comment_1",
+          origin: "comment",
           message_id: "msg_1",
           conversation_id: "conv_1",
-          user_id: OWNER,
+          author_user_id: OWNER,
         },
       ],
     });
-    const count = await (getCommentCount as any)._handler(
-      ctx(STRANGER, tables),
-      { message_id: "msg_1" },
-    );
-    expect(count).toBe(0);
+    const count = (viewer: string) =>
+      (getCommentCount as any)._handler(ctx(viewer, tables), {
+        message_id: "msg_1",
+      });
+    expect(await count(OWNER)).toBe(1);
+    expect(await count(STRANGER)).toBe(0);
   });
 
   test("a comment message must belong to the supplied conversation", async () => {
@@ -246,30 +248,28 @@ describe("Phase 0 pull request boundary", () => {
     ).toBeNull();
   });
 
-  test("conversation PR reads require conversation access", async () => {
+  test("linked PRs require access to the conversation and to the PR team", async () => {
     const tables = baseTables({
       pull_requests: [pr],
+      pull_request_sessions: ["conv_1", "conv_personal"].map(
+        (conversation_id) => ({
+          _id: `link_${conversation_id}`,
+          conversation_id,
+          pull_request_id: pr._id,
+        }),
+      ),
       conversations: [
         { _id: "conv_1", user_id: OWNER, team_id: TEAM, is_private: true },
+        { _id: "conv_personal", user_id: STRANGER, is_private: true },
       ],
     });
-    expect(
-      await (getPRsForConversation as any)._handler(ctx(STRANGER, tables), {
-        conversation_id: "conv_1",
-      }),
-    ).toEqual([]);
-  });
-
-  test("a personal conversation relation cannot disclose a foreign-team PR", async () => {
-    const tables = baseTables({
-      pull_requests: [pr],
-      conversations: [{ _id: "conv_1", user_id: STRANGER, is_private: true }],
-    });
-    expect(
-      await (getPRsForConversation as any)._handler(ctx(STRANGER, tables), {
-        conversation_id: "conv_1",
-      }),
-    ).toEqual([]);
+    const linked = (viewer: string, conversation_id: string) =>
+      (getPRsForConversation as any)._handler(ctx(viewer, tables), {
+        conversation_id,
+      });
+    expect(await linked(OWNER, "conv_1")).toEqual([pr]);
+    expect(await linked(MEMBER, "conv_1")).toEqual([]);
+    expect(await linked(STRANGER, "conv_personal")).toEqual([]);
   });
 
   test("timeline reads include only teams the caller belongs to", async () => {
@@ -945,6 +945,7 @@ describe("Phase 0 plan boundary", () => {
           user_id: OWNER,
           team_id: TEAM,
           title: "SECRET TASK",
+          wave_number: 2,
           status: "open",
         },
       ],
@@ -960,10 +961,9 @@ describe("Phase 0 plan boundary", () => {
       managed_sessions: [],
     });
 
-    const detail = await (getPlanForCLI as any)._handler(ctx(null, tables), {
-      api_token: token,
-      short_id: "pl-mine",
-    });
+    const reader = ctx(null, tables);
+    const args = { api_token: token, short_id: "pl-mine" };
+    const detail = await (getPlanForCLI as any)._handler(reader, args);
     expect(detail.tasks).toEqual([]);
     expect(detail.doc_content).toBeUndefined();
 
@@ -974,20 +974,25 @@ describe("Phase 0 plan boundary", () => {
     expect(snippet.task_count).toBe(0);
     expect(snippet.snippet).not.toContain("SECRET");
 
-    const status = await (getOrchestrationStatus as any)._handler(
-      ctx(null, tables),
-      {
-        api_token: token,
-        short_id: "pl-mine",
-      },
-    );
-    expect(status.wave_progress).toEqual({});
-
     const shared = await (getSharedPlan as any)._handler(ctx(null, tables), {
       share_token: "shared-plan",
     });
     expect(shared.tasks).toEqual([]);
     expect(shared.doc_content).toBeUndefined();
+    tables.tasks.push({
+      _id: "task_personal",
+      user_id: STRANGER,
+      workspace: `user:${STRANGER}`,
+      title: "My task",
+      status: "done",
+      wave_number: 1,
+    });
+    tables.plans[0].task_ids.push("task_personal");
+    const ownStatus = await (getOrchestrationStatus as any)._handler(
+      ctx(null, tables),
+      args,
+    );
+    expect(ownStatus.wave_progress).toEqual({ 1: { done: 1, total: 1 } });
   });
 
   test("CLI plan/session relationships require access and the same workspace", async () => {

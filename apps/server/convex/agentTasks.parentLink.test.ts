@@ -111,11 +111,18 @@ describe("trigger parent link", () => {
     const { ctx, tables } = await seed([
       scheduled({ originating_conversation_id: "conversations_parent" }),
     ]);
-    await (updateTask as any)._handler(ctx, {
+    const result = await (updateTask as any)._handler(ctx, {
       api_token: "me-token",
       task_id: "agent_tasks_check",
       originating_conversation_id: null,
     });
+    expect(result.changed).toEqual([
+      "originating_conversation_id",
+      "created_by_conversation_id",
+    ]);
+    expect(
+      tables.agent_task_revisions[0].before.originating_conversation_id,
+    ).toBe("conversations_parent");
     expect(tables.agent_tasks[0].originating_conversation_id).toBeUndefined();
     expect(tables.agent_tasks[0].created_by_conversation_id).toBe(
       "conversations_parent",

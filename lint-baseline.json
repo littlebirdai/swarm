@@ -8190,10 +8190,10 @@
     "swarm/no-comments": 29
   },
   "apps/server/convex/accountSwitch.askFirst.test.ts": {
-    "swarm/no-comments": 15
+    "swarm/no-comments": 14
   },
   "apps/server/convex/accountSwitch.codexPanes.test.ts": {
-    "swarm/no-comments": 6
+    "swarm/no-comments": 2
   },
   "apps/server/convex/accountSwitch.continueBacklog.test.ts": {
     "swarm/no-comments": 12
@@ -8202,7 +8202,7 @@
     "swarm/no-comments": 12
   },
   "apps/server/convex/accountSwitch.lineHost.test.ts": {
-    "swarm/no-comments": 11
+    "swarm/no-comments": 10
   },
   "apps/server/convex/accountSwitch.loginFlow.test.ts": {
     "swarm/no-comments": 3
@@ -8214,7 +8214,7 @@
     "swarm/no-comments": 6
   },
   "apps/server/convex/accountSwitch.recovery.test.ts": {
-    "swarm/no-comments": 76
+    "swarm/no-comments": 73
   },
   "apps/server/convex/accountSwitch.restampStationPark.test.ts": {
     "swarm/no-comments": 2
@@ -8223,10 +8223,10 @@
     "swarm/no-comments": 1
   },
   "apps/server/convex/accountSwitch.test.ts": {
-    "swarm/no-comments": 138
+    "swarm/no-comments": 135
   },
   "apps/server/convex/accountSwitch.ts": {
-    "swarm/no-comments": 590
+    "swarm/no-comments": 585
   },
   "apps/server/convex/accountSwitch.workerParks.test.ts": {
     "swarm/no-comments": 13
@@ -8262,7 +8262,7 @@
     "swarm/no-comments": 12
   },
   "apps/server/convex/agentTasks.armedKind.test.ts": {
-    "swarm/no-comments": 57
+    "swarm/no-comments": 41
   },
   "apps/server/convex/agentTasks.cadence.test.ts": {
     "swarm/no-comments": 16
@@ -8277,7 +8277,7 @@
     "swarm/no-comments": 3
   },
   "apps/server/convex/agentTasks.gateEdit.test.ts": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 26
   },
   "apps/server/convex/agentTasks.orgOff.test.ts": {
     "swarm/no-comments": 2
@@ -8304,10 +8304,10 @@
     "swarm/no-comments": 35
   },
   "apps/server/convex/agentTasks.test.ts": {
-    "swarm/no-comments": 32
+    "swarm/no-comments": 29
   },
   "apps/server/convex/agentTasks.ts": {
-    "swarm/no-comments": 642
+    "swarm/no-comments": 640
   },
   "apps/server/convex/agentTasks.verbHistory.test.ts": {
     "swarm/no-comments": 2
@@ -8328,7 +8328,7 @@
     "swarm/no-comments": 160
   },
   "apps/server/convex/apiTokens.deviceBinding.test.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 12
   },
   "apps/server/convex/apiTokens.ts": {
     "swarm/no-comments": 46
@@ -8364,13 +8364,13 @@
     "swarm/no-comments": 22
   },
   "apps/server/convex/artifacts.test.ts": {
-    "swarm/no-comments": 36
+    "swarm/no-comments": 28
   },
   "apps/server/convex/artifacts.ts": {
-    "swarm/no-comments": 309
+    "swarm/no-comments": 307
   },
   "apps/server/convex/artifactsHttp.test.ts": {
-    "swarm/no-comments": 24
+    "swarm/no-comments": 18
   },
   "apps/server/convex/artifactsHttp.ts": {
     "swarm/no-comments": 189
@@ -8379,7 +8379,7 @@
     "swarm/no-comments": 3
   },
   "apps/server/convex/assistant.entry.test.ts": {
-    "swarm/no-comments": 20
+    "swarm/no-comments": 19
   },
   "apps/server/convex/assistant/backfills.ts": {
     "swarm/no-comments": 4
@@ -8457,7 +8457,7 @@
     "swarm/no-comments": 7
   },
   "apps/server/convex/authorityEvents.guard.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 8
   },
   "apps/server/convex/authorityEvents.test.ts": {
     "swarm/no-comments": 5
@@ -8487,7 +8487,7 @@
     "swarm/no-comments": 15
   },
   "apps/server/convex/blameCore.ts": {
-    "swarm/no-comments": 35
+    "swarm/no-comments": 34
   },
   "apps/server/convex/blockedHeadline.test.ts": {
     "swarm/no-comments": 14
@@ -8511,7 +8511,7 @@
     "swarm/no-comments": 67
   },
   "apps/server/convex/callChat.test.ts": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 29
   },
   "apps/server/convex/callChat.ts": {
     "swarm/no-comments": 75
@@ -8622,7 +8622,7 @@
     "swarm/no-comments": 27
   },
   "apps/server/convex/ccAccountsShared.ts": {
-    "swarm/no-comments": 360
+    "swarm/no-comments": 355
   },
   "apps/server/convex/ccSwitchAhead.ts": {
     "swarm/no-comments": 33
@@ -9327,7 +9327,7 @@
     "swarm/no-comments": 2
   },
   "apps/server/convex/dormancy.ts": {
-    "swarm/no-comments": 62
+    "swarm/no-comments": 60
   },
   "apps/server/convex/drafting.roundtrip.test.ts": {
     "swarm/no-comments": 5
@@ -9774,7 +9774,7 @@
     "swarm/no-comments": 9
   },
   "apps/server/convex/lib/authorityEvents.ts": {
-    "swarm/no-comments": 12
+    "swarm/no-comments": 11
   },
   "apps/server/convex/lib/awsSigV4.test.ts": {
     "swarm/no-comments": 2

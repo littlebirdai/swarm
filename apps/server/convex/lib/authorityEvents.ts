@@ -3,8 +3,7 @@
 // changes authority calls recordAuthorityEvent in its own transaction, so the
 // change cannot commit without its row and the row cannot exist without the
 // change. Never record from a scheduled function or an action after the fact.
-// authorityEvents.guard.test.ts reads the source and fails any other file
-// that inserts into, patches or deletes from the table.
+// authorityEvents.guard.test.ts guards this writer and the exception for permanent conversation purge.
 //
 // A leaf like accessKeys.ts: conversationVisibility.ts (patchConversationVisibility) imports
 // it at load, so nothing here may reach a module that defines functions.

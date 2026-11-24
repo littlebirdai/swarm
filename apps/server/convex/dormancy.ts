@@ -152,20 +152,6 @@ export function armedTriggerKindFor(
   return kind;
 }
 
-// isArmedTriggerHome over the row's own denormalized field instead of a loaded
-// set — same last-turn rule, no reads.
-export function isArmedTriggerHomeOfKind(
-  conv: {
-    armed_trigger_kind?: string | null;
-    last_message_preview?: string | null;
-    agent_type?: string | null;
-  },
-  kind: Exclude<ArmedTriggerKind, "none">,
-): boolean {
-  if ((conv.armed_trigger_kind ?? "none") !== kind) return false;
-  return triggerMayPark(conv) && lastTurnAllowsPark(conv);
-}
-
 // Per-query memo over loadArmedTriggerHomes for callers that classify rows
 // belonging to several users (the team feed).
 export function armedTriggerHomeLoader(ctx: Pick<QueryCtx, "db">) {

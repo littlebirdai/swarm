@@ -13,8 +13,6 @@ import {
 import {
   awaitsManualTarget,
   decideSwitchAhead,
-  dropLineHostRefused,
-  fleetHostFollowsSwitch,
   holdsManualTarget,
   MANUAL_TARGET_HOLD_MS,
   SWITCH_AHEAD_COOLDOWN_MS,
@@ -443,7 +441,7 @@ describe("a switch on the fleet store restarts every blocked session onto the st
     expect(result.restarted).toBe(0);
   });
 
-  test("a switch onto an account the line hosts cannot use leaves those hosts where they are", async () => {
+  test("routes each switch to the hosts that can use it", async () => {
     const userId = "user_1" as any;
     const cam = "r.cameron.musgrave@gmail.com";
     const saved = {
@@ -488,104 +486,28 @@ describe("a switch on the fleet store restarts every blocked session onto the st
       is_remote: true,
       cc_accounts: saved,
     } as any;
-    const db = makeFakeDb({
-      conversations: [],
-      devices: [laptop, line, box],
-      daemon_commands: [],
-    });
-    const result = await insertSwitchCommands({ db }, userId, {
-      profile: "cam",
-      blocked: [],
-      online: [laptop, line, box],
-      primary: laptop,
-      continueBlocked: false,
-      now,
-      switchFleetHosts: true,
-    });
-    expect(
-      db._tables.daemon_commands.map((c: any) => c.target_device_id).sort(),
-    ).toEqual(["box", "mac"]);
-    expect(result.devices).toBe(2);
-  });
-});
-
-describe("line hosts stay off the account Cloudflare refuses there", () => {
-  const cam = "r.cameron.musgrave@gmail.com";
-  const line = { is_remote: true as const, line_slots: [{ origin: "o" }] };
-  const profiles = [
-    { name: "fleet", email: "fleet@x.com", usage: usage(96) },
-    { name: "cam", email: cam, usage: usage(5) },
-    {
-      name: "roomy",
-      email: "roomy@x.com",
-      usage: usage(20),
-      setup_token: { stored_at: 1, expires_at: now + 1e10 },
-    },
-  ];
-
-  test("a line host ranks the next account, and a laptop still ranks this one", () => {
-    const ranked = dropLineHostRefused(profiles, line, "fleet@x.com");
-    expect(ranked.map((p) => p.name)).toEqual(["fleet", "roomy"]);
-    expect(
-      decideSwitchAhead({
+    for (const [profile, targets] of [
+      ["cam", ["box", "mac"]],
+      ["other", ["box", "line", "mac"]],
+    ] as const) {
+      const db = makeFakeDb({
+        conversations: [],
+        devices: [laptop, line, box],
+        daemon_commands: [],
+      });
+      const result = await insertSwitchCommands({ db }, userId, {
+        profile,
+        blocked: [],
+        online: [laptop, line, box],
+        primary: laptop,
+        continueBlocked: false,
         now,
-        fleetEmail: "fleet@x.com",
-        fleetSince: now - 3_600_000,
-        profiles: ranked,
-        attempts: [],
-      }),
-    ).toEqual({ profile: "roomy" });
-    expect(
-      dropLineHostRefused(profiles, { is_remote: false }, "fleet@x.com"),
-    ).toBe(profiles);
-    expect(
-      decideSwitchAhead({
-        now,
-        fleetEmail: "fleet@x.com",
-        fleetSince: now - 3_600_000,
-        profiles,
-        attempts: [],
-      }),
-    ).toEqual({ profile: "cam" });
-  });
-
-  test("a line host already on it can leave, and does not follow another machine's switch onto it", () => {
-    const onIt = dropLineHostRefused(profiles, line, cam).map((p) =>
-      p.email === cam ? { ...p, usage: usage(96) } : p,
-    );
-    expect(onIt.map((p) => p.name)).toEqual(["fleet", "cam", "roomy"]);
-    expect(
-      decideSwitchAhead({
-        now,
-        fleetEmail: cam,
-        fleetSince: now - 3_600_000,
-        profiles: onIt,
-        attempts: [],
-      })?.profile,
-    ).toBe("roomy");
-    const saved = {
-      profiles: [
-        { name: "cam", email: cam },
-        { name: "roomy", email: "roomy@x.com" },
-      ],
-    };
-    expect(
-      fleetHostFollowsSwitch(
-        { ...line, cc_accounts: saved },
-        { profile: "cam" },
-      ),
-    ).toBe(false);
-    expect(
-      fleetHostFollowsSwitch(
-        { is_remote: true, cc_accounts: saved },
-        { profile: "cam" },
-      ),
-    ).toBe(true);
-    expect(
-      fleetHostFollowsSwitch(
-        { ...line, cc_accounts: saved },
-        { profile: "roomy" },
-      ),
-    ).toBe(true);
+        switchFleetHosts: true,
+      });
+      expect(
+        db._tables.daemon_commands.map((c: any) => c.target_device_id).sort(),
+      ).toEqual(targets);
+      expect(result.devices).toBe(targets.length);
+    }
   });
 });

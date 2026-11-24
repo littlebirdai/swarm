@@ -18,22 +18,19 @@ function ctxWith(tables: Record<string, any[]>) {
   return { db: makeFakeDb(tables) } as any;
 }
 
+test.each([
+  ["host", { host_user_id: ME }],
+  ["personal owner", { host_user_id: STRANGER, scope_user_id: ME }],
+] as const)(
+  "the %s can access and administer the anchor",
+  async (_role, anchor) => {
+    const ctx = ctxWith({ team_memberships: [] });
+    expect(await userCanAccessAnchor(ctx, ME, anchor as any)).toBe(true);
+    expect(await userCanAdminAnchor(ctx, ME, anchor as any)).toBe(true);
+  },
+);
+
 describe("userCanAdminAnchor", () => {
-  test("the host can admin", async () => {
-    const ctx = ctxWith({ team_memberships: [] });
-    expect(await userCanAdminAnchor(ctx, ME, { host_user_id: ME } as any)).toBe(
-      true,
-    );
-  });
-  test("the personal-anchor owner can admin", async () => {
-    const ctx = ctxWith({ team_memberships: [] });
-    expect(
-      await userCanAdminAnchor(ctx, ME, {
-        host_user_id: STRANGER,
-        scope_user_id: ME,
-      } as any),
-    ).toBe(true);
-  });
   test("a team ADMIN can admin", async () => {
     const ctx = ctxWith({
       team_memberships: [
@@ -73,18 +70,6 @@ describe("userCanAdminAnchor", () => {
 });
 
 describe("userCanAccessAnchor", () => {
-  test("the host can access", async () => {
-    const ctx = ctxWith({ team_memberships: [] });
-    const anchor = { host_user_id: ME } as any;
-    expect(await userCanAccessAnchor(ctx, ME, anchor)).toBe(true);
-  });
-
-  test("the user a personal anchor belongs to can access", async () => {
-    const ctx = ctxWith({ team_memberships: [] });
-    const anchor = { host_user_id: STRANGER, scope_user_id: ME } as any;
-    expect(await userCanAccessAnchor(ctx, ME, anchor)).toBe(true);
-  });
-
   test("a member of the anchor's team can access", async () => {
     const ctx = ctxWith({
       team_memberships: [{ _id: "m1", user_id: TEAMMATE, team_id: TEAM }],
@@ -120,6 +105,7 @@ describe("visibleAnchorsForUser", () => {
       anchors: [
         { _id: "a_personal", scope_user_id: ME, status: "active" },
         { _id: "a_team", team_id: TEAM, status: "active" },
+        { _id: "a_both", team_id: TEAM, scope_user_id: ME, status: "active" },
         { _id: "a_dead", team_id: TEAM, status: "decommissioned" },
       ],
       teams: [ORG_ON],
@@ -127,7 +113,7 @@ describe("visibleAnchorsForUser", () => {
     });
     const out = await visibleAnchorsForUser(ctx, ME);
     const ids = out.map((a: any) => a._id).sort();
-    expect(ids).toEqual(["a_personal", "a_team"]);
+    expect(ids).toEqual(["a_both", "a_personal", "a_team"]);
   });
 
   // The org feature is per team and default off. A team with it off shows
@@ -168,10 +154,14 @@ describe("visibleAnchorsForUser", () => {
 
   test("excludes anchors of teams the caller does not belong to", async () => {
     const ctx = ctxWith({
-      anchors: [{ _id: "a_other", team_id: "teams_other", status: "active" }],
+      anchors: [
+        { _id: "a_team", team_id: TEAM, status: "active" },
+        { _id: "a_other", team_id: "teams_other", status: "active" },
+      ],
+      teams: [ORG_ON, { ...ORG_ON, _id: "teams_other" }],
       team_memberships: [{ _id: "m1", user_id: ME, team_id: TEAM }],
     });
     const out = await visibleAnchorsForUser(ctx, ME);
-    expect(out).toEqual([]);
+    expect(out.map((anchor) => anchor._id)).toEqual(["a_team"]);
   });
 });
