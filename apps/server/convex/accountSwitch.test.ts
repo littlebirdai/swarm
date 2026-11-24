@@ -124,6 +124,9 @@ describe("isBlockedConversation", () => {
     expect(
       isBlockedConversation({ ...codex, pending_api_error_kind: "fatal" }),
     ).toBe(false);
+    expect(
+      isBlockedConversation({ ...codex, pending_api_error_kind: "error" }),
+    ).toBe(false);
   });
 });
 
@@ -2200,5 +2203,12 @@ describe("Codex cyber policy parks (ct-49794)", () => {
   test("parks the row so it earns the badge and the hint", () => {
     expect(kind).toBe("safety");
     expect(isBlockedConversation(conv)).toBe(true);
+  });
+
+  test("keeps the account pin when the device is unknown", () => {
+    const account = "safety-pin@example.invalid";
+    expect(
+      resumePinFor({ ...conv, cc_account: account }, undefined, Date.now()),
+    ).toBe(account);
   });
 });

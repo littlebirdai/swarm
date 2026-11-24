@@ -1179,7 +1179,7 @@ describe("brandArtifactHtml", () => {
     expect(() => new Function(script![1])).not.toThrow();
   });
 
-  test("mobile styles: safe-area padding and bottom-sheet panels", () => {
+  test("mobile styles include bottom and left safe-area padding", () => {
     const out = brandArtifactHtml("<body></body>", opts);
     expect(out).toContain("env(safe-area-inset-bottom)");
     expect(out).toContain("env(safe-area-inset-left)");

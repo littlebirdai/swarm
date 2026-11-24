@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { autoSwitchCheck, switchAheadCheck } from "./accountSwitch";
 import { makeFakeDb } from "./testDb";
-import {} from "./ccAccountsShared";
 
 // A line host drawing on its team's line pool runs its own fleet store. Its
 // account must stay visible to recovery and movable by it (the 2026-10-24

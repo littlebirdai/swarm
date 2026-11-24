@@ -525,30 +525,6 @@
       "line": 2580
     },
     {
-      "id": "accountSwitch.listStaleCodexSessions",
-      "module": "accountSwitch",
-      "name": "listStaleCodexSessions",
-      "ctor": "query",
-      "kind": "query",
-      "exposure": "public",
-      "authClass": "authenticated",
-      "auth": [
-        "getAuthUserId"
-      ],
-      "judges": [],
-      "tokens": [],
-      "quota": [],
-      "revocation": [],
-      "takesIds": [],
-      "readsCtxAuth": false,
-      "status": "resolved",
-      "risk": "low",
-      "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
-      "testedBy": [],
-      "routes": [],
-      "line": 2348
-    },
-    {
       "id": "accountSwitch.pinForResume",
       "module": "accountSwitch",
       "name": "pinForResume",
@@ -72015,22 +71991,6 @@
     },
     {
       "id": "accountSwitch.listAccountProfiles",
-      "cells": {
-        "anonymous": "judged",
-        "owner": "judged",
-        "teammate": "n/a",
-        "admin": "n/a",
-        "other_team": "n/a",
-        "revoked_member": "n/a",
-        "share_guest": "n/a",
-        "wrong_table_id": "n/a",
-        "expired_or_wrong_purpose_token": "n/a",
-        "missing_device": "n/a",
-        "stale_runner": "n/a"
-      }
-    },
-    {
-      "id": "accountSwitch.listStaleCodexSessions",
       "cells": {
         "anonymous": "judged",
         "owner": "judged",

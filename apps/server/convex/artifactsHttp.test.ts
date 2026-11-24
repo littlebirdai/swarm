@@ -318,14 +318,12 @@ describe("publish route evidence binding", () => {
       plan: undefined,
       session_conversation_id: "conversations_s1",
     });
-    const pageQueries = mutations.find(
-      ({ name }) => name === "pageData:replaceQueries",
-    );
-    expect(pageQueries?.args).toMatchObject({ set_json: "" });
-    const upsert = mutations.find(
-      ({ name }) => name === "artifacts:upsertFromPublish",
-    );
-    expect(upsert?.args).toMatchObject({
+    expect(mutations.map(({ name }) => name)).toEqual([
+      "artifacts:upsertFromPublish",
+      "pageData:replaceQueries",
+    ]);
+    expect(mutations[1].args).toMatchObject({ set_json: "" });
+    expect(mutations[0].args).toMatchObject({
       task_id: "tasks_t1",
       plan_id: "plans_p1",
       station: "in_progress",
