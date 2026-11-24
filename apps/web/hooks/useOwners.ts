@@ -25,7 +25,7 @@ import { humanizeConvexError } from "@codecast/shared/contracts";
 import { isConvexId } from "../lib/entityLinks";
 import { useWatchEffect } from "./useWatchEffect";
 import { useQueryNoThrow } from "./useQueryNoThrow";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 
 type OwnerInfo = {
   user_id: string;

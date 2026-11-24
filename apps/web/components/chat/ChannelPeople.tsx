@@ -42,11 +42,11 @@ import { useChannelSlackLink } from "../../hooks/useChannelSlackLink";
 import { useSlackConnect } from "../../hooks/useSlackConnect";
 import { SlackLogo } from "../SlackLogo";
 import "./chat.css";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { AgentCount, AgentPicker, ChannelAgentRows } from "./ChannelAgents";
 import { chatAgentId } from "../../store/chatSlice";
-import { isAgentMember } from "@codecast/shared/team/memberKind";
+import { isAgentMember } from "@codecast/team/memberKind";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 // The people layer of a chat room: who a DM is with, who is inside a private

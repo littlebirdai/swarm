@@ -26,7 +26,7 @@ import {
   type SecretVersionMeta,
   type SigninPayload,
 } from "@codecast/shared/contracts/secrets";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   useAskFirstLock,

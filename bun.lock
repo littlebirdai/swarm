@@ -29,8 +29,10 @@
         "@codecast/async": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/files": "workspace:*",
+        "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@inquirer/prompts": "^8.2.0",
         "@platform/auth": "file:../../platform/packages/auth",
@@ -92,6 +94,7 @@
         "@codecast/files": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/web": "workspace:*",
         "@convex-dev/auth": "0.0.79",
@@ -195,6 +198,7 @@
         "@codecast/analytics": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@convex-dev/auth": "0.0.79",
         "@convex-dev/prosemirror-sync": "^0.2.3",
@@ -242,6 +246,7 @@
         "@codecast/files": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.10.4",
@@ -417,6 +422,16 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/mods": {
+      "name": "@codecast/mods",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/network": {
       "name": "@codecast/network",
       "version": "0.0.1",
@@ -428,6 +443,7 @@
       "name": "@codecast/shared",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@platform/agent": "file:../../platform/packages/agent",
         "@platform/assistant": "file:../../platform/packages/assistant",
@@ -437,6 +453,16 @@
       },
       "devDependencies": {
         "@types/css-tree": "^2.3.11",
+      },
+    },
+    "packages/team": {
+      "name": "@codecast/team",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/time": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
       },
     },
     "packages/time": {
@@ -817,11 +843,15 @@
 
     "@codecast/files": ["@codecast/files@workspace:packages/files"],
 
+    "@codecast/mods": ["@codecast/mods@workspace:packages/mods"],
+
     "@codecast/network": ["@codecast/network@workspace:packages/network"],
 
     "@codecast/playground": ["@codecast/playground@workspace:apps/playground"],
 
     "@codecast/shared": ["@codecast/shared@workspace:packages/shared"],
+
+    "@codecast/team": ["@codecast/team@workspace:packages/team"],
 
     "@codecast/time": ["@codecast/time@workspace:packages/time"],
 

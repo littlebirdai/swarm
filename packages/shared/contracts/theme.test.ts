@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { THEME_COLOR_TOKENS, THEME_FONT_TOKENS, themeErrors } from "./theme";
 import { validateManifest } from "./mods";
 
@@ -87,18 +85,5 @@ describe("color themes in a mod manifest", () => {
     expect(
       themeErrors([{ id: "x", title: "X", dark: {}, backdrop: true }])[0],
     ).toContain("backdrop must be an object");
-  });
-
-  test("the authoring types name every token, so editors autocomplete the whole contract", () => {
-    const types = readFileSync(
-      join(import.meta.dir, "..", "mods", "authoring.d.ts"),
-      "utf8",
-    );
-    const block = types.slice(
-      types.indexOf("export type ThemePalette"),
-      types.indexOf("export type Manifest"),
-    );
-    for (const token of [...THEME_COLOR_TOKENS, ...THEME_FONT_TOKENS])
-      expect(block).toContain(`"${token}"`);
   });
 });

@@ -23,6 +23,7 @@
     "@codecast/files": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/web": "workspace:*",
     "@convex-dev/auth": "0.0.79",

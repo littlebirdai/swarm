@@ -8,7 +8,7 @@ import { fleetBandFor, type FleetBandOpts } from "../fleetBands";
 import { memberDisplayName as liveMemberDisplayName } from "../../lib/liveEntities";
 import { matchScore } from "../../lib/mentionRanking";
 import type { FaceState } from "../../lib/faces/faceState";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 
 export type PresenceState = "active" | "idle" | "away" | "offline";
 /** What a badge draws. "busy" is the manual status, not a heartbeat state. */

@@ -8,7 +8,7 @@ import { isResumableCwd } from "./projectPathResolver.js";
 import {
   folderOnThisMachine,
   folderUnderHome,
-} from "@codecast/shared/team/folderLists";
+} from "@codecast/team/folderLists";
 
 export const UNSAFE_PATH_RE = /[;|&`$(){}<>"\r\n\0]/;
 

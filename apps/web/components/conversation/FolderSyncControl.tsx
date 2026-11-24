@@ -2,7 +2,7 @@
 
 import { useShallow } from "zustand/react/shallow";
 import { CloudOff } from "lucide-react";
-import type { SyncSettings } from "@codecast/shared/team/syncPlan";
+import type { SyncSettings } from "@codecast/team/syncPlan";
 import { folderSyncState } from "../../lib/folderSyncState";
 import { useInboxStore } from "../../store/inboxStore";
 

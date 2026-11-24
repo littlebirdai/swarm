@@ -142,7 +142,7 @@ import { chatAuthorLookupsNow } from "../hooks/useChatSync";
 import { memberAvatarUrl, memberDisplayName } from "../lib/liveEntities";
 import { useOrgRoles } from "../hooks/useOrgRoles";
 import { useRolesAndPeopleOptions } from "../hooks/useRolesAndPeopleOptions";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { lazyNamed } from "../lib/lazyNamed";
 
 const NO_MEMBERS: any[] = [];

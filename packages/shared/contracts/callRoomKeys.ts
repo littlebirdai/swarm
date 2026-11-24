@@ -2,7 +2,7 @@
 // authorizes these), the web client (builds keys for chips/huddle buttons),
 // and anything else that needs to name a room. A room is a string key, never
 // a row; the full semantics live with the authorizer in convex/callRooms.ts.
-import { isPerson } from "../team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 
 // Lease timings. The dock heartbeats every CALL_HEARTBEAT_MS while connected;
 // readers ignore call_members rows older than CALL_MEMBER_STALE_MS (three

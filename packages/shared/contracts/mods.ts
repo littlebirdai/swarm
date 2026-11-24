@@ -4,7 +4,7 @@
 //
 // A mod is a folder with a `codecast-mod.json` manifest and a hooks module
 // exporting `register(on)`. The CLI bundles the module together with the SDK
-// (shared/mods/sdk.ts) into one script; the web loads that script into an
+// (@codecast/mods/sdk) into one script; the web loads that script into an
 // opaque-origin iframe and talks to it over postMessage with the protocol
 // below. The mod never touches the app's DOM: it returns element trees, and
 // codecast draws them with its own components.

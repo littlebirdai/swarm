@@ -24,7 +24,7 @@ import {
   rosterSig,
   type DmBadge,
 } from "./peopleRoster";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 export interface PeopleRosterData {

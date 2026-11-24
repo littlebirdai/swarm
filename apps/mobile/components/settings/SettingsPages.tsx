@@ -25,7 +25,7 @@ import { PlanPage } from "@/components/hosted/PlanPage";
 import { MailPage } from "@/components/hosted/MailPage";
 import { VaultPage } from "./VaultPage";
 import { useTeamRosterIdentity } from "@codecast/web/hooks/useTeamRoster";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { Text as RNText, TextInput } from "@/components/Themed";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { copyToClipboard } from "@/lib/clipboard";

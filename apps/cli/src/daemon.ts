@@ -825,7 +825,7 @@ import {
   watchDirFilter,
   watchFilter,
 } from "./syncScope.js";
-import { folderOnThisMachine } from "@codecast/shared/team/folderLists";
+import { folderOnThisMachine } from "@codecast/team/folderLists";
 import { parseOrphanProcessIdentity } from "./orphanProcessIdentity.js";
 import {
   TaskScheduler,

@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { isAgentMember, isPerson, memberKind, peopleOf } from "./memberKind";
+import {
+  isAgentMember,
+  isPerson,
+  memberKind,
+  peopleOf,
+} from "../src/memberKind";
 
-const person = { _id: "p", name: "Ada" };
+const person: { _id: string; name: string; is_bot?: boolean } = {
+  _id: "p",
+  name: "Ada",
+};
 const slack = {
   _id: "s",
   name: "Union (Slack)",

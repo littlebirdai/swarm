@@ -11,7 +11,7 @@ import type {
   ModManifest,
   ModNode,
   ModSurface,
-} from "../contracts/mods";
+} from "@codecast/shared/contracts/mods";
 
 // -- Elements and JSX --------------------------------------------------------
 

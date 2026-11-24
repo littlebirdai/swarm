@@ -1,4 +1,4 @@
-import { matchDirectoryMapping } from "@codecast/shared/team/directoryRules";
+import { matchDirectoryMapping } from "@codecast/team/directoryRules";
 import {
   isRunLog,
   repositoryKeyOfRemote,

@@ -200,7 +200,7 @@ import {
   formatSessionCount,
   summarizeShareImpact,
   type PathShareSummary,
-} from "@codecast/shared/team";
+} from "@codecast/team";
 import { cliFetch, cliFetchRead, cliSearchRequest } from "./cliHttp.js";
 import type { OrgTarget } from "./orgTarget.js";
 import { registerOrgInitCommands } from "./orgInit.js";

@@ -1,5 +1,5 @@
 // Draws a mod's element tree with codecast's own components (contract:
-// shared/contracts/mods.ts, author types: shared/mods/authoring.d.ts). The tree
+// shared/contracts/mods.ts, author types: @codecast/mods/authoring.d.ts). The tree
 // is plain data from the sandbox; a handler in it is a { $fn } id, and pressing
 // the control sends that id back to the mod's runtime. Nothing the mod sends is
 // ever HTML except the Canvas element, which goes through the same sanitizer as

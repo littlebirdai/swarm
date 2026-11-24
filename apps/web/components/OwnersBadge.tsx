@@ -58,7 +58,7 @@ import {
 } from "./ui/command";
 import { Switch } from "./ui/switch";
 import { KeyCap } from "./KeyboardShortcutsHelp";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { Button } from "./ui/button";
 import { teamMembersOf } from "../lib/activeTeam";
 

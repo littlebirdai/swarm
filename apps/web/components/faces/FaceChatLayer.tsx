@@ -3,7 +3,7 @@ import { useLayoutEffect, useState, type RefObject } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { createPortal } from "react-dom";
 import { ArrowUpRight } from "lucide-react";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   faceBarOnScreen,

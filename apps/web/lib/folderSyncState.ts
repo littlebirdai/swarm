@@ -2,7 +2,7 @@ import {
   folderUnderHome,
   isFolderSyncing,
   type SyncSettings,
-} from "@codecast/shared/team/syncPlan";
+} from "@codecast/team/syncPlan";
 
 /** Where a folder stands in the person's sync, read off their lists. "off": not
  *  one of their chosen folders, so only sessions started from codecast sync

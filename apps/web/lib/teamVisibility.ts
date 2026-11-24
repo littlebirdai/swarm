@@ -1,8 +1,8 @@
 // Team visibility for the web: the words for each level come from
-// @codecast/shared/team (so `cast sharing` says the same thing), and the rules
+// @codecast/team (so `cast sharing` says the same thing), and the rules
 // (rank, the time split, the transition) from the convex module, so the
 // server and the store apply the same ones.
-import { teamVisibilityOption } from "@codecast/shared/team/visibility";
+import { teamVisibilityOption } from "@codecast/team/visibility";
 import {
   TEAM_VISIBILITY_RANK,
   currentMembershipVisibility,
@@ -20,7 +20,7 @@ export {
   TEAM_VISIBILITY_OPTIONS,
   teamVisibilityOption,
   type TeamVisibilityOption,
-} from "@codecast/shared/team/visibility";
+} from "@codecast/team/visibility";
 export {
   TEAM_VISIBILITY_RANK,
   currentMembershipVisibility,

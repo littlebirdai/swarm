@@ -24,7 +24,7 @@ import {
 } from "../../../components/settings/ui";
 import { useOsPermission } from "../../../hooks/useOsPermissions";
 import { PermissionRow } from "../../../components/permissions/PermissionRow";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 
 /* This device's OS-level permission (System Settings / browser site
  * permission) — a separate axis from the in-app prefs below: with it off,

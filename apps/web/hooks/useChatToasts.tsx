@@ -35,7 +35,7 @@ import { dmOtherIds, isAgentTurnInFlight } from "@codecast/shared/chat";
 
 import { useWatchEffect } from "./useWatchEffect";
 import { notificationActor } from "../lib/notificationTypes";
-import { memberKind } from "@codecast/shared/team/memberKind";
+import { memberKind } from "@codecast/team/memberKind";
 import { deliverChatToFace } from "../lib/chat/faceChat";
 import { chatAuthorLookupsNow } from "./useChatSync";
 import { teamMembersOf } from "../lib/activeTeam";

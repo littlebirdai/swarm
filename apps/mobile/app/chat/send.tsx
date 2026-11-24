@@ -22,7 +22,7 @@ import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useChatRail } from "@codecast/web/hooks/useChatSync";
 import { channelDisplayName } from "@codecast/web/lib/chatViews";
 import { teamMembersOf } from "@codecast/web/lib/activeTeam";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 
 // Send a link to a channel or a person: the phone's half of web's "Send to
 // chat" (lib/forwardToChat.ts). Pick a room, add a note if you like, Send.

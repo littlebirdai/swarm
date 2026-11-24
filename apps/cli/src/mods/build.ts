@@ -8,19 +8,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 // @ts-ignore: embedded as text; the SDK is bundled into every mod, not imported here.
-import SDK_SOURCE from "../../../../packages/shared/mods/sdk.ts" with { type: "text" };
+import SDK_SOURCE from "@codecast/mods/sdk" with { type: "text" };
 // @ts-ignore: embedded as text; bundled into every local half.
-import LOCAL_SDK_SOURCE from "../../../../packages/shared/mods/localSdk.ts" with { type: "text" };
+import LOCAL_SDK_SOURCE from "@codecast/mods/localSdk" with { type: "text" };
 // @ts-ignore: embedded as text for `cast mod new` and `cast mod types`.
-import AUTHORING_TYPES from "../../../../packages/shared/mods/authoring.d.ts" with { type: "text" };
+import AUTHORING_TYPES from "@codecast/mods/authoring.d.ts" with { type: "text" };
 import {
   validateManifest,
   type ModManifest,
 } from "@codecast/shared/contracts/mods";
-import {
-  inspectModSource,
-  type ModInspection,
-} from "@codecast/shared/mods/inspect";
+import { inspectModSource, type ModInspection } from "@codecast/mods/inspect";
 import { localHash } from "./localRunner.js";
 
 export const MANIFEST_FILE = "codecast-mod.json";

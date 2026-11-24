@@ -32,7 +32,7 @@ import type { ChatChannelView } from "./chatTypes";
 import "./chat.css";
 
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 // New message / new huddle.
