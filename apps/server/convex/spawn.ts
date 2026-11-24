@@ -57,7 +57,7 @@ import {
   roleStartsOnItsOwn,
   roleTokensToday,
 } from "./lib/orgCaps";
-import { atCap } from "@codecast/shared/contracts/orgCapacity";
+import { atCap } from "@codecast/org/orgCapacity";
 import {
   applyHandoffLink,
   findHandoffSource,

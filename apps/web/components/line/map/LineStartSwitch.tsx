@@ -7,7 +7,7 @@
 // live on the role that leads the project (caps.line_on, caps.cards); an edit
 // is a store action (updateOrgRole) and paints at once.
 import Link from "next/link";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import type { LineAdmission } from "../../../lib/lineFlow";
 import { InlineEdit } from "../settings/LineValueRow";
 import type { useLineAdmission } from "./useLineAdmission";

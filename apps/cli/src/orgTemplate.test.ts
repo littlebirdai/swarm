@@ -1,4 +1,4 @@
-import { defaultTrustFor } from "@codecast/shared/contracts/roleAutonomy";
+import { defaultTrustFor } from "@codecast/org/roleAutonomy";
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";

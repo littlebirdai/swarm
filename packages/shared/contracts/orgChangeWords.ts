@@ -9,7 +9,7 @@
 // orgProposal, so a value import back would read a binding during the
 // partial load (convex/moduleLoad.test.ts). No React, no store, no tree.
 
-import { autonomyOn } from "./roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import {
   andList,
   authorityWords,

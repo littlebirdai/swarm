@@ -4,13 +4,7 @@ import {
   parseRoleCardInitiativeLine,
   roleCardLines,
   type RoleCard,
-} from "./roleCard";
-export {
-  roleCardInitiativeLine,
-  roleCardLines,
-  type RoleCard,
-  type RoleCardInitiative,
-} from "./roleCard";
+} from "@codecast/org/roleCard";
 // The summary Claude Code writes when it compacts a conversation, synced as a
 // user-role row. It covers everything before it, so a transcript rebuilt from
 // codecast starts at the latest one (cli jsonlGenerator), a full-context park
@@ -681,7 +675,7 @@ export interface ScheduledTaskFrame {
   trigger?: string;
   /** The event that fired it; absent on a scheduled or manual run. */
   event?: string;
-  /** What a person focused this run on (orgReview.ts ORG_REVIEW_FOCUSES), as
+  /** What a person focused this run on (@codecast/org/orgReview ORG_REVIEW_FOCUSES), as
    *  the run line says it; absent on the routine's own run. */
   focus?: string;
   waiting?: WaitingSession | null;

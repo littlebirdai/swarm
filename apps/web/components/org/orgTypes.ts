@@ -5,7 +5,7 @@
 import type { WorkState } from "@codecast/sessions/workState";
 import type { OrgTenureSpec } from "@codecast/shared/contracts/orgProposal";
 import type { RoleIcon } from "@codecast/org/roleIcon";
-import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";
+import type { RoleFailover } from "@codecast/org/roleFailover";
 
 export type StateCounts = Record<WorkState, number>;
 

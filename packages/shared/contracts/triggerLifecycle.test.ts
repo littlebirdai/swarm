@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  formatScheduledTask,
-  parseScheduledTask,
-  type RoleCard,
-} from "./machineMessages";
-import { ORG_REVIEW_FOCUSES } from "./orgReview";
+import { formatScheduledTask, parseScheduledTask } from "./machineMessages";
+import type { RoleCard } from "@codecast/org/roleCard";
+import { ORG_REVIEW_FOCUSES } from "@codecast/org/orgReview";
 import {
   pendingEventsBlock,
   runOwnerOf,
@@ -261,7 +258,7 @@ describe("triggerRunFrame", () => {
     }
   });
 
-  // A focus a person gave one run (orgReview.ts): named on the frame, its
+  // A focus a person gave one run (@codecast/org/orgReview): named on the frame, its
   // words ahead of the routine's own, and gone from the next plain run.
   test("a focused run names its focus and leads with the focus's words; an unknown key is no focus", () => {
     const focused = triggerRunFrame(

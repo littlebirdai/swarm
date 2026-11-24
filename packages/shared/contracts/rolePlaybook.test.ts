@@ -15,7 +15,7 @@ import {
   wakeTuneRefusal,
   wakeWords,
 } from "./rolePlaybook";
-import { parseStandingSection } from "./briefStanding";
+import { parseStandingSection } from "@codecast/org/briefStanding";
 import { orgEveryToMs } from "./orgProposal";
 
 // A role's playbook (org-staffing.md S38): five sections of its brief, one

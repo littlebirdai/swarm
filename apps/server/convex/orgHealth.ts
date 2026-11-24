@@ -21,7 +21,7 @@ import {
   type ResolvedScope,
 } from "./org";
 import { findRoleRoutineInAnyStatus } from "./lib/orgRoutine";
-import { parseStandingSection } from "@codecast/shared/contracts/briefStanding";
+import { parseStandingSection } from "@codecast/org/briefStanding";
 import {
   areaSignalsOf,
   areaStatusLine,
@@ -63,7 +63,7 @@ import {
   overloadRatio,
   type RoleLedger,
   type RoleLoad,
-} from "@codecast/shared/contracts/orgCapacity";
+} from "@codecast/org/orgCapacity";
 import { computeReportingPeople } from "./orgGoals";
 import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import {
@@ -86,7 +86,7 @@ import { roleCharterOf } from "./lib/roleCharter";
 // decision ladder, the tasks in scope, the send ledger between standing
 // sessions, chat mentions and the role history. Nothing here is stored.
 //
-// The thresholds live in @codecast/shared/contracts/orgCapacity; this file
+// The thresholds live in @codecast/org/orgCapacity; this file
 // only measures. `roleActivity` is the one reading of a role's wakes and idle
 // time, shared with the analyzer inputs (orgInit.computeAnalysisInputs).
 

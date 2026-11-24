@@ -42,7 +42,7 @@ import {
   standingLineFor,
   standingLineStale,
   type StandingLine,
-} from "@codecast/shared/contracts/briefStanding";
+} from "@codecast/org/briefStanding";
 import {
   parsePlaybook,
   playbookIsEmpty,

@@ -31,7 +31,7 @@ const areaOf = (projects: string[]) =>
       ? projects.join(", ")
       : `${projects.length} projects`;
 
-/** A role's own switch (shared/contracts/roleAutonomy): it starts work and answers decisions in its area. */
+/** A role's own switch (@codecast/org/roleAutonomy): it starts work and answers decisions in its area. */
 export function roleAutonomyLedger(r: {
   name: string;
   handle: string;

@@ -7,7 +7,7 @@ import {
   COMPANY_REVIEW_TITLE,
   orgReviewFocusOf,
   type OrgReviewFocusKey,
-} from "@codecast/shared/contracts/orgReview";
+} from "@codecast/org/orgReview";
 
 export type RoleOfferTrigger = {
   id: string;

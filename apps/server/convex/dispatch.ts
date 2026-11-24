@@ -4555,7 +4555,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Trigger verbs (store triggerAction / deleteTrigger). The client flipped
   // the agent_tasks row on its draft; these run the real mutations, which own
   // leases, rescheduling and the run-now kick.
-  // runNow may carry a focus for that one run (orgReview.ts); the other verbs ignore it.
+  // runNow may carry a focus for that one run (@codecast/org/orgReview); the other verbs ignore it.
   triggerAction: async (
     ctx,
     userId,

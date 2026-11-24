@@ -54,7 +54,7 @@ export const meta: SurfaceMeta = {
     "role-wake",
     "packages/shared/contracts/machineMessages.ts",
     "apps/server/convex/lib/orgRoutine.ts",
-    "packages/shared/contracts/briefStanding.ts",
+    "packages/org/src/briefStanding.ts",
     "packages/shared/contracts/rolePlaybook.ts",
     "apps/cli/src/briefLines.ts",
     "apps/evals/src/served.ts",

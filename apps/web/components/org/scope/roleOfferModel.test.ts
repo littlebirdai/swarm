@@ -2,7 +2,7 @@
 // above its composer shows for a trigger, a seat and a workspace's proposals.
 // Run: bun test components/org/scope/roleOfferModel.test.ts
 import { describe, expect, test } from "bun:test";
-import { COMPANY_REVIEW_TITLE } from "@codecast/shared/contracts/orgReview";
+import { COMPANY_REVIEW_TITLE } from "@codecast/org/orgReview";
 import {
   REVIEW_WINDOW_MS,
   companyReviewOf,

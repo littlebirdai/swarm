@@ -3,7 +3,7 @@ import {
   goalSectionMatchesPerson,
   parseGoalLine,
   parseGoalSections,
-} from "./roleGoals";
+} from "../src/roleGoals";
 
 // Goals in a role's brief (org-roles-run-work.md R6): one section per person,
 // one goal per line, the priority in parentheses, the matches as short ids.

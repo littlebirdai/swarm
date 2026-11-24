@@ -209,7 +209,7 @@ The sentences under "Where it stands" are the role's. Its brief gains a section 
 A mount test renders the Calling lead's fixture (two projects, six plans, 83 tasks, 33 waiting sessions) and asserts the first screen holds exactly: two project sentences, one activity line, and no digit outside those. A second test renders a role with no brief lines and asserts the empty sections are hidden. The role prompt change is proved with the harness on a saved frame: three samples, each ending its turn with the section current.
 
 **As built (2026-09-23).** The section has one parser,
-`@codecast/shared/contracts/briefStanding`: `## Where it stands`, one list
+`@codecast/org/briefStanding`: `## Where it stands`, one list
 line per project, the project before the colon (matched by title or short
 id), the day the role wrote it in parentheses at the end of the line or
 right after the project's name (the dry runs wrote both), and the words a

@@ -13,8 +13,8 @@ import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
 import { requireTeamAdmin, resolveSessionConversation } from "./lib/access";
 import { SESSION_SHORT_ID_RE } from "@codecast/chat";
-import { atCap } from "@codecast/shared/contracts/orgCapacity";
-import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
+import { atCap } from "@codecast/org/orgCapacity";
+import { lineStartsOn } from "@codecast/org/roleAutonomy";
 import { utcDay } from "./lib/orgCaps";
 import { flowAgents, WORKING_RUN_STATUSES } from "./lib/linePlacement";
 import {

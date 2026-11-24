@@ -29,7 +29,7 @@ A proposal is staffing and budgeting in one: it moves scope, people and budget.
 One role holds one context window. Its frame is capped (3000 characters of
 facts) and its brief is short, so what flows into a seat must fit in what one
 agent can hold in its head between wakes. The thresholds live in ONE module,
-`packages/shared/contracts/orgCapacity.ts`, read by the server health query and
+`packages/org/src/orgCapacity.ts`, read by the server health query and
 rendered into the analyzer prompt (`renderCapacityModel`, which also carries
 the guidance on how to read and size with the numbers), so the product never
 argues with itself.
@@ -988,7 +988,7 @@ A role's sessions are subagent rows under the role's card: the same small row a 
 Web: the role page's Settings tab (one switch, Limits disclosure), the chart's role card, the inbox card (count, no nested rows), the proposal thread and asks, history lines, the first visit copy. CLI: `cast role trust` becomes `cast role autonomy on|off` with the old verb as an alias for one release; `cast role caps` moves under `cast role limits`. Convex: the switch mapping, the actor resolution in `performEscalateSession`, the analyzer input and prompt (sizing gone), the standing text and the frame. Eval: the sizing rubric line removed; one round on Union to confirm no ask about limits appears and the cards still stand alone.
 
 **As built (2026-09-23).** The switch is one shared mapping,
-`@codecast/shared/contracts/roleAutonomy`: `autonomyOn(trust)` is true for
+`@codecast/org/roleAutonomy`: `autonomyOn(trust)` is true for
 `direct` and `decide`, `trustForSwitch(on)` writes `direct` or `understand`,
 and the words a person reads (`Starts work on its own`, "starts work on its
 own", "turned on/off starting work on its own") live beside it. The stored
@@ -1058,7 +1058,7 @@ The card is answered, never clicked through. A person approves a change, rejects
 
 The same conversation runs on the org page, beside the chart, and from `/cast-org` in any session.
 
-**The thread offers the review itself (2026-10-02).** Nobody types a slash command to set the org up or bring it up to date: the Head of People's own thread (its role page, the inbox pane that renders it, the header panel) carries one calm row above the composer, `RoleOffer` (components/org/scope), read as the role's offer rather than a toolbar. "Set up the org" while no proposal has ever been made and "Review the org now" after, both the Company review trigger run now (`triggerAction(id, "runNow")`, the same run `cast trigger run` and the Triggers tab start, so it stays one trigger the person controls); "Plan the goal tree", the same run with a focus (`agent_tasks.requested_run_focus`, a key of `ORG_REVIEW_FOCUSES` in `shared/contracts/orgReview.ts`, carried into the run's frame as a `focus` attribute and the focus's words ahead of the routine's prompt, cleared when the run completes); and "Open the proposal" while one waits, with what is left to decide. The row derives one state (`roleOfferModel.ts`) from the seat's Company review trigger, the seat's work state and the workspace's proposals: a run asked for and not yet delivered reads as starting, a delivered run the seat is still working on reads as reviewing, and in both nothing on the row can start a second run. The proposal's card lands in the thread where the role posts its short id; the row never draws it twice. A pause the person set holds: the row offers to resume, never to run around it. A reader who may not talk to the seat gets the state and the proposal, no run buttons. `window.__roleOffer.fake(...)` moves the row on a real page without dispatching, for looking at its states.
+**The thread offers the review itself (2026-10-02).** Nobody types a slash command to set the org up or bring it up to date: the Head of People's own thread (its role page, the inbox pane that renders it, the header panel) carries one calm row above the composer, `RoleOffer` (components/org/scope), read as the role's offer rather than a toolbar. "Set up the org" while no proposal has ever been made and "Review the org now" after, both the Company review trigger run now (`triggerAction(id, "runNow")`, the same run `cast trigger run` and the Triggers tab start, so it stays one trigger the person controls); "Plan the goal tree", the same run with a focus (`agent_tasks.requested_run_focus`, a key of `ORG_REVIEW_FOCUSES` in `packages/org/src/orgReview.ts`, carried into the run's frame as a `focus` attribute and the focus's words ahead of the routine's prompt, cleared when the run completes); and "Open the proposal" while one waits, with what is left to decide. The row derives one state (`roleOfferModel.ts`) from the seat's Company review trigger, the seat's work state and the workspace's proposals: a run asked for and not yet delivered reads as starting, a delivered run the seat is still working on reads as reviewing, and in both nothing on the row can start a second run. The proposal's card lands in the thread where the role posts its short id; the row never draws it twice. A pause the person set holds: the row offers to resume, never to run around it. A reader who may not talk to the seat gets the state and the proposal, no run buttons. `window.__roleOffer.fake(...)` moves the row on a real page without dispatching, for looking at its states.
 
 ## S25. A role wakes through triggers and messages, nothing else
 
@@ -1157,7 +1157,7 @@ What an assistant can do is what the opening says today, scoped to its reach: an
 ## S32. Knowledge handoff when roles change
 
 Written 2026-10-02. A role's knowledge is its brief: its notes and the dated
-lines under `## Where it stands` (`packages/shared/contracts/briefStanding.ts`).
+lines under `## Where it stands` (`packages/org/src/briefStanding.ts`).
 When an accepted change moves an area (a project or a plan) from one role to
 another, the knowledge moves with it, and nothing is lost in silence.
 

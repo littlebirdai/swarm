@@ -49,7 +49,7 @@ import {
   unclaimedLine,
 } from "./taskClaim.js";
 import { ASSIGNEE_MEANS } from "@codecast/org/orgAssignee";
-import { usedOf } from "@codecast/shared/contracts/orgCapacity";
+import { usedOf } from "@codecast/org/orgCapacity";
 import {
   chatSendOrigin,
   sessionIdFromEnv,
@@ -61,7 +61,7 @@ import {
   autonomySentence,
   lineStartsOn,
   switchFromStageWord,
-} from "@codecast/shared/contracts/roleAutonomy";
+} from "@codecast/org/roleAutonomy";
 import open from "open";
 import * as fs from "fs";
 import { selfExecInfo } from "./selfExec.js";

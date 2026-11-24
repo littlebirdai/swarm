@@ -38,7 +38,7 @@ import { personReportsToMap } from "./orgPeople";
 import { pendingOnLadder } from "./sessionDecisions";
 import { isScopeless, type Scope } from "./lib/orgScope";
 import { capsFor, countersNow, trustOf } from "./lib/orgCaps";
-import type { RoleDailyCaps } from "@codecast/shared/contracts/orgCapacity";
+import type { RoleDailyCaps } from "@codecast/org/orgCapacity";
 import { findRoleRoutine } from "./lib/orgRoutine";
 import { roleWakeOf } from "@codecast/shared/contracts/rolePlaybook";
 import { extractPlanTitleForWeb } from "./docs";
