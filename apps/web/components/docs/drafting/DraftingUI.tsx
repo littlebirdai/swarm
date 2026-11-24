@@ -10,7 +10,7 @@ import {
   wordCount,
   type AltOption,
   type TrimLevel,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { KeyCap } from "../../KeyboardShortcutsHelp";
 import { isMac } from "../../../shortcuts";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";

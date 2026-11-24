@@ -6,7 +6,7 @@ import {
   extractMentionHandles,
   memberHandle,
   mentionsHere,
-} from "./handles";
+} from "../src/handles";
 
 // This module is imported by the SERVER's mention resolver and by both clients'
 // completion strips. These tests are the contract that a handle offered is a

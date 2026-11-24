@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { ArrowUpRight, CornerDownRight } from "lucide-react";
-import { dmKeyFor } from "@codecast/shared/chat";
+import { dmKeyFor } from "@codecast/chat";
 import { useInboxStore, type ChatMessageRow } from "../../store/inboxStore";
 import { findDmChannelId } from "../../store/chatSlice";
 import {

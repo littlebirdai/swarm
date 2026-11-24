@@ -24,7 +24,7 @@ import {
   type CodecastEventProps,
 } from "@codecast/analytics";
 import { CHUNK_LOAD_ERROR_PATTERNS } from "./chunkReloadGuard";
-import { DOC_REWRITTEN_ERROR } from "@codecast/shared/docs";
+import { DOC_REWRITTEN_ERROR } from "@codecast/docs";
 import codecastJson from "../codecast.json";
 import { parseCodecastConfig } from "@codecast/shared/contracts/codecastConfig";
 

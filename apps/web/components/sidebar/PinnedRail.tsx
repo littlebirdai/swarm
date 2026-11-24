@@ -25,7 +25,7 @@ import {
   dmCounterpart,
   memberName,
 } from "../../lib/chatViews";
-import { dmOtherIds } from "@codecast/shared/chat";
+import { dmOtherIds } from "@codecast/chat";
 import { CommentAvatar } from "../comments/CommentAvatar";
 import {
   readPins,

@@ -16,7 +16,7 @@ import {
   findDraftSpans,
   DraftTargetError,
   TRIM_REASON,
-} from "./drafting";
+} from "../src/drafting";
 
 const DOC =
   "Much of the tension in product design.\n\nLike a paperclip, for example.";
@@ -154,7 +154,7 @@ describe("editor JSON bridge", () => {
 });
 
 describe("Lab results in markdown", () => {
-  const { applyLabResult, dropAlternative } = require("./drafting");
+  const { applyLabResult, dropAlternative } = require("../src/drafting");
   test("a new trim replaces the last one; misses are reported", () => {
     let r = applyLabResult(DOC, {
       tool: "trim",

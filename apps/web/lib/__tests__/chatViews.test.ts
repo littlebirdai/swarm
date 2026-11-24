@@ -16,7 +16,7 @@ import {
 } from "../chatViews";
 import type { ChatMessageRow, ChatReactionRow } from "../../store/chatSlice";
 import { sessionPersonasFrom } from "../../hooks/useChatSync";
-import { dmOtherIds, sessionDmKeyFor } from "@codecast/shared/chat";
+import { dmOtherIds, sessionDmKeyFor } from "@codecast/chat";
 
 const ME: ChatMember = {
   _id: "u1",

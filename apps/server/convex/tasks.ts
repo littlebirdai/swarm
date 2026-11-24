@@ -145,7 +145,7 @@ import {
   touchThread,
   type TaskCommentAuthorKind,
 } from "./threadReads";
-import { extractMentionHandles } from "@codecast/shared/chat";
+import { extractMentionHandles } from "@codecast/chat";
 import { resolveTeamForPath } from "./privacy";
 import { watchUntilFor } from "./lib/lineWatch";
 import { isLineRun } from "@codecast/shared/contracts/changeCard";

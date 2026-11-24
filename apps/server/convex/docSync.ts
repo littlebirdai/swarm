@@ -3,7 +3,7 @@ import {
   DOC_REWRITTEN_ERROR,
   docTitleFromContent,
   serializeDraftRuns,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";

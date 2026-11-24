@@ -3,7 +3,7 @@
 // mention grammar or the preview sanitizer.
 
 import { parseQueryTerms } from "@codecast/shared/search";
-import { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/shared/chat";
+import { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/chat";
 import { titleLine } from "@codecast/shared/contracts";
 
 // Chat rows sync to every team member's browser and land in IndexedDB on every
@@ -22,7 +22,7 @@ export const MAX_CHANNELS_PER_TEAM = 200;
 // with extra steps; a group DM past a handful of faces is a channel that wants
 // a name.
 export const MAX_CHANNEL_MEMBERS = 100;
-export { MAX_DM_MEMBERS } from "@codecast/shared/chat";
+export { MAX_DM_MEMBERS } from "@codecast/chat";
 // Unread badges are capped and rendered as "50+". Convex has no count
 // aggregate, so an uncapped count would pull a channel's whole backlog for a
 // number nobody reads past two digits.
@@ -54,7 +54,7 @@ export function normalizeChannelName(raw: string): string {
 // `@here` is a scope, not a person, so it is reported separately. `@channel` is
 // not supported: on a team small enough to share one codecast workspace it is
 // `@here` with worse manners.
-// The vocabulary itself lives in @codecast/shared/chat/handles so the clients'
+// The vocabulary itself lives in @codecast/chat (handles.ts) so the clients'
 // completion strips and this server resolve the SAME handles. Re-exported here
 // so convex-side callers keep one import path.
 export {
@@ -64,12 +64,12 @@ export {
   botHandle,
   emailLocalHandle,
   memberHandle,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 
-// The preview sanitizer (oneLine, plainPreview) lives in @codecast/shared/chat
+// The preview sanitizer (oneLine, plainPreview) lives in @codecast/chat
 // so a client renders a room's preview from the stored row with the same rules
 // the server applies to a push or a notification.
-export { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/shared/chat";
+export { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/chat";
 
 /** The session title a chat line is stamped with: paste markers out, one
  *  line, 80 characters. Undefined when the session has no title to show. */

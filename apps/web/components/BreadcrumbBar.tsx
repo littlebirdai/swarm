@@ -18,7 +18,7 @@ import { memo, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useInboxStore } from "../store/inboxStore";
 import { channelDisplayName } from "../lib/chatViews";
-import { dmOtherIds } from "@codecast/shared/chat";
+import { dmOtherIds } from "@codecast/chat";
 import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
 import { buildBreadcrumbs, type BreadcrumbLookups } from "../lib/breadcrumbs";
 import { tabStageLayout } from "../lib/stage";

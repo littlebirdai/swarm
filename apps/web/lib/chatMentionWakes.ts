@@ -9,7 +9,7 @@
 // disagree (the server resolved something this client could not), the line
 // falls back to the count, which is always true.
 
-import { SESSION_SHORT_ID_RE } from "@codecast/shared/chat";
+import { SESSION_SHORT_ID_RE } from "@codecast/chat";
 
 export type MentionWakes = {
   roles: number;

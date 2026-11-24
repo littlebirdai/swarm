@@ -8,7 +8,7 @@ import {
   channelMemberIds,
   isRestricted,
 } from "../chatAccess";
-import { isSilentAgentRow, isThreadMuted } from "@codecast/shared/chat";
+import { isSilentAgentRow, isThreadMuted } from "@codecast/chat";
 import { teamRoster } from "./mentionResolve";
 import { isDesktopActivePresence } from "../pushRouter";
 import { HERE_PRESENCE_MS, notifyLevelAllows } from "../chatText";

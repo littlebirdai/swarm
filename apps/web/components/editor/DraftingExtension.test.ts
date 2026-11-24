@@ -8,7 +8,7 @@ let Editor: typeof import("@tiptap/core").Editor;
 let createBaseExtensions: typeof import("./editorExtensions").createBaseExtensions;
 let D: typeof import("./DraftingExtension");
 let toMarkdown: typeof import("@codecast/convex/convex/docSync").toMarkdown;
-let shared: typeof import("@codecast/shared/docs");
+let shared: typeof import("@codecast/docs");
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
@@ -31,7 +31,7 @@ beforeAll(async () => {
   ({ createBaseExtensions } = await import("./editorExtensions"));
   D = await import("./DraftingExtension");
   ({ toMarkdown } = await import("@codecast/convex/convex/docSync"));
-  shared = await import("@codecast/shared/docs");
+  shared = await import("@codecast/docs");
 }, 120_000);
 
 function make(markdown: string) {

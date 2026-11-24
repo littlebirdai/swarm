@@ -47,7 +47,7 @@ import {
   type MetricStanding,
   type MetricTrend,
 } from "@codecast/shared/contracts/initiative";
-import { memberHandle } from "@codecast/shared/chat";
+import { memberHandle } from "@codecast/chat";
 import {
   stripMachineText,
   stripMarkdown,

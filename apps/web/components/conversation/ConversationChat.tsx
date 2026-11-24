@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useState } from "react";
 import { ArrowUpRight, ChevronDown, MessageSquare } from "lucide-react";
-import { dmKeyFor } from "@codecast/shared/chat";
+import { dmKeyFor } from "@codecast/chat";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { holdConversationChatPeople } from "../../hooks/useConversationChatPeople";
 import { findDmChannelId, type ChatAttachment } from "../../store/chatSlice";

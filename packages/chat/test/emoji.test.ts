@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { emojiToShortcode, replaceShortcodes, shortcodeToEmoji } from "./emoji";
+import {
+  emojiToShortcode,
+  replaceShortcodes,
+  shortcodeToEmoji,
+} from "../src/emoji";
 
 describe("emoji shortcodes", () => {
   test("rotating_light and the rest of Slack's standard set become glyphs", () => {

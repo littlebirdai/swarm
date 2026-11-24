@@ -146,7 +146,7 @@ Waking every member of a room at once gets N replies written in parallel,
 none of which saw the others. In a room with two or more agent members
 (never a DM), a line opens a ROUND on its thread instead, and the members
 answer one at a time. The turn model is pure and shared
-(`@codecast/shared/chat` rounds.ts); `convex/chatRounds.ts` does the waking.
+(`@codecast/chat` rounds.ts); `convex/chatRounds.ts` does the waking.
 The round's state lives on the thread root (`chat_messages.round`), so every
 client gets it with the row.
 
@@ -181,7 +181,7 @@ client gets it with the row.
 ## Shapes (as shipped)
 
 `chat_messages.mentions` is one array with three entry shapes
-(`@codecast/shared/chat` `ChatMentionRef`; helpers `mentionUserIds`,
+(`@codecast/chat` `ChatMentionRef`; helpers `mentionUserIds`,
 `mentionRoles`, `mentionSessions`, `mentionsId`, `mentionKey`):
 
 ```

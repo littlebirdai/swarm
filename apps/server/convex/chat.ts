@@ -82,7 +82,7 @@ import {
   tallyUnread,
   threadFaceKey,
   withThreadMuted,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import {
   HUDDLE_DIGEST_CLIENT_ID_PREFIX,
   isHostedAgentType,
@@ -810,7 +810,7 @@ async function railFor(
           )
           .take(UNREAD_CAP * 2 + 1)
       : [];
-    // The shared unread rule (@codecast/shared/chat tallyUnread): every
+    // The shared unread rule (@codecast/chat tallyUnread): every
     // client tallies the rows it holds with the same function, so the badge
     // this rail raises is the one opening the channel clears.
     const tally = userId

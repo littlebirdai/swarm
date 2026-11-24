@@ -45,7 +45,7 @@ import {
   dmOtherIds,
   memberHandle,
   plainPreview,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import {
   channelHuddleMemberIds,
   chatRoomKey,

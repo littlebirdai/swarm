@@ -43,7 +43,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { dmKeyFor } from "@codecast/shared/chat";
+import { dmKeyFor } from "@codecast/chat";
 import { isChatRailLive, subscribeChatRailLive } from "../../lib/chatLive";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "convex/react";

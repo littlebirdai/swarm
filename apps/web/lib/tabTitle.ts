@@ -15,7 +15,7 @@ import {
   inWorkspace,
   type WorkspaceKey,
 } from "./workspaceScope";
-import { dmOtherIds } from "@codecast/shared/chat";
+import { dmOtherIds } from "@codecast/chat";
 import { currentPagePath } from "./renamedPages";
 import { orgRefOfPath } from "../components/org/company/sheetStack";
 import { modernRecordTitle } from "./modernRecordTitle";

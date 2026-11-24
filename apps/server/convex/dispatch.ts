@@ -142,7 +142,7 @@ import { reactivateTasksCanceledOnKill } from "./lib/agentTaskRows";
 import { canAccessDoc } from "./docs";
 import { requireArtifactEditor } from "./lib/liveArtifactAccess";
 import { applyAsWebUser } from "./liveArtifacts";
-import { docTypeChangeAllowed } from "@codecast/shared/docs";
+import { docTypeChangeAllowed } from "@codecast/docs";
 import { startHostedConversationFor } from "./assistant/entry";
 import { castMachinesEnabledFor, startOnCastMachine } from "./castMachines";
 import {

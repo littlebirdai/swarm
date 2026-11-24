@@ -17,12 +17,12 @@ import {
   type LabRequest,
   type LabResult,
   type TrimLevel,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 
 // The doc Lab: model help for a writer that never rewrites their text. The
 // model only points at exact stretches of the writer's own words (to dim, to
 // flag, to fix) or offers alternatives for one stretch; the result lands as
-// drafting markup (@codecast/shared/docs drafting) the writer keeps or drops.
+// drafting markup (@codecast/docs drafting) the writer keeps or drops.
 // The web applies results in the live editor; `cast doc lab` applies them to
 // the stored markdown through the same applyLabResult.
 

@@ -1,5 +1,5 @@
 import type { MentionItem } from "./mentionItem";
-import { mentionUserIds } from "@codecast/shared/chat";
+import { mentionUserIds } from "@codecast/chat";
 import { parseChatDraftKey } from "./chatDraftKey";
 
 // What the conversation the reader is typing into already talks about.

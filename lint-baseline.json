@@ -28528,6 +28528,51 @@
   "packages/async/src/index.ts": {
     "swarm/no-comments": 2
   },
+  "packages/chat/src/agent.ts": {
+    "swarm/no-comments": 24
+  },
+  "packages/chat/src/dm.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/chat/src/emoji.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/chat/src/emojiData.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/chat/src/handles.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/chat/src/index.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/chat/src/mentions.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/chat/src/preview.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/chat/src/rounds.ts": {
+    "swarm/no-comments": 37
+  },
+  "packages/chat/src/threadMute.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/chat/src/timeline.ts": {
+    "swarm/no-comments": 56
+  },
+  "packages/chat/src/voice.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/chat/test/handles.test.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/chat/test/rounds.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/chat/test/timeline.test.ts": {
+    "swarm/no-comments": 21
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -28541,6 +28586,18 @@
     "swarm/no-comments": 2
   },
   "packages/diff/test/rangeFold.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/docs/src/drafting.ts": {
+    "swarm/no-comments": 52
+  },
+  "packages/docs/src/index.ts": {
+    "swarm/no-comments": 43
+  },
+  "packages/docs/test/docs.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/docs/test/drafting.test.ts": {
     "swarm/no-comments": 1
   },
   "packages/files/src/index.ts": {
@@ -28791,51 +28848,6 @@
   },
   "packages/shared/changes/week.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/chat/agent.ts": {
-    "swarm/no-comments": 24
-  },
-  "packages/shared/chat/dm.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/chat/emoji.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/chat/emojiData.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/chat/handles.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/chat/handles.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/chat/index.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/chat/mentions.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/chat/preview.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/chat/rounds.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/chat/rounds.ts": {
-    "swarm/no-comments": 37
-  },
-  "packages/shared/chat/threadMute.ts": {
-    "swarm/no-comments": 9
-  },
-  "packages/shared/chat/timeline.test.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/chat/timeline.ts": {
-    "swarm/no-comments": 56
-  },
-  "packages/shared/chat/voice.ts": {
-    "swarm/no-comments": 15
   },
   "packages/shared/comments/anchorKey.test.ts": {
     "swarm/no-comments": 1
@@ -29955,18 +29967,6 @@
   },
   "packages/shared/contracts/worktrees.ts": {
     "swarm/no-comments": 13
-  },
-  "packages/shared/docs/docs.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/docs/drafting.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/docs/drafting.ts": {
-    "swarm/no-comments": 52
-  },
-  "packages/shared/docs/index.ts": {
-    "swarm/no-comments": 43
   },
   "packages/shared/entities/bareIds.test.ts": {
     "swarm/no-comments": 3

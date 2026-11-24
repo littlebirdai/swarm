@@ -1,16 +1,12 @@
 import type { Command } from "commander";
-import {
-  LAB_FLAGS,
-  LAB_TRIMS,
-  TRIM_REASON,
-} from "@codecast/shared/docs/drafting";
+import { LAB_FLAGS, LAB_TRIMS, TRIM_REASON } from "@codecast/docs/drafting";
 import { stdinText } from "./sendBody.js";
 
 // `cast doc` drafting verbs: the same editing aids the doc page has
 // (alternatives, ghosts, the Overflow, the Lab), on the doc's stored markdown,
 // so an agent drafts the way a writer does and the writer sees it live: every
 // write resets the collab snapshot, and open editors reload with the marks.
-// The markup and its transforms live in @codecast/shared/docs (drafting).
+// The markup and its transforms live in @codecast/docs (drafting).
 // This file only declares the verbs; their bodies (docDraftingActions.ts)
 // load when one runs, so the CLI's boot graph carries only this registrar and
 // the constants its help text names.

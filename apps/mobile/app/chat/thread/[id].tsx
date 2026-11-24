@@ -38,7 +38,7 @@ import {
   buildChatTimeline,
   memberHandle,
   dmOtherIds,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { channelDisplayName } from "@codecast/web/lib/chatViews";
 import {
   MessageRow,

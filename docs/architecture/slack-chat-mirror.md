@@ -38,7 +38,7 @@ A team whose managed policy sets `regulated_data` (HIPAA, plan pl-990) sends Sla
 - Anyone else is the bridge identity plus `external_author`. The web renders the snapshot's name and face (`lib/chatViews.slackAuthorFor`), a Slack app with no face gets the Slack mark as its avatar, and the row wears an "app" chip.
 - `<@U>` mentions in Slack text become `@handle` only for mapped teammates. Everyone else becomes `@‌Name` with a zero width space after the `@`, so a Slack name can never page a codecast teammate who happens to share it: a link (`slackPersonHref`: their shadow DM room, else Slack's profile redirect) when the profile is cached, else bold text. The bot's own `<@U_bot>` becomes the team anchor's handle.
 - The other way, a codecast line may name a Slack person who has no codecast account. `resolveChatMentions` tries a handle nobody here answers to against the workspace's `slack_users` (their Slack @name, index `by_workspace_handle`) and stores a `{ kind: "slack", user, handle, name }` ref; the row renders it as a person chip wearing the Slack mark, and `pushMessage` writes the real `<@U>` so they are paged in Slack. A Slack person already matched to a teammate resolves to the teammate instead. The composer offers these people in its @ popup (store `chatSlackPeople`, fed by `listSlackPeople`) with the Slack mark beside the name.
-- Every inbound line by an unmatched person is written by the one bridge user, so nothing may group or dedupe on `user_id` alone: the timeline groups by the rendered identity (`@codecast/shared/chat` `authorGroupKey`), and thread faces dedupe by the same key (`threadFaceKey`), on the server rollup and both clients.
+- Every inbound line by an unmatched person is written by the one bridge user, so nothing may group or dedupe on `user_id` alone: the timeline groups by the rendered identity (`@codecast/chat` `authorGroupKey`), and thread faces dedupe by the same key (`threadFaceKey`), on the server rollup and both clients.
 - Outbound, agents are named `Name (agent)` or `Title (agent · via Human)` so a Slack reader never mistakes a machine for the teammate hosting it.
 
 ## Controls
@@ -90,7 +90,7 @@ The client keeps a second copy of this rule. Its channel cache only ever grows, 
 
 ## History is not unread
 
-An imported line was read where it was written, often months ago; arriving here is a move, not an event. `railFor` therefore excludes history from both unread numbers, using the derived `isHistoryLine` (`@codecast/shared/chat`: the line was synced more than five minutes after it was written) rather than a stored flag, so the rule applies to rooms that were imported before it existed. Imported lines also skip `announceChatMessage`, so they notify nobody. A line that arrives live in a mirrored room is synced as it is written, so it counts normally.
+An imported line was read where it was written, often months ago; arriving here is a move, not an event. `railFor` therefore excludes history from both unread numbers, using the derived `isHistoryLine` (`@codecast/chat`: the line was synced more than five minutes after it was written) rather than a stored flag, so the rule applies to rooms that were imported before it existed. Imported lines also skip `announceChatMessage`, so they notify nobody. A line that arrives live in a mirrored room is synced as it is written, so it counts normally.
 
 ## Install flow
 

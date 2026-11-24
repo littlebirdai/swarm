@@ -14,7 +14,7 @@ import {
   type ChatRound,
   type RoundMember,
   type RoundMemberState,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { useInboxStore } from "../../store/inboxStore";
 import { objectHref } from "../../lib/entityLinks";
 import "./chat.css";

@@ -6,7 +6,7 @@ import {
   mentionSessions,
   mentionUserIds,
   mentionsId,
-} from "./mentions";
+} from "../src/mentions";
 
 const rows = [
   "user-1",

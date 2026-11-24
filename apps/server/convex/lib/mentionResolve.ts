@@ -15,7 +15,7 @@ import {
   extractMentionHandles,
   matchHandle,
   type ChatMentionRef,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { entityMentionRegex } from "@codecast/shared/entities";
 import { emailLocalHandle } from "../chatText";
 import { liveRoleByHandle } from "./orgAccess";
@@ -45,7 +45,7 @@ export async function teamRoster(
 // self-editable, so matching them would let a member rename themselves to
 // intercept a teammate's mentions. Bots are matched on their name because an
 // anchor's name is admin-set, and a bot has no GitHub handle to match instead.
-// The rule is shared/chat's (matchHandle), re-exported here for @mention
+// The rule is @codecast/chat's (matchHandle), re-exported here for @mention
 // resolution, `--dm <handle>` and every server caller that names a person.
 export { matchHandle };
 

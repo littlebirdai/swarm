@@ -43,7 +43,7 @@ import {
   updateChannel,
 } from "./chat";
 import schema from "./schema";
-import { dmKeyFor, dmOtherIds } from "@codecast/shared/chat";
+import { dmKeyFor, dmOtherIds } from "@codecast/chat";
 import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
 import {
   listMine,

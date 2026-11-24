@@ -30,7 +30,7 @@ import {
   isSessionPartyId,
   mentionUserIds,
   threadFaceKey,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { isAgentMember, isPerson } from "@codecast/team/memberKind";
 
 export type ChatMember = {

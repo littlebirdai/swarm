@@ -2,7 +2,7 @@
 // per-thread read rows the Threads inbox counts from.
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { isLiveVoiceRow, isSilentAgentRow } from "@codecast/shared/chat";
+import { isLiveVoiceRow, isSilentAgentRow } from "@codecast/chat";
 import { touchThread } from "../threadReads";
 import { UNREAD_CAP } from "../chatText";
 import { patchChat } from "./chatRows";

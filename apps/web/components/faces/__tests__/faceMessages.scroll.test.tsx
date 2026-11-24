@@ -38,7 +38,7 @@ const restoreGlobals = replaceGlobals({
 const { createRoot } = await import("react-dom/client");
 const { FaceMessages } = await import("../FaceMessages");
 const { useInboxStore } = await import("../../../store/inboxStore");
-const { dmKeyFor } = await import("@codecast/shared/chat");
+const { dmKeyFor } = await import("@codecast/chat");
 const { activeTeamIdOf } = await import("../../../lib/activeTeam");
 
 let root: Root | null = null;

@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { useTitlebarHead } from "../hooks/useTitlebarHead";
 import { MenuKeyCaps } from "./KeyboardShortcutsHelp";
 import { matchesAction } from "../shortcuts";
-import { leadingHeading, stripTitleHeading } from "@codecast/shared/docs";
+import { leadingHeading, stripTitleHeading } from "@codecast/docs";
 import { useDrafting } from "./docs/drafting/useDrafting";
 import {
   AlternativesPanel,

@@ -30,7 +30,7 @@ import {
   DOC_TYPES,
   DOC_TYPE_LABELS,
   docTypeLabel,
-} from "@codecast/shared/docs";
+} from "@codecast/docs";
 import { DEFAULT_LABELS } from "../../lib/labelColors";
 import { docMatchesProjectFilter } from "../../lib/docFilters";
 import { knownCheckoutRoots } from "@codecast/convex/convex/projectPaths";
@@ -259,7 +259,7 @@ export function DocListContent() {
   // create) sit behind Agent-internal; docs machinery collected (session
   // extracts, file syncs, imports) behind Mined — the same split the tasks
   // board makes between agent work and triage suggestions. "all" shows
-  // everything. One shared rule (@codecast/shared/docs), so web and mobile
+  // everything. One shared rule (@codecast/docs), so web and mobile
   // can't drift. Legacy "human"/"bot" links map onto the new values.
   const sourceFilteredDocs = useMemo(
     () => filterDocsByShelf(docsList, sourceFilter),

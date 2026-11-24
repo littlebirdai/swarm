@@ -24,7 +24,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { getAuthenticatedUserId } from "./pendingMessages";
-import { isLiveVoiceRow, isSilentAgentRow } from "@codecast/shared/chat";
+import { isLiveVoiceRow, isSilentAgentRow } from "@codecast/chat";
 import { parseCommentThreadRootKey } from "@codecast/shared/comments";
 import { plainPreview } from "./chatText";
 import {

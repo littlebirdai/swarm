@@ -28407,7 +28407,7 @@ doc
     const sawBody = () =>
       noteDocRevisions(docLedgerSession(), "/cli/docs/get", { id }, result);
     if (options.clean || options.final) {
-      const { stripDrafting } = await import("@codecast/shared/docs/drafting");
+      const { stripDrafting } = await import("@codecast/docs/drafting");
       result.content = stripDrafting(result.content || "", {
         dropGhosts: !!options.final,
       });

@@ -38,7 +38,7 @@ import {
 } from "@codecast/shared/tasks";
 import { taskWaitValidator } from "./lib/taskWaitValidator";
 import { messagingPolicyValidator } from "./lib/messagingPolicyValidator";
-import { DOC_TYPES } from "@codecast/shared/docs";
+import { DOC_TYPES } from "@codecast/docs";
 import { LINE_CATEGORIES } from "@codecast/shared/contracts/goalsBrief";
 import { proseAnchorValidator } from "./lib/proseAnchorValidator";
 import { chatRoundValidator } from "./lib/chatRoundValidator";
@@ -8959,7 +8959,7 @@ export default defineSchema(
       workspace: v.optional(v.string()),
       title: v.string(),
       content: v.string(),
-      // Derived from @codecast/shared/docs DOC_TYPES so the schema and every
+      // Derived from @codecast/docs DOC_TYPES so the schema and every
       // client's type list cannot drift.
       doc_type: v.union(...DOC_TYPES.map((t) => v.literal(t))),
 
@@ -10920,7 +10920,7 @@ export default defineSchema(
       content: v.string(),
       // Resolved SERVER-side by parsing `content` against the team roster. Never a
       // caller argument: a client-supplied id array is a notification cannon.
-      // Three shapes in one array (@codecast/shared/chat ChatMentionRef): a bare
+      // Three shapes in one array (@codecast/chat ChatMentionRef): a bare
       // user id is a person (every row written before roles and sessions could be
       // named is this shape alone), an object is a role (`@<handle>`, org_roles),
       // a session (`@<7-char short id>`, conversations), or a person who exists
@@ -10965,7 +10965,7 @@ export default defineSchema(
       // The audio is a NORMAL attachment above (mime audio/webm) — a voice message
       // is a message with a recording, not a second kind of row, so playback,
       // search, permalinks and threads need nothing new. See
-      // @codecast/shared/chat isLiveVoiceRow: a live row renders but has not
+      // @codecast/chat isLiveVoiceRow: a live row renders but has not
       // notified, so it counts for nothing until it is done.
       voice: v.optional(
         v.object({
@@ -11035,7 +11035,7 @@ export default defineSchema(
       // placeholder: a reply in a thread the anchor follows woke it without
       // addressing it, and the anchor decides whether to speak; "passed" is its
       // decision to stay quiet. Neither renders anywhere and neither counts as a
-      // reply — see @codecast/shared/chat isSilentAgentRow. A session handed a
+      // reply — see @codecast/chat isSilentAgentRow. A session handed a
       // chat line gets a "thinking" row of its own (chatSessionReplies), closed
       // as a "passed" tombstone when it answers elsewhere or not at all.
       agent_status: v.optional(
@@ -11195,7 +11195,7 @@ export default defineSchema(
         v.literal("none"),
       ),
       // Thread roots in this channel whose replies this member silenced
-      // (@codecast/shared/chat threadMute). Mentions still notify.
+      // (@codecast/chat threadMute). Mentions still notify.
       muted_threads: v.optional(v.array(v.string())),
       joined_at: v.optional(v.number()),
       updated_at: v.number(),

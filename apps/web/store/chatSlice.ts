@@ -52,7 +52,7 @@ import {
   type ChatMentionRef,
   type ChatRound,
   type ChatVoiceStatus,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { normalizeChannelName } from "@codecast/convex/convex/chatText";
 import { humanizeConvexError } from "@codecast/shared/contracts";
 import {
@@ -226,7 +226,7 @@ export type ChatMessageRow = {
   author_kind?: "user" | "agent";
   content: string;
   /** People (bare user ids), roles and sessions the line names — the shared
-   *  shape (@codecast/shared/chat mentions.ts). Read through its helpers. */
+   *  shape (@codecast/chat mentions.ts). Read through its helpers. */
   mentions?: ChatMentionRef[];
   mention_scope?: "here";
   /** A role or session mention on this line was over its hourly cap and was

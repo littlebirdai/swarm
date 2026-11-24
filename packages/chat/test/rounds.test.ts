@@ -10,7 +10,7 @@ import {
   roundStrip,
   startRound,
   type ChatRound,
-} from "./rounds";
+} from "../src/rounds";
 
 const seeds = ["a", "b", "c"].map((k) => ({
   key: k,

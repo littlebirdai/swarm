@@ -32,7 +32,7 @@ import {
   shouldResyncOnExternalEdit,
 } from "../../lib/docSyncCache";
 import type { SyncApi } from "@convex-dev/prosemirror-sync";
-import { withTitleHeading } from "@codecast/shared/docs";
+import { withTitleHeading } from "@codecast/docs";
 
 const api = _api as any;
 

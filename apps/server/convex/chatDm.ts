@@ -3,7 +3,7 @@
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { channelAgentRows, channelMemberIds } from "./chatAccess";
-import { isSilentAgentRow } from "@codecast/shared/chat";
+import { isSilentAgentRow } from "@codecast/chat";
 
 type ReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
 

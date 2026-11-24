@@ -6,7 +6,7 @@
 
 import { makeCollectionSig } from "./wakeSig";
 import { identitySig } from "../lib/sessionIdentity";
-import { mentionKey, mentionUserIds } from "@codecast/shared/chat";
+import { mentionKey, mentionUserIds } from "@codecast/chat";
 import type {
   ChatChannelRow,
   ChatMessageRow,

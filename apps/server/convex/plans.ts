@@ -36,7 +36,7 @@ import {
   workspacesMatch,
 } from "./lib/access";
 import { notFound } from "./lib/auth";
-import { docSourceForPlanSource } from "@codecast/shared/docs";
+import { docSourceForPlanSource } from "@codecast/docs";
 import {
   renderFencedPlanRecord,
   renderFencedPlanTasks,

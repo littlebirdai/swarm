@@ -31,7 +31,7 @@ import {
 } from "../lib/chatViews";
 import { soundChatMessage } from "../lib/sounds";
 import { channelDisplayName } from "../lib/chatViews";
-import { dmOtherIds, isAgentTurnInFlight } from "@codecast/shared/chat";
+import { dmOtherIds, isAgentTurnInFlight } from "@codecast/chat";
 
 import { useWatchEffect } from "./useWatchEffect";
 import { notificationActor } from "../lib/notificationTypes";

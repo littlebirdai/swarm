@@ -17,7 +17,7 @@ import type { ChannelMenuPayload } from "../../hooks/useChannelMenu";
 import { useInboxStore } from "../../store/inboxStore";
 import type { ChatNotifyLevel } from "../../store/chatSlice";
 import { channelDisplayName } from "../../lib/chatViews";
-import { dmOtherIds } from "@codecast/shared/chat";
+import { dmOtherIds } from "@codecast/chat";
 import { readPins, isThreadsPin, togglePin } from "../../lib/sidebarPins";
 import { supersededChannelId } from "../../hooks/useChatSync";
 import "./chat.css";

@@ -1,4 +1,4 @@
-import { stripTitleHeading } from "@codecast/shared/docs";
+import { stripTitleHeading } from "@codecast/docs";
 import { useTextSize } from "@/hooks/useTextSize";
 import { sizeStyle } from "@/lib/textSize";
 import {

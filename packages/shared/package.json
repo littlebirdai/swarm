@@ -158,8 +158,6 @@
     "./render/codeRuns": "./render/codeRuns.ts",
     "./tasks": "./tasks/index.ts",
     "./tasks/resumeSources": "./tasks/resumeSources.ts",
-    "./docs": "./docs/index.ts",
-    "./docs/drafting": "./docs/drafting.ts",
     "./artifacts": "./artifacts/index.ts",
     "./artifacts/board": "./artifacts/board.ts",
     "./artifacts/sheet": "./artifacts/sheet.ts",
@@ -168,7 +166,6 @@
     "./vault": "./vault/index.ts",
     "./vault/frontmatter": "./vault/frontmatter.ts",
     "./memory": "./memory/index.ts",
-    "./chat": "./chat/index.ts",
     "./comments": "./comments/index.ts",
     "./blame": "./blame/index.ts",
     "./ratchet": "./ratchet/index.ts",
@@ -185,6 +182,8 @@
     "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {
+    "@codecast/chat": "workspace:*",
+    "@codecast/docs": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "css-tree": "3.2.1",

@@ -1,4 +1,4 @@
-// The stored shape of a chat round (@codecast/shared/chat rounds.ts), kept on
+// The stored shape of a chat round (@codecast/chat rounds.ts), kept on
 // the thread root's `round` field. A leaf so schema.ts imports it alone.
 
 import { v } from "convex/values";
