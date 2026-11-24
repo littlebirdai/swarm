@@ -7,7 +7,7 @@
 // superseded artifact still opens from its own link; nothing is deleted.
 // Finished work (a shipped run, an answered card, a closed problem) is
 // history, not superseded: history surfaces show every attempt.
-import { isTerminalTaskStatus } from "../tasks/statuses";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 
 export type SupersededWhy =
   | "merged" // the problem was folded into another

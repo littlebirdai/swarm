@@ -4,7 +4,7 @@
 // that had committed their fix and parked until a spent eval budget rolled
 // over were killed at 90 minutes (2026-10-23). A hand parked on a usage limit
 // or a throttle stops the clock the same way (runner.ts).
-import { waitLabel, type TaskWait } from "@codecast/shared/tasks";
+import { waitLabel, type TaskWait } from "@codecast/tasks/graph";
 
 /** A node's clock that leaves out the time its hand spends parked: from the first poll that finds it parked to the first that does not. */
 export class ParkedClock {

@@ -12,7 +12,7 @@ import {
   formatAge,
   type DecisionRow,
 } from "./decideCommand.js";
-import { graphChange, graphChangeText } from "@codecast/shared/tasks";
+import { graphChange, graphChangeText } from "@codecast/tasks/graphHistory";
 
 // One row of workflow_runs.listRuns (L8): the run plus the joins it ships.
 export interface RunRow {

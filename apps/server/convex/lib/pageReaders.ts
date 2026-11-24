@@ -21,7 +21,7 @@ import {
   PAGE_DATA_LIMITS,
   type PageDataReader,
 } from "@codecast/pages/pageData";
-import { isOnHumanBoard } from "@codecast/shared/tasks";
+import { isOnHumanBoard } from "@codecast/tasks";
 import { parseWorkspaceKey } from "./accessKeys";
 import { fetchUserUsageDays, seesTeamSpend } from "./usageDaily";
 import { resolveWorkspaceProject } from "./projectRef";

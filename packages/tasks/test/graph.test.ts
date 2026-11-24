@@ -38,7 +38,7 @@ import {
   waitingOnLabel,
   type DepNode,
   type TaskWait,
-} from "./index";
+} from "../src/index";
 
 const statuses: Record<string, string> = {
   "ct-1": "done",

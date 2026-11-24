@@ -1,4 +1,4 @@
-import { foreignTaskSource } from "@codecast/shared/tasks";
+import { foreignTaskSource } from "@codecast/tasks/foreignText";
 import { CONTINUE_BANNER_KINDS } from "@codecast/shared/contracts";
 import {
   resolveAgentLaunch,

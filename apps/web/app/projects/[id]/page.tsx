@@ -74,7 +74,7 @@ import {
 } from "../../../components/initiatives/IntentHeader";
 import { useWorkspaceFeature } from "../../../lib/teamFeatures";
 import { projectStatusOf } from "../../../lib/projectStatus";
-import { projectTaskCounts } from "@codecast/shared/tasks";
+import { projectTaskCounts } from "@codecast/tasks";
 import { TaskHrefProvider } from "../../../lib/taskHrefContext";
 import { findEntityInStore } from "../../../lib/liveEntities";
 import { PageHeader } from "../../../components/ui/page-header";

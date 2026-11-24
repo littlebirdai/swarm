@@ -34,7 +34,7 @@ import {
   buildTaskTree,
   isOnHumanBoard,
   taskFamilyIndex,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks";
 import {
   filterDocsByShelf,
   compareDocsDefault,

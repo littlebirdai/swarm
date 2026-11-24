@@ -7,7 +7,7 @@ import {
   FIXTURE_PROJECTS,
   FIXTURE_TASKS,
 } from "../../components/initiatives/initiativeFixture";
-import { projectTaskCounts } from "@codecast/shared/tasks";
+import { projectTaskCounts } from "@codecast/tasks";
 import {
   goalScopeInitiativeIds,
   goalScopeProjectIds,

@@ -1,5 +1,5 @@
 import type { Id } from "../_generated/dataModel";
-import { isOnProjectBoard, type ProjectProgress } from "@codecast/shared/tasks";
+import { isOnProjectBoard, type ProjectProgress } from "@codecast/tasks";
 import { heldKeysFor } from "./accessKeys";
 
 // Per-project task counts without reading the project's tasks. A project can
@@ -9,7 +9,7 @@ import { heldKeysFor } from "./accessKeys";
 // interceptor (changeLog.ts) moves a task between buckets on every write, and a
 // reader sums the buckets whose workspace key it holds.
 //
-// Only rows the project's board shows are counted (shared/tasks
+// Only rows the project's board shows are counted (@codecast/tasks
 // isOnProjectBoard), so every surface prints the board's number.
 //
 // Backfill and live writes share one cursor (project_task_count_state): a task

@@ -11,7 +11,7 @@ import { claimCandidates, claimNextReady } from "./taskFrontier";
 import { claimFrontier } from "./lib/claimFrontier";
 import { emitNotification } from "./notificationRouter";
 import { hashToken } from "./apiTokens";
-import { STALE_TASK_MS } from "@codecast/shared/tasks";
+import { STALE_TASK_MS } from "@codecast/tasks/frontier";
 
 const USER = "u_user";
 const TOKEN = "task-frontier-test-token";

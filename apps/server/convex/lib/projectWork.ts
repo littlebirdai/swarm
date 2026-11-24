@@ -1,9 +1,9 @@
 import type { Id } from "../_generated/dataModel";
-import type { ProjectProgress } from "@codecast/shared/tasks";
+import type { ProjectProgress } from "@codecast/tasks";
 import { canAccessTask } from "./access";
 import { projectCountsFor } from "./projectTaskCounts";
 
-// A project's progress as the board states it (shared/tasks
+// A project's progress as the board states it (@codecast/tasks
 // projectTaskCounts): the tasks that name the project and that the project's
 // board would show, done over the rest. The rule lives in shared so the
 // initiative page, the role page and `cast initiative show` print one number;

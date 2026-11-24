@@ -21,7 +21,8 @@ import {
   storeBlockerLines,
 } from "../taskRelations";
 import { storeStatusOf } from "../taskBlockers";
-import { graphChange, waitTargetOf } from "@codecast/shared/tasks";
+import { graphChange } from "@codecast/tasks/graphHistory";
+import { waitTargetOf } from "@codecast/tasks/graph";
 
 const WS = "team:t1";
 const NOW = Date.UTC(2026, 9, 8, 12);

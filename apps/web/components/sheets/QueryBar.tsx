@@ -13,7 +13,7 @@ import {
 } from "../ui/dropdown-menu";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 import { useMountEffect } from "../../hooks/useMountEffect";
-import { TASK_STATUS_CATEGORIES } from "@codecast/shared/tasks";
+import { TASK_STATUS_CATEGORIES } from "@codecast/tasks/statuses";
 import type { QuerySource, TabQuery } from "./sheetCore";
 import { QUERY_LABEL, ago } from "./sheetActions";
 

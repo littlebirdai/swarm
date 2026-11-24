@@ -53,7 +53,7 @@ async function verifyProjectHeader() {
   const { mock } = await import("bun:test");
   const React = await import("react");
   const { act } = React;
-  const { projectTaskCounts } = await import("@codecast/shared/tasks");
+  const { projectTaskCounts } = await import("@codecast/tasks");
 
   // ── the world the page reads ──
   const NOW = Date.UTC(2026, 8, 18, 12);

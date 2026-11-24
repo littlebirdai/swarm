@@ -38,11 +38,11 @@ import {
 import { inlineForeignText } from "@codecast/fence/fence";
 import {
   blockersHoldingBack,
-  docRelatesToTask,
-  isStaleTask,
   readinessOf,
   topologicalOrder,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { docRelatesToTask } from "@codecast/tasks/relatedDocs";
+import { isStaleTask } from "@codecast/tasks/frontier";
 import {
   assertDependencyEdges,
   offFrontierReason,
@@ -84,22 +84,24 @@ import {
 } from "./taskLinks";
 import {
   MAX_TASK_DEPTH,
+  isActiveTask,
+  isHumanOrigin,
+  subtaskProgressOf,
+} from "@codecast/tasks";
+import {
   TASK_STATUS_CATEGORIES,
   TERMINAL_TASK_CATEGORIES,
-  buildTaskSpawnPrompt,
   findTeamTaskStatus,
   invalidTaskStatusMessage,
-  isActiveTask,
   isTaskStatusCategory,
   isTerminalTaskStatus,
-  isHumanOrigin,
   resolveTaskStatus,
-  subtaskProgressOf,
   taskStatusAlias,
   taskStatusChoices,
   teamTaskStatuses,
-} from "@codecast/shared/tasks";
-import type { TeamTaskStatus } from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
+import { buildTaskSpawnPrompt } from "@codecast/tasks/foreignText";
+import type { TeamTaskStatus } from "@codecast/tasks/statuses";
 import {
   briefGoalRefs,
   LINE_CATEGORIES,
@@ -196,7 +198,7 @@ import { changeGuideInputValidator } from "./lib/changeGuideValidator";
 import { runWorkflowOf } from "./lib/runGraph";
 export { canAccessTask };
 
-// The six status CATEGORIES (see @codecast/shared/tasks/statuses.ts). Teams
+// The six status CATEGORIES (see @codecast/tasks/statuses.ts). Teams
 // refine them with named statuses; tasks.status always holds the category.
 const VALID_TASK_STATUSES = TASK_STATUS_CATEGORIES;
 
@@ -224,7 +226,7 @@ async function loadTeamTaskStatuses(
 }
 
 // Resolve a status write against the team's configured statuses (Linear-style
-// custom statuses; see @codecast/shared/tasks/statuses.ts).
+// custom statuses; see @codecast/tasks/statuses.ts).
 //
 // - `status` names a category, or a team status by id or name ("today"). A
 //   team status in `status` is the same write as sending it as `status_id`,

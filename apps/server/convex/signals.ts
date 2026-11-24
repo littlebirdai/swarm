@@ -55,7 +55,7 @@ import {
 import { noticeCauseReopened } from "./lineNotices";
 import { titleSimilarity } from "./taskMining";
 import { callModel } from "./lib/anthropic";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import {
   SIGNAL_KINDS,
   type SignalKind,

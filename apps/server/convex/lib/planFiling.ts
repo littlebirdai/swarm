@@ -5,7 +5,7 @@
 // plan's was filed on purpose and keeps it.
 
 import { Id } from "../_generated/dataModel";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 
 type Ctx = { db: any };
 

@@ -9,7 +9,8 @@ import {
 import { internal } from "./_generated/api";
 import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { lineStartsOn } from "@codecast/org/roleAutonomy";
-import { isTerminalTaskStatus, isUnblocked } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
+import { isUnblocked } from "@codecast/tasks/graph";
 import { readinessLookups } from "./lib/taskGraph";
 import type { Id } from "./_generated/dataModel";
 import { resolveScope } from "./org";

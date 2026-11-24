@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { graphChange, graphChangeText } from "./index";
+import { graphChange, graphChangeText } from "../src/index";
 
 // `cast task show`'s History reads a graph change in the timeline's words
 // (task-graph.md TG11), never "field: old to new" with an empty side.

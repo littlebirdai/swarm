@@ -3,7 +3,7 @@
 
 import type { Doc, Id } from "../_generated/dataModel";
 import { findingConversation } from "@codecast/shared/contracts/judges";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { parseMoveTally } from "./moveTally";
 import { BEFORE_LINE, CLOSED_WITH } from "../findingGroups";
 import { quoteOfDetail } from "../judgeRetire";

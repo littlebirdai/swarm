@@ -1,10 +1,7 @@
 import { useMemo } from "react";
 import { Ban, Check, Hourglass, type LucideIcon } from "lucide-react";
-import {
-  isTerminalTaskStatus,
-  waitTone,
-  type WaitState,
-} from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
+import { waitTone, type WaitState } from "@codecast/tasks/graph";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   blockerStatusSig,

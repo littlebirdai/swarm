@@ -17,9 +17,9 @@ import * as path from "node:path";
 import {
   formatTaskResume,
   formatTaskResumeUnavailable,
-  restoresTaskContext,
   type TaskResumeContext,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/resume";
+import { restoresTaskContext } from "@codecast/tasks/resumeSources";
 import {
   fitProjectContextBlock,
   utf8Bytes,

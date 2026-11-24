@@ -798,7 +798,7 @@ packages/shared/contracts/changeCard.ts 1350
 packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900
 packages/shared/contracts/judges.test.ts 1050
-packages/shared/tasks/graph.test.ts 1300
-packages/shared/tasks/graph.ts 1300
 packages/snippets/src/snippets.ts 2050
+packages/tasks/src/graph.ts 1300
+packages/tasks/test/graph.test.ts 1300
 packages/usage/src/usageLimits.ts 850

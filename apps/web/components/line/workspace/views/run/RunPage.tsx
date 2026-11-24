@@ -38,7 +38,7 @@ import { useTrialCards } from "../../../../../hooks/useSyncTrial";
 import { useStationInput } from "../../../../../hooks/useLineWorkspace";
 import { useSyncTaskSignals } from "../../../../../hooks/useSyncSignals";
 import { useInboxStore } from "../../../../../store/inboxStore";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { StageTrack } from "../../../widgets/StageTrack";
 import type { LineViewProps } from "../types";
 import { RunStep, type RunLanding } from "./RunStep";

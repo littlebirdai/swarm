@@ -30040,75 +30040,6 @@
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
   },
-  "packages/shared/tasks/foreignText.test.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/tasks/foreignText.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/tasks/frontier.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/tasks/graph.test.ts": {
-    "swarm/no-comments": 25
-  },
-  "packages/shared/tasks/graph.ts": {
-    "swarm/no-comments": 115
-  },
-  "packages/shared/tasks/graphHistory.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/tasks/graphHistory.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/tasks/index.ts": {
-    "swarm/no-comments": 51
-  },
-  "packages/shared/tasks/planForeignText.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/tasks/planForeignText.ts": {
-    "swarm/no-comments": 28
-  },
-  "packages/shared/tasks/planState.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/tasks/planState.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/tasks/planSteps.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/tasks/planSteps.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/tasks/planVerdicts.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/tasks/projectTaskCounts.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/tasks/relatedDocs.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/tasks/resume.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/tasks/resume.ts": {
-    "swarm/no-comments": 21
-  },
-  "packages/shared/tasks/resumeSources.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/tasks/statuses.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/tasks/statuses.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/tasks/tasks.test.ts": {
-    "swarm/no-comments": 26
-  },
   "packages/ship/src/changeGuide.ts": {
     "swarm/no-comments": 40
   },
@@ -30147,6 +30078,75 @@
   },
   "packages/snippets/test/snippets.test.ts": {
     "swarm/no-comments": 16
+  },
+  "packages/tasks/src/foreignText.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/tasks/src/frontier.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/tasks/src/graph.ts": {
+    "swarm/no-comments": 115
+  },
+  "packages/tasks/src/graphHistory.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/tasks/src/index.ts": {
+    "swarm/no-comments": 51
+  },
+  "packages/tasks/src/planForeignText.ts": {
+    "swarm/no-comments": 28
+  },
+  "packages/tasks/src/planState.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/tasks/src/planSteps.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/tasks/src/planVerdicts.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/tasks/src/relatedDocs.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/tasks/src/resume.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/tasks/src/resumeSources.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/tasks/src/statuses.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/tasks/test/foreignText.test.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/tasks/test/graph.test.ts": {
+    "swarm/no-comments": 25
+  },
+  "packages/tasks/test/graphHistory.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/tasks/test/planForeignText.test.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/tasks/test/planState.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/tasks/test/planSteps.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/tasks/test/projectTaskCounts.test.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/tasks/test/resume.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/tasks/test/statuses.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/tasks/test/tasks.test.ts": {
+    "swarm/no-comments": 26
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

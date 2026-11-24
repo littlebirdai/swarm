@@ -26,12 +26,8 @@ import {
   holdingDecisionFor,
   roleOf,
 } from "./tasks";
-import {
-  isStaleTask,
-  notReadyLabel,
-  readinessOf,
-  STALE_TASK_WORDS,
-} from "@codecast/shared/tasks";
+import { isStaleTask, STALE_TASK_WORDS } from "@codecast/tasks/frontier";
+import { notReadyLabel, readinessOf } from "@codecast/tasks/graph";
 
 /** How many candidates one claim may try before it gives up. A candidate is
  *  passed over only when it changed since the frontier was read, or its start

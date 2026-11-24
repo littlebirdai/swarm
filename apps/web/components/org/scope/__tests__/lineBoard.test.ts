@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_TASK_STATUSES } from "@codecast/shared/tasks";
+import { DEFAULT_TASK_STATUSES } from "@codecast/tasks/statuses";
 import { evidenceCount, lineColumns, lineOptions } from "../lineBoard";
 
 // The Line tab's own rules (docs/architecture/the-line.md L3, L10), tested

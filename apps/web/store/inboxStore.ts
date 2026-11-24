@@ -46,14 +46,14 @@ import {
 } from "../hooks/syncMetaKeys";
 import type { SharedObjectKind } from "@codecast/entities";
 import type { CodeAnchorText } from "@codecast/comments";
-import type { GraphRefStatus, TaskWait } from "@codecast/shared/tasks";
+import type { GraphRefStatus, TaskWait } from "@codecast/tasks/graph";
 import {
   derivePlanState,
   PLAN_MOVING_MS,
   PLAN_STATE_RANK,
   type PlanMember,
   type PlanStanding,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/planState";
 import {
   addWaitDraft,
   removeBlockerEdge,

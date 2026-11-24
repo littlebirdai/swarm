@@ -17,7 +17,7 @@ import type {
   InitiativeRow,
   InitiativeStatus,
 } from "@codecast/goals/initiative";
-import { isOnProjectBoard } from "@codecast/shared/tasks";
+import { isOnProjectBoard } from "@codecast/tasks";
 import { initiativeEnded } from "../../lib/initiatives";
 import type { CompanyDoc, DocGoal, DocProject } from "../company/companyModel";
 import type {

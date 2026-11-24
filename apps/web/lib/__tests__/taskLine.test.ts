@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_TASK_STATUSES,
   type TeamTaskStatus,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 import {
   currentStationIndex,
   formatElapsed,

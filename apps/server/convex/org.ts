@@ -52,7 +52,7 @@ import {
 } from "./lib/roleInitiatives";
 import { type IntentSource } from "@codecast/goals/initiative";
 import { parseCallRef } from "@codecast/entities";
-import { isActiveTask } from "@codecast/shared/tasks";
+import { isActiveTask } from "@codecast/tasks";
 import { findInitiative } from "./lib/initiativeRef";
 import { canReadCall } from "./transcripts";
 import { docLiveState, docRevision } from "./lib/docBody";

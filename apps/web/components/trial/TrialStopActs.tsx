@@ -7,7 +7,7 @@
 // run (its runs used, its spend cap) is said in the review, which then starts nothing.
 import { useState, type ButtonHTMLAttributes } from "react";
 import { RotateCcw } from "lucide-react";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import type { TrialRunRow } from "../../hooks/useSyncTrial";
 import {
   useSyncTaskEvidence,
