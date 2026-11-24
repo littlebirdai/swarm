@@ -8,7 +8,6 @@ export * from "./agentSwitch";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
-export * from "./transcriptChunk";
 // Without these two lines every consumer reinvents the capability vocabulary:
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four

@@ -11,7 +11,7 @@ import {
   needsFullBrief,
   HUDDLE_REBRIEF_EVERY,
   ownRoomChunkHeader,
-} from "./transcriptChunk";
+} from "../src/transcriptChunk";
 
 describe("addressesAgent", () => {
   test("a whole word match on the character name, however it is cased", () => {

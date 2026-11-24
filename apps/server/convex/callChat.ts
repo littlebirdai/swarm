@@ -33,7 +33,7 @@ import {
   huddleChatLineHeader,
   isAskDelivery,
   isHuddlePass,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 import {
   isToolResultCarrier,
   reportedWorkIds,

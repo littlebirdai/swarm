@@ -648,6 +648,7 @@
       "name": "@codecast/calls",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/agent-clients": "workspace:*",
         "@codecast/chat": "workspace:*",
         "@codecast/team": "workspace:*",
       },

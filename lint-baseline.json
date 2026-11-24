@@ -28759,6 +28759,9 @@
   "packages/calls/src/transcribeLanguage.ts": {
     "swarm/no-comments": 24
   },
+  "packages/calls/src/transcriptChunk.ts": {
+    "swarm/no-comments": 80
+  },
   "packages/calls/test/callGuests.test.ts": {
     "swarm/no-comments": 9
   },
@@ -30024,9 +30027,6 @@
   },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
-  },
-  "packages/shared/contracts/transcriptChunk.ts": {
-    "swarm/no-comments": 80
   },
   "packages/shared/contracts/vaultMirror.ts": {
     "swarm/no-comments": 37
