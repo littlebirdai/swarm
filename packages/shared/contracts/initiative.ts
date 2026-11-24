@@ -14,7 +14,7 @@
 // looks like, milestones, every reported number over time, open questions,
 // decisions taken, and the sources that say who stated the goal and where.
 
-import { matchHandle, memberHandle } from "@codecast/chat";
+import { matchHandle, memberHandle } from "@codecast/chat/handles";
 import { parseEntityUrl } from "../entities";
 import {
   bandWords,
