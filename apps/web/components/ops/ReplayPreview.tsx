@@ -12,7 +12,7 @@ import {
   useReplayPlayerChannel,
   useReplayPlayerLink,
 } from "../../hooks/useReplayPlayer";
-import { formatReplayTime } from "@codecast/shared/replay";
+import { formatReplayTime } from "@codecast/replay/events";
 import { previewAt } from "./replayModel";
 import type { OpsReplay } from "./opsTypes";
 

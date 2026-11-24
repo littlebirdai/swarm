@@ -36,7 +36,7 @@ import { gzipText, sha256Hex, type CodecastErrorItem, type CodecastSink, type Re
 
 export { REPLAY_DOM_MODES, type ReplayDomMode } from "./codecast";
 
-// The event shapes match codecast packages/shared/contracts/replay.ts exactly
+// The event shapes match codecast packages/replay/src/replay.ts exactly
 // (codecast typechecks the two against each other). The platform package must
 // not import codecast, so they are spelled here.
 export const REPLAY_KEYS = ["Enter", "Escape", "Tab"] as const;
@@ -81,7 +81,7 @@ export const REPLAY_LIMITS = {
 } as const;
 
 /**
- * The DOM capture's own caps (codecast contracts/replayPlayer.ts, held equal
+ * The DOM capture's own caps (codecast packages/replay/src/replayPlayer.ts, held equal
  * by codecast's drift test). A chunk is a gzipped JSON array of rrweb events
  * with epoch timestamps, packed to about chunk_target_raw_bytes of JSON.
  */

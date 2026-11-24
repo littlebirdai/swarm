@@ -30,7 +30,7 @@ import {
   REPLAY_BACKFILL_WINDOWS,
   REPLAY_PROVIDERS,
   VENDOR_REFRESH_WHYS,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 // The literal lists derive from the shared contract, the way openTaskValidator does, so the two cannot drift.
 const literals = <T extends string>(values: readonly T[]) =>
@@ -47,14 +47,14 @@ export const groupStatusValidator = literals(GROUP_STATUSES);
 export const transitionValidator = literals(TRANSITIONS);
 export const watchKindValidator = literals(WATCH_KINDS);
 export const watchDirectionValidator = literals(WATCH_DIRECTIONS);
-/** shared/replay/list.ts ReplayShape. */
+/** packages/replay/src/list.ts ReplayShape. */
 /** A long vendor recording's import still reading its later parts (replays.import_rest, sources/replayRest.ts). */
 export const replayImportRestValidator = v.object({
   /** The chain's id: a new import starts a new one, and a step of an older chain stops. */
   gen: v.number(),
   next_blob: v.number(),
   blobs: v.number(),
-  /** The R2 object holding the converter's state where the last part ended (shared/replay/capture.ts CaptureCarry). */
+  /** The R2 object holding the converter's state where the last part ended (packages/replay/src/capture.ts CaptureCarry). */
   carry_key: v.string(),
   /** The vendor asked to wait (a rate limit): the next part is read at this time. */
   retry_at: v.optional(v.number()),
@@ -74,7 +74,7 @@ export const replayReadToValidator = v.object({
   at: v.number(),
 });
 
-/** shared/contracts/replayPlayer.ts ReplayDomChunkMeta. */
+/** packages/replay/src/replayPlayer.ts ReplayDomChunkMeta. */
 export const replayDomChunkMetaValidator = v.object({
   first: v.number(),
   last: v.number(),
@@ -96,7 +96,7 @@ export const replayShapeValidator = v.object({
 export const replayProviderValidator = literals(REPLAY_PROVIDERS);
 
 /**
- * shared/replay/list.ts ReplayFacts: what the vendor itself says of a
+ * packages/replay/src/list.ts ReplayFacts: what the vendor itself says of a
  * recording (sources/replayFacts.ts). `at` alone means the vendor was asked
  * and knew nothing.
  */
@@ -114,7 +114,7 @@ export const replayFactsValidator = v.object({
   referrer: v.optional(v.string()),
 });
 
-/** A source's bulk import of its vendor's recordings (X5; contracts/replay.ts ReplayBackfill). */
+/** A source's bulk import of its vendor's recordings (X5; packages/replay/src/replay.ts ReplayBackfill). */
 export const replayBackfillValidator = v.object({
   status: literals(REPLAY_BACKFILL_STATUSES),
   window: literals(REPLAY_BACKFILL_WINDOWS),
@@ -644,7 +644,7 @@ export const ingestTables = {
     dom_t0: v.optional(v.number()),
     /** How far an imported copy reaches on the replay clock (its stream or capture, whichever runs longer). Shorter than the vendor's length when the read stopped at a size cap. */
     captured_ms: v.optional(v.number()),
-    /** What a list row draws (shared/replay/list.ts replayShape): written with the summary, absent until the stream is read. */
+    /** What a list row draws (packages/replay/src/list.ts replayShape): written with the summary, absent until the stream is read. */
     shape: v.optional(replayShapeValidator),
     /** The vendor's own facts (length, activity, browser, OS, device, country, referrer); absent until asked. */
     facts: v.optional(replayFactsValidator),

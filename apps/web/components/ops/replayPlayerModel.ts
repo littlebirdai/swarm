@@ -1,8 +1,8 @@
 // The replay player's local settings, event inks and words, and the
 // viewport fit: what ReplayPlayer and its rail share.
 import { useRef, useState } from "react";
-import { REPLAY_PLAYER_SPEEDS } from "@codecast/shared/contracts/replayPlayer";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+import { REPLAY_PLAYER_SPEEDS } from "@codecast/replay/replayPlayer";
+import type { ReplayEvent } from "@codecast/replay/replay";
 import { opsHref } from "./opsPaths";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { isEmptyInput, netGrade } from "./replayRail";

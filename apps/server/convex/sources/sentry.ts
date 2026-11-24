@@ -66,7 +66,7 @@ import {
   type ImportOutcome,
   type VendorRecording,
 } from "./vendorReplay";
-import type { RrwebEvent } from "@codecast/shared/replay";
+import type { RrwebEvent } from "@codecast/replay/rrweb";
 import { HOUR_MS } from "../lib/ingestGroups";
 import { auditOutsideCall, grantUrlFor, type OutsideCall } from "./app";
 import { scopeArgs } from "../ingest";

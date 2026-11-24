@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { VENDOR_CONVERTER_VERSION, needsVendorImport } from "./replay";
+import { VENDOR_CONVERTER_VERSION, needsVendorImport } from "../src/replay";
 
 describe("needsVendorImport", () => {
   test("a mirrored recording never imported is due", () => {

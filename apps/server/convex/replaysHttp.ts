@@ -16,7 +16,7 @@
 //
 // A chunk is either the semantic stream's (`kind` absent or "events") or the
 // DOM capture the player plays (`kind: "dom"`, kept under the recording's
-// dom/ prefix and listed apart, contracts/replayPlayer.ts). Player manifest:
+// dom/ prefix and listed apart, packages/replay/src/replayPlayer.ts). Player manifest:
 // the player page, on its own origin, exchanges a capability
 // (lib/replayCap.ts) for the DOM chunks' signed URLs.
 import { httpAction } from "./_generated/server";
@@ -40,7 +40,7 @@ import {
   REPLAY_PLAYER_MANIFEST_PATH,
   REPLAY_STYLE_LIMITS,
   type ReplayChunkKind,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import { keyRateLimited } from "./lib/httpRateLimit";
 import { sha256Hex } from "./lib/hash";
 import {
@@ -49,7 +49,7 @@ import {
   ingestJson,
   ingestRoute,
 } from "./ingestHttp";
-import { REPLAY_LIMITS } from "@codecast/shared/contracts/replay";
+import { REPLAY_LIMITS } from "@codecast/replay/replay";
 
 /** The path the SDK posts to, on either prefix the proxy forwards. */
 export const REPLAY_SIGN_PREFIXES = [

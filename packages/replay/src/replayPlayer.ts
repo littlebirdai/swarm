@@ -1,5 +1,5 @@
 // The replay player and the DOM capture it plays (docs/architecture/external-data.md
-// X5, "Playing a replay"). A replay's semantic stream (contracts/replay.ts) is
+// X5, "Playing a replay"). A replay's semantic stream (packages/replay/src/replay.ts) is
 // what an agent reads as text; beside it a recording may keep its raw rrweb
 // capture, the page itself, as "DOM chunks". One player renders that capture,
 // and it never runs on codecast.sh's origin: customer DOM is untrusted markup,

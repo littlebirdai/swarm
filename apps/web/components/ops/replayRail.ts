@@ -6,10 +6,9 @@ import {
   isFailure,
   isRecorderNoise,
   isSlowRequest,
-  replayIssues,
-  routeOf,
-} from "@codecast/shared/replay";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/events";
+import { replayIssues, routeOf } from "@codecast/replay/issues";
+import type { ReplayEvent } from "@codecast/replay/replay";
 import { pathOf, plural } from "./replayModel";
 
 // ── The player's event rail ──

@@ -1,5 +1,5 @@
 // The replay player's capability (docs/architecture/external-data.md X5,
-// "Playing a replay"; contracts/replayPlayer.ts). The player lives on its own
+// "Playing a replay"; packages/replay/src/replayPlayer.ts). The player lives on its own
 // origin and holds no codecast session, so it reads a replay through a
 // capability minted here after the viewer's access check: a short-lived,
 // tamper-proof token naming one replay and the person it was minted for.
@@ -15,7 +15,7 @@
 // the next load, not after the token lapses.
 import { timingSafeEqual } from "@platform/crypto/hex";
 import { hmacSha256Hex } from "./hmac";
-import { REPLAY_CAP_TTL_MS } from "@codecast/shared/contracts/replayPlayer";
+import { REPLAY_CAP_TTL_MS } from "@codecast/replay/replayPlayer";
 
 const LABEL = "codecast replay player capability v1";
 

@@ -1,7 +1,7 @@
-// A replay's stored text timeline (shared/replay/timeline.ts renderTimeline,
+// A replay's stored text timeline (packages/replay/src/timeline.ts renderTimeline,
 // cached on the row as timeline_md) read back into rows the phone draws: one
 // per moment, on the replay's clock, with its kind. Pure, so it is testable.
-import { currentTimelineText } from "@codecast/shared/replay";
+import { currentTimelineText } from "@codecast/replay/timeline";
 
 export type TimelineKind =
   | "nav"

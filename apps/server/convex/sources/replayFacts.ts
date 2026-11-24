@@ -1,5 +1,5 @@
 // What PostHog itself says of each recording a source mirrors
-// (shared/replay/list.ts ReplayFacts): its true length and active time, its
+// (packages/replay/src/list.ts ReplayFacts): its true length and active time, its
 // clicks, console errors and rage clicks, and where it ran (browser, OS,
 // device, country, referrer). Our own copy cannot always say: an import stops
 // at a size cap, a tab left open runs hours past its capture, and a recording
@@ -22,7 +22,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "../functions";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import type { ReplayFacts } from "@codecast/shared/replay";
+import type { ReplayFacts } from "@codecast/replay/list";
 import { replayFactsValidator } from "../ingestSchema";
 import {
   connFor,

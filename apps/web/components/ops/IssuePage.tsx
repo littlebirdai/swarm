@@ -33,7 +33,7 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { hasOpenModal, isEditableTarget } from "../../shortcuts";
 import { commitPath } from "../../lib/externalEvents";
 import { formatRelative, relTimeShort } from "../../lib/utils";
-import { formatReplayTime } from "@codecast/shared/replay";
+import { formatReplayTime } from "@codecast/replay/events";
 import {
   kindTriggerEvents,
   type GroupStatus,

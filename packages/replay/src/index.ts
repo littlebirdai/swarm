@@ -1,5 +1,5 @@
 // Readers of the replay stream (docs/architecture/external-data.md X5). The
-// event shape itself is the contract in ../contracts/replay.ts.
+// event shape itself is the contract in ./replay.ts.
 export {
   currentTimelineText,
   renderTimeline,

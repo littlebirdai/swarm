@@ -8,7 +8,7 @@
 //
 //   1. read the next blobs from where the last part stopped;
 //   2. convert them with the carry, on the recording's own clock
-//      (shared/replay/capture.ts readVendorCapturePart), so clicks are named
+//      (packages/replay/src/capture.ts readVendorCapturePart), so clicks are named
 //      by the page as the earlier parts left it and masking holds;
 //   3. append the part's masked capture as further DOM chunks, merge its
 //      events into the stored stream, and save both (replays.importExternal
@@ -37,12 +37,12 @@ import {
   carryFromCapture,
   readVendorCapturePart,
   type CaptureCarry,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/capture";
 import {
   REPLAY_REST_NO_MORE,
   VENDOR_REFRESH_RETRY,
   replayCutAt,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import { replaysBucketFromEnv } from "../lib/r2";
 import { importExternalCore } from "../lib/replayImport";
 import { patchReplay } from "../lib/replayIndex";

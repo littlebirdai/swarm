@@ -12,7 +12,8 @@ import * as tokenConnectorsModule from "../tokenConnectors";
 import * as ingestModule from "../ingest";
 import * as sentry from "./sentry";
 import { sentryWebhook, setEventGroupStatus } from "../lib/sentryHttp";
-import { fromRrweb, replayIssues } from "@codecast/shared/replay";
+import { fromRrweb } from "@codecast/replay/rrweb";
+import { replayIssues } from "@codecast/replay/issues";
 import {
   SENTRY_POLL,
   SENTRY_REPLAY,
@@ -727,7 +728,7 @@ describe("replays", () => {
       method: "POST",
     });
 
-    // What the import groups (replays.importExternal, shared/replay/issues.ts): the failed write and the error, timed from the recording's start.
+    // What the import groups (replays.importExternal, packages/replay/src/issues.ts): the failed write and the error, timed from the recording's start.
     expect(
       replayIssues(events).map((i) => [i.kind, i.title, i.route, i.t]),
     ).toEqual([

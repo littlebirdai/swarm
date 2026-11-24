@@ -1,5 +1,5 @@
 // The replay player's link and channel, as codecast embeds it (docs/architecture/external-data.md
-// X5, "Playing a replay"; contracts/replayPlayer.ts). A recording's page
+// X5, "Playing a replay"; packages/replay/src/replayPlayer.ts). A recording's page
 // capture is a customer's DOM, so it never renders on this origin: the player
 // is a page on its own origin (replay.codecast.sh), loaded here in an iframe
 // through a capability Convex mints for one replay and one viewer, fresh each
@@ -23,7 +23,7 @@ import {
   type ReplayHostMessage,
   type ReplayPlayerLink,
   type ReplayPlayerMessage,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import { useWatchEffect } from "./useWatchEffect";
 
 export type ReplayPlayerLinkState =

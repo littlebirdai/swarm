@@ -14,22 +14,19 @@ import {
   safeReplayPathSegment,
   type R2Bucket,
 } from "./r2";
-import {
-  REPLAY_LIMITS,
-  type ReplayEvent,
-} from "@codecast/shared/contracts/replay";
+import { REPLAY_LIMITS, type ReplayEvent } from "@codecast/replay/replay";
 import {
   foldRepeatNavs,
   parseReplayEvents,
   sortReplayEvents,
-  type RrwebEvent,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/events";
+import { type RrwebEvent } from "@codecast/replay/rrweb";
 import {
   REPLAY_DOM_LIMITS,
   type ReplayDomChunkMeta,
   type ReplayPlayerManifest,
   type ReplayPlayerStyle,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 
 /**
  * The most a chunk may expand to when gunzipped. A real chunk is at most

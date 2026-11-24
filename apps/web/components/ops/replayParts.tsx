@@ -13,7 +13,7 @@ import {
   SHAPE_CELLS,
   type ReplayFacts,
   type ReplayShape,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
 import type { OpsReplay } from "./opsTypes";
 import {
   compactCount,

@@ -384,7 +384,7 @@ export function deliveryWord(
 export { sampleWho, shortUrl };
 
 /**
- * A failed request as a replay issue keeps it (shared/replay/issues.ts:
+ * A failed request as a replay issue keeps it (packages/replay/src/issues.ts:
  * `GET https://host/path -> 404 (2026 ms)`): the method, the path without the
  * host every row shares, the status and the time. Null for any other message.
  */

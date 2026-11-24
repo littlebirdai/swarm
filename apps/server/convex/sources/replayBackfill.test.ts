@@ -22,7 +22,7 @@ import {
   replayBackfillResumes,
   replayBackfillStalled,
   type ReplayBackfill,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 const h = (fn: any) => fn._handler;
 

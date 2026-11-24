@@ -7,8 +7,8 @@ import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import { applyReplayIssues } from "./ingest";
 import { clearGroups } from "./replayIssues";
-import { replayIssues } from "@codecast/shared/replay";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+import { replayIssues } from "@codecast/replay/issues";
+import type { ReplayEvent } from "@codecast/replay/replay";
 
 const h = (fn: any) => fn._handler;
 const NOW = Date.now();

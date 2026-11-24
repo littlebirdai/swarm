@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { ReplayEvent } from "../contracts/replay";
-import { dedupeRrweb } from "./capture";
+import type { ReplayEvent } from "../src/replay";
+import { dedupeRrweb } from "../src/capture";
 import {
   compareReplays,
   idleRanges,
@@ -18,7 +18,7 @@ import {
   REPLAY_DEFAULT_MATCH,
   SHAPE_CELLS,
   type ReplayListRow,
-} from "./list";
+} from "../src/list";
 
 const NOW = 1_800_000_000_000;
 const row = (over: Partial<ReplayListRow> = {}): ReplayListRow => ({

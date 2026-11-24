@@ -5,8 +5,8 @@ import {
   isReportedLogLevel,
   type CodecastIngestItem,
 } from "@platform/analytics/codecast";
-import * as shared from "@codecast/shared/contracts/replay";
-import * as player from "@codecast/shared/contracts/replayPlayer";
+import * as shared from "@codecast/replay/replay";
+import * as player from "@codecast/replay/replayPlayer";
 import {
   parseCodecastJson,
   REPLAY_DOM_MODES as PLATFORM_DOM_MODES,

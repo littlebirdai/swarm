@@ -22,7 +22,7 @@ import {
   REPLAY_LIMITS,
   type ReplayConsoleLevel,
   type ReplayEvent,
-} from "../contracts/replay";
+} from "./replay";
 import {
   isFailedRequest,
   isRecorderNoise,

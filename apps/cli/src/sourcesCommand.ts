@@ -51,7 +51,7 @@ import {
 import {
   replayBackfillLine,
   type ReplayBackfill,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 export interface SourceRow {
   _id: string;

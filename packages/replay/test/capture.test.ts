@@ -3,8 +3,8 @@ import {
   carryFromCapture,
   readVendorCapture,
   readVendorCapturePart,
-} from "./capture";
-import type { RrwebEvent } from "./rrweb";
+} from "../src/capture";
+import type { RrwebEvent } from "../src/rrweb";
 
 // A recording as PostHog hands it over: a stray event long before the page
 // was drawn, then a page that a person used briefly and left open.

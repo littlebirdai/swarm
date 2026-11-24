@@ -5,7 +5,7 @@ import {
   dropRequestIds,
   failureMessageKey,
 } from "@codecast/signals/signalFingerprint";
-import { routeOf } from "@codecast/shared/replay";
+import { routeOf } from "@codecast/replay/issues";
 import type { OpsGroup, OpsSample } from "./opsTypes";
 import { DAY, HOUR } from "./issueState";
 

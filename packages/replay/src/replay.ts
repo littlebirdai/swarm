@@ -75,7 +75,7 @@ export type ReplayProvider = (typeof REPLAY_PROVIDERS)[number];
  * when the conversion's output changes and older copies re-import on their
  * next read or backfill pass. 2: performance entries other than resources
  * and navigations are no longer failed requests. 3: the rrweb capture itself
- * is kept beside the stream (DOM chunks, contracts/replayPlayer.ts), so the
+ * is kept beside the stream (DOM chunks, packages/replay/src/replayPlayer.ts), so the
  * player can play it and agents can see frames. 4: a fetch whose entry has
  * no status field (Safari) is a failed request only when its timings show no
  * response arrived. 5: a PostHog mobile recording (wireframes, not a DOM) is

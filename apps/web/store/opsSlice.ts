@@ -27,7 +27,7 @@ import {
   replayBackfillSince,
   type ReplayBackfill,
   type ReplayBackfillWindow,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 /** A group's resolve stamps as an undo puts them back; null is "had none". */
 export type OpsGroupResolveStamps = {

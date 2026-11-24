@@ -29,17 +29,16 @@ import {
 import {
   REPLAY_PLAYER_ORIGIN,
   type ReplayPlayerLink,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import {
   activeMsOf,
   envLine,
-  formatReplayTime,
   isAnonymous,
   personKey,
   personLabel,
-  routeOf,
-  urlPath,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
+import { formatReplayTime, urlPath } from "@codecast/replay/events";
+import { routeOf } from "@codecast/replay/issues";
 import { Text as RNText } from "@/components/Themed";
 import { Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { Mono, uiFace } from "@/constants/fonts";

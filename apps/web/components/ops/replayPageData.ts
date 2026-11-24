@@ -4,15 +4,12 @@ import { useMemo, useRef, useState } from "react";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import {
-  needsVendorImport,
-  type ReplayEvent,
-} from "@codecast/shared/contracts/replay";
+import { needsVendorImport, type ReplayEvent } from "@codecast/replay/replay";
 import {
   foldRepeatNavs,
   parseReplayEvents,
   sortReplayEvents,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/events";
 import { useOpsGroups, useOpsReplayTimeline } from "../../hooks/useSyncOps";
 import { CONVEX_URL } from "../../lib/convexUrl";
 import { decodeReplayChunk } from "./opsModel";

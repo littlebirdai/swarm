@@ -57,7 +57,7 @@ import { MarkdownRenderer } from "../../tools/MarkdownRenderer";
 import { isMarkdownFile, isPlanFile } from "../../../lib/markdownFiles";
 import { EntityObjectCard } from "../../EntityObjectCard";
 import { callFrameSeenRef } from "@codecast/calls/callRecordings";
-import { replayFrameSeenRef } from "@codecast/shared/contracts/replayPlayer";
+import { replayFrameSeenRef } from "@codecast/replay/replayPlayer";
 import { entityRemarkPlugins } from "../../../lib/remarkEntityIds";
 import {
   MESSAGE_MD_COMPONENTS,

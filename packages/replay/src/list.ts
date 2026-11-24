@@ -4,7 +4,7 @@
 // active time). The server's browse query and the web list import this file,
 // so the rows the server counts are the rows the page shows. The player reads
 // the same idle ranges to skip inactivity.
-import { replayCutAt, type ReplayEvent } from "../contracts/replay";
+import { replayCutAt, type ReplayEvent } from "./replay";
 import { isFailure } from "./events";
 import { RAGE_CLICK_COUNT, RAGE_CLICK_MS } from "./issues";
 

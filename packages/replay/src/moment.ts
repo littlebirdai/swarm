@@ -6,7 +6,7 @@
 //
 // Times are on the replay clock: ms since the stream's first event, the clock
 // the text timeline prints, the player shows and `rp-N@m:ss` names.
-import { REPLAY_LIMITS, type ReplayEvent } from "../contracts/replay";
+import { REPLAY_LIMITS, type ReplayEvent } from "./replay";
 import {
   formatReplayTime,
   isFailedRequest,

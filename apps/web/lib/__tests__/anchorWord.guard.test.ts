@@ -27,6 +27,7 @@ const ROOTS = [
   join(REPO, "packages", "mods", "src"),
   join(REPO, "packages", "search", "src"),
   join(REPO, "packages", "sessions", "src"),
+  join(REPO, "packages", "replay", "src"),
   join(REPO, "packages", "shared", "contracts"),
   ...PACKAGE_SOURCES,
   join(REPO, "apps", "server", "convex"),

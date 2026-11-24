@@ -29,7 +29,7 @@
 // The route an issue was first seen on rides along as its culprit and sample.
 // Pure, so the assembler, the vendor import and a regroup pass all read a
 // stream the same way.
-import type { ReplayEvent } from "../contracts/replay";
+import type { ReplayEvent } from "./replay";
 import {
   dropRequestIds,
   normalizeErrorMessage,

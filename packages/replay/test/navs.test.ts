@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { foldRepeatNavs, replayShape } from "./index";
-import type { ReplayEvent } from "../contracts/replay";
+import { foldRepeatNavs, replayShape } from "../src/index";
+import type { ReplayEvent } from "../src/replay";
 
 describe("page visits", () => {
   // PostHog takes a full snapshot of an idle tab every couple of seconds; each writes a navigation to the same address.

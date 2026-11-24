@@ -81,7 +81,7 @@ import {
   issueLane,
 } from "./issuesModel";
 import { replayTitle } from "./opsModel";
-import { isAnonymous, personKey, personLabel } from "@codecast/shared/replay";
+import { isAnonymous, personKey, personLabel } from "@codecast/replay/list";
 import { PersonMark } from "./replayParts";
 import { opsHref } from "./opsPaths";
 import { KindGlyph, ProviderIcon, SOURCE_PROVIDER_LABEL } from "./parts";

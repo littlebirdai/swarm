@@ -6363,7 +6363,7 @@ cliRoute("/cli/replays/import", async (ctx, body) =>
 cliRoute("/cli/replays/import-linked", async (ctx, body) =>
   ctx.runAction(api.sources.vendorReplay.importLinked, body),
 );
-// A capability for the replay player (contracts/replayPlayer.ts): `cast replay snap` posts it to the frame renderer.
+// A capability for the replay player (packages/replay/src/replayPlayer.ts): `cast replay snap` posts it to the frame renderer.
 cliRoute("/cli/replays/player-link", async (ctx, body) =>
   ctx.runAction(api.replays.playerLink, body),
 );

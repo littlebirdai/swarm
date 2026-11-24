@@ -14,7 +14,7 @@ import {
   replayDomWindow,
   replayRefId,
   replayWindowHolds,
-} from "./replayPlayer";
+} from "../src/replayPlayer";
 
 describe("the player URL", () => {
   test("carries the capability in the path and reads back", () => {

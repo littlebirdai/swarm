@@ -9,8 +9,8 @@
 // moves the source's partly imported tally (event_sources.replay_rest.cut) by
 // one when the recording crosses the line, so the import line is live between
 // the tend cron's recounts (sources/replayRest.ts tally).
-import { personKey } from "@codecast/shared/replay";
-import { replayCutAt } from "@codecast/shared/contracts/replay";
+import { personKey } from "@codecast/replay/list";
+import { replayCutAt } from "@codecast/replay/replay";
 import { moveTally, type TallyInput } from "./replayTallies";
 
 type IndexInput = {

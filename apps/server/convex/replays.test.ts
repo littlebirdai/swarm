@@ -48,10 +48,7 @@ import {
 } from "./replaysHttp";
 import { h, teamSource, world } from "./replays.testkit";
 import { classifyStatus } from "@platform/analytics/codecast";
-import {
-  REPLAY_LIMITS,
-  type ReplayEvent,
-} from "@codecast/shared/contracts/replay";
+import { REPLAY_LIMITS, type ReplayEvent } from "@codecast/replay/replay";
 
 const NOW = Date.now();
 

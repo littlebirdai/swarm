@@ -52,8 +52,8 @@ import {
   POSTHOG_PROJECT_ID,
   validWatchQuery,
 } from "@codecast/shared/contracts/ingest";
-import type { RrwebEvent } from "@codecast/shared/replay";
-import { cleanUrl } from "@codecast/shared/contracts/replay";
+import type { RrwebEvent } from "@codecast/replay/rrweb";
+import { cleanUrl } from "@codecast/replay/replay";
 
 const FETCH_TIMEOUT_MS = 30_000;
 /** What a query answer may be before trimming to PASSTHROUGH_MAX_BYTES; past it the caller is told to add a LIMIT. */
