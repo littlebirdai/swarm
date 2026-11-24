@@ -9,7 +9,8 @@
 // own deploy lock, under the repository's common git dir, so every worktree
 // of the checkout shares it.
 
-import { execFileAsync, type ChildProcess } from "../proc.js";
+import type { ChildProcess } from "../proc.js";
+import { snapshotProcessTableAsync } from "../processTable.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -191,37 +192,48 @@ export function trackStep(child: ChildProcess): void {
  *  wait for each to end. False when one is still running after the grace: its tree must stay. */
 export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
   const steps = [...running];
-  const groups = steps.flatMap((step) => (step.pid ? [step.pid] : []));
+  const activeGroups = () =>
+    new Set(
+      steps.flatMap((step) =>
+        step.pid && step.exitCode === null && step.signalCode === null
+          ? [step.pid]
+          : [],
+      ),
+    );
+  const deadline = Date.now() + graceMs;
+  const first = activeGroups().size
+    ? await snapshotProcessTableAsync({ timeout: Math.max(1, graceMs) })
+    : [];
+  const groups = activeGroups();
+  const members = new Map(
+    first
+      .filter((row) => row.pgid !== undefined && groups.has(row.pgid))
+      .map((row) => [row.pid, row]),
+  );
   for (const group of groups) {
     try {
       process.kill(-group, "SIGTERM");
     } catch {}
   }
-  const deadline = Date.now() + graceMs;
   for (;;) {
     const remaining = deadline - Date.now();
     if (!steps.some((step) => running.has(step))) {
-      const present = new Set(groups.filter((group) => alive(-group)));
-      if (!present.size) return true;
-      if (remaining <= 0) return false;
-      try {
-        const { stdout } = await execFileAsync(
-          "ps",
-          ["-ax", "-o", "pgid=,stat="],
-          {
-            encoding: "utf-8",
-            timeout: remaining,
-          },
-        );
-        const hasLiveMember = stdout
-          .trim()
-          .split("\n")
-          .some((line) => {
-            const [group, state] = line.trim().split(/\s+/);
-            return present.has(Number(group)) && !state?.startsWith("Z");
-          });
-        if (stdout.trim() && !hasLiveMember) return true;
-      } catch {}
+      if (!groups.size) return true;
+      if (remaining <= 0 || !first.length) return false;
+      const current = await snapshotProcessTableAsync({ timeout: remaining });
+      if (
+        current.length &&
+        !current.some((row) => {
+          const member = members.get(row.pid);
+          return (
+            member &&
+            row.startedAt === member.startedAt &&
+            row.pgid === member.pgid &&
+            !row.command.trimEnd().endsWith("<defunct>")
+          );
+        })
+      )
+        return true;
     }
     const delay = Math.min(250, deadline - Date.now());
     if (delay <= 0) return false;

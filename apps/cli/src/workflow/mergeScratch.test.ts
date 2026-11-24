@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { spawn, spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -277,49 +278,30 @@ release();
 });
 
 describe("shutDown", () => {
-  test(
-    "stops a group member that holds a pipe after the step shell exits",
-    async () => {
-      const r = repo();
-      let pid = 0;
-      let shellExited = false;
-      const ran = runShell(
-        `perl -e '$SIG{TERM} = sub { exit 0 }; open(my $f, ">", "ready") or die $!; close($f); while (1) { sleep 30 }' &`,
-        r.root,
-        () => {},
-        {},
-        (child) => {
-          pid = child.pid!;
-          trackStep(child);
-          child.once("exit", () => {
-            shellExited = true;
-          });
-        },
-      );
-      try {
-        await pollUntil(
-          () => shellExited && existsSync(join(r.root, "ready")),
-          "the shell exiting and its child starting",
-        );
-        let released = false;
-        expect(
-          await shutDown(async () => {
-            released = true;
-          }, 500),
-        ).toBe(true);
-        expect(released).toBe(true);
-      } finally {
-        if (pid) {
-          try {
-            process.kill(-pid, "SIGKILL");
-          } catch {}
-        }
-        await ran;
-        r.done();
-      }
-    },
-    { timeout: 30_000 },
-  );
+  test("leaves a process that took an exited shell's group id alone", async () => {
+    const other = spawn("sleep", ["30"], {
+      detached: true,
+      stdio: "ignore",
+    });
+    const closed = new Promise((resolve) => other.once("close", resolve));
+    const pid = other.pid!;
+    const step = Object.assign(new EventEmitter(), {
+      pid,
+      exitCode: 0,
+      signalCode: null,
+    }) as ChildProcess;
+    try {
+      trackStep(step);
+      const stopped = shutDown(async () => {}, 500);
+      step.emit("close");
+      const released = await stopped;
+      expect(await stillRunning([pid])).toEqual([pid]);
+      expect(released).toBe(true);
+    } finally {
+      other.kill("SIGKILL");
+      await closed;
+    }
+  });
 
   test(
     "stops the running step's whole process group, then releases its tree",
