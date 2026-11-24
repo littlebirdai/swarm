@@ -32,7 +32,6 @@
     "@codecast/files": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/goals": "workspace:*",
-    "@codecast/hash": "workspace:*",
     "@codecast/hosted-assistant": "workspace:*",
     "@codecast/inbox": "workspace:*",
     "@codecast/ingest": "workspace:*",
