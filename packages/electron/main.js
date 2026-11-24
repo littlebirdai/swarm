@@ -612,7 +612,8 @@ let spareTabTimer = null;
 
 // Reply even when the sender is rejected so a synchronous preload call can return.
 ipcMain.on("is-warm-spare", (e) => {
-  e.returnValue = e.sender === spareTabWindow?.webContents && shellAuthority.admits(e);
+  if (!e) return;
+  e.returnValue = shellAuthority.admits(e) && e.sender === spareTabWindow?.webContents;
 });
 
 function warmSpareTabWindow(delayMs = SPARE_WARM_DELAY_MS) {

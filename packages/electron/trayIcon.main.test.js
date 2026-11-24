@@ -16,6 +16,7 @@ function loadTray() {
   const context = vm.createContext({
     require, path, __dirname,
     tray: null,
+    spareTabWindow: null,
     loadAgentDock: () => ({ enabled: false, minimized: false }),
     app: { getVersion: () => "test", setBadgeCount: n => badges.push(n) },
     shellIpc: { handle: (name, handler) => handlers.set(name, handler) },
@@ -30,7 +31,7 @@ function loadTray() {
     },
   });
   vm.runInContext(traySource + "\n" + badgeSource, context);
-  return { badges, images, trays, create: () => vm.runInContext("createTray()", context), report: n => handlers.get("set-badge-count")(null, n) };
+  return { badges, images, trays, create: () => vm.runInContext("createTray()", context), report: n => handlers.get("set-badge-count")({ sender: {} }, n) };
 }
 
 test("badge reports update both native attention surfaces without redundant images", () => {
