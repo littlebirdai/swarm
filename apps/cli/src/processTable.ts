@@ -145,6 +145,7 @@ const PS_TIMEOUT_MS = 30_000;
 export interface ProcessTableOptions {
   /** Milliseconds before `ps` is abandoned and the table comes back empty. */
   timeout?: number;
+  killSignal?: NodeJS.Signals;
 }
 
 /** The live process table (pid, ppid, full command line). Empty on failure. */
@@ -177,6 +178,7 @@ export async function snapshotProcessTableAsync(
     const { stdout } = await execFileAsync("ps", PS_ARGS, {
       ...PS_OPTS,
       timeout: opts.timeout ?? PS_TIMEOUT_MS,
+      killSignal: opts.killSignal,
     });
     return parseProcessTable(String(stdout), capturedAtMs);
   } catch {

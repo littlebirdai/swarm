@@ -212,6 +212,73 @@ ${run}
     }
   });
 
+  test.each([
+    { name: "the leader is absent", leader: "", pgid: group },
+    {
+      name: "the leader is a zombie",
+      leader: `${group} 1 ${group} 0 ? ${oldStart} shell <defunct>`,
+      pgid: group,
+    },
+    {
+      name: "the recorded PID belongs to another group",
+      leader: `${group} 1 ${child} 0 ? ${oldStart} shell`,
+      pgid: child,
+    },
+  ])("sends only individual TERM when $name", async ({ leader, pgid }) => {
+    const file = writeRecord(await deadPid(), Date.now(), [
+      {
+        pgid: group,
+        procs: [
+          { pid: group, pgid, start: oldStart },
+          { pid: child, pgid: group, start: oldStart },
+        ],
+      },
+    ]);
+    const current = [leader, `${child} 1 ${group} 0 ? ${oldStart} child`]
+      .filter(Boolean)
+      .join("\n");
+    const actual = withProcessReads(
+      [current, current, `1 0 1 0 ? ${oldStart} init`],
+      `
+      console.log(JSON.stringify({
+        ended: await station.reapDeadRunnerStations(${JSON.stringify(stationRecordDir())}, 0),
+        groupSignals: signals.filter((pid) => pid < 0),
+        childSignals: signals.filter((pid) => pid === ${child}),
+        exists: require("node:fs").existsSync(${JSON.stringify(file)}),
+      }));
+    `,
+    );
+    expect(JSON.parse(actual)).toEqual({
+      ended: [group],
+      groupSignals: [],
+      childSignals: [child],
+      exists: false,
+    });
+  });
+
+  test("keeps a runner record when one group ends and the other loses its second read", async () => {
+    const file = writeRecord(await deadPid(), Date.now(), [
+      { pgid: child, procs: [] },
+      { pgid: group, procs: [{ pid: group, pgid: group, start: oldStart }] },
+    ]);
+    const leader = `${group} 1 ${group} 0 ? ${oldStart} shell`;
+    const actual = withProcessReads(
+      [leader, leader, null, `1 0 1 0 ? ${oldStart} init`],
+      `
+      console.log(JSON.stringify({
+        ended: await station.reapDeadRunnerStations(${JSON.stringify(stationRecordDir())}, 0),
+        signals,
+        exists: require("node:fs").existsSync(${JSON.stringify(file)}),
+      }));
+    `,
+    );
+    expect(JSON.parse(actual)).toEqual({
+      ended: [],
+      signals: [-group, group],
+      exists: true,
+    });
+  });
+
   test("discards a malformed record without sending a signal", async () => {
     const runner = await deadPid();
     const file = writeRecord(runner, Date.now(), [
