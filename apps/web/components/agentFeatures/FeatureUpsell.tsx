@@ -8,7 +8,7 @@
 // (one decline per feature, shared with the new-features banner).
 
 import { ArrowUpRight, Check, X } from "lucide-react";
-import { FEATURE_EXPLAINERS } from "@codecast/shared/contracts";
+import { FEATURE_EXPLAINERS } from "@codecast/snippets/featureExplainers";
 import { useRouter } from "next/navigation";
 import { featureOnLedger, useFeatureOffer } from "./useFeatureOffer";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";

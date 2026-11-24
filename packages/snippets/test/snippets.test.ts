@@ -10,7 +10,7 @@ import {
   GUIDANCE_SECTION_MAX_CHARS,
   renderGuidanceFile,
   stubSectionBody,
-} from "./snippets";
+} from "../src/snippets";
 import { MESSAGING_POLICIES } from "@codecast/messages/messagingPolicy";
 
 describe("snippet catalog", () => {

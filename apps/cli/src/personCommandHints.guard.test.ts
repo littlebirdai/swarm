@@ -44,7 +44,7 @@ const ALLOWED: Array<{ file: string; text: string; why: string }> = [
     why: "Claude Code's own login on a build that ignores per-account stores: no in-app path yet",
   },
   {
-    file: "packages/shared/contracts/snippets.ts",
+    file: "packages/snippets/src/snippets.ts",
     text: "after you approve it in your own terminal",
     why: "mods approve their local half in a terminal today: no in-app path yet",
   },

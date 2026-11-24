@@ -6,7 +6,7 @@ import type {
 import { UsageError } from "@platform/evals/cli";
 
 import { parseJsonBlock } from "../../../../../apps/server/convex/lib/anthropic";
-import { renderGuidanceFile } from "../../../../../packages/shared/contracts/snippets";
+import { renderGuidanceFile } from "@codecast/snippets/snippets";
 import { readSessionMoment, SESSION_LINE_FORMS } from "../../adapters/moment";
 import {
   readConversation,

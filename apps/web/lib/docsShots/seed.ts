@@ -7,7 +7,7 @@ import { settleFreshHomeLaunch } from "../../store/viewNav";
 import { TOURS } from "../../tours/registry";
 import { tourSeenId } from "../../tours/seen";
 import { TIPS } from "../../tips/registry";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 import { snippetIntroKey } from "../newSnippets";
 import { placeAcmeInbox, seedAcmeWorld } from "../acmeWorld/seed";
 

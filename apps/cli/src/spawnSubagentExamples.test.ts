@@ -16,7 +16,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Command } from "commander";
-import { guideText, snippetBySlug } from "@codecast/shared/contracts";
+import { guideText, snippetBySlug } from "@codecast/snippets/snippets";
 import { recoverSwallowedPrompt } from "./spawnArgs.js";
 
 const indexSrc = fs.readFileSync(

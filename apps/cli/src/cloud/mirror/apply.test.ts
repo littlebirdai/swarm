@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 import {
   GITCONFIG_BLOCK_END,
   GITCONFIG_BLOCK_START,

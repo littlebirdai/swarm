@@ -85,7 +85,7 @@ describe("cast vault on the wire", () => {
 
   test("every place that teaches get hands the value to stdin, and names $(…) only to forbid it: ps shows argv to other local users", async () => {
     const { VAULT_SNIPPET, VAULT_REFERENCE } =
-      await import("@codecast/shared/contracts");
+      await import("@codecast/snippets/snippets");
     const { commandGroup } = await import("../commandGroups.js");
     await h.run("get", "--help").catch(() => {});
     expect(VAULT_SNIPPET).toContain("Never print one or put it in argv");
@@ -103,7 +103,7 @@ describe("cast vault on the wire", () => {
   });
 
   test("the guide says a 2FA code is fine to read, how to use it, and that run and [vault] never provide one", async () => {
-    const { VAULT_REFERENCE } = await import("@codecast/shared/contracts");
+    const { VAULT_REFERENCE } = await import("@codecast/snippets/snippets");
     const otp = VAULT_REFERENCE.split(/\n\n/).find((s) =>
       s.includes("comes only from `cast vault otp"),
     )!;

@@ -2,14 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { ArrowUpRight, Blocks, Check, Lock, Search } from "lucide-react";
+import { FEATURE_EXPLAINERS } from "@codecast/snippets/featureExplainers";
 import {
-  FEATURE_EXPLAINERS,
   SNIPPET_CATALOG,
   SNIPPET_CATEGORIES,
   STABLE_MODES,
   type SnippetDescriptor,
   type StableMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { snippetAvailableForTeams } from "@codecast/policy/teamFeatures";
 import {
   isAgentSetupTool,

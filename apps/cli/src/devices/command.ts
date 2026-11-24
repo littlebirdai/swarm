@@ -9,7 +9,7 @@ import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentSetupSentence,
 } from "@codecast/agent-clients/cloudAgents";
-import { snippetBySlug } from "@codecast/shared/contracts";
+import { snippetBySlug } from "@codecast/snippets/snippets";
 import {
   deviceDisplayName,
   distinctDeviceNames,

@@ -9,7 +9,7 @@ import { UsageError } from "@platform/evals/cli";
 import {
   renderGuidanceFile,
   type GuidanceMode,
-} from "../../../../../packages/shared/contracts/snippets";
+} from "@codecast/snippets/snippets";
 import { loadCorrection } from "../../corrections/store";
 import { DRY_RUN_SCRIPT } from "../../paths";
 import { gate, type AgentResult, type SurfaceImpl } from "../../surface";

@@ -8,7 +8,7 @@
 import {
   snippetBySlug,
   type SnippetDescriptor,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { useInboxStore } from "../../store/inboxStore";
 import { useDevices } from "../DeviceBadge";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

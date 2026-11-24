@@ -20,7 +20,7 @@ import {
   stampSnippet,
   type SectionSpec,
 } from "./snippets.js";
-import { snippetStamp } from "@codecast/shared/contracts";
+import { snippetStamp } from "@codecast/snippets/snippets";
 import { getVersion } from "./update.js";
 
 const END = "<!-- /codecast-work -->";
@@ -815,7 +815,7 @@ describe("installSectionToTargets: the fold across several files", () => {
 // actual spec+body of every snippet in the shared table, plus the shared
 // references section. A synthetic spec can only prove the algorithm right
 // about text shaped the way the test author imagined.
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 
 const REAL_SECTIONS: Array<[string, SectionSpec, string]> = [
   ...SNIPPET_CATALOG.filter((s) => s.section).map(

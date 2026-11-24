@@ -3,7 +3,7 @@
 // The engine — section recognition, the in-place hash-stamped rewrite, the fan
 // out across instruction files, the atomic write — lives in @platform/snippets
 // and is imported here. What stays codecast's: the catalog
-// (@codecast/shared/contracts/snippets.ts, one table with the bodies, slugs and
+// (@codecast/snippets/snippets.ts, one table with the bodies, slugs and
 // config keys, re-exported below for the CLI, the daemon and the tests), the
 // candidate list getSnippetTargets reads off the agent client registry, and the
 // slug wrappers that throw on a typo.
@@ -42,7 +42,7 @@ import {
   stampSectionBody,
   stripSnippetStamp,
   SNIPPET_CATALOG,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { LOCAL_AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import {
   applySnippet,
@@ -78,7 +78,7 @@ export {
   REFERENCES_SECTION,
   REFERENCES_SNIPPET,
   REFERENCES_SNIPPET_END,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 export type { SectionSpec };
 
 // The pure string engine, unchanged: `findOwnedSections` reports every block a
@@ -392,7 +392,7 @@ function requireSnippet(slug: string, caller: string) {
   if (!desc) {
     throw new Error(
       `${caller}: unknown snippet slug "${slug}" — fix the slug at the call site ` +
-        `to match SNIPPET_CATALOG (@codecast/shared/contracts/snippets.ts)`,
+        `to match SNIPPET_CATALOG (@codecast/snippets/snippets.ts)`,
     );
   }
   return desc;

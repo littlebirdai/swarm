@@ -272,7 +272,7 @@ describe("command groups stay off the boot graph", () => {
       // contracts barrel, 77 files that reach this graph only through it, moved
       // to subpath imports.
       // 325 on 2026-10-16: the workflows section of the agent instructions moved
-      // to contracts/snippetsWorkflow.ts to keep snippets.ts under its max-lines
+      // to packages/snippets/src/snippetsWorkflow.ts to keep snippets.ts under its max-lines
       // pin. snippets.ts composes it, and the barrel carries snippets.ts, so any
       // split of that file adds one here until the barrel is gone.
       // Held at 325 on 2026-10-24 when the ship of that day brought 8 files: the
@@ -457,7 +457,7 @@ describe("command groups stay off the boot graph", () => {
       // managedPolicy.ts +1.5 each, tmuxRoute.ts +1.4).
       // 4520 later on 2026-11-08: growth in files already here, no new leaf
       // (index.ts +0.6 for the help text overhaul, tmux.ts +0.2,
-      // contracts/inboxFields.ts and contracts/snippets.ts +0.2 each).
+      // contracts/inboxFields.ts and packages/snippets/src/snippets.ts +0.2 each).
       // 4522 on 2026-11-08: `cast sessions -w --until` in index.ts (+1.4, the
       // option, its help line and the exit check in the watch loop; its parser,
       // sessionsUntil.ts, loads lazily) and contracts/inboxProjection.ts (+0.6,
@@ -465,7 +465,7 @@ describe("command groups stay off the boot graph", () => {
       // 4525 that evening: growth in files already on the graph (tmux.ts, daemon-adjacent leaves), no new file.
       // 4570 on 2026-11-08, the CLI help and error pass: help text, examples and
       // refusals written into index.ts's command declarations (+30), the
-      // snippets agents install (contracts/snippets.ts +1), commandSuggestion.ts
+      // snippets agents install (packages/snippets/src/snippets.ts +1), commandSuggestion.ts
       // (+6, the shared nearMatches ranking and listDescription, folded in from
       // its own file to keep the file count at 346), the argChecks.ts leaf
       // (+7: count, enum and --state parsers, the not-found and wrong-kind id
@@ -670,7 +670,7 @@ describe("command groups stay off the boot graph", () => {
       // 483 on 2026-10-16: orgProposal.ts and the five files only it brought
       // (orgSessionFiling, orgLead, initiative, roleAutonomy, chat/handles) left
       // when rolePlaybook.ts, reached through the barrel, stopped importing it.
-      // 484 on 2026-10-16: contracts/snippetsWorkflow.ts, split out of
+      // 484 on 2026-10-16: packages/snippets/src/snippetsWorkflow.ts, split out of
       // snippets.ts for its line pin (see the index.ts count).
       // 493 on 2026-10-20, again after days no run reached this case: the
       // daemon's own modules (interactivePrompt.ts split out of daemon.ts,

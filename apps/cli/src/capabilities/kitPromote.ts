@@ -19,7 +19,7 @@ import * as path from "path";
 import {
   REFERENCES_SECTION,
   SNIPPET_CATALOG,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import type {
   ModelCallResult,
   ModelCallSpec,

@@ -208,7 +208,7 @@ describe("cast task verdict argument parsing", () => {
 });
 
 import { groupTasksByAssignee, startedForRoleLine } from "./taskClaim.js";
-import { snippetSection } from "@codecast/shared/contracts";
+import { snippetSection } from "@codecast/snippets/snippets";
 
 describe("a role as assignee in the CLI (org-roles-run-work.md R5)", () => {
   test("task start says which role took the task, and says nothing otherwise", () => {

@@ -15,8 +15,8 @@ import {
   type StableContextData,
   type StableContextItem,
   type StableFeedMode,
-  type StableMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/stableContext";
+import { type StableMode } from "@codecast/snippets/snippets";
 import { formatFeedResults } from "./formatter.js";
 import type { PushedPoolRow } from "./workflow/flowPool.js";
 import { fetchMappedProjects, teamForDirectory } from "./directoryTeam.js";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { FEATURE_EXPLAINERS } from "./featureExplainers";
-import { SNIPPET_CATALOG } from "./snippets";
+import { FEATURE_EXPLAINERS } from "../src/featureExplainers";
+import { SNIPPET_CATALOG } from "../src/snippets";
 
 describe("feature explainers", () => {
   test("every catalog feature, and Stable context, has one", () => {
