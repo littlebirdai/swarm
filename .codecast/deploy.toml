@@ -31,7 +31,7 @@
 # it; Codecast's deploy.sh named here refuses in Swarm and says so.
 [[target]]
 name = "backend"
-when = ["apps/server/**", "packages/shared/**", "platform/**"]
+when = ["apps/server/**", "packages/**", "platform/**"]
 run = "apps/server/deploy.sh --typecheck=disable"
 live = "marker" # deploy.sh records each deploy
 policy = "release"
@@ -40,14 +40,14 @@ policy = "release"
 [[target]]
 name = "web"
 runs = "push"
-when = ["apps/web/**", "packages/shared/**", "platform/**"]
+when = ["apps/web/**", "packages/**", "platform/**"]
 live = "github-status:codecast - web"
 
 # Cut in CI once CI on the commit is green; live once dl.codecast.sh/latest.json names
 # the commit (CLAUDE.md, CLI releases). Then every machine is made to update to it.
 [[target]]
 name = "cli"
-when = ["apps/cli/**", "packages/shared/**", "platform/**"]
+when = ["apps/cli/**", "packages/**", "platform/**"]
 run = "scripts/cut-cli-release.sh"
 live = "json:https://dl.codecast.sh/latest.json#sourceCommit,version"
 policy = "release"
@@ -58,7 +58,7 @@ finish = "cast force-update $version"
 # shared and web code too, so those paths ship it.
 [[target]]
 name = "mobile"
-when = ["apps/mobile/**", "packages/shared/**", "apps/web/**", "platform/**"]
+when = ["apps/mobile/**", "packages/**", "apps/web/**", "platform/**"]
 run = "apps/mobile/scripts/ota.sh $sha"
 policy = "release"
 after = ["backend"]

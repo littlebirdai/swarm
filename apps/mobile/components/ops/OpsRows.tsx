@@ -13,7 +13,7 @@ import {
   type Palette,
 } from "@/constants/Theme";
 import { Mono, uiFace } from "@/constants/fonts";
-import { relTimeShort } from "@codecast/shared/time";
+import { relTimeShort } from "@codecast/time";
 import {
   formatReplayTime,
   personLabel,

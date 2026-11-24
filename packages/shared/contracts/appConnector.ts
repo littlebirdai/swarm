@@ -7,7 +7,7 @@
 // manifest, so every rule here is spelled once.
 //
 // Pure: no node or convex imports.
-import { parseDuration } from "../time";
+import { parseDuration } from "@codecast/time";
 import type { ProductViewDef } from "./productView";
 
 // ── Limits ──

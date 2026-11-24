@@ -1,5 +1,5 @@
 import { unreachableTerminalHoldReason } from "@codecast/shared/contracts/deliveryHold";
-import { formatDuration } from "@codecast/shared/time";
+import { formatDuration } from "@codecast/time";
 
 // A live agent whose terminal has no way for the daemon to type into it (any
 // terminal outside daemon.ts INJECTABLE_TERMINALS, such as a plain Alacritty

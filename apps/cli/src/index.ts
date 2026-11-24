@@ -192,7 +192,7 @@ import {
   parseEndDate,
   parseRelativeDate,
   wasEdited,
-} from "@codecast/shared/time";
+} from "@codecast/time";
 import { SESSION_QUERY_OPERATORS } from "@codecast/shared/search";
 import {
   describeShareSpan,
@@ -18838,7 +18838,7 @@ function parsePrecheckMode(value: string): TriggerPrecheckMode {
   return value as TriggerPrecheckMode;
 }
 
-/** The shared duration grammar (@codecast/shared/time), undefined for input it refuses. */
+/** The shared duration grammar (@codecast/time), undefined for input it refuses. */
 function parseDuration(input: string): number | undefined {
   try {
     return parseSharedDuration(input);

@@ -1,6 +1,6 @@
 // What the roadmap's chart and sheet share: a row's colour, the words and
 // colours for where it stands against its target, and how a day reads.
-import { formatTargetDay } from "@codecast/shared/time";
+import { formatTargetDay } from "@codecast/time";
 import { HEALTH_COLOR, INITIATIVE_ACCENT } from "../../lib/initiativeColors";
 import { projectDotClass } from "../../lib/projectColors";
 import type { RoadRow, Standing } from "./roadmapModel";

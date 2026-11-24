@@ -62,7 +62,7 @@ import {
   INGEST_LIMITS,
   validateIngestBatch,
 } from "@codecast/shared/contracts/ingest";
-import { parseDuration } from "@codecast/shared/time";
+import { parseDuration } from "@codecast/time";
 import {
   APP_LIMITS,
   activeGrant,

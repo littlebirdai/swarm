@@ -7,7 +7,7 @@
 // A skew there would fail the check on code nobody touched. This walker reads
 // the same bytes everywhere, so the id depends only on the source.
 //
-// What moves the id: any .ts file under apps/cli/src, packages/shared or
+// What moves the id: any .ts file under apps/cli/src, packages/shared, packages/time or
 // platform/packages that the daemon reaches, and the `dependencies` block of
 // apps/cli/package.json. What does not: the CLI version string (it changes
 // every release, which is the whole thing this exists to stop), and the
@@ -269,6 +269,12 @@ export function computeDaemonBuildId(repoRoot = findRepoRoot()): BuildIdResult {
           isFile,
         );
         if (resolved) queue.push(resolved);
+        else external.add(spec);
+        continue;
+      }
+      if (spec === "@codecast/time") {
+        const timeEntry = path.join(repoRoot, "packages/time/src/index.ts");
+        if (isFile(timeEntry)) queue.push(timeEntry);
         else external.add(spec);
         continue;
       }

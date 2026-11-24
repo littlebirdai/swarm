@@ -127,6 +127,8 @@ export function resolveSpecifier(
   let base: string;
   if (spec.startsWith(".")) {
     base = path.resolve(path.dirname(fromFile), spec);
+  } else if (spec === "@codecast/time") {
+    base = path.join(root, "packages/time/src/index.ts");
   } else if (spec.startsWith("@codecast/shared")) {
     base = path.join(
       root,

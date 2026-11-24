@@ -33,7 +33,7 @@ import {
   type TitledTaskBlocker,
   type WaitLabelOptions,
 } from "@codecast/shared/tasks";
-import { localTimeZone } from "@codecast/shared/time";
+import { localTimeZone } from "@codecast/time";
 import { checkoutRepository, checkoutWords } from "./checkoutWords.js";
 import { c, fmt } from "./colors.js";
 import { shellEscapeForSh as shq } from "./supervision.js";

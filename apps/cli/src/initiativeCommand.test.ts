@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { predictionWords } from "@codecast/shared/contracts/predictedEffect";
-import { targetDayStamp } from "@codecast/shared/time";
+import { targetDayStamp } from "@codecast/time";
 import {
   metricReadings,
   metricTrends,

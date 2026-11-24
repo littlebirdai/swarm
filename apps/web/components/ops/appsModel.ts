@@ -11,7 +11,7 @@ import {
   type JsonSchema,
 } from "@codecast/shared/contracts/appConnector";
 import { parseReaderQuery } from "@codecast/shared/contracts/ingest";
-import { relTimeShort } from "@codecast/shared/time";
+import { relTimeShort } from "@codecast/time";
 import { watchHealth } from "./metricModel";
 import type { OpsAppCall, OpsGrant, OpsWatch, WatchState } from "./opsTypes";
 

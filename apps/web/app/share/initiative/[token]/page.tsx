@@ -3,7 +3,7 @@
 // it and the updates its owner wrote.
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
+import { formatDateFull, formatDateSmart } from "@codecast/time";
 import {
   fmtDay,
   Pill,

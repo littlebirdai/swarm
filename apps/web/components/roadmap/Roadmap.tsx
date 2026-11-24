@@ -23,7 +23,7 @@ import {
 } from "react";
 import { ChevronRight, Flag, Users } from "lucide-react";
 import type { InitiativeUpdateRow } from "@codecast/shared/contracts/initiative";
-import { targetDayStamp } from "@codecast/shared/time";
+import { targetDayStamp } from "@codecast/time";
 import { useInboxStore, type ProjectItem } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useIsPhone } from "../../hooks/useIsPhone";

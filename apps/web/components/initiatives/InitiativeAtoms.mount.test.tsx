@@ -98,8 +98,7 @@ async function verifyAtoms() {
   const A = await import("./InitiativeAtoms");
   const { metricReading, metricTrend } =
     await import("@codecast/shared/contracts/initiative");
-  const { targetDayStamp, formatShortDate } =
-    await import("@codecast/shared/time");
+  const { targetDayStamp, formatShortDate } = await import("@codecast/time");
   const root = createRoot(document.getElementById("root")!);
   const h = React.createElement;
   const show = async (node: React.ReactNode) => {

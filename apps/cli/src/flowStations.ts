@@ -211,7 +211,7 @@ export function registerFlowStations(flow: Command, deps: FlowDeps): Command {
       }) => {
         const [{ waitForMain }, { parseDuration }] = await Promise.all([
           import("./workflow/waitMain.js"),
-          import("@codecast/shared/time"),
+          import("@codecast/time"),
         ]);
         const r = await waitForMain({
           cwd: deps.realCwd(),

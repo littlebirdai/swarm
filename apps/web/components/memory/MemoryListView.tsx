@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MEMORY_REACH, type MemoryNote } from "@codecast/shared/memory";
-import { formatRelative } from "@codecast/shared/time";
+import { formatRelative } from "@codecast/time";
 import { formatBytes } from "./memoryView";
 import { ReachBadge, TypeBadge } from "./parts";
 

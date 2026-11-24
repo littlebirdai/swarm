@@ -9,7 +9,7 @@ import { useAction } from "convex/react";
 import { Check, Link2, RefreshCw, X } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { sharePath } from "@codecast/shared/entities";
-import { localTimeZone } from "@codecast/shared/time";
+import { localTimeZone } from "@codecast/time";
 import {
   weekBounds,
   publicWeekCard,

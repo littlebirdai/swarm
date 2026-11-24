@@ -2,7 +2,7 @@
 // /share/task/<token>: one task as a stranger holding its link reads it.
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
+import { formatDateFull, formatDateSmart } from "@codecast/time";
 import { taskPriorityBadge } from "../../../../lib/taskPriority";
 import {
   Bullets,

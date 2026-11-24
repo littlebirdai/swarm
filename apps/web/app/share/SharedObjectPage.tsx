@@ -9,7 +9,7 @@ import type { FunctionReference } from "convex/server";
 import { useParams } from "react-router";
 import { Check, Link2, Unlink } from "lucide-react";
 import type { SharedObjectKind } from "@codecast/shared/entities";
-import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
+import { formatDateFull, formatDateSmart } from "@codecast/time";
 import { AppLoader } from "../../components/AppLoader";
 import { MarkdownRenderer } from "../../components/tools/MarkdownRenderer";
 import { AvatarImg } from "../../lib/avatarCache";

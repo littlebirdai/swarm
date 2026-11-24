@@ -26,7 +26,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { CODECAST_BASE_URL, sharePath } from "@codecast/shared/entities";
-import { localTimeZone } from "@codecast/shared/time";
+import { localTimeZone } from "@codecast/time";
 import {
   WEEK_DAY_NAMES,
   formatCount,

@@ -59,7 +59,7 @@ level = true
 # that makes typing slow again stops the ship here, before anything deploys.
 [[ship.deploy]]
 name = "typing-guard"
-when = ["apps/web/**", "packages/shared/**", "platform/**"]
+when = ["apps/web/**", "packages/**", "platform/**"]
 run = "apps/web/scripts/typing-guard.sh"
 stage = "before_push"
 

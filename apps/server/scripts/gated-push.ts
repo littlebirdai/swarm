@@ -9,7 +9,7 @@
 //
 // This pusher makes a push a proof instead of a reflex:
 //   1. wait until everything the backend bundles (the functions directory,
-//      packages/shared and platform/packages) has been quiet for QUIET_MS;
+//      packages/shared, packages/time and platform/packages) has been quiet for QUIET_MS;
 //   2. refuse while the tree is behind origin/main (a snapshot push from a
 //      stale tree deletes newer functions from prod, the 2026-07-15 outage);
 //   3. take a signature of every file that ships;
@@ -59,7 +59,7 @@ export function signatureOf(
 }
 
 /** Every directory the backend bundles, the same set deploy.sh reads: the
- *  functions, the shared package they import (`@codecast/shared`) and the
+ *  functions, the shared workspace packages they import and the
  *  vendored platform packages. `prefix` namespaces a file in the signature
  *  and the log; functions keep their bare path. */
 export function bundledSources(
@@ -68,6 +68,7 @@ export function bundledSources(
   return [
     { dir: join(root, "apps", "server", "convex"), prefix: "" },
     { dir: join(root, "packages", "shared"), prefix: "packages/shared/" },
+    { dir: join(root, "packages", "time"), prefix: "packages/time/" },
     { dir: join(root, "platform", "packages"), prefix: "platform/packages/" },
   ];
 }

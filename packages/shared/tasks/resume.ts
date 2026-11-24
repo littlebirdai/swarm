@@ -12,7 +12,7 @@ import {
   inlineForeignText,
   FOREIGN_TEXT_TRUNCATION_MARKER,
 } from "../contracts/fence";
-import { formatRelative } from "../time";
+import { formatRelative } from "@codecast/time";
 import {
   blockerLabel,
   blockerWaitingLabel,

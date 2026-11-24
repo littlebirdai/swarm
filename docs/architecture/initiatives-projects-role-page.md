@@ -52,7 +52,7 @@ writes one from its routine with `cast initiative update in-N --health
 on_track - <<'EOF'`. Health is what the owner said, so only the owner posts
 an update (a person, or the owning role's standing session), and a workspace
 admin may post one for them; everyone else reads. The target is a calendar
-day, stored and read through one shared pair (`shared/time` `targetDayStamp`
+day, stored and read through one shared pair (`@codecast/time` `targetDayStamp`
 and `targetDayOf`) so the CLI and the picker name the same day in every
 timezone. The header carries title, status, owner (with the hover card),
 health and target.
@@ -534,7 +534,7 @@ name and reads "34 · under 20". The line draws the bar toward the target
 until two reports make a sparkline, and the sparkline rules the target only
 when the series keeps a third of the height with it on the scale. A target
 day and a milestone's day are days, not moments: they print through
-`formatTargetDay` and turn late through `targetDayPassed` (shared/time), so
+`formatTargetDay` and turn late through `targetDayPassed` (@codecast/time), so
 every timezone names the same day and a day is late only once the viewer's
 own calendar is past it. A project's deadline is still stamped at the end of
 the viewer's local day and reads through `TargetDate`'s `local` flag. A

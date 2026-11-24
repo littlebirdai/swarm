@@ -142,7 +142,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   ["evals", ["apps/evals/"]],
   ["web", ["apps/web/"]],
   ["convex", ["apps/server/"]],
-  ["shared", ["packages/shared/", "packages/edge-contract/"]],
+  ["shared", ["packages/shared/", "packages/edge-contract/", "packages/time/"]],
   // The vendored mirror is its own area: a change to it runs the platform
   // tests and the manifest drift check, which "shared" alone never did
   // (ct-49675).

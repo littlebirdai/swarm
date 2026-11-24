@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import type { Components } from "react-markdown";
 import { docTypeLabel, stripTitleHeading } from "@codecast/shared/docs";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
+import { formatDateFull, formatDateSmart } from "@codecast/time";
 import { MarkdownBlocks } from "../../../../components/tools/MarkdownRenderer";
 import { MD_COMPONENTS } from "../../../../lib/markdownComponents";
 import { useWatchEffect } from "../../../../hooks/useWatchEffect";

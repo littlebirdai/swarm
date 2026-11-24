@@ -18,7 +18,7 @@ import { SessionGlyph, SessionIdentityLine } from "./identity";
 import { identityRowOf } from "../lib/sessionIdentity";
 import { cleanTitle } from "../lib/conversationProcessor";
 import { sessionCardTitle } from "../lib/sessionCard";
-import { formatDateSmart } from "@codecast/shared/time";
+import { formatDateSmart } from "@codecast/time";
 import {
   paletteSearchValue,
   paletteSessionValue,

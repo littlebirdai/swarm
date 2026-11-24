@@ -17,6 +17,7 @@ test.skipIf(!process.env.DAEMON_BUILD_ID_CHECK)(
   "the stamp matches the current daemon closure",
   () => {
     const { id, files } = computeDaemonBuildId();
+    expect(files).toContain("packages/time/src/index.ts");
     expect(
       id,
       `The daemon build id is stale: the stamp says ${DAEMON_BUILD_ID}, the closure (${files.length} files) ` +

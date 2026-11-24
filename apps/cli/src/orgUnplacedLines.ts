@@ -4,7 +4,7 @@
 // full lists are in --json.
 
 import { fmt } from "./colors.js";
-import { formatRelative } from "@codecast/shared/time";
+import { formatRelative } from "@codecast/time";
 
 type SessionRef = {
   short_id: string;

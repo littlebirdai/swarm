@@ -16,6 +16,7 @@
   "dependencies": {
     "@codecast/convex": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/time": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
     "@codemirror/lang-markdown": "^6.5.1",

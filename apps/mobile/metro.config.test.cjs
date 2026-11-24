@@ -63,7 +63,9 @@ function getPackage(file) {
 }
 
 function getPackageForModule(file) {
-  let dir = path.dirname(file);
+  let dir = fs.statSync(file, { throwIfNoEntry: false })?.isDirectory()
+    ? file
+    : path.dirname(file);
   while (dir !== path.dirname(dir) && path.basename(dir) !== "node_modules") {
     const packageJson = getPackage(path.join(dir, "package.json"));
     if (packageJson)
@@ -101,6 +103,21 @@ function context(originModulePath) {
     resolveRequest: resolve,
     unstable_logWarning: () => {},
   };
+}
+
+for (const platform of ["ios", "android"]) {
+  test(`${platform}: Metro resolves the time package export`, () => {
+    expect(
+      config.resolver.resolveRequest(
+        context(path.join(__dirname, "index.ts")),
+        "@codecast/time",
+        platform,
+      ),
+    ).toEqual({
+      type: "sourceFile",
+      filePath: path.resolve(__dirname, "../../packages/time/src/index.ts"),
+    });
+  });
 }
 
 for (const platform of ["ios", "android"]) {

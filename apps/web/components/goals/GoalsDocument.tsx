@@ -33,7 +33,7 @@ import {
 import { useMetricSeries } from "../../hooks/useMetricSeries";
 import { MetricsEditor } from "../initiatives/MetricsEditor";
 import { objectHref } from "@codecast/shared/entities";
-import { targetDayOf, targetDayStamp } from "@codecast/shared/time";
+import { targetDayOf, targetDayStamp } from "@codecast/time";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { undoAsOne } from "../../store/undoActions";
 import { quoted } from "../../store/undo/labels";

@@ -17,7 +17,7 @@
 // an operator but is not one (`http:`, `todo:`) stays text. Values may be
 // quoted: `file:"docs/a b.md"`.
 
-import { parseEndDate, parseRelativeDate } from "../time";
+import { parseEndDate, parseRelativeDate } from "@codecast/time";
 import { tokenizeQuery } from "./tokenize";
 import {
   extractRepoFromRemoteUrl,

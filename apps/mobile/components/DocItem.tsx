@@ -3,7 +3,7 @@ import { Text as RNText } from "@/components/Themed";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import type { DocItem as DocItemType } from "@codecast/web/store/inboxStore";
-import { formatDateSmart, wasEdited } from "@codecast/shared/time";
+import { formatDateSmart, wasEdited } from "@codecast/time";
 import {
   DOC_TYPES,
   DOC_TYPE_LABELS,

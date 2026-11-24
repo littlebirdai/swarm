@@ -3,7 +3,7 @@
 // told, when it fires, and how its last run went.
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
+import { formatDateFull, formatDateSmart } from "@codecast/time";
 import {
   fmtDuration,
   triggerEventLabel,

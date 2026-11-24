@@ -166,7 +166,6 @@
     "./artifacts/sheet": "./artifacts/sheet.ts",
     "./artifacts/sheets": "./artifacts/sheets/index.ts",
     "./files": "./files/index.ts",
-    "./time": "./time/index.ts",
     "./replay": "./replay/index.ts",
     "./team": "./team/index.ts",
     "./team/directoryRules": "./team/directoryRules.ts",
@@ -198,6 +197,7 @@
     "./mods/inspect": "./mods/inspect.ts"
   },
   "dependencies": {
+    "@codecast/time": "workspace:*",
     "css-tree": "3.2.1",
     "@platform/analytics": "file:../../platform/packages/analytics",
     "@platform/agent": "file:../../platform/packages/agent",

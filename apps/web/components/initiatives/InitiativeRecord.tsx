@@ -49,7 +49,7 @@ import {
   targetDayOf,
   targetDayPassed,
   targetDayStamp,
-} from "@codecast/shared/time";
+} from "@codecast/time";
 import { useInboxStore } from "../../store/inboxStore";
 import type { InitiativeRecordOp } from "../../store/initiativeRecord";
 import { HEALTH_COLOR, INITIATIVE_ACCENT } from "../../lib/initiativeColors";

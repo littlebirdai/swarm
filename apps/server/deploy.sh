@@ -86,7 +86,7 @@ WITH_KEY=()
 # Read before the push, since the push ships what is on disk at that moment:
 # uncommitted edits to what the backend bundles (its functions, shared code,
 # the vendored platform packages).
-DIRTY="$(git -C "$ROOT" status --porcelain -- apps/server/convex packages/shared platform/packages | wc -l | tr -d ' ')"
+DIRTY="$(git -C "$ROOT" status --porcelain -- apps/server/convex packages platform/packages | wc -l | tr -d ' ')"
 
 # What this push changes on prod (scripts/prod-diff.ts, read-only): every
 # function, route, index and table prod has that this tree lacks is gone

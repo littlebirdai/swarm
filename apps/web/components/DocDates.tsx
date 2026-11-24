@@ -5,7 +5,7 @@ import {
   formatDateFull,
   formatDateSmart,
   wasEdited,
-} from "@codecast/shared/time";
+} from "@codecast/time";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 
 // The one way a doc's created/updated dates render. Every doc surface — the

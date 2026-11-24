@@ -21,7 +21,7 @@ import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { isConvexId } from "@codecast/web/store/inboxStore";
 import { DOC_TYPE_CONFIG } from "@/components/DocItem";
 import { MarkdownContent } from "@/components/MarkdownRenderer";
-import { describeDates } from "@codecast/shared/time";
+import { describeDates } from "@codecast/time";
 import { isArtifactDocType } from "@codecast/shared/artifacts";
 import { openWebPage, WEB_ORIGIN } from "@/lib/links";
 

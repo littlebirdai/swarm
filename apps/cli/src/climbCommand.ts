@@ -14,7 +14,7 @@ import { commandGroup } from "./commandGroups.js";
 import { recordRun, runEnv, runWithCases, withTreeAt } from "./envCommand.js";
 import { climbBase, stackBase } from "./climb/base.js";
 import { repoRoot } from "./envDeclaration.js";
-import { parseDuration } from "@codecast/shared/time";
+import { parseDuration } from "@codecast/time";
 import {
   ClimbStop,
   STOP,
