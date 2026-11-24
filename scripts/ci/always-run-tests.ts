@@ -35,6 +35,12 @@ export const SUITES: Array<{
 }> = [
   { job: "test-shared", dir: "packages/shared", roots: ["."], flags: [] },
   {
+    job: "test-shared",
+    dir: "packages/edge-contract",
+    roots: ["."],
+    flags: [],
+  },
+  {
     job: "test-convex",
     dir: "apps/server",
     roots: ["convex", "scripts"],

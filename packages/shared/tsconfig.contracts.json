@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "types": ["bun"],
-    "typeRoots": ["../../apps/cli/node_modules/@types"]
-  },
-  "include": ["contracts/edge/**/*.ts"]
-}

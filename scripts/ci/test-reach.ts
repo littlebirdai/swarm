@@ -32,7 +32,7 @@ export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-convex": ["apps/server/convex", "apps/server/scripts"],
   "test-web": ["apps/web"],
   "test-cli": ["apps/cli/src", "apps/evals/src"],
-  "test-shared": ["packages/shared"],
+  "test-shared": ["packages/shared", "packages/edge-contract"],
   "test-mobile": ["apps/mobile"],
   "test-electron": ["apps/desktop"],
 };

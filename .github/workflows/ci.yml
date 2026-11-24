@@ -209,7 +209,7 @@ jobs:
         # runner for the other programs turbo runs beside it.
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: bun run typecheck --filter=@codecast/cli --filter=@codecast/web --filter=@codecast/convex --filter=@codecast/evals --filter=@codecast/playground --filter=@codecast/shared
+        run: bun run typecheck --filter=@codecast/cli --filter=@codecast/web --filter=@codecast/convex --filter=@codecast/evals --filter=@codecast/playground --filter=@codecast/edge-contract
 
   lint:
     needs: [code_paths]
@@ -471,6 +471,10 @@ jobs:
 
       - name: Unit tests (shared package)
         working-directory: packages/shared
+        run: bun test
+
+      - name: Unit tests (edge contract)
+        working-directory: packages/edge-contract
         run: bun test
 
   # The mobile app's guard tests are what stand between an OTA update and a
