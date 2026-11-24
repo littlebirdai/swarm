@@ -114,7 +114,7 @@ task, or is killed) its slot frees and the queue drains first in, first out,
 skipping a row whose own session or machine is still full so it does not hold
 up another's. The row's `subagent_slot` field is the one home of this state;
 the web derives "queued, 2 ahead" from the queued rows in the store with the
-same pure function the server drains with (`shared/contracts/subagentFleet.ts`,
+same pure function the server drains with (`packages/agent-clients/src/subagentFleet.ts`,
 `convex/subagentFleet.ts`). `cast plan orchestrate` and `autopilot` take the
 per session limit as their default `--max`.
 

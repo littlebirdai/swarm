@@ -1,4 +1,4 @@
-// The subagent fleet (shared/contracts/subagentFleet.ts): how many workers a
+// The subagent fleet (packages/agent-clients/src/subagentFleet.ts): how many workers a
 // session and a machine run at once, the queue a spawn joins when either is
 // full, and the merge of an isolated worker's changes into its parent's
 // checkout when it finishes done.

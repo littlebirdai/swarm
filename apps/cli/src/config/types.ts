@@ -335,7 +335,7 @@ export interface Config extends CloudSessionSyncSettings {
   // --- Queue limits (cast queue lists every queue) ---
   // How many `cast spawn --subagent` workers one session (default 10) and this
   // machine (default 24) run at once; a spawn past either waits in a queue
-  // (shared/contracts/subagentFleet.ts). Also the default `--max` of
+  // (packages/agent-clients/src/subagentFleet.ts). Also the default `--max` of
   // `cast plan orchestrate` and `autopilot`.
   subagents?: { per_session?: number; per_machine?: number };
   // Typecheck watchers start while their learned memory fits in what the
