@@ -617,7 +617,6 @@ apps/web/components/ops/issueReadings.tsx 900
 apps/web/components/ops/issuesModel.test.ts 1650
 apps/web/components/ops/metricModel.test.ts 950
 apps/web/components/ops/metricModel.ts 1100
-apps/web/components/ops/metricRounds.test.ts 850
 apps/web/components/ops/opsHomeModel.test.ts 1200
 apps/web/components/ops/opsHomeModel.ts 1050
 apps/web/components/ops/replayModel.test.ts 1300
