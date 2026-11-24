@@ -3,10 +3,7 @@
 // EntityAwareLink). Most runs are CI, so the fallback is the common case.
 import React from "react";
 import { actionsRunKey } from "@codecast/shared/contracts/deploys";
-import {
-  deployRunRefRegex,
-  splitDeployRunRef,
-} from "@codecast/shared/entities";
+import { deployRunRefRegex, splitDeployRunRef } from "@codecast/entities";
 import { EntityPill } from "./EntityPill";
 
 /** A run's url: its deploy's pill, else `link` as it was. */

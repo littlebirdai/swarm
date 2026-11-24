@@ -1,6 +1,6 @@
 // An org object by its kind and the ref its address uses, and how a stored
 // path reads as one (essence spec §3.2). Pure, so the rules test without a DOM.
-import { orgObjectOfRef, type OrgObjectKind } from "@codecast/shared/entities";
+import { orgObjectOfRef, type OrgObjectKind } from "@codecast/entities";
 import { currentPagePath } from "../../../lib/renamedPages";
 
 /** One object: its kind and the ref its address uses (`in-2`, `pj-k3x9`,

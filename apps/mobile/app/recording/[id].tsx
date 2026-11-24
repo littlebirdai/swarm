@@ -47,7 +47,7 @@ import {
   callRefId,
   formatCallTime,
   isConvexId,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { openWebPage } from "@/lib/links";
 import { Text as RNText } from "@/components/Themed";
 import {

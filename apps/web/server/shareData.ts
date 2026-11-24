@@ -1,7 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../apps/server/convex/_generated/api.js";
 import { cleanNotificationBody } from "../lib/notificationText";
-import { sharePath, type ShareKind } from "@codecast/shared/entities";
+import { sharePath, type ShareKind } from "@codecast/entities";
 import { CONVEX_URL } from "./convexUrl";
 import {
   GUEST_LINK_REFUSAL_TEXT,

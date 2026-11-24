@@ -8,7 +8,7 @@ import {
   normalizeWorkStateFilter,
   WORK_STATE_FILTERS,
 } from "@codecast/sessions/workState";
-import { inferEntityTypeFromShortId } from "@codecast/shared/entities";
+import { inferEntityTypeFromShortId } from "@codecast/entities";
 import { verbTypoNextStep } from "./commandSuggestion.js";
 
 /** Where an agent finds a session id: appended to every "no such session" line. */

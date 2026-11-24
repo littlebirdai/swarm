@@ -41,7 +41,7 @@ import { RecordingMark } from "./RecordingMark";
 import { ParticipantTag } from "./GuestTag";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { CallVideoControls } from "./CallVideoControls";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import "./callVideoPlayer.css";
 import { modernButton } from "../ui/modernLook";
 

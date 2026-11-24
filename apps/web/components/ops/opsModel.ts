@@ -18,7 +18,7 @@ import {
 } from "@codecast/fence/fence";
 import type { ReplayEvent } from "@codecast/replay/replay";
 import type { OpsEvent, OpsGroup, OpsReplay } from "./opsTypes";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import {
   formatCodecastConfig,
   mergeCodecastConfig,

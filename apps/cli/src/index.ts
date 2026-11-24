@@ -131,7 +131,7 @@ import {
   parseCallRef,
   callRefId,
   formatCallTime,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   SNIPPET_CATALOG,
   snippetBySlug,

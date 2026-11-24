@@ -144,7 +144,7 @@ describe("command groups stay off the boot graph", () => {
       // githubAppInstallState.ts arrived and sessionUpdates.ts left with the
       // batching it belonged to, so nothing reached anywhere new. The 9 KB is
       // modules already on the graph getting longer where ct-49854 added code —
-      // shared/entities/index.ts (+3.5 KB), cloud/mirror/transform.ts (+2.4 KB)
+      // packages/entities/src/index.ts (+3.5 KB), cloud/mirror/transform.ts (+2.4 KB)
       // and discovery.ts (+1.9 KB), appDescriptors.ts, workspace/chrome.ts,
       // syncScope.ts, syncService.ts — plus triggerPrecheck.ts from c1463717a.
       // Every import path was traced and each one predates the landing. A guard

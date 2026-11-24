@@ -2,7 +2,7 @@
 // popover (SharePopover) with the object's page link, send to chat, and, for
 // every kind with a public view, who can open the link. Conversations add team levels on top of the same popover
 // (ConversationSharePopover).
-import { sharePath } from "@codecast/shared/entities";
+import { sharePath } from "@codecast/entities";
 import { useInboxStore, type PublicShareKind } from "../store/inboxStore";
 import { shareOrigin, sharePageUrl } from "../lib/utils";
 import { SharePopover } from "./SharePopover";

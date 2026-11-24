@@ -7,7 +7,7 @@ import {
   entityRoute,
   entityTypeFromId,
   flowSlugOf,
-} from "./index";
+} from "../src/index";
 
 // A scanner that embeds the id branch in its own alternation (the phone's
 // markdown tokenizer) must bound it the way the shared scanner does, or a

@@ -28,7 +28,7 @@ import {
   type InitiativeUpdateHealth,
   type InitiativeUpdateRow,
 } from "@codecast/shared/contracts/initiative";
-import { objectHref } from "@codecast/shared/entities";
+import { objectHref } from "@codecast/entities";
 import {
   useInboxStore,
   type PlanItem,

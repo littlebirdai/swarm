@@ -29056,6 +29056,21 @@
   "packages/docs/test/drafting.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/entities/src/appSurfaces.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/entities/src/index.ts": {
+    "swarm/no-comments": 296
+  },
+  "packages/entities/test/bareIds.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/entities/test/callMoments.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/entities/test/orgObjects.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/evals-api/src/evalsApi.ts": {
     "swarm/no-comments": 21
   },
@@ -29611,9 +29626,6 @@
   "packages/shared/contracts/appDescriptors.ts": {
     "swarm/no-comments": 56
   },
-  "packages/shared/contracts/appSurfaces.ts": {
-    "swarm/no-comments": 11
-  },
   "packages/shared/contracts/capabilityResolver.golden.test.ts": {
     "swarm/no-comments": 10
   },
@@ -30048,18 +30060,6 @@
   },
   "packages/shared/contracts/volumeWatch.ts": {
     "swarm/no-comments": 31
-  },
-  "packages/shared/entities/bareIds.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/entities/callMoments.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/entities/index.ts": {
-    "swarm/no-comments": 296
-  },
-  "packages/shared/entities/orgObjects.test.ts": {
-    "swarm/no-comments": 2
   },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9

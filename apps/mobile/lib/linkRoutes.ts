@@ -20,7 +20,7 @@ import {
   sharePath,
   isAppHost,
   type EntityType,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   laneRedirectTarget,
   pageAliasTarget,

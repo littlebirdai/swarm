@@ -23,7 +23,7 @@ import type { ComponentType } from "react";
 // lazy, because it carries the media stack (livekit-client) that no share
 // page should download.
 const GuestMeet = lazy(() => import("../app/meet/[token]/page"));
-import type { SharedObjectKind } from "@codecast/shared/entities";
+import type { SharedObjectKind } from "@codecast/entities";
 
 /**
  * Standalone boot for /share/<kind>/<token> — see main.tsx.

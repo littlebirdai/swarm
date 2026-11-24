@@ -54,7 +54,7 @@ import {
   useSyncOpsSources,
 } from "@codecast/web/hooks/useSyncOps";
 import { replayOffset } from "@codecast/web/components/ops/issueSamples";
-import { replayRefId } from "@codecast/shared/entities";
+import { replayRefId } from "@codecast/entities";
 import type {
   OpsGroup,
   OpsSample,

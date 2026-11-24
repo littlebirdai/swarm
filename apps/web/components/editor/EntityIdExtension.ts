@@ -6,7 +6,7 @@ import type { NodeType } from "@tiptap/pm/model";
 import { shortIdSource } from "../../lib/entityLinks";
 import { EntityIdNodeView } from "./EntityIdNodeView";
 
-// The same bare-id vocabulary read mode pills (shared/entities BARE_ID_SOURCE),
+// The same bare-id vocabulary read mode pills (packages/entities/src BARE_ID_SOURCE),
 // minus the raw-32-char-Convex-id branch: converting an arbitrary hash someone
 // is typing into an atom is too aggressive for an editor, and those ids only
 // resolve through a server round-trip anyway. Prefixed short ids derive from

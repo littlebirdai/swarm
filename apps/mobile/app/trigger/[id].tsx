@@ -18,7 +18,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { isConvexId } from "@codecast/shared/entities";
+import { isConvexId } from "@codecast/entities";
 import { Text as RNText } from "@/components/Themed";
 import { CHROME_FONT_CAP, themedStyles, useTheme } from "@/constants/Theme";
 import { Mono, uiFace } from "@/constants/fonts";

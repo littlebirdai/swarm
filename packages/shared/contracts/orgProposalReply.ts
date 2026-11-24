@@ -1,7 +1,7 @@
 // A person's answers to a proposal's cards, as the agent reads them
 // (org-staffing.md S39). Re-exported from orgProposal.ts.
 
-import { proposalChangeRefId } from "../entities";
+import { proposalChangeRefId } from "@codecast/entities";
 
 /** "a, b and c" */
 export const andList = (xs: string[]) =>

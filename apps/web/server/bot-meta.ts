@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { api } from "../../../apps/server/convex/_generated/api.js";
 import type { Id } from "../../../apps/server/convex/_generated/dataModel";
-import { parseSharePath } from "@codecast/shared/entities";
+import { parseSharePath } from "@codecast/entities";
 import {
   convex,
   fetchGuestLink,

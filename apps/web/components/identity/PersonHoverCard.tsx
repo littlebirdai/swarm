@@ -5,7 +5,7 @@
 // they own, and what carries them. Paints from the store (the org tree and
 // the roster); a person the store does not know yet keeps the face and the
 // name the caller already had. A click opens their sheet.
-import { personRefOf } from "@codecast/shared/entities";
+import { personRefOf } from "@codecast/entities";
 import { SummaryFrame } from "../org/lines/ObjectSummary";
 import { usePersonHead } from "../org/lines/useHeads";
 import { HoverCard } from "../ui/HoverCard";

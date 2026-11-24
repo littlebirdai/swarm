@@ -13,7 +13,7 @@ import { BELOW_SM, useMediaQuery } from "../../hooks/useIsPhone";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
 import { useMountEffect } from "../../hooks/useMountEffect";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { KeyCap } from "../KeyCap";
 import {
   RECORDING_SHARED_WORDS,

@@ -16,7 +16,7 @@ import {
   matchHandle,
   type ChatMentionRef,
 } from "@codecast/chat";
-import { entityMentionRegex } from "@codecast/shared/entities";
+import { entityMentionRegex } from "@codecast/entities";
 import { emailLocalHandle } from "../chatText";
 import { liveRoleByHandle } from "./orgAccess";
 import { workspaceAnchorFor } from "../anchors";

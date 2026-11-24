@@ -23,7 +23,7 @@ import {
   costUsd,
   isLineRun,
 } from "@codecast/shared/contracts/changeCard";
-import { publicUrl } from "@codecast/shared/entities";
+import { publicUrl } from "@codecast/entities";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import {

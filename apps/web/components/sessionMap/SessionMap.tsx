@@ -51,7 +51,7 @@ import {
   X,
 } from "lucide-react";
 import type { WorkState } from "@codecast/sessions/workState";
-import { objectHref } from "@codecast/shared/entities";
+import { objectHref } from "@codecast/entities";
 import {
   useInboxStore,
   sessionWorkState,

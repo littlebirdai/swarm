@@ -1347,8 +1347,8 @@ themes, and in developer mode, which is unchanged.
   longer says "Waiting for your go-ahead" over "You said not now".
 - **"5-in-1" read as initiative in-1** in the phone's markdown, which bounded
   ids with `\b`. The shared bounds are `BARE_ID_BEFORE` / `BARE_ID_AFTER`
-  (`shared/entities`), used by `bareEntityIdRegex` and the phone's tokenizer;
-  `shared/entities/bareIds.test.ts` holds it.
+  (`packages/entities/src`), used by `bareEntityIdRegex` and the phone's tokenizer;
+  `packages/entities/test/bareIds.test.ts` holds it.
 - **Lists and settings.** The hosted to-do circle checks a to-do off or
   reopens it (`updateTask`); To-dos' + is the inbox's ink disc and opens "New
   to-do" (what to do and notes, the compose sheet's header, Add); both lists

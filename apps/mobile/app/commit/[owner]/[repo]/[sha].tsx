@@ -15,7 +15,7 @@ import * as WebBrowser from "expo-web-browser";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { parsePatch } from "@codecast/convex/convex/fileChanges/patchParser";
-import { repoObjectGitHubUrl, repoObjectId } from "@codecast/shared/entities";
+import { repoObjectGitHubUrl, repoObjectId } from "@codecast/entities";
 import { useRepoObject } from "@codecast/web/hooks/useRepoObject";
 import {
   useSyncPullRequest,

@@ -10,7 +10,7 @@ import {
   parseCallRef,
   parseCallTime,
   parseEntityUrl,
-} from "./index";
+} from "../src/index";
 import {
   callFrameHref,
   callMomentHref,

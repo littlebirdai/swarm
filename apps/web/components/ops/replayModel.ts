@@ -35,7 +35,7 @@ import {
   parseReplayPlayerUrl,
   replayPlayerUrl,
 } from "@codecast/replay/replayPlayer";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import type { OpsReplay, OpsSource } from "./opsTypes";
 import { relTimeShort } from "../../lib/utils";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";

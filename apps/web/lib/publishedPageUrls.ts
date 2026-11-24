@@ -34,7 +34,7 @@ export function pageMetaUrl(slug: string): string {
 }
 
 // The public share page: what "open in full" and "copy link" hand out.
-export { pageShareUrl } from "@codecast/shared/entities";
+export { pageShareUrl } from "@codecast/entities";
 
 // The capture `cast publish` took, keyed by version so a republish busts
 // the browser cache. The endpoint refuses gated pages.

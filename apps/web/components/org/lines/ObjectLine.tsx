@@ -14,7 +14,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { objectHref } from "@codecast/shared/entities";
+import { objectHref } from "@codecast/entities";
 import { cn } from "../../../lib/utils";
 import type { ProposalRef } from "../../company/companyModel";
 import { lightChanges, useChangeLit } from "./changeLight";

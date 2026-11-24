@@ -6,7 +6,7 @@ import {
   orgObjectOfRef,
   parseEntityUrl,
   personRefOf,
-} from "./index";
+} from "../src/index";
 
 // A goal and a project each have a page of their own; a role and a person
 // open on the Org screen.

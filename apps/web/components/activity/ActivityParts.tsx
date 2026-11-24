@@ -8,7 +8,7 @@ import {
   GitPullRequest,
   GitPullRequestClosed,
 } from "lucide-react";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { AvatarImg } from "../../lib/avatarCache";
 import { cn, formatDateFull } from "../../lib/utils";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

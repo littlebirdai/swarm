@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EntityType } from "@codecast/shared/entities";
+import type { EntityType } from "@codecast/entities";
 
 // Every page about one thing has its own address and a Share button in its
 // header (AGENTS.md, UI conventions). This map names, for every entity type,

@@ -56,7 +56,7 @@ import {
   BARE_ID_SOURCE,
   MENTION_ID_SOURCE,
   type EntityType,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 // Canonical "★ Insight ─────" parser shared with web (pure string/regex module,
 // Hermes-safe). Mobile used to carry its own narrower copy in session/[id].tsx
 // which silently missed most real-world insight forms — one parser, one truth.
@@ -71,7 +71,7 @@ export { LinkText, linkifyPlainText, HighlightedCodeText } from "./CodeText";
 
 // Trailing "<name> <entity-id>" inside an @[…] mention — same shape web's
 // MENTION_RE extracts (the id renders as a pill; the name is its fallback).
-// Both id vocabularies come from @codecast/shared/entities: mobile used to keep
+// Both id vocabularies come from @codecast/entities: mobile used to keep
 // its own copies here, and they drifted (no "tr-" triggers, plus a "doc-…" form
 // that never existed).
 const MENTION_ENTITY_RE = new RegExp(

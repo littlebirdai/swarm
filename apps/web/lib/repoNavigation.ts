@@ -1,5 +1,5 @@
 import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
-import { parseGitHubLocationUrl } from "@codecast/shared/entities";
+import { parseGitHubLocationUrl } from "@codecast/entities";
 import {
   formatLineHash,
   parseLineHash,

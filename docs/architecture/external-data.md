@@ -745,7 +745,7 @@ state and nowhere else: it is a short bearer, not a store row.
   player that posts `error` (a lapsed link, a capture with nothing to draw)
   says why in one line and the page goes on with its own clock. A replay
   with no capture never asks for a player.
-- References: `rp` is a registered short-id prefix (shared/entities, type
+- References: `rp` is a registered short-id prefix (packages/entities/src, type
   `replay`, digits only), so `rp-N` is a pill everywhere markdown renders
   (transcripts, chat, task and doc bodies, mobile), named by the page it
   recorded (`replayTitle`) and opening `/ops/replays/rp-N`. Mobile has no

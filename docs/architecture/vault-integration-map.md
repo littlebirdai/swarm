@@ -125,7 +125,7 @@ A smaller example with no new rows: `setProviderKey` (store at `inboxStore.ts:94
 **Short ids**
 
 - Counter-based: `convex/convex/counters.ts:18-32`. `nextShortId(db, prefix)` reads and increments the `counters` row named by the prefix and returns `${prefix}-${n}`; it is intentionally unsharded. Examples: `plans.ts:177` `nextShortId(ctx.db, "pl")`, `sessionDecisions.ts:1210` `"sd"`.
-- The id must also be registered in `shared/entities/index.ts:93-107` (`SHORT_ID_PREFIX`). Add the prefix to `DIGITS_ONLY_PREFIX` at :116 if it is an English word. The header at :8-13 lists everything a new type needs: `EntityType`, `ENTITY_ROUTE` and `SEGMENT_TYPE`.
+- The id must also be registered in `packages/entities/src/index.ts:93-107` (`SHORT_ID_PREFIX`). Add the prefix to `DIGITS_ONLY_PREFIX` at :116 if it is an English word. The header at :8-13 lists everything a new type needs: `EntityType`, `ENTITY_ROUTE` and `SEGMENT_TYPE`.
 - A different style exists: `agentDefinitions.ts:153` uses `${prefix}-${now.toString(36)}`, like the base-36 `pj-` ids.
 
 ## 4. Encryption

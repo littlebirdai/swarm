@@ -66,7 +66,7 @@ import {
   guestIdentity,
   isGuestPresent,
 } from "@codecast/calls/callGuests";
-import { callRefId } from "@codecast/shared/entities";
+import { callRefId } from "@codecast/entities";
 import { verifyApiToken } from "./apiTokens";
 import { sha256Hex } from "./lib/hash";
 import {

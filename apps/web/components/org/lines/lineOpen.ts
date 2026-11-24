@@ -3,7 +3,7 @@
 // itself, so the row around it never also takes it.
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
+import { objectHref, type OrgObjectKind } from "@codecast/entities";
 import type { ProposalRef } from "../../company/companyModel";
 
 export type LineTarget = { kind: OrgObjectKind; ref: string };

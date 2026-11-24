@@ -3,7 +3,7 @@
 // through the live handle so they sync, undo and show to everyone.
 import { toast } from "sonner";
 import { newElementKey, type ArtifactOp } from "@codecast/artifacts";
-import { parsePublishedPageUrl } from "@codecast/shared/entities";
+import { parsePublishedPageUrl } from "@codecast/entities";
 import {
   BOARD_DEFAULT_SIZE,
   clearOffset,

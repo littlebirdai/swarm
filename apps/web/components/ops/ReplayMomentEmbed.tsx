@@ -26,7 +26,7 @@ import {
   formatCallTime,
   parseReplayRef,
   replayRefStart,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { useNearViewport } from "../../hooks/useNearViewport";
 import { ReplayPlayerIframe } from "./ReplayPlayerFrame";
 import {

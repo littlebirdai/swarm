@@ -8,7 +8,7 @@
 // lines with their pictures. While the server is still reading the words the
 // delivery waits; a recording that is never transcribed still goes, with what
 // it has.
-import { CODECAST_BASE_URL } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL } from "@codecast/entities";
 import {
   framedLines,
   lineMomentMs,

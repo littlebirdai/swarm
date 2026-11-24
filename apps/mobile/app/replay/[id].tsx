@@ -25,7 +25,7 @@ import {
   parseReplayRef,
   replayRefId,
   replayRefStart,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   REPLAY_PLAYER_ORIGIN,
   type ReplayPlayerLink,

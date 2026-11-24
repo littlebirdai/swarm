@@ -36,7 +36,7 @@ import { execFileSync } from "./proc.js";
 import * as path from "node:path";
 import type { CachedSessionLink } from "./localConversationMap.js";
 import { SESSION_TRAILER_KEY, sessionTrailerValue } from "@codecast/blame";
-import { CODECAST_BASE_URL, isConvexId } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL, isConvexId } from "@codecast/entities";
 
 type Token =
   | { kind: "word"; text: string; end: number }

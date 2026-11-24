@@ -4,7 +4,7 @@
 // in a role's settings) goes through here.
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
-import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
+import { objectHref, type OrgObjectKind } from "@codecast/entities";
 
 export function OrgObjectLink({
   kind,
