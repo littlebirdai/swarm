@@ -26,13 +26,13 @@ const GUARDED =
   /^((store|hooks|lib)\/|\.\.\/\.\.\/platform\/packages\/engine\/src\/)/;
 const SKIP = /(^|\/)__tests__\/|\.test\.tsx?$/;
 
-/** Top-level mutable bindings of one source file, in source order. Prettier keeps top-level declarations at column 0. */
+/** Top-level mutable bindings of one source file, in source order. The formatter keeps top-level declarations at column 0. */
 export function topLevelBindings(source: string): string[] {
   const out: string[] = [];
   for (const m of source.matchAll(/^(?:export\s+)?(?:let|var)\s+([\w$]+)/gm))
     out.push(m[1]);
   for (const m of source.matchAll(
-    /^(?:export\s+)?const\s+([\w$]+)\b[^\n]*?=\s*new\s+(?:Map|Set)\b/gm,
+    /^(?:export\s+)?const\s+([\w$]+)\b[^\n]*?=\s*(?:(?:\(\(\s*globalThis as any\s*\)\.\w+\s*\?\?=\s*)?)new\s+(?:Map|Set)\b/gm,
   ))
     out.push(m[1]);
   return out;

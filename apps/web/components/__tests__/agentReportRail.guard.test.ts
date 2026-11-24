@@ -27,7 +27,7 @@ test("the classifier routes a subagent report onto the session-message rail", ()
   );
   expect(classifier).toContain("isAgentMessage(t)");
   expect(classifier).toContain("parseAgentAuthoredMessage(t)");
-  expect(classifier).toMatch(/kind: 'session_message',[^\n]*variant: 'agent'/);
+  expect(classifier).toMatch(/kind: "session_message",[^}]*variant: "agent"/);
   expect(classifier).toContain("parseUnwrappedSessionReport(t)");
   expect(classifier).toContain("isSessionMessage(t)");
 });
@@ -35,11 +35,11 @@ test("the classifier routes a subagent report onto the session-message rail", ()
 test("the card gets the agent variant and the sender's session when it resolves", () => {
   const renderCase = block(
     containerSource,
-    "case 'session_message':",
-    "case 'huddle_summary':",
+    'case "session_message":',
+    'case "huddle_summary":',
   );
   expect(renderCase).toContain(
-    `variant={kind.variant === 'agent' ? "agent" : "session"}`,
+    `variant={kind.variant === "agent" ? "agent" : "session"}`,
   );
   expect(renderCase).toContain("agentNameToChildMap?.[kind.from]");
 });

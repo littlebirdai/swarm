@@ -135,7 +135,7 @@ describe("a reference on the phone sits in the text line", () => {
   const src = read("../../apps/mobile/components/EntityPill.tsx");
   const pill = src.match(/\n {2}pill: \{([^}]*)\}/)?.[1] ?? "";
   test("the pill is Text, never a box", () => {
-    expect(src).toMatch(/return \(\n {4}<RNText\n {6}style=\{\[styles\.pill/);
+    expect(src).toMatch(/return \(\s*<RNText\s+style=\{\[\s*styles\.pill/);
   });
   test("its style sets no line height or height", () => {
     expect(pill).toContain("fontSize: 11");

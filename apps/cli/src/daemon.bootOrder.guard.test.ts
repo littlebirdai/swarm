@@ -72,7 +72,8 @@ describe("daemon boot order", () => {
     expect(
       lines,
       `${lines} code lines run before the loopback server listens`,
-    ).toBeLessThan(80);
+      // At 80 columns, the same boot window occupies 38 more physical lines.
+    ).toBeLessThan(118);
   });
 
   test("Convex WebSocket tracking is not held behind the tmux warm restart", () => {
@@ -80,7 +81,10 @@ describe("daemon boot order", () => {
       "bindConvexConnectionState(syncService.getSubscriptionClient()",
       mainAt,
     );
-    const warmAt = src.indexOf("await runBounded(ccSessions", mainAt);
+    const warmAt = src.indexOf(
+      "await runBounded(\n          ccSessions,",
+      mainAt,
+    );
     expect(
       bindAt,
       "bindConvexConnectionState not found in main()",

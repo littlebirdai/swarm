@@ -60,9 +60,8 @@ const READERS: Array<[file: string, guard: string]> = [
 describe("machine readers of the retirement marker know about Close", () => {
   for (const [file, guard] of READERS) {
     test(`${file}: ${guard.slice(0, 60)}`, () => {
-      expect(readFileSync(join(import.meta.dir, file), "utf8")).toContain(
-        guard,
-      );
+      const source = readFileSync(join(import.meta.dir, file), "utf8");
+      expect(source.replace(/\s+/g, " ")).toContain(guard);
     });
   }
 });

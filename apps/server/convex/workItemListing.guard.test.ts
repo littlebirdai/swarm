@@ -56,11 +56,11 @@ const ALLOWED: Record<string, string> = {
 };
 
 function workspaceKeyedTables(schema: string): Set<string> {
-  const starts = [...schema.matchAll(/^  (\w+): defineTable\(/gm)];
+  const starts = [...schema.matchAll(/^    (\w+): defineTable\(/gm)];
   const out = new Set<string>();
   starts.forEach((m, i) => {
     const body = schema.slice(m.index!, starts[i + 1]?.index ?? schema.length);
-    if (/^    workspace: /m.test(body)) out.add(m[1]);
+    if (/^      workspace: /m.test(body)) out.add(m[1]);
   });
   return out;
 }
@@ -83,7 +83,7 @@ function teamIndexReads(
     gated: boolean;
   }> = [];
   for (const m of src.matchAll(
-    /\.query\(\s*["'](\w+)["']\s*\)\s*\.withIndex\(\s*["'](by_team_\w*)["']/g,
+    /\.query\(\s*["'](\w+)["']\s*,?\s*\)\s*\.withIndex\(\s*["'](by_team_\w*)["']/g,
   )) {
     if (!tables.has(m[1])) continue;
     const decls = [...src.slice(0, m.index).matchAll(DECL)];

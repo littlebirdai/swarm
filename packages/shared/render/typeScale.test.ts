@@ -11,7 +11,7 @@ describe("type scale", () => {
     const css = readFileSync(join(WEB, "app", "globals.css"), "utf8");
     for (const [step, { size, lineHeight }] of Object.entries(TYPE_SCALE)) {
       expect(tailwind).toContain(
-        `${step}: ['${size}px', { lineHeight: '${lineHeight}px' }]`,
+        `${step}: ["${size}px", { lineHeight: "${lineHeight}px" }]`,
       );
       expect(css).toContain(`--fs-${step}: ${size}px;`);
     }

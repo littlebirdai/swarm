@@ -162,7 +162,9 @@ describe("workspace enumeration chokepoint", () => {
         const rel = file.slice(ROOT.length + 1);
         if (ALLOWED.has(rel)) continue;
         const src = readFileSync(file, "utf8");
-        for (const line of src.split("\n")) {
+        for (const line of src
+          .replace(/(filterByWorkspace\()\s+(?=Object\.)/g, "$1")
+          .split("\n")) {
           ENUM.lastIndex = 0;
           if (!ENUM.test(line)) continue;
           // Wrapped in the shared predicate on the same line is still correct.
@@ -337,6 +339,14 @@ const ROWS_ALLOWED = new Map<string, string>([
 // look one row up, each read here.
 const TEAM_ENUM_ALLOWED = new Map<string, string>([
   ["store/chatSlice.ts", "owns the chat collections and scopes by channel"],
+  [
+    "components/chat/SlackPeopleDialog.tsx",
+    "filters Slack people by team_id in the enumeration chain",
+  ],
+  [
+    "components/expectations/CitationRef.tsx",
+    "finds one channel by name and active team",
+  ],
   [
     "components/chat/SlackChannelBrowser.tsx",
     "keys links by Slack id for lookup, and filters channels by team_id",

@@ -65,7 +65,7 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   ["apps/cli/src/prCommand.ts", "anchors nothing"],
   ["apps/web/app/(marketing)/compare/comparisons.ts", "anchor to"],
   ["apps/web/app/(marketing)/compare/comparisons.ts", "anchors a comment"],
-  ["apps/server/convex/githubWebhooks.ts", "const where = comment.path"],
+  ["apps/server/convex/githubWebhooks.ts", "`${comment.path}${anchor ?"],
   ["apps/server/convex/artifactMarkdown.ts", 'class="anchor"'],
   // The analyzer's vocabulary rule names the word so the page never carries it.
   ["apps/cli/src/orgInit.ts", "invented_words"],

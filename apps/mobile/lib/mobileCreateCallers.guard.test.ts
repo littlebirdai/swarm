@@ -65,8 +65,8 @@ describe("mobile result-dependent create callers", () => {
   // sent once the create has a real id, never awaited here.
   test("the sheet's words ride the stub as its first message", () => {
     const submit = sourceBetween("const handleSubmit", "\n  return (");
-    expect(submit).toContain(
-      "dispatchComposerSend(stubId, text || IMAGE_ONLY_CONTENT, firstImages, text)",
+    expect(submit).toMatch(
+      /dispatchComposerSend\(\s*stubId,\s*text \|\| IMAGE_ONLY_CONTENT,\s*firstImages,\s*text,?\s*\)/,
     );
     const composer = readFileSync(
       `${import.meta.dir}/../components/session/MessageComposer.tsx`,
@@ -77,10 +77,10 @@ describe("mobile result-dependent create callers", () => {
       "\n}\n",
       composer,
     );
-    expect(send).toContain(
-      "store.addOptimisticMessage(conversationId, content",
+    expect(send).toMatch(
+      /store\.addOptimisticMessage\(\s*conversationId,\s*content/,
     );
-    expect(send).toContain("sendMessageWhenReady(conversationId, content");
+    expect(send).toMatch(/sendMessageWhenReady\(\s*conversationId,\s*content/);
   });
 
   // A refused create must not vanish silently once the sheet is gone: it is
@@ -124,7 +124,9 @@ describe("mobile new-session launch options", () => {
     expect(sheetSource).toContain(
       "const scopedDeviceId = deviceId ?? intendedDeviceId;",
     );
-    expect(sheetSource).toContain("useScopedRecentProjects({ scopedDeviceId,");
+    expect(sheetSource).toMatch(
+      /useScopedRecentProjects\(\{\s*scopedDeviceId,/,
+    );
     // The sheet paints from the store on open: machines and folders are fed
     // app-wide (StoreSyncBridge), never queried when the sheet appears.
     expect(sheetSource).not.toContain("api.devices.listDevices");
@@ -137,8 +139,8 @@ describe("mobile new-session launch options", () => {
       "const finishSessionCreate",
     );
     // A pick equal to the heuristic default is left to routing; intent is stamped.
-    expect(builder).toContain(
-      "(deviceId && deviceId !== defaultDeviceId ? deviceId : intendedDeviceId) ?? undefined",
+    expect(builder).toMatch(
+      /\(deviceId && deviceId !== defaultDeviceId\s*\?\s*deviceId\s*:\s*intendedDeviceId\) \?\? undefined/,
     );
     expect(builder).toContain('model: model !== "default" ? model : undefined');
     expect(builder).toContain(
@@ -249,10 +251,10 @@ describe("mobile principal outbox binding", () => {
     const verified = authSource.indexOf(
       "setVerifiedSubject(verified ? accessIdentity.subject : null)",
     );
-    const persist = authSource.indexOf(
-      "SecureStore.setItemAsync(LAST_PRINCIPAL_KEY",
-      verified,
-    );
+    const persist =
+      authSource
+        .slice(verified)
+        .search(/SecureStore\.setItemAsync\(\s*LAST_PRINCIPAL_KEY/) + verified;
     const guard = authSource.indexOf("if (verified) {", verified);
     expect(verified).toBeGreaterThanOrEqual(0);
     expect(guard).toBeGreaterThan(verified);

@@ -1011,9 +1011,10 @@ describe("daemon loop budget guard", () => {
           `${row.file}:${row.name}@${b.startLine} has ${lines} lines`,
         ).toBeGreaterThanOrEqual(row.minLines);
         if (row.mustContain)
-          expect(b.text, `${row.file}:${row.name}@${b.startLine}`).toContain(
-            row.mustContain,
-          );
+          expect(
+            b.text.replace(/\s+\./g, "."),
+            `${row.file}:${row.name}@${b.startLine}`,
+          ).toContain(row.mustContain);
       }
     }
   });

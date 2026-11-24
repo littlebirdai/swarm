@@ -586,7 +586,7 @@ describe("darwin-only cli tests", () => {
   const NOT_DARWIN = String.raw`process\.platform\s*!==?\s*["']darwin["']`;
   const IS_DARWIN = String.raw`process\.platform\s*===?\s*["']darwin["']`;
   const SKIPS_OFF_DARWIN = [
-    new RegExp(String.raw`\.skipIf\(.*${NOT_DARWIN}`),
+    new RegExp(String.raw`\.skipIf\((?:(?!\)\s*\()[\s\S])*?${NOT_DARWIN}`),
     new RegExp(String.raw`\.(if|runIf)\(\s*${IS_DARWIN}\s*\)`),
     new RegExp(String.raw`\bif\s*\(\s*${NOT_DARWIN}\s*\)\s*return\b`),
   ];

@@ -27,11 +27,11 @@ test("the card offers the sending message as a visible link", () => {
 // Both shapes of sender resolve: a teammate id or subagent name arrives already
 // resolved to a conversation, a `cast send` names its sender by short id.
 test("the link is offered for every sender the server can resolve", () => {
-  expect(card()).toContain(
+  expect(card().replace(/\s+/g, " ")).toContain(
     'const senderRef = linkToConversationId ?? (!namedSender && from && from !== "unknown" ? from : undefined);',
   );
-  expect(card()).toContain(
-    "useJumpToSendingMessage(senderRef, timestamp, body)",
+  expect(card()).toMatch(
+    /useJumpToSendingMessage\(\s*senderRef,\s*timestamp,\s*body,?\s*\)/,
   );
 });
 

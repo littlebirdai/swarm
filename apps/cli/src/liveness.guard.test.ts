@@ -159,7 +159,9 @@ describe("liveness verdicts are only ever read through authorizesTeardown", () =
   const seenAllowed = new Set<string>();
 
   for (const { rel, text } of sources()) {
-    for (const { line, n } of codeLines(text)) {
+    for (const { line, n } of codeLines(
+      text.replace(/\n[ \t]*(\? "unverifiable")/g, " $1"),
+    )) {
       // TmuxLiveState shares the words "exited" and "unknown" with the verdict
       // vocabulary, so only a line that also handles a VERDICT is in scope.
       const producer = VERDICT_PRODUCERS.find((p) => line.includes(p));

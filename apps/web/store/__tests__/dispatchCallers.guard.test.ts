@@ -28,10 +28,7 @@ describe("durable dispatch call-site guards", () => {
       new URL("../inboxStore.ts", import.meta.url),
     ).text();
     const whenReady = store.slice(
-      store.indexOf(
-        "typed?: string) => {",
-        store.indexOf("  sendMessageWhenReady: (convId"),
-      ),
+      store.lastIndexOf("  sendMessageWhenReady: ("),
     );
     expect(whenReady.slice(0, whenReady.indexOf("\n  },\n"))).toContain(
       "awaitConvexId(convId)",
@@ -85,10 +82,10 @@ describe("durable dispatch call-site guards", () => {
     expect(controls).toContain("Switch agent");
     expect(controls).toContain("Fork as");
     expect(panel).toContain("MOVE_VERBS[verb]");
-    expect(panel).toContain("switchSessionAgent(sessionRowFor(");
-    expect(panel).toContain("forkSessionAsAgent(sessionRowFor(");
-    expect(palette).toContain("switchSessionAgent(target");
-    expect(palette).toContain("forkSessionAsAgent(target");
+    expect(panel).toMatch(/switchSessionAgent\(\s*sessionRowFor\(/);
+    expect(panel).toMatch(/forkSessionAsAgent\(\s*sessionRowFor\(/);
+    expect(palette).toMatch(/switchSessionAgent\(\s*target/);
+    expect(palette).toMatch(/forkSessionAsAgent\(\s*target/);
     expect(actions).toContain('convCommand(id, "switchSessionAgent"');
     expect(actions).toContain('convCommand(parentId, "forkFromMessage"');
     expect(actions).toContain("target_agent_type: targetAgentType,");

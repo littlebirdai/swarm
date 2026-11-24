@@ -88,22 +88,25 @@ describe("useSyncCore owns the full feeder mount set", () => {
     // constant when this window hosts its own feeds, "skip" as a follower
     // (docs/architecture/sync-host.md).
     expect(
-      live.includes(
-        '(api.conversations.listInboxSessions, isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip"',
+      /\(\s*api\.conversations\.listInboxSessions,\s*isSyncHost \? LIST_INBOX_SESSIONS_ARGS : "skip"/.test(
+        live,
       ),
     ).toBe(true);
     // The probe reads the same constant; querySplitWhole adds the `_probe`
     // token that makes each read a fresh round trip.
     const syncSrc = read(join(WEB_ROOT, "hooks", "useSyncInboxSessions.ts"));
     expect(
-      syncSrc.includes(
-        "querySplitWhole(convex, api.conversations.listInboxSessions, LIST_INBOX_SESSIONS_ARGS,",
+      /querySplitWhole\(\s*convex,\s*api\.conversations\.listInboxSessions,\s*LIST_INBOX_SESSIONS_ARGS,/.test(
+        syncSrc,
       ),
     ).toBe(true);
     // No hand-built listInboxSessions args anywhere in the two files: every
     // call is either the constant or the constant + probe token.
     for (const src of [live, syncSrc]) {
-      for (const line of codeLines(src)) {
+      for (const line of codeLines(src)
+        .map(({ line }) => line)
+        .join("\n")
+        .match(/[^\n]*listInboxSessions,\s*[^\n]*/g) ?? []) {
         if (!line.includes("listInboxSessions,")) continue;
         expect(line.includes("LIST_INBOX_SESSIONS_ARGS")).toBe(true);
       }

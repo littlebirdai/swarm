@@ -69,7 +69,9 @@ test("the dock grows to the viewport and measures the cap from what its max leav
   expect(composeView).toContain(
     'root.querySelector<HTMLElement>("[data-composer-field]")',
   );
-  expect(composeView).toContain('root.style.setProperty("--composer-max-h"');
+  expect(composeView).toMatch(
+    /root\.style\.setProperty\(\s*"--composer-max-h"/,
+  );
 });
 
 // A field must paint exactly the characters it holds. JetBrains Mono's

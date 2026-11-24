@@ -7,7 +7,7 @@ const source = readFileSync(
 );
 
 function toolbarMarkup(attribute: string) {
-  const start = source.indexOf(`<div ${attribute}`);
+  const start = source.lastIndexOf("<div", source.indexOf(attribute));
   return source.slice(start, source.indexOf("}>", start) + 2);
 }
 

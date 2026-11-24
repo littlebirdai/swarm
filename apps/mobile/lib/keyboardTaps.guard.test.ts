@@ -103,8 +103,8 @@ describe("a tap outside the composer puts the keyboard away", () => {
       const source = read(path);
       expect(persistValues(source)).toEqual(["handled"]);
       // 'interactive' alone degrades to 'none' on Android.
-      expect(source).toContain(
-        "keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}",
+      expect(source).toMatch(
+        /keyboardDismissMode=\{\s*Platform\.OS === "ios" \? "interactive" : "on-drag"\s*\}/,
       );
     },
   );
@@ -116,7 +116,7 @@ describe("a tap outside the composer puts the keyboard away", () => {
     expect(tags.length).toBe(1);
     // Tap-to-expand on a collapsed turn stays; every other plain tap dismisses.
     expect(tags[0].tag).toMatch(
-      /onPress=\{[^}]*\? handleTapToExpand : Keyboard\.dismiss\}/,
+      /onPress=\{[^}]*\?\s*handleTapToExpand\s*:\s*Keyboard\.dismiss\s*\}/,
     );
   });
 

@@ -65,7 +65,7 @@ describe("Enter inside a story", () => {
       page.indexOf("open: () =>"),
     );
     expect(evidence).toMatch(
-      /if \(keepsOwnEnter\(active\)[^\n]*\) return false;/,
+      /if \(\s*keepsOwnEnter\(active\)[^;]*\)\s*return false;/,
     );
     expect(evidence.indexOf("keepsOwnEnter")).toBeLessThan(
       evidence.indexOf("setUrl("),
@@ -125,7 +125,7 @@ describe("an open menu owns the keyboard", () => {
   test("every Changes action goes through the one gate", () => {
     const keys = pageSource("useChangesKeys.tsx");
     expect(keys).toMatch(
-      /const here = [^\n]*active && !layerOpen\(\) \? fn\(\) : false/,
+      /const here = useCallback\(\s*\(fn: Handler\) => \(\) => \(active && !layerOpen\(\) \? fn\(\) : false/,
     );
     const bound = [
       ...keys.matchAll(/useShortcutAction\("changes\.\w+", ([^)]*\)?)\);/g),

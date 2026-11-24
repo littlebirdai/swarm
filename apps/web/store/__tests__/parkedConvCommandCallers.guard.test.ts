@@ -17,8 +17,8 @@ describe("parked convCommand caller policy", () => {
     expect(restartHook).toContain("if (isParkedDispatchError(err)) return;");
     // A parked restart keeps its row in flight; any other refusal settles the
     // row failed, which is what the hook's phase reads.
-    expect(commands).toContain(
-      "if (!isParkedDispatchError(error)) recordSessionCommandDispatchError(requestId, error);",
+    expect(commands).toMatch(
+      /if \(!isParkedDispatchError\(error\)\)\s*recordSessionCommandDispatchError\(requestId, error\);/,
     );
     expect(restartHook).toContain("restartPhaseOf(gesture, now)");
     expect(
@@ -60,7 +60,7 @@ describe("parked convCommand caller policy", () => {
     for (const command of ["setPermissionMode", "rewindSession"]) {
       expect(conversationView).toMatch(
         new RegExp(
-          `convCommand\\([^\\n]+, "${command}"[^\\n]*\\)\\.catch\\(\\(err\\)`,
+          `convCommand\\(\\s*[^,;]+,\\s*"${command}"[^;]*?\\)\\.catch\\(\\(err\\)`,
         ),
       );
     }
@@ -70,7 +70,7 @@ describe("parked convCommand caller policy", () => {
       /sendEscape\(conversationId\)\.catch\(\(err\)/,
     );
     expect(await source("../inboxStore.ts")).toMatch(
-      /sendEscape: \(convId: string\) => get\(\)\.convCommand\(convId, "sendEscapeToSession"/,
+      /sendEscape: \(convId: string\) =>\s*get\(\)\.convCommand\(convId, "sendEscapeToSession"/,
     );
     expect(conversationView).toContain(
       "Escape queued — it will send when the connection recovers",

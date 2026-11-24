@@ -7,7 +7,7 @@ test("Code is reachable from the main rail and command menu", () => {
   expect(read("components/sidebar/SidebarNav.tsx")).toMatch(
     /label="Code"\s+href="\/repo"/,
   );
-  expect(read("lib/navPages.ts")).toContain('label: "Code", path: "/repo"');
+  expect(read("lib/navPages.ts")).toMatch(/label: "Code",\s*path: "\/repo"/);
   expect(read("components/CommandPalette.tsx")).toContain("palettePages");
   expect(read("components/CommandPalette.tsx")).toContain(
     "<RepositoryPaletteItems",
@@ -19,24 +19,24 @@ test("session branch opens the internal browser and object pages expose related 
     "components/ConversationView.tsx",
     "components/inbox/SessionCardView.tsx",
   ])
-    expect(read(file)).toContain("<BranchCodeLink session=");
+    expect(read(file)).toMatch(/<BranchCodeLink\s+session=/);
   for (const file of [
     "app/tasks/[id]/page.tsx",
     "app/plans/[id]/page.tsx",
     "components/PlanDetailPanel.tsx",
   ])
-    expect(read(file)).toContain("<RepositoryLinks ");
+    expect(read(file)).toMatch(/<RepositoryLinks\s/);
   expect(read("components/ConversationView.tsx")).not.toContain(
     "window.open(`https://github.com/${match[1]}/tree/",
   );
   expect(read("components/ConversationView.tsx")).toContain(
     "const codeRouter = useRouter();",
   );
-  expect(read("components/ConversationView.tsx")).toContain(
-    "codeRouter.push(repoTreeHref(",
+  expect(read("components/ConversationView.tsx")).toMatch(
+    /codeRouter\.push\(\s*repoTreeHref\(/,
   );
-  expect(read("components/ConversationView.tsx")).toContain(
-    "codeRouter.push(repoCommitsHref(",
+  expect(read("components/ConversationView.tsx")).toMatch(
+    /codeRouter\.push\(\s*repoCommitsHref\(/,
   );
 });
 
@@ -56,6 +56,6 @@ test("plan code links are visible without opening its Info panel", () => {
     page.indexOf("leadContent={"),
     page.indexOf("topBarLeft={"),
   );
-  expect(lead).toContain("<RepositoryLinks planId={plan._id}");
-  expect(page.match(/<RepositoryLinks /g)).toHaveLength(1);
+  expect(lead).toMatch(/<RepositoryLinks\s+planId=\{plan\._id\}/);
+  expect(page.match(/<RepositoryLinks\s/g)).toHaveLength(1);
 });

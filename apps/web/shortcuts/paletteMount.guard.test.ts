@@ -14,8 +14,8 @@ test("the command palette shortcut stays mounted while the lazy palette is close
   );
 
   expect(
-    actions.match(/useShortcutAction\(['"]palette\.toggle['"]/g),
+    actions.match(/useShortcutAction\(\s*['"]palette\.toggle['"]/g),
   ).toHaveLength(1);
-  expect(palette).not.toMatch(/useShortcutAction\(['"]palette\.toggle['"]/);
+  expect(palette).not.toMatch(/useShortcutAction\(\s*['"]palette\.toggle['"]/);
   expect(layout).toContain("useGlobalShortcutActions();");
 });

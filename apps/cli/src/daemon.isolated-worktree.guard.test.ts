@@ -24,7 +24,7 @@ describe("an isolated start never falls back to the main checkout", () => {
       daemon.indexOf("worktreeResult = made;", at),
     );
     expect(failure).toContain(`if ("error" in made)`);
-    expect(failure).toContain("diskFullFailReason(gitRoot,");
+    expect(failure).toMatch(/diskFullFailReason\(\s*gitRoot,/);
     expect(failure).toContain("setSessionError(conversationId, error)");
     expect(failure).toMatch(/\n\s*break;\n/);
     expect(daemon).not.toContain("falling back to repo root");

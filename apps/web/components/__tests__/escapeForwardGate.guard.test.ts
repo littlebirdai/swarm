@@ -29,8 +29,10 @@ describe("Escape is forwarded on every press, stamped with the press time", () =
   const dispatch = src.indexOf("sendEscape(conversationId)", start);
   const body = src.slice(start, dispatch);
   const store = read("../store/inboxStore.ts");
+  const dispatchStart = store.indexOf("  sendEscape: (convId: string) =>\n");
   const storeDispatch = store.slice(
-    store.indexOf("  sendEscape: (convId: string) => get()"),
+    dispatchStart,
+    store.indexOf("\n    }),", dispatchStart) + 8,
   );
 
   test("every composer sends Escape through the one hook", () => {
@@ -51,7 +53,7 @@ describe("Escape is forwarded on every press, stamped with the press time", () =
   });
 
   test("the dispatch carries pressed_at", () => {
-    const call = storeDispatch.slice(0, storeDispatch.indexOf("\n"));
+    const call = storeDispatch;
     expect(call).toContain('"sendEscapeToSession"');
     expect(call).toMatch(/pressed_at:\s*Date\.now\(\)/);
   });

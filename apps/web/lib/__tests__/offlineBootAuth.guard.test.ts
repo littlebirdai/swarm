@@ -56,8 +56,8 @@ describe("offline boot auth", () => {
     // client's own last focus, then the server's; a remembered one only when the
     // window did not open fresh onto the feed home (freshHomeLaunchPending),
     // which goes to the new-session page instead.
-    const remembered = source.match(/const remembered = ([^;]+);/);
-    const restore = source.match(/const restoreId = ([^;]+);/);
+    const remembered = source.match(/const remembered =\s*([^;]+);/);
+    const restore = source.match(/const restoreId =\s*([^;]+);/);
     expect(remembered).not.toBeNull();
     expect(restore).not.toBeNull();
     expect(source.indexOf(restore![0])).toBeLessThan(hydrate);
@@ -83,7 +83,11 @@ describe("offline boot auth", () => {
       "ConversationTerminalSplit",
       "SessionHuddleButton",
     ]) {
-      expect(source).toContain(`const ${component} = lazyNamed(() => import(`);
+      expect(source).toMatch(
+        new RegExp(
+          String.raw`const ${component} = lazyNamed\(\s*\(\) =>\s*import\(`,
+        ),
+      );
     }
   });
 

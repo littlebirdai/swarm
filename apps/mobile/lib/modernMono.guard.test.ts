@@ -56,13 +56,13 @@ const LINES: Record<
   "components/MarkdownRenderer.tsx": [
     [
       "fenced code lines",
-      /<HighlightedCodeText content=\{line \|\| ' '\} style=\{\{[^}]*fontFamily: 'JetBrainsMono-Regular'/g,
+      /<HighlightedCodeText content=\{line \|\| " "\} style=\{\{[^}]*fontFamily: "JetBrainsMono-Regular"/g,
     ],
   ],
   "app/session/[id].tsx": [
     [
       "the branch chip",
-      /style=\{\[styles\.metaChipText, codeFont\]\} numberOfLines=\{1\}>\{conversation\.git_branch\}/g,
+      /style=\{\[styles\.metaChipText, codeFont\]\} numberOfLines=\{1\}>\s*\{conversation\.git_branch\}/g,
     ],
     ["a vault secret's name", /style=\{\[styles\.vaultReadyText, codeFont,/g],
     [
@@ -72,7 +72,7 @@ const LINES: Record<
     ],
     [
       "a trigger's id on a delivery failure",
-      /<CodeRuns text=\{`\$\{frame\?\.trigger \? `\$\{frame\.trigger\} · ` : ''\}\$\{what\}`\} \/>/g,
+      /<CodeRuns text=\{`\$\{frame\?\.trigger \? `\$\{frame\.trigger\} · ` : ""\}\$\{what\}`\} \/>/g,
     ],
     [
       "slash commands and their arguments",
@@ -125,7 +125,13 @@ describe("code-like text stays mono under Modern", () => {
     const src = read(file);
     for (const [what, pattern, count = 1] of lines) {
       test(`${file}: ${what}`, () => {
-        expect(src.match(pattern)?.length ?? 0).toBe(count);
+        expect(
+          src
+            .replace(/\s+/g, " ")
+            .replace(/\[ /g, "[")
+            .replace(/, \]/g, "]")
+            .match(pattern)?.length ?? 0,
+        ).toBe(count);
       });
     }
   }

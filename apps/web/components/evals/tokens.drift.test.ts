@@ -80,7 +80,12 @@ describe("the Evals tokens' fallbacks", () => {
       const pairs = fallbacks(block(tokens, c.tokens));
       expect(pairs.length).toBeGreaterThanOrEqual(c.theme === "light" ? 20 : 9);
       const drift = pairs
-        .filter((p) => own.get(p.host) !== p.fallback)
+        .filter((p) => {
+          const actual = own.get(p.host);
+          return /^#[0-9a-f]+$/i.test(p.fallback)
+            ? actual?.toLowerCase() !== p.fallback.toLowerCase()
+            : actual !== p.fallback;
+        })
         .map(
           (p) =>
             `${p.host}: tokens.css falls back to ${p.fallback}, globals.css says ${own.get(p.host) ?? "nothing"}`,

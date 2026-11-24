@@ -67,12 +67,12 @@ describe("docs shots stay out of production code", () => {
   test("main.tsx loads the mode only when the flag is on", () => {
     const main = readFileSync(join(WEB, "src/main.tsx"), "utf-8");
     expect(main).toMatch(
-      /if \(DOCS_SHOTS\) void import\("\.\.\/lib\/docsShots\/install"\)/,
+      /if \(DOCS_SHOTS\)\s*void import\("\.\.\/lib\/docsShots\/install"\)/,
     );
   });
 
   test("the flag is off in production builds", () => {
     const flag = readFileSync(join(WEB, "lib/docsShots/flag.ts"), "utf-8");
-    expect(flag).toMatch(/DOCS_SHOTS = import\.meta\.env\.DEV && /);
+    expect(flag).toMatch(/DOCS_SHOTS =\s*import\.meta\.env\.DEV &&\s*/);
   });
 });

@@ -62,12 +62,12 @@ describe("heartbeat carries agent_status", () => {
       "async function flushManagedHeartbeats",
     );
     expect(tickIdx).toBeGreaterThanOrEqual(0);
-    expect(daemonSource.slice(tickIdx, tickIdx + 2000)).toContain(
-      "runHeartbeatFlush()",
-    );
+    expect(
+      daemonSource.slice(tickIdx, daemonSource.indexOf("\n}", tickIdx)),
+    ).toContain("runHeartbeatFlush()");
     const idx = daemonSource.indexOf("async function runHeartbeatFlush");
     expect(idx).toBeGreaterThanOrEqual(0);
-    const body = daemonSource.slice(idx, idx + 2000);
+    const body = daemonSource.slice(idx, daemonSource.indexOf("\n}", idx));
     expect(body).toContain("lastSentAgentStatus.get(sessionId)");
     expect(body).toContain("agent_status: status");
   });
@@ -128,7 +128,7 @@ describe("heartbeat carries agent_status", () => {
           idx,
           managedSessionsSource.indexOf("\n});", idx),
         ),
-      ).toContain("applyHeartbeat(ctx, session,");
+      ).toMatch(/applyHeartbeat\(\s*ctx,\s*session,/);
     }
   });
 

@@ -75,7 +75,7 @@ describe("Minimal interface style", () => {
     // The field's padding lives in --cc-field-pt / --cc-field-px so a strip
     // inside it can bleed to the edge; together they still read 9px 12px 8px.
     expect(css).toMatch(
-      /\[data-sv-composer\] form:not\(\.w-full\) > div \{[\s\S]*?--cc-field-pt: 9px;[\s\S]*?--cc-field-px: 12px;[\s\S]*?min-height: 52px;[\s\S]*?padding: var\(--cc-field-pt\) var\(--cc-field-px\) 8px;/,
+      /\[data-sv-composer\]\s+form:not\(\.w-full\)\s+>\s+div \{[\s\S]*?--cc-field-pt: 9px;[\s\S]*?--cc-field-px: 12px;[\s\S]*?min-height: 52px;[\s\S]*?padding: var\(--cc-field-pt\) var\(--cc-field-px\) 8px;/,
     );
     // One scale: the list scans at --t-ui, its second lines at --t-sub.
     expect(css).toMatch(/--t-ui: 13px;/);
@@ -143,8 +143,8 @@ describe("Minimal interface style", () => {
     expect(css).toContain(
       ".minimal-style [data-cc-conversation] [data-cc-tech],",
     );
-    expect(css).toContain(
-      "[data-cc-conversation]:not([data-cc-context]) [data-cc-context-panel]",
+    expect(css).toMatch(
+      /\[data-cc-conversation\]:not\(\[data-cc-context\]\)\s+\[data-cc-context-panel\]/,
     );
     // A job that did not complete keeps its line: only the completed echo goes.
     expect(css).toContain('[data-cc-feed-card][data-status="completed"]');
@@ -162,8 +162,8 @@ describe("Minimal interface style", () => {
     expect(css).toContain("[data-cc-conv-actions] > :not([data-cc-keep])");
     // Hidden, not faded: nothing in Minimal appears on hover.
     expect(css).not.toMatch(/\.minimal-style[^{]*:hover[^{]*\{[^}]*opacity: 1/);
-    expect(conversationView).toContain(
-      '<button data-cc-keep aria-label="Session menu"',
+    expect(conversationView).toMatch(
+      /<button\s+data-cc-keep\s+aria-label="Session menu"/,
     );
     // The name row of the pinned bubble is hidden by its own hook. A class
     // match here once hid the dismiss and expand buttons along with it.

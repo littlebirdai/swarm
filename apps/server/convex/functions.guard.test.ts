@@ -220,12 +220,14 @@ describe("comments complete-view write choke", () => {
     // acknowledged-awaiting-coverage forever under the v3 contracts.
     const comments = readFileSync(join(DIR, "comments.ts"), "utf8");
     const commentSites =
-      comments.match(/coverageCommandIds: \[commentsCommandIdCoverage\(/g) ??
-      [];
+      comments.match(
+        /coverageCommandIds:\s*\[\s*commentsCommandIdCoverage\(/g,
+      ) ?? [];
     expect(commentSites.length).toBeGreaterThanOrEqual(5);
     const buckets = readFileSync(join(DIR, "buckets.ts"), "utf8");
     const bucketSites =
-      buckets.match(/coverageCommandIds: \[\{ kind: "command-id"/g) ?? [];
+      buckets.match(/coverageCommandIds:\s*\[\s*\{\s*kind: "command-id"/g) ??
+      [];
     expect(bucketSites.length).toBeGreaterThanOrEqual(3);
     // And both view queries must echo the caller's receipts.
     expect(comments).toContain("echoedCommandIdsForView(ctx, userId,");
@@ -253,8 +255,8 @@ describe("comments complete-view write choke", () => {
 describe("small principal-view write chokes", () => {
   test("principal metadata and team writes pass through the central interceptor", () => {
     const functions = readFileSync(join(DIR, "functions.ts"), "utf8");
-    expect(functions).toContain(
-      "makePrincipalViewTrackedDb(makeChangeTrackedDb(ctx.db, collector))",
+    expect(functions).toMatch(
+      /makePrincipalViewTrackedDb\(\s*makeChangeTrackedDb\(ctx.db, collector\),?\s*\)/,
     );
 
     const auth = readFileSync(join(DIR, "auth.ts"), "utf8");

@@ -68,7 +68,9 @@ describe("every window reaches its undo history or records none", () => {
     it(`/${path}`, () => {
       if (inTransparent.has(path)) return;
       const route = app.match(
-        new RegExp(`<Route path="${path}" element=\\{<E name="(\\w+)">`),
+        new RegExp(
+          `<Route\\s+path="${path}"\\s+element=\\{\\s*<E name="(\\w+)">`,
+        ),
       );
       expect(
         route,
@@ -105,7 +107,7 @@ describe("every route shell in the main window reaches its undo history or recor
   function sourceOf(name: string): string {
     const lazy = app.match(
       new RegExp(
-        `const ${name} = lazy(?:Named)?\\(\\(\\) => import\\("\\./([^"]+)"\\)`,
+        `const ${name} = lazy(?:Named)?\\(\\s*\\(\\) =>\\s*import\\("\\./([^"]+)"\\)`,
       ),
     );
     const named = app.match(
@@ -164,7 +166,8 @@ describe("a window records undo history only while a reach is mounted", () => {
   it("the standalone repository frame reaches its history for a signed-in reader", () => {
     const src = read("components/repo/RepoPageShell.tsx");
     const standalone =
-      src.match(/function StandaloneRepoShell\b([\s\S]*?)\n\}/)?.[1] ?? "";
+      src.match(/function StandaloneRepoShell\b([\s\S]*?)\n\}(?=\n)/)?.[1] ??
+      "";
     expect(standalone).toMatch(/<UndoReach\b/);
   });
 
