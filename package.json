@@ -12,6 +12,8 @@
     "start": "cd apps/web && bun run start",
     "dev": "./dev.sh",
     "build": "turbo run build --filter='!@codecast/electron' --filter='!mobile'",
+    "format": "oxfmt .",
+    "format:check": "oxfmt . --check",
     "lint": "bun scripts/lint.ts",
     "lint:prune": "bun scripts/lint.ts --prune",
     "typecheck": "turbo run typecheck",
@@ -19,6 +21,7 @@
     "postinstall": "bash patches/convex-auth-iss-fix.sh"
   },
   "devDependencies": {
+    "oxfmt": "^0.64.0",
     "oxlint": "^1.91.0",
     "turbo": "^2.3.0",
     "typescript": "^5.7.2"
