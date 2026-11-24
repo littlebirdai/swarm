@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useConvexAuth } from "convex/react";
 import { REGISTERED_COLLECTION_KEYS } from "../../store/clientSyncRegistry";
 import { useInboxStore } from "../../store/inboxStore";
@@ -138,7 +138,7 @@ function startClientResourceTelemetry(windowRole: ReturnType<typeof getWindowRol
 
 export function ClientResourceTelemetry() {
   const { isAuthenticated } = useConvexAuth();
-  useEffect(() => {
+  useWatchEffect(() => {
     const role = getWindowRole();
     if (isAuthenticated && isClientResourceReportWindow(role)) {
       return startClientResourceTelemetry(role);

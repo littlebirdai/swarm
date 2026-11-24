@@ -20,12 +20,14 @@ const wireFields: Record<string, string[]> = {
   "managedSessions.ts": [
     "last_heartbeat: now,",
     "last_heartbeat: 0,",
-    "session: { agent_status?: string; agent_status_updated_at?: number; agent_status_write_at?: number; last_heartbeat?: number },",
-    "const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;",
-    "patch.last_heartbeat = now;",
     "await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);",
     "patch.last_heartbeat = at;",
     "last_heartbeat: lastHeartbeat,",
+  ],
+  "lib/heartbeatPatch.ts": [
+    "session: StatusStamps & { last_heartbeat?: number },",
+    "const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;",
+    "patch.last_heartbeat = now;",
   ],
   "managedSessionsList.ts": ["last_heartbeat: await heartbeatOf(ctx, session),"],
   "lib/closeAside.ts": [

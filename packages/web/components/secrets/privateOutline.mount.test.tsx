@@ -20,7 +20,8 @@ let visibleOutline: typeof import("@platform/analytics/replay").visibleOutline;
 // timeout instead of counting against the test's.
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
+  // pretendToBeVisual makes document.hidden false: the 2FA code only ticks in a visible window.
+  dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
   for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event"]) {
     Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
   }

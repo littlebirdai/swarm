@@ -81,15 +81,20 @@ describe("heartbeat carries agent_status", () => {
   test("the batch mutation reuses the single heartbeat's status-patch logic", () => {
     // Both heartbeat paths must compute the agent_status patch identically (the
     // change-only agent_status_updated_at rule), or the batched path could
-    // reintroduce the latched-status bug. They share buildHeartbeatPatch.
-    const managedSessionsSource = fs.readFileSync(
-      path.join(path.dirname(daemonPath), "..", "..", "convex", "convex", "managedSessions.ts"),
-      "utf8",
-    );
-    expect(managedSessionsSource).toContain("function buildHeartbeatPatch(");
-    const batchIdx = managedSessionsSource.indexOf("export const heartbeatBatch");
-    expect(batchIdx).toBeGreaterThanOrEqual(0);
-    expect(managedSessionsSource.slice(batchIdx, batchIdx + 1500)).toContain("buildHeartbeatPatch(");
+    // reintroduce the latched-status bug. Both go through applyHeartbeat, which
+    // builds the patch with buildHeartbeatPatch.
+    const convexDir = path.join(path.dirname(daemonPath), "..", "..", "convex", "convex");
+    const managedSessionsSource = fs.readFileSync(path.join(convexDir, "managedSessions.ts"), "utf8");
+    const patchSource = fs.readFileSync(path.join(convexDir, "lib", "heartbeatPatch.ts"), "utf8");
+    expect(patchSource).toContain("export function buildHeartbeatPatch(");
+    const applyIdx = managedSessionsSource.indexOf("async function applyHeartbeat(");
+    expect(applyIdx).toBeGreaterThanOrEqual(0);
+    expect(managedSessionsSource.slice(applyIdx, managedSessionsSource.indexOf("\n}", applyIdx))).toContain("buildHeartbeatPatch(");
+    for (const name of ["export const heartbeat = mutation", "export const heartbeatBatch = mutation"]) {
+      const idx = managedSessionsSource.indexOf(name);
+      expect(idx).toBeGreaterThanOrEqual(0);
+      expect(managedSessionsSource.slice(idx, managedSessionsSource.indexOf("\n});", idx))).toContain("applyHeartbeat(ctx, session,");
+    }
   });
 
   test("logHeartbeatStatus helper is defined and called in the flush", () => {
