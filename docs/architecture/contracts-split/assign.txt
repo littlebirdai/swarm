@@ -1,0 +1,48 @@
+hash: hash/fnv1a32
+fence: contracts/fence
+browser: contracts/browserExtension contracts/browserPaneOffer contracts/browserStream
+network: contracts/internalHost
+mods: contracts/mods contracts/theme
+vault: contracts/vaultProtocol contracts/vaultMirror
+agents: contracts/agentDefinitions
+capabilities: contracts/capabilities contracts/capabilityScopes contracts/fleetDiff contracts/agentToolSetup contracts/mcpRegistry contracts/agentAccess
+agent-clients: contracts/agentClients contracts/antigravityClient contracts/cloudAgents contracts/cloudSessionSync contracts/modelOptions contracts/agentPins contracts/agentSwitch contracts/claudeBackend contracts/capabilityResolver contracts/__fixtures__/capabilityResolverGolden contracts/executionBinding contracts/apiErrorBanner contracts/harnessHooks contracts/slashCommand contracts/subagentFleet contracts/testArtifacts
+provider-keys: contracts/providerKeys contracts/providerKeyCrypto contracts/oauthCodePaste
+usage: contracts/usageLimits contracts/weeklyCard
+policy: contracts/managedPolicy contracts/vendorCoverage contracts/teamFeatures contracts/permissionRules
+sessions: contracts/agentStatus contracts/liveness contracts/hibernation contracts/workState contracts/loopState contracts/openTasks contracts/pendingStatus contracts/sessionRead contracts/sessionSnooze contracts/sessionProject contracts/newSessionDefaults contracts/taskStats contracts/conversationFields contracts/liveActivity contracts/threadState contracts/unattended contracts/forkSeed contracts/sessionAsk contracts/deliveryFailed contracts/deliveryHold contracts/follow
+daemon: contracts/daemonCommands contracts/rewindFiles contracts/sshAttach contracts/terminalStream contracts/fileAttachment contracts/shellWords
+machines: contracts/deviceName contracts/systemResources contracts/resourceOffloadIntent contracts/resourceOffloadPolicy contracts/moveRehearsal contracts/machineSwitch contracts/peerTransport contracts/teamHosts contracts/dataSync contracts/checkouts contracts/worktrees
+cloud-hosts: contracts/cloudHostReport contracts/cloudPlacement contracts/cloudPlacementProgress contracts/cloudWorkspace contracts/localMirror
+calls: contracts/callRoomKeys contracts/callGuests contracts/callRecordings contracts/callLinks contracts/callPush contracts/huddleDigest contracts/screenRecording contracts/recordingAudio contracts/transcribeLanguage contracts/transcriptChunk contracts/stagePins
+signals: contracts/signalFingerprint contracts/problemReach
+changes: changes/classify changes/cluster changes/dedupe changes/headline changes/index changes/keys changes/people changes/risks changes/surfaces changes/types changes/week changes/__fixtures__/codecastDays.json changes/__fixtures__/commit changes/__fixtures__/littlebird
+replay: contracts/replay contracts/replayPlayer replay/capture replay/dom replay/events replay/index replay/issues replay/list replay/mobile replay/mobile.fixture replay/moment replay/repro replay/rrweb replay/timeline
+entities: entities/index contracts/appSurfaces
+pull-requests: contracts/prRefs contracts/commitDiffs
+tasks: tasks/foreignText tasks/frontier tasks/graph tasks/graphHistory tasks/index tasks/planForeignText tasks/planState tasks/planSteps tasks/planVerdicts tasks/relatedDocs tasks/resume tasks/resumeSources tasks/statuses
+search: search/index search/sessionQuery search/terms search/tokenize contracts/levenshtein
+render: render/canvasCss render/codeRuns render/codecastMark render/format render/index render/mobileSessionStyle render/mobileTabsStyle render/pageTheme render/permissionCardStyle render/structuredMessage render/structuredResult render/toolCall render/toolKinds render/toolNames render/toolVisual render/typeScale
+goals: contracts/initiative contracts/metricStanding contracts/goalsBrief contracts/predictedEffect contracts/envs contracts/envCases contracts/climb contracts/openPlans
+org: contracts/orgAreas contracts/orgAssignee contracts/orgAvatars contracts/orgCapacity contracts/orgChange contracts/orgChangeWords contracts/orgIdentity contracts/orgLead contracts/orgLog contracts/orgProposal contracts/orgProposalReply contracts/orgReview contracts/orgRoute contracts/orgSessionFiling contracts/roleAutonomy contracts/roleCard contracts/roleFailover contracts/roleGoals contracts/roleIcon contracts/roleIconExamples contracts/roleLevel contracts/rolePlaybook contracts/briefStanding contracts/headOfPeoplePrompt contracts/executiveAssistantPrompt contracts/sessionCharacter
+org-templates: contracts/orgTemplateBind contracts/orgTemplateLearning contracts/orgTemplateLearningOptIn contracts/orgTemplateManifest contracts/orgTemplateReadiness contracts/orgTemplateRelease contracts/orgTemplateState
+projects: contracts/projectContext contracts/projectOutputs contracts/projectRef
+messages: contracts/machineMessages contracts/messagingPolicy contracts/handoffPrompt contracts/sendArrival contracts/jointMessage contracts/sessionGoal contracts/sessionEscalation contracts/orgWhere contracts/plainText contracts/redirectWords
+inbox: contracts/inboxProjection contracts/__fixtures__/teamWorldGen contracts/inboxFields contracts/inboxMembership contracts/inboxSplit contracts/closedSession contracts/idleDigest contracts/__fixtures__/inboxProjectionGen
+secrets: contracts/secrets contracts/secretRules contracts/secretShapes contracts/vaultMessages
+decisions: contracts/decisionAnswers contracts/decisionAreas contracts/decisionCategory contracts/decisionEscalation contracts/decisionImpact contracts/approvalAnswers contracts/commandRun contracts/personAsk
+hosted-assistant: contracts/assistant
+snippets: contracts/snippets contracts/featureExplainers contracts/snippetsWorkflow contracts/stableContext
+triggers: contracts/triggerEvents contracts/triggerLifecycle contracts/triggerPrecheck
+judges: contracts/judges contracts/agentJudges contracts/judgeReview contracts/judgeFix contracts/modelCall
+ingest: contracts/ingest contracts/moments contracts/volumeWatch contracts/metricMonitor contracts/sanitizeText
+connectors: contracts/appConnector contracts/productView contracts/connectorReasons contracts/codecastConfig contracts/codecastSignature contracts/__fixtures__/codecastSignature.vectors.json contracts/githubAppInstallState contracts/appDescriptors
+flows: contracts/flowPool contracts/flowEdit contracts/repoFlows contracts/runStart contracts/lineSlug contracts/linePhases
+deploys: contracts/deployTargets contracts/lineDeploy contracts/deployReach contracts/deployAuthority contracts/pipeline
+line: contracts/causeHistory contracts/deploys contracts/changeCard render/changeCardHtml contracts/lineRunEnd contracts/evalResult contracts/proposalCard contracts/flowMap contracts/lineFunnel contracts/lineVolume contracts/linePriority contracts/lineProfile contracts/lineTimeline contracts/lineWords contracts/lineChat contracts/superseded contracts/regretRates contracts/problemScore contracts/expectations contracts/mainRed contracts/ciFailures
+ship: contracts/shipPlan contracts/changeGuide
+evals-api: contracts/evalsApi contracts/evalsApi/bisect contracts/evalsApi/core contracts/evalsApi/endpoints contracts/evalsApi/routes contracts/evalsApi/sim
+pages: contracts/castPlayer contracts/castMotion contracts/pageAgent contracts/pageAnchor contracts/pageData contracts/pageEdge
+keyboard: contracts/shortcutCatalog contracts/keyBindings
+convex-errors: contracts/convexErrors
+ratchet: ratchet/index
