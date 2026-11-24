@@ -116,11 +116,11 @@ import {
 } from "@codecast/agent-clients/agentClients";
 import {
   isModelSwitchStdout,
-  isForkSeedClientId,
   isRecoveryContinueClientId,
   isMidWorkReviveNotice,
   isMoveInterruptNotice,
 } from "@codecast/shared/contracts";
+import { isForkSeedClientId } from "@codecast/sessions/forkSeed";
 import {
   hostedApprovalAnswer,
   hostedApprovalState,

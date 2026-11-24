@@ -7,17 +7,11 @@ export * from "./executionBinding";
 // by the Convex fold-up and the web bell so both name the same set.
 export * from "./idleDigest";
 export * from "./closedSession";
-export * from "./taskStats";
-export * from "./threadState";
 export * from "./apiErrorBanner";
-// Cloud placement: the one predicate the web composer and the Convex start
-// chokepoint share for "does this launch need a laptop to prepare the host".
-export * from "./newSessionDefaults";
 export * from "./orgTemplateBind";
 export * from "./snippets";
 export * from "./featureExplainers";
 export * from "./agentSwitch";
-export * from "./forkSeed";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
 export * from "./stableContext";
 export * from "./vaultProtocol";
@@ -55,15 +49,11 @@ export * from "./githubAppInstallState";
 // order-independent digest every client compares against (sync-convergence C3, C8).
 export * from "./inboxProjection";
 export * from "./appSurfaces";
-export * from "./conversationFields";
 export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
 // `cast org init` decisions carry). It sits off the CLI boot graph on purpose
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static
 // graph, so a re-export here is paid by `cast --help`.
 
-export * from "./unattended";
 export * from "./handoffPrompt";
-export type { AskResult, SideAnswerRow } from "./sessionAsk";
-export { SIDE_ANSWER_EXPIRE_MS, explainAskFailure } from "./sessionAsk";
 // Codecast for outside agents (MCP): the address, the read tools, what a connection can do.

@@ -14,7 +14,7 @@ import {
   type ResourcePoint,
 } from "@codecast/machines/systemResources";
 import { deviceDisplayName } from "@codecast/machines/deviceName";
-import { isUnattendedConversation } from "@codecast/shared/contracts";
+import { isUnattendedConversation } from "@codecast/sessions/unattended";
 import { emitNotification } from "./notificationRouter";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";

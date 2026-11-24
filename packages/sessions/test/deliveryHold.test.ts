@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   unreachableTerminalHoldReason,
   unreachableTerminalOf,
-} from "./deliveryHold";
+} from "../src/deliveryHold";
 
 describe("unreachable terminal hold reason", () => {
   test("names the terminal and reads back", () => {

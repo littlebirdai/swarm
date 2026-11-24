@@ -267,7 +267,7 @@ field.
 ## L11. Limits
 
 Hands started by a run are unattended principals. Each opens with three
-lines (`unattendedOpening`, `packages/shared/contracts/unattended.ts`) that
+lines (`unattendedOpening`, `packages/sessions/src/unattended.ts`) that
 say only what is true of every unattended session: which step started it and
 that nobody is watching, that the run reads the outcome from the command the
 brief ends with (a pin when it names none), and that a decision which is a

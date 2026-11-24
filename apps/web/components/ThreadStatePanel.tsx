@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   threadStateAskParts,
   type ThreadStateRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { useInboxStore } from "../store/inboxStore";
 import { withoutUndo } from "../store/undoStack";
 import { useCoarseNow } from "../hooks/useCoarseNow";

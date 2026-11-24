@@ -9,7 +9,7 @@
 // action that moves the page in the same tick and rides dispatch to orgRoles.*.
 import { cleanChatOf } from "../../../lib/cleanThread";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { threadStateCardLine } from "@codecast/shared/contracts";
+import { threadStateCardLine } from "@codecast/sessions/threadState";
 import { useTourAutoStart } from "../../../tours/useTourAutoStart";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

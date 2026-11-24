@@ -9,9 +9,9 @@ import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 import {
   threadStateHeadline,
   parseThreadStateStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { sessionLivenessVerdict } from "@codecast/sessions/liveness";
-import type { AskResult } from "@codecast/shared/contracts";
+import type { AskResult } from "@codecast/sessions/sessionAsk";
 import type { LivenessVerdict } from "@codecast/sessions/liveness";
 import {
   parseToolInput,

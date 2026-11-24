@@ -6,7 +6,7 @@ import * as path from "node:path";
 import {
   THREAD_STATE_NUDGE_MSGS,
   THREAD_STATE_RECRUIT_MSGS,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { THREAD_STATE_HOOK } from "./threadStateHook.js";
 
 // Run the installed hook exactly as Claude Code would: pipe a hook-event JSON

@@ -22,7 +22,10 @@
 import { action, internalAction, internalQuery } from "./functions";
 import type { ActionCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
-import { explainAskFailure, type AskResult } from "@codecast/shared/contracts";
+import {
+  explainAskFailure,
+  type AskResult,
+} from "@codecast/sessions/sessionAsk";
 import { internal } from "./_generated/api";
 import {
   readableConversation,

@@ -3,7 +3,7 @@ import type { OrgChangeStatus } from "./orgStaffingTypes";
 import type { OrgGhostStub } from "./orgLayout";
 // Presentation facts the org surfaces share: how each work state reads, and
 // how a parent reference is named. Data only; the cards render it.
-import { parseThreadStateStatus } from "@codecast/shared/contracts";
+import { parseThreadStateStatus } from "@codecast/sessions/threadState";
 import { type WorkState } from "@codecast/sessions/workState";
 import {
   describeTenure,

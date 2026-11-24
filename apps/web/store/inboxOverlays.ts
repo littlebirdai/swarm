@@ -11,7 +11,7 @@
 //
 // This module is a LEAF: it must not import from inboxStore (the store
 // imports it), only types and pure helpers.
-import { TRIAGE_CONVERSATION_FIELDS } from "@codecast/shared/contracts";
+import { TRIAGE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
 import { isConvexId } from "../lib/entityLinks";
 
 // The exact overlay alphabet, per the pinned contract:

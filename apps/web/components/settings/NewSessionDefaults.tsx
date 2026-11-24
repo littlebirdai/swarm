@@ -5,7 +5,7 @@
 import { Bot, FolderGit2, Monitor, Sparkles } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { AGENT_PICKER_OPTIONS } from "@codecast/agent-clients/agentClients";
-import { THIS_DEVICE } from "@codecast/shared/contracts";
+import { THIS_DEVICE } from "@codecast/sessions/newSessionDefaults";
 import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { useInboxStore, type ClientUI } from "../../store/inboxStore";
 import { useOnlyHostedAgent } from "../../hooks/usePinnedAgents";

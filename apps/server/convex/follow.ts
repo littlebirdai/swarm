@@ -4,10 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 import { canAccessConversation } from "./lib/access";
 import { heldKeysFor } from "./lib/accessKeys";
-import {
-  FOLLOW_LEASE_MS,
-  clampFollowView,
-} from "@codecast/shared/contracts/follow";
+import { FOLLOW_LEASE_MS, clampFollowView } from "@codecast/sessions/follow";
 import { followViewValidator } from "./lib/followView";
 
 // Follow mode: one person mirrors another's view until they stop.

@@ -40,7 +40,7 @@ import { formatMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,
-} from "@codecast/shared/contracts/deliveryFailed";
+} from "@codecast/sessions/deliveryFailed";
 import { formatJointMessage } from "@codecast/shared/contracts/jointMessage";
 import { LINE_FENCE_LANG } from "@codecast/shared/contracts/lineChat";
 import { FLOW_FENCE_LANG } from "./line/flowFence";

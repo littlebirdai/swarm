@@ -9,7 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { computeConversationTaskStats } from "@codecast/shared/contracts";
+import { computeConversationTaskStats } from "@codecast/sessions/taskStats";
 import { useInboxStore } from "../../store/inboxStore";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 

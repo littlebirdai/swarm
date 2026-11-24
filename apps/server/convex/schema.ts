@@ -896,7 +896,7 @@ export default defineSchema(
       // The named project this session works in, set only where a person or the
       // project decided it (the composer's pick, a move, a project's default
       // session). Workers, spawns and task-bound sessions derive theirs at read
-      // time (shared/contracts/sessionProject); never copy it onto a child.
+      // time (packages/sessions/src/sessionProject); never copy it onto a child.
       project_id: v.optional(v.id("projects")),
       model: v.optional(v.string()),
       // Last-known effort level (low|medium|high|max), same lifecycle as `model`:

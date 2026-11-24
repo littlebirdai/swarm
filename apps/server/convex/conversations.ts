@@ -66,12 +66,10 @@ import {
 import { applyHideTransition, cascadeHideToNestedChildren } from "./cleanup";
 import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { ThreadStateStatus } from "@codecast/shared/contracts";
+import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
-import {
-  PATCHABLE_CONVERSATION_FIELDS,
-  forkSeedClientId,
-} from "@codecast/shared/contracts";
+import { PATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
+import { forkSeedClientId } from "@codecast/sessions/forkSeed";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { normalizeCharacterFields } from "@codecast/org/sessionCharacter";
 import { isHotRow, splitRows } from "@codecast/shared/contracts/inboxSplit";
@@ -162,15 +160,17 @@ import {
   agentForksNatively,
   isHostedAgentType,
 } from "@codecast/agent-clients/agentClients";
+import { formatAgentSwitchNotice } from "@codecast/shared/contracts";
 import {
   normalizeThreadState,
   parseThreadStateStatus,
   clearedThreadStateFields,
   THREAD_STATE_RESULT_MAX_CHARS,
-  formatAgentSwitchNotice,
+} from "@codecast/sessions/threadState";
+import {
   computeConversationTaskStats,
   isTodoStatTool,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/taskStats";
 import {
   shouldShowInInbox,
   isNoiseTitle,

@@ -1,5 +1,5 @@
 // Sessions in projects (docs/architecture/session-projects.md). The rule that
-// decides a session's project lives in shared/contracts/sessionProject; this
+// decides a session's project lives in packages/sessions/src/sessionProject; this
 // file feeds it from the database and holds the one write: a person putting a
 // session in a project, or taking it out.
 
@@ -14,7 +14,7 @@ import {
   SESSION_PROJECT_MAX_DEPTH,
   projectParentIdOf,
   sessionProjectId,
-} from "@codecast/shared/contracts/sessionProject";
+} from "@codecast/sessions/sessionProject";
 
 // Only the database: the dispatch side effects hand a narrower ctx than a
 // whole query or mutation.

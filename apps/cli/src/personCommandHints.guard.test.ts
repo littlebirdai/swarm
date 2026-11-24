@@ -14,6 +14,7 @@ const SCANNED = [
   "packages/machines/src",
   "packages/mods/src",
   "packages/search/src",
+  "packages/sessions/src",
   "packages/shared/contracts",
   "apps/server/convex",
 ];

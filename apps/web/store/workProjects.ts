@@ -13,7 +13,7 @@
 import {
   sessionProjectId,
   type SessionProjectRow,
-} from "@codecast/shared/contracts/sessionProject";
+} from "@codecast/sessions/sessionProject";
 import {
   deviceDisplayName,
   type DeviceNameSource,

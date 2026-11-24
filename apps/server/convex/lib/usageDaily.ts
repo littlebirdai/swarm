@@ -7,7 +7,7 @@ import { accountOfSession } from "./sessionAccount";
 import {
   isUnattendedConversation,
   type Attendance,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/unattended";
 
 // Per-day token and spend counters behind the "Tokens" and "Spend" chart
 // metrics. conversations.usage_totals is a lifetime total per session, so it

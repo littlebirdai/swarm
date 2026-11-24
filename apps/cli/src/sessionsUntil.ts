@@ -5,7 +5,7 @@
 // the shell ending: a session sat "waiting" on an open task for days after
 // every worker it watched had finished.
 
-import { threadStateHeadline } from "@codecast/shared/contracts";
+import { threadStateHeadline } from "@codecast/sessions/threadState";
 import {
   normalizeWorkStateFilter,
   WORK_STATES,

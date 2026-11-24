@@ -8,7 +8,7 @@
 //  - an open role card's lists: the projects it leads and the open tasks in its area.
 // Each comes with a signature over exactly the fields it reads, so the chart
 // re-lays out when a line, a task or a message changes and never on a heartbeat.
-import { threadStateCardLine } from "@codecast/shared/contracts";
+import { threadStateCardLine } from "@codecast/sessions/threadState";
 import { projectLeadOf } from "@codecast/org/orgLead";
 import type { InboxSession, Message } from "../../store/inboxStore";
 import type { OrgSessionDetail, RoleOpenDetail } from "./orgCardModel";

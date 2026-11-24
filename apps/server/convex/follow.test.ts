@@ -9,7 +9,7 @@ import {
   unfollow,
   viewOf,
 } from "./follow";
-import { FOLLOW_LEASE_MS } from "@codecast/shared/contracts/follow";
+import { FOLLOW_LEASE_MS } from "@codecast/sessions/follow";
 
 // Follow mode over the fake db: the lease, the write gate, and the access rule.
 

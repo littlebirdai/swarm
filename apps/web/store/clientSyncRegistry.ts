@@ -1,4 +1,4 @@
-import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/shared/contracts";
+import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
 import { CHAT_SYNC_COLLECTIONS } from "./clientSyncRegistry.chat";
 import { FLOW_SYNC_COLLECTIONS } from "./clientSyncRegistry.flows";
 import { OPS_SYNC_COLLECTIONS } from "./clientSyncRegistry.ops";
@@ -216,7 +216,7 @@ export const CLIENT_SYNC_REGISTRY = {
       table: "conversations",
       kind: "collection",
       // The manifest is the single source shared with the server's patch gate
-      // (contracts/conversationFields), so the two allowlists cannot disagree.
+      // (packages/sessions/src/conversationFields), so the two allowlists cannot disagree.
       fields: [...DISPATCHABLE_CONVERSATION_FIELDS],
     },
   },

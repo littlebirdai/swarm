@@ -5,7 +5,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import Link from "next/link";
 import { Bot, User } from "lucide-react";
-import type { Attendance } from "@codecast/shared/contracts";
+import type { Attendance } from "@codecast/sessions/unattended";
 import { DashboardLayout } from "../../../components/DashboardLayout";
 import { ErrorBoundary } from "../../../components/ErrorBoundary";
 import { AvatarImg } from "../../../lib/avatarCache";

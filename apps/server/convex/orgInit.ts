@@ -102,7 +102,7 @@ import {
 } from "./lib/orgCaps";
 import { autonomyChangeWords } from "@codecast/org/roleAutonomy";
 import { findDecision } from "./sessionDecisions";
-import { threadStateHeadline } from "@codecast/shared/contracts";
+import { threadStateHeadline } from "@codecast/sessions/threadState";
 import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";
 import {
   applyProposalChanges,

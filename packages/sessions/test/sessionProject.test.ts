@@ -3,7 +3,7 @@ import {
   projectParentIdOf,
   sessionProjectId,
   type SessionProjectRow,
-} from "./sessionProject";
+} from "../src/sessionProject";
 
 type Row = SessionProjectRow & { _id: string };
 

@@ -1,11 +1,11 @@
-// A message the daemon stopped delivering (shared/contracts/deliveryFailed):
+// A message the daemon stopped delivering (packages/sessions/src/deliveryFailed):
 // what it was, whether the agent can have seen it, the whole message on open,
 // and the one action that puts it back: a trigger runs again, anything else is
 // sent again as a new message.
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Zap } from "lucide-react";
 import { parseScheduledTask } from "@codecast/shared/contracts";
-import type { DeliveryFailedNotice } from "@codecast/shared/contracts/deliveryFailed";
+import type { DeliveryFailedNotice } from "@codecast/sessions/deliveryFailed";
 import { useInboxStore } from "../../../store/inboxStore";
 import { EntityIdPill } from "../../EntityIdPill";
 import {

@@ -23,7 +23,7 @@
  * Kept pure, and out of the component, so the ladder is testable.
  */
 
-import { THIS_DEVICE } from "@codecast/shared/contracts";
+import { THIS_DEVICE } from "@codecast/sessions/newSessionDefaults";
 import {
   cloudHostBootable,
   deviceServesPath,

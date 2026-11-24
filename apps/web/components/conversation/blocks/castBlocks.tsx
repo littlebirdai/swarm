@@ -8,7 +8,7 @@ import {
   useEnsureChatMessage,
 } from "../../../hooks/useChatSync";
 import { BrowserTabPill } from "../../browser/BrowserTabPill";
-import { parseThreadStateStatus } from "@codecast/shared/contracts";
+import { parseThreadStateStatus } from "@codecast/sessions/threadState";
 import { truncateStr } from "@codecast/render/format";
 import { entityRoute } from "../../../lib/entityLinks";
 import { parseTriggerCadence } from "../../triggerCadence";

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { THREAD_STATE_NUDGE_MSGS } from "@codecast/shared/contracts";
+import { THREAD_STATE_NUDGE_MSGS } from "@codecast/sessions/threadState";
 import { USER_PROMPT_HOOK, USER_PROMPT_HOOK_FILE } from "./userPromptHook.js";
 
 let home: string;

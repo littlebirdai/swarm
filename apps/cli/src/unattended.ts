@@ -3,4 +3,7 @@
 // session gets, so the fence is the opening of its briefing, the way a
 // safe-mode trigger run carries SAFE_MODE_MANDATE (taskScheduler.ts). The text
 // lives in the shared contracts; re-exported here for the CLI's own callers.
-export { unattendedOpening, applyUnattended } from "@codecast/shared/contracts";
+export {
+  unattendedOpening,
+  applyUnattended,
+} from "@codecast/sessions/unattended";
