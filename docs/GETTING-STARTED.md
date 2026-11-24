@@ -16,7 +16,7 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 | `packages/mobile` | iOS app (Expo / React Native) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |
 | `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
-| `packages/evals` | Prompt evals against frozen moments (`./evals`) |
+| `apps/evals` | Prompt evals against frozen moments (`./evals`) |
 
 ---
 

@@ -6,7 +6,7 @@
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loggedArgv, servedReadKey } from "../../evals/src/served.ts";
+import { loggedArgv, servedReadKey } from "../../../apps/evals/src/served.ts";
 import { GUARD, logged, TREE, type TreeEntry, world, write } from "./prompt-dry-run.guard-helpers.ts";
 
 // Every test spawns bash and a fake CLI; on a loaded machine one spawn can take a second.

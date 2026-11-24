@@ -156,7 +156,7 @@ describe("prompt-dry-run.ts: the fake", () => {
     for (const said of [errors, h.recorded("send-out") ?? "", h.recorded("task-out") ?? ""]) expect(said).not.toContain("LINK-SECRET");
     // The second call reopened call.err fresh rather than through the link: the file it named is untouched.
     expect(fs.readFileSync(secret, "utf8")).toBe("error LINK-SECRET\n");
-    const { fakeWorldOf } = await import("../../evals/src/fakes/seed.ts");
+    const { fakeWorldOf } = await import("../../../apps/evals/src/fakes/seed.ts");
     expect(fakeWorldOf(h.runDir)).toBeNull();
   }, 90_000);
 

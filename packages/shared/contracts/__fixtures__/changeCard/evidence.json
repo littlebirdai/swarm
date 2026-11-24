@@ -1,5 +1,5 @@
 {
-  "files_changed": ["packages/convex/convex/lib/titlePrompt.ts", "packages/evals/freezes/title/opener-echo.json"],
+  "files_changed": ["packages/convex/convex/lib/titlePrompt.ts", "apps/evals/freezes/title/opener-echo.json"],
   "verification_evidence": "cast check convex: 0 errors. bun test convex/lib/titlePrompt.test.ts: 12 pass.\nManual: retitled 6 sessions, all name the work.",
   "execution_status": "done",
   "pr_url": "https://github.com/codecast-sh/codecast/pull/912",

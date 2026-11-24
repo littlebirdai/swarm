@@ -28,7 +28,7 @@ id = "eval-drift"
 source = "evals"
 kind = ["regression", "prompt_miss"]
 fingerprint = "evals:<surface>:<gate, freeze or separated-worse>"
-runs = "./evals check --signal (packages/evals/src/signals.ts), on the eval cadence"
+runs = "./evals check --signal (apps/evals/src/signals.ts), on the eval cadence"
 opens_causes = true
 
 # Codecast's own production errors (Ashot, sd-1650, Oct 26): a group that is

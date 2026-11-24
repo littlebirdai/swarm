@@ -7,7 +7,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parseLineProfileText } from "../packages/cli/src/lineProfile";
-import { evalSignals, signalArgv } from "../packages/evals/src/signals";
+import { evalSignals, signalArgv } from "../apps/evals/src/signals";
 import { insightBlockerSignals } from "../packages/convex/convex/signals";
 import { LESSON_SIGNAL, lessonFingerprint } from "../packages/convex/convex/lineLearn";
 

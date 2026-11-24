@@ -12,7 +12,7 @@ import {
 import { ORG_CONTEXT_GUIDANCE } from "./orgWhere";
 
 const variant = (name: string) =>
-  readFileSync(join(import.meta.dir, "../../evals/org-comms/suite/variants", `${name}.md`), "utf8").trim();
+  readFileSync(join(import.meta.dir, "../../../apps/evals/org-comms/suite/variants", `${name}.md`), "utf8").trim();
 
 describe("messaging policies", () => {
   test("every name has its policy, under that name", () => {

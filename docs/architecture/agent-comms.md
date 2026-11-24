@@ -48,14 +48,14 @@ Live huddle transcripts reach fed sessions through `transcripts.deliverRoutes`. 
 
 ## AC4. Monitoring
 
-`packages/evals/org-comms/monitor.py` reruns the measurement:
+`apps/evals/org-comms/monitor.py` reruns the measurement:
 1. Exports from prod.
 2. Places each sender against its recipient. A session's lead is its parent, else the session that spawned it (`spawned_by_conversation_id`: a plain `cast spawn`, or a Line run handing a station its brief), and the recipient's own row settles its lead even when that session is outside the export. Codecast's own notices (a reporting line moved, a send still queued) are counted apart and left out of both the huddle and the agent numbers. A short id shared by several sessions resolves to the one closest to the recipient's line. Sessions older than the export are looked up by id, and role anchors come from each team's org listing.
 3. Reads a random sample inside the recipients' transcripts, drawn only from sessions the person owns: a message they sent into a teammate's session is counted and never opened. A huddle chunk is unnamed talk only when its header says nobody named the agent; a voice handoff, a chat line and the attach briefing are asks or one-offs.
 4. Labels the sample through `prompt-dry-run.ts`.
 5. Writes `report.json` and `report.md` under `$CODECAST_EVALS_HOME/org-comms/runs/<date>/`, set against `baseline.json` (the founding study) and every earlier run.
 
-A weekly spawned trigger runs it and iterates. A change to the wording is proven before it ships with the synthetic suite in `packages/evals/org-comms/suite`:
+A weekly spawned trigger runs it and iterates. A change to the wording is proven before it ships with the synthetic suite in `apps/evals/org-comms/suite`:
 - `run.py` and `stats.py` run the scenario ablation, graded in code by `scenarios.py`;
 - `sim.py` runs the multi-agent world (`WORLD=big LEAD_FEED=1` for ten workers with a lead digest).
 

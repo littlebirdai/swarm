@@ -11,7 +11,7 @@ The spec starts from Design 1: one layered package, a single isomorphic query ha
 - **Naming.** The run-set result stays `BatchVerdict`. The platform judge grade `Verdict` (`model.ts:193`) is not renamed, because eaiden's `adapters/freeze.ts:5` imports it.
 - **Boot path.** On the cast boot path, type-only re-exports land first. The runtime switch is its own commit, followed by a boot smoke test and `cut-cli-release.yml -f dry_run=true`.
 - **Commit granularity.** Views move one group per commit, each with a screenshot diff. Union mounts on a parallel route first.
-- **`./html` stays.** `packages/evals/src/commands/publish.ts:8` and eaiden both use it. No guard bans it.
+- **`./html` stays.** `apps/evals/src/commands/publish.ts:8` and eaiden both use it. No guard bans it.
 
 Two design ideas are dropped:
 
@@ -78,7 +78,7 @@ Purity rules:
 | `evals.css`, `run.css`, `surface.css`, `wall.css`, `bisect.css` | `react/{shell,run,surface,freeze,bisect}/*.css`, composed by `react/styles.css` | |
 
 Stays in codecast for good:
-- All of `packages/evals/src/adapters`, `surfaces`, `registry.ts`, `surface.ts`, `paths.ts`, `models.ts`, `state.ts`, `provenance.ts`, `layout.ts`, `served.ts`, `labels.ts`, `signals.ts`, `snippet.ts`, `main.ts`, `index.ts`, `git.ts`, `history/runIndex.ts` and `commands/*`.
+- All of `apps/evals/src/adapters`, `surfaces`, `registry.ts`, `surface.ts`, `paths.ts`, `models.ts`, `state.ts`, `provenance.ts`, `layout.ts`, `served.ts`, `labels.ts`, `signals.ts`, `snippet.ts`, `main.ts`, `index.ts`, `git.ts`, `history/runIndex.ts` and `commands/*`.
 - The run-anatomy views `AgentTranscript`, `CallPane`, `GuardLog` and `RunFiles`, their helpers (`guardCounts`/`GUARD_WORDS` in GuardLog, `fileTree`/`fileLanguage` in RunFiles), `runPanels.tsx` and `runPanels.css`, which render through the `useRunPanels` slot.
 - All sim views: `SimCatalogView`, `SimRunView`, `DeliveryTimeline`, `OrderStrip`, `simLanes`, `simModel`, `simJobState`, `pages/Sim*` and `sim.css`.
 - `evalsApi/sim.ts`, `__fixtures__/*` and `shortcuts/registry.ts:473-500`.
@@ -389,7 +389,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 
 ### Codecast
 
-- **packages/evals**
+- **apps/evals**
   - `commands/verdict.ts` exports `codecastVerdict = makeVerdict({ passed: repPassed, ruler: defaultRuler })` and `export const { batchVerdict, ... } = codecastVerdict`, plus its CLI parts. In `adapters/replay.ts`, `repPassed` becomes `statusPassRule(PASS_AT)` and `passesAt` becomes `passMarkRule(PASS_AT)`. The seams in `history/` and `bisect/` pass `codecastVerdict` to the core functions that need the policy.
   - `api/handlers.ts` becomes: codecast extras first (file, patch, search, POST bisect, sim), then `createEvalsHandler(codecastSources, codecastPolicy)`.
   - `api/sources.ts` wraps `indexedRuns`/`refreshRunIndex`, the resolver/labels freezes, `folderPromptReader`, `repoGit` + `codecastAttributionMeta`, and `listBisects`. Its slow reads (the freeze homes, the staleness words) are platform's `keptRead` with `staleWhileRevalidate`, the timed read every product's sources share (`@platform/evals/query`, beside `stableRows` for a source that reads its rows afresh).
@@ -450,7 +450,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Every vendor run copies from a platform commit sha, never the live tree: `git -C ~/src/platform worktree add /tmp/pf-<sha> <sha>`, run with `PLATFORM_DIR=/tmp/pf-<sha>` (added by V1), then remove the worktree. This lets platform units and vendor units run in parallel safely.
 
 **Codecast**
-- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `packages/cli/package.json` and `packages/web/package.json`. `packages/evals` already has it.
+- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `packages/cli/package.json` and `packages/web/package.json`. `apps/evals` already has it.
 - Run `scripts/vendor-platform.sh` and commit `platform/packages/**`, `platform/vendor-manifest.txt` and `bun.lock` together. The vendor commit lands before any commit that imports a new subpath.
 - CI `test-platform` then installs inside the mirror and runs its React tests with no CI edit.
 - A running dev server needs `depsCacheGuard`, because vendoring purges `.vite`.
@@ -480,13 +480,13 @@ The rules for every unit:
   - Files: `outreach/backend/src/lib/routePermissions.ts` and its existing test `outreach/backend/tests/unit/routePermissions.test.ts` (the `ADMIN_PREFIXES` snapshot, a stub route, and the admin-only matrix rows).
   - Accept: the test asserts that `/api/simulations/db` is admin-only; backend `bun run test`; `scripts/ci/typecheck.sh backend` (the root `type-check` script covers landing only) and union `type-check`.
 - **C0 (codecast): parity harness.**
-  - Files: new `packages/evals/scripts/parity.ts`; `packages/evals/tsconfig.json` includes `scripts/**/*` so `cast check evals` covers it.
+  - Files: new `apps/evals/scripts/parity.ts`; `apps/evals/tsconfig.json` includes `scripts/**/*` so `cast check evals` covers it.
   - `parity.ts dump <label>` dumps `./evals runs --json`, `./evals runs matrix --json`, check's verdicts, and every neutral route answered by a real `./evals api --stdio` child for ids sampled from the index (a seeded hash rank), to `/tmp/evals-parity/<label>/`. `--compare a b` diffs them and ignores `/health.capabilities`.
   - Check's verdicts are not `./evals check --dry --json`: `check` has no `--json`, and `--dry` replays every freeze and writes dry reps into EVALS_HOME, which moves the index it reads. The harness calls `setVerdict` (what `check` and `publish` print through) on each surface's newest three batches, plus the newest against the oldest of them (`--against`).
   - Inputs are pinned, because other sessions keep adding runs: `parity.ts pin` builds `/tmp/evals-parity/home` (run folders linked, index, state and bisects copied) and a copy of the sim home, and records a clock. Every child runs with the script preloaded, which pins `Date` to that clock. Each unit pins once, dumps before its change and after it, and compares. A dump records an index fingerprint, and compare warns when the inputs moved.
   - Accept: two runs on an unchanged tree compare identical; `cast check evals`.
 - **P0 (platform): scaffold.**
-  - Files: `packages/evals/package.json`; `src/{contract,analysis,query,client,react}/index.ts` (empty barrels); `src/layers.test.ts`; `src/react/guards.test.ts`; `src/guardKit.ts` (test-only parsing shared by both guards); root `bun.lock`.
+  - Files: `apps/evals/package.json`; `src/{contract,analysis,query,client,react}/index.ts` (empty barrels); `src/layers.test.ts`; `src/react/guards.test.ts`; `src/guardKit.ts` (test-only parsing shared by both guards); root `bun.lock`.
   - `layers.test.ts` follows imports transitively, so a pure layer cannot borrow node through a shared module such as `model.ts`, and it rejects free references to DOM and node globals. `guards.test.ts` also enforces section 4's token rules (views and CSS read only `--ev-*`, nothing declares `--sol-*`, components import no CSS) and requires `'use client'` at the top of `react/index.ts`. `@types/react-dom` is pinned `~19.2.0` to match platform's locked `@types/react` 19.2.
   - Accept: platform typecheck and tests; xrun `bun install` + `bun run test` still green.
 

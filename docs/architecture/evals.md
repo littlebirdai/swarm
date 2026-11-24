@@ -6,7 +6,7 @@ gated report. It is the one place codecast measures a prompt change. This page
 is the operator's reference. The build spec, with the reasoning behind each
 choice, is `evals-home.md` (pl-810, ct-55687).
 
-The code is `packages/evals`, run by the root launcher `./evals` (it works from
+The code is `apps/evals`, run by the root launcher `./evals` (it works from
 the main checkout and any worktree). It is never mounted under `cast`: `cast`
 runs from source on every session's boot path, and the release binaries would
 ship eval code. The generic commands (`convo`, `freeze`, `runs`) come from the
@@ -23,7 +23,7 @@ that they are edited in the checkout (`check --stale` waits for a commit), and
 ## Surfaces
 
 A surface is one production prompt with one call site. Each is a directory
-under `packages/evals/src/surfaces/`: `meta.ts` holds its route, pinned model,
+under `apps/evals/src/surfaces/`: `meta.ts` holds its route, pinned model,
 prod `max_tokens`, reps, default judge criteria and the source files that make
 it stale; `index.ts` captures, replays and gates it.
 
@@ -97,7 +97,7 @@ inbox; see AGENTS.md "Prompt dry runs"). `--model` is always passed.
   it would be graded as today. A `--dry` rep is status `dry`: no view
   counts it as a pass or a fail and no `check` compares against it.
 
-Pins live in `packages/evals/src/models.ts`. Call surfaces use prod's own
+Pins live in `apps/evals/src/models.ts`. Call surfaces use prod's own
 `CHEAP_MODEL`, imported from `convex/lib/anthropic.ts`, so a prod model change
 moves the evals with it. The judge and the agent surfaces use `JUDGE_MODEL` and
 `AGENT_MODEL`. `check --model <id>` ablates the model under test and records
@@ -247,7 +247,7 @@ the words pay, a held-out one, and the reason is recorded on the constant.
 The repo is public. Real content, transcripts, names, ids and labels never
 enter git.
 
-In git, under `packages/evals`:
+In git, under `apps/evals`:
 - `freezes/*.json`: freeze pointers for synthetic fixtures only
 - `fixtures/<surface>/<case>.json`: synthetic snapshot content, its label inline
 - `src/**`: the code
@@ -273,7 +273,7 @@ How the rules are enforced:
 - A public freeze write keeps only an allowlist of keys and refuses any other
   key by name, rewrites `subject.title` to `<surface> <case>`, drops trigger
   data, and refuses a string that `containsSecrets` matches.
-- `packages/evals/src/freezes.guard.test.ts` runs in CI and fails on a committed
+- `apps/evals/src/freezes.guard.test.ts` runs in CI and fails on a committed
   freeze outside the allowlist or not synthetic, a freeze whose snapshot is not
   a committed fixture, a secret or a Convex document id anywhere under
   `freezes/` or `fixtures/`, and an oversized string in a freeze file.
@@ -826,7 +826,7 @@ is the evidence. Only a scheduled or recurring firing can show a skip. Agent
 surfaces never run unattended, and presentation capture is attended only.
 
 CI never runs a model call: the `test-cli` job runs `bun test src/` in
-`packages/evals`, whose tests make no network or model calls.
+`apps/evals`, whose tests make no network or model calls.
 
 `./evals publish` writes the status page, each surface's run set as `check`
 reports it, and the run report and matrix pages, all over public (fixture)

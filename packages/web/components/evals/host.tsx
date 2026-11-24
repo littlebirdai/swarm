@@ -163,14 +163,14 @@ export const codecastEvalsHost = {
     DiffView,
     SessionPill: ({ id }) => <EntityIdPill type="session" id={id} compact />,
   },
-  // Codecast's runs live in run folders under EVALS_HOME, its public freezes under packages/evals.
+  // Codecast's runs live in run folders under EVALS_HOME, its public freezes under apps/evals.
   words: {
     wallLinks: "links to every surface, bisect and Multiplayer sim run",
     emptyWall: "Run ./evals check from the checkout and the wall fills in as the index reads the run folders.",
     unknownSurface: "The wall lists every surface this checkout's registry knows.",
-    publicFreezes: "Freezes committed under packages/evals",
+    publicFreezes: "Freezes committed under apps/evals",
     privateFreezes: "Freezes kept only in EVALS_HOME",
-    publicFreeze: "Public: committed under packages/evals",
+    publicFreeze: "Public: committed under apps/evals",
     privateFreeze: "Private: kept in EVALS_HOME, never in git or a published page",
     missingRun: "names no run folder",
     fixtureSource: "Answered by the dev fixture world (localStorage EVALS_FIXTURE), not this machine's evals",

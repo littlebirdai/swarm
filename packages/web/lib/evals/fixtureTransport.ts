@@ -38,8 +38,8 @@ export function evalsFixtureMode(): EvalsFixtureMode {
 }
 
 const CRASH_STDERR = [
-  "$ bun packages/evals/src/index.ts api --stdio",
-  "error: Cannot find module './history/epochs' from '/Users/you/src/codecast/packages/evals/src/commands/api.ts'",
+  "$ bun apps/evals/src/index.ts api --stdio",
+  "error: Cannot find module './history/epochs' from '/Users/you/src/codecast/apps/evals/src/commands/api.ts'",
   "",
   "Bun v1.3.0 (macOS arm64)",
 ];

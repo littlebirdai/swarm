@@ -203,7 +203,7 @@ function build(now: number, seed: number): { st: FixtureState; sources: FixtureS
 }
 
 // ── Codecast's own routes ───────────────────────────────────────────────────
-// The routes only codecast has, answered from the world as packages/evals/src/api/handlers.ts answers them from the real homes.
+// The routes only codecast has, answered from the world as apps/evals/src/api/handlers.ts answers them from the real homes.
 
 /** A kept tree patch: the edits a dirty rep ran on top of its head (any treePatch a row names). */
 function patch(st: FixtureState, sha: string): PatchResponse {

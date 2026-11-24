@@ -12,7 +12,7 @@
 // daily cap under the current prompt versions; the deterministic text then stays.
 //
 // The request builders and reply parsers are pure and exported, so the evals
-// (packages/evals) replay exactly what prod sends. A change to the story
+// (apps/evals) replay exactly what prod sends. A change to the story
 // prompt bumps STORY_PROMPT_VERSION in changes.ts, which moves every story's
 // inputs_hash; a change to the edition prompt bumps EDITION_PROMPT_VERSION.
 

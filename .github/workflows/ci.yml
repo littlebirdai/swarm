@@ -320,10 +320,10 @@ jobs:
           DAEMON_BUILD_ID_CHECK: "1"
         run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --bail=5
 
-      # The eval home (packages/evals). Its tests make no network or model
+      # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.
       - name: Unit tests (evals package)
-        working-directory: packages/evals
+        working-directory: apps/evals
         run: bun test src/
 
       - name: E2E messaging pipeline (real tmux + fake-claude shim)

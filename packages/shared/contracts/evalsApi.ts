@@ -1,6 +1,6 @@
 // The Evals UI's wire contract (docs/architecture/evals-ui.md, sections 3.4
 // and 3.7). Three parties read it and must agree: the eval tool's api child
-// (`bun packages/evals/src/index.ts api --stdio`), the daemon's /evals bridge
+// (`bun apps/evals/src/index.ts api --stdio`), the daemon's /evals bridge
 // that forwards to it, and the web pages under /evals with their fixture
 // transport.
 //
@@ -9,7 +9,7 @@
 // Convex, IndexedDB or a published page.
 //
 // The shapes mirror what is on disk: run.json, result.json and score.json in
-// a run folder (packages/evals/src/layout.ts and @platform/evals' model), the
+// a run folder (apps/evals/src/layout.ts and @platform/evals' model), the
 // guard's calls.log marks (packages/cli/scripts/prompt-dry-run-bin/cast), and
 // the multiplayer sim's artifacts (packages/web/store/__tests__/sim/report.ts
 // and dsl.ts). The neutral part, which every product's eval views share,

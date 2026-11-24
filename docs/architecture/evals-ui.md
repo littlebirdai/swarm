@@ -31,7 +31,7 @@
 **Decision.** The Evals area lives in the codecast web app, in the full-width dashboard shell, registered the way the Memory page is. Its data comes only from the machine the browser runs on:
 
 1. The page calls the daemon's existing loopback server, with the existing discovery, per-boot token and origin allowlist.
-2. The daemon gains one generic route, `/evals/*`. It forwards each request to a child process that starts on demand: `bun <checkout>/packages/evals/src/index.ts api --stdio`, speaking line-delimited JSON.
+2. The daemon gains one generic route, `/evals/*`. It forwards each request to a child process that starts on demand: `bun <checkout>/apps/evals/src/index.ts api --stdio`, speaking line-delimited JSON.
 3. The child runs the checkout's own eval code, reads `EVALS_HOME` and runs git.
 4. Nothing goes through Convex.
 
@@ -62,7 +62,7 @@ Chrome (codecast.sh or localhost:3200)
   daemon loopback server (daemon.ts chain, after handleMemoryHttp at :2449)
         └─ handleEvalsHttp (cli/src/evals/evalsServer.ts): CORS, authorizeLocalRequest
               └─ evalsBridge.ts: starts on demand, 10 min idle kill, stderr ring buffer
-                    └─ bun <checkout>/packages/evals/src/index.ts api --stdio
+                    └─ bun <checkout>/apps/evals/src/index.ts api --stdio
                           ├─ index (EVALS_HOME/index/runs.jsonl, refreshed as it goes)
                           ├─ verdict.ts batchVerdict, history/{epochs,flips,attribution}
                           ├─ run folders, freezes, labels, state.json, git
@@ -76,7 +76,7 @@ These make attribution true going forward. The legacy history is handled in 3.3 
 
 | Field (run.json) | What | Why |
 |---|---|---|
-| `sourceHashDisk` | The surface's declared sources plus `packages/evals/fixtures` and `packages/evals/freezes` (`diskPaths`), hashed by `sourceHashes`' own formula over the tree the disk holds. That tree is HEAD with those paths `git add -A`ed into a private index (`GIT_INDEX_FILE`, so the checkout's index is never touched) and written with `write-tree` (`diskTree` in `provenance.ts`). Equal disks hash equal at any HEAD; a clean disk hashes as HEAD does over the same paths. | `sourceHash` hashes HEAD through `git ls-tree` (`state.ts` `sourceHashes`), so for the 81% of dirty runs it names code they did not run. `sourceHash` keeps its meaning for staleness. |
+| `sourceHashDisk` | The surface's declared sources plus `apps/evals/fixtures` and `apps/evals/freezes` (`diskPaths`), hashed by `sourceHashes`' own formula over the tree the disk holds. That tree is HEAD with those paths `git add -A`ed into a private index (`GIT_INDEX_FILE`, so the checkout's index is never touched) and written with `write-tree` (`diskTree` in `provenance.ts`). Equal disks hash equal at any HEAD; a clean disk hashes as HEAD does over the same paths. | `sourceHash` hashes HEAD through `git ls-tree` (`state.ts` `sourceHashes`), so for the 81% of dirty runs it names code they did not run. `sourceHash` keeps its meaning for staleness. |
 | `treePatch` | sha256 of `git diff --binary HEAD <disk tree>` over the same paths (untracked files included, since the private index holds them), stored at `EVALS_HOME/trees/<sha>.patch` (`homePaths().trees`). The disk is read once per check; each surface gets the patch over its own paths, content addressed so equal patches are stored once. `null` when the disk matches HEAD there. | Makes a dirty rep replayable: worktree at gitHead plus `git apply`. |
 | `freezeSha` | sha256 of the freeze JSON (keys sorted, criteria and tags included) and its snapshot's content: a fixture's or stored snapshot's bytes, or every file of a served dir (`freezeSha` in `provenance.ts`, fed `resolver.ts` `snapshotPath`) | A changed moment or criterion becomes its own cause class instead of reading as a prompt change. |
 
@@ -177,7 +177,7 @@ All paths are relative to `/evals`.
   - `checkout.json.root` resolves with realpath to a directory owned by the current uid;
   - `<root>/evals` exists and its first three lines match the known header (`EVALS_SCRIPT_HEADER`; a test holds it to the repo's real script, so editing that comment fails a test rather than every machine);
   - `git -C <root> rev-parse --show-toplevel` equals root;
-  - `<root>/packages/evals/src/index.ts` exists, and so does `packages/evals/src/commands/api.ts` (`EVALS_API_COMMAND`): a checkout from before the api command has the entry but answers `api --stdio` with its help and exit 1, so it is refused as `checkout-no-entry` before any exec.
+  - `<root>/apps/evals/src/index.ts` exists, and so does `apps/evals/src/commands/api.ts` (`EVALS_API_COMMAND`): a checkout from before the api command has the entry but answers `api --stdio` with its help and exit 1, so it is refused as `checkout-no-entry` before any exec.
 
   `CODECAST_EVALS_REPO_ROOT` overrides the pointer for development. The daemon cannot import the eval tool, so it resolves `EVALS_HOME` itself (`evalsHomeDir`), and a test holds that to `paths.ts` `evalsHome()`.
 - All work is async, to respect the loop budget guard (`daemon.ts:2426-2428`). The daemon computes nothing.
@@ -571,7 +571,7 @@ usd  ≤ reps × perRep[model].usd (state.json, else meta.maxUsdPerRep) + reps �
 
 ### Process and state
 
-- The api child launches `tmux new-session -d -s evals-bisect-<id> -c <root> -- <bun> <root>/packages/evals/src/index.ts bisect start … --id <id>`, the `./evals` wrapper's own command with the child's absolute bun, because a running tmux server keeps its own PATH and may lack bun. Without tmux it starts a detached process that writes `log.txt`. It refuses while `bisects/running.json` names a live process (the runner's lock), so a crashed run's leftover `probing` state never blocks the next one.
+- The api child launches `tmux new-session -d -s evals-bisect-<id> -c <root> -- <bun> <root>/apps/evals/src/index.ts bisect start … --id <id>`, the `./evals` wrapper's own command with the child's absolute bun, because a running tmux server keeps its own PATH and may lack bun. Without tmux it starts a detached process that writes `log.txt`. It refuses while `bisects/running.json` names a live process (the runner's lock), so a crashed run's leftover `probing` state never blocks the next one.
 - The bisect folder is `EVALS_HOME/bisects/<id>/`:
   - `plan.json`;
   - `state.json`, rewritten atomically after each rep: seq, range, probes and their reps, spent, budget, status, answer, tier;
@@ -643,7 +643,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
 
 ### Create
 
-- **Eval tool (`packages/evals/src/`):**
+- **Eval tool (`apps/evals/src/`):**
   - `provenance.ts`, `provenance.test.ts`, `git.ts` (the one git runner and `git log` reader every module calls)
   - `commands/pin.ts`
   - `commands/indexCmd.ts`
@@ -683,7 +683,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
 
 ### Change
 
-- **Eval tool (`packages/evals/src/`):**
+- **Eval tool (`apps/evals/src/`):**
   - `paths.ts`, `main.ts`, `layout.ts`, `state.ts`
   - `adapters/replay.ts`, `adapters/dryRun.ts`, `adapters/runs.ts`
   - `commands/grade.ts`, `commands/check.ts`, `commands/verdict.ts`, `commands/line.ts`
@@ -825,7 +825,7 @@ Background-tab timers stall, so check end states, not mid-animation frames: run 
   - `api.test.ts` drives each endpoint through the stdio protocol against a fixture `EVALS_HOME`;
   - path traversal (`../`), a bad sha and an unknown run id are refused;
   - bisect and sim POSTs build argv arrays only;
-  - `echo '{"id":1,"method":"GET","path":"/overview"}' | bun packages/evals/src/index.ts api --stdio` answers on the real home in under 2 s once the index is warm, on a machine that is not saturated. The daemon and every child it starts run clamped to utility priority (pri 20), so wall time is the child's CPU stretched by load: the bound is on CPU, about 1.1 s for a fresh child, and a running child (the bridge keeps one 10 minutes) must answer a repeated `/overview` from memory, in tens of milliseconds of CPU.
+  - `echo '{"id":1,"method":"GET","path":"/overview"}' | bun apps/evals/src/index.ts api --stdio` answers on the real home in under 2 s once the index is warm, on a machine that is not saturated. The daemon and every child it starts run clamped to utility priority (pri 20), so wall time is the child's CPU stretched by load: the bound is on CPU, about 1.1 s for a fresh child, and a running child (the bridge keeps one 10 minutes) must answer a repeated `/overview` from memory, in tens of milliseconds of CPU.
 - As built:
   - `commands/api.ts` is the stdio loop (`serveStdio`, `apiMain`, `registerApi` for U16). While it serves, `console.log` goes to stderr, so stdout carries answers only. When stdin closes it lets answers in flight finish (up to 120 s) and exits.
   - `api/handlers.ts` holds one handler per `EvalsRoutes` key, chosen by `matchEvalsRoute`, and every input check. `api/views.ts` builds the analysis answers from the index through `verdict.ts`, `history/*` and `diffRuns`. `api/files.ts` reads one run folder: calls through `readCallRun`, agents through `readAgentRun`, the guard log through roleWake's `callsByTurn`, and `runFile`'s realpath check. The folder's units and harness files are read through `layout.ts` (`unitDirs`, `thenFiles`, `harnessExit`, `harnessTookMs`), the same helpers `grade.ts` and the run writer use, so a missing `exit.txt` reads as failed everywhere. `api/git.ts` handles commits and the declared-path windows. `api/bisects.ts` sits over `bisect/state.ts` and adds the stall flag, the lock check and the argv. `api/simHistory.ts` reads sessions through the sim's own `history.ts` and runs `sim.ts --list/--invariants --json`, cached per HEAD and the mtimes of the scenario files. `NOT_COMPARED` is read from the source text, because `invariantCoverage.ts` imports the store registry. `api/spawn.ts` launches work in tmux. `api/staleWorker.ts` computes staleness in a Worker: `state.ts staleness()` runs git synchronously and took 2.7 s under load, so the first overview starts it before the index load and awaits it last.

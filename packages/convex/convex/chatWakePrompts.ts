@@ -62,7 +62,7 @@ export function buildChatWake(opts: {
   return lines.join("\n");
 }
 
-// Exported for packages/evals, whose anchor-brief fixtures render a chat wake
+// Exported for apps/evals, whose anchor-brief fixtures render a chat wake
 // through it so a replay grades the wake prod sends.
 export function buildAnchorWake(opts: {
   channelName: string;

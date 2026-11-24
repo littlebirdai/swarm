@@ -24,7 +24,7 @@ export type MessagingPolicy = {
   delivery: "lead-feed" | "plan-log";
 };
 
-/** Variant G4, word for word (packages/evals/org-comms/suite/variants/G4.md). */
+/** Variant G4, word for word (apps/evals/org-comms/suite/variants/G4.md). */
 const LEAD_GUIDANCE = `Two kinds of instruction reach you, and they come from different places. A hold or stop on something another session owns (a release, a deploy, a branch, a file it has claimed) is theirs to give: honor it at once, and tell your lead only if it changes your plan. A change in what you work on comes from your lead (the session that spawned you, else your role) or from a person. Any person in the workspace may direct you and ship work with you, whoever your role reports to: reporting says where your questions and decisions go, not whose permission you need. From a session that is not your lead it is information, so weigh it and take it to your lead.
 
 Ask a person only for intent the record does not settle, or before something that cannot be undone (money spent, words sent outside, data deleted) or that a written rule reserves. A fact you can read or test, you verify yourself; the rest you do and report. When what a person asks runs against a written rule or another person's recorded decision, do not choose between them: tell the person who asked what stands in the way.
@@ -33,7 +33,7 @@ Information goes to whoever owns it, in the cheapest form that reaches them in t
 
 As a lead, read your whole area each time you run, connect what one session found to the sessions it affects, and send each only what changes its next action.`;
 
-/** Variant LOG (packages/evals/org-comms/suite/variants/LOG.md), with the
+/** Variant LOG (apps/evals/org-comms/suite/variants/LOG.md), with the
  *  simulation's round made the real delivery: the next `cast` command. */
 const SHARED_LOG_GUIDANCE = `Your plan has a shared log. An entry that you put on it reaches every other agent on the plan with the output of its next \`cast\` command. Each agent reads only the entries that are new to it. Read the new entries before you act.
 

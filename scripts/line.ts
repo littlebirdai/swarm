@@ -25,7 +25,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { majorityOf, repPassed } from "../packages/evals/src/adapters/replay";
+import { majorityOf, repPassed } from "../apps/evals/src/adapters/replay";
 
 const EVALS = path.resolve(import.meta.dir, "..", "evals");
 const DEFAULT_PROVE_REPS = 5;

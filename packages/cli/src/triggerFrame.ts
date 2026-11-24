@@ -1,6 +1,6 @@
 // The frame a trigger run's agent receives as its first message: the trigger's
 // prompt, the context it carries, and the instructions for completing the run.
-// A leaf with light imports so the eval harness (packages/evals, role-wake
+// A leaf with light imports so the eval harness (apps/evals, role-wake
 // surface) renders exactly the frame production sends without loading the
 // scheduler. `now` is a parameter so a frame can be rebuilt at a captured
 // moment.

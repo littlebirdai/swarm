@@ -230,15 +230,15 @@ describe("rules (a) to (c) in isolation", () => {
 
   test("a linked commit opens its own story between unlinked neighbours, and their risk stays theirs", () => {
     const bare = (i: number, over: Partial<ChangeCommit> = {}) =>
-      commit({ sha: `e${i}`, subject: `evals: round ${i}`, timestamp: T0 + i * 10 * MIN, paths: { "packages/evals/src/run.ts": 400 }, ...over });
+      commit({ sha: `e${i}`, subject: `evals: round ${i}`, timestamp: T0 + i * 10 * MIN, paths: { "apps/evals/src/run.ts": 400 }, ...over });
     const linked = commit({
       sha: "cad1",
       subject: "Hold the outreach cadence at three touches (ct-50897) (#3816)",
       timestamp: T0 + 25 * MIN,
       task_ids: ["ct-50897"],
-      paths: { "packages/evals/src/cadence.ts": 24 },
+      paths: { "apps/evals/src/cadence.ts": 24 },
     });
-    const cs = [bare(0), bare(1), bare(2, { schema_paths: ["packages/evals/migrations/0042_contact_effort.sql"] }), linked, bare(3), bare(4)];
+    const cs = [bare(0), bare(1), bare(2, { schema_paths: ["apps/evals/migrations/0042_contact_effort.sql"] }), linked, bare(3), bare(4)];
     const r = build({ commits: cs });
     expect(r.stories.map((s) => s.commit_shas.join(",")).sort()).toEqual(["cad1", "e0,e1,e2,e3,e4"]);
     const own = holding(r.stories, "cad1")[0];

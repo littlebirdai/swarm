@@ -129,7 +129,7 @@
 // posting) belongs in that file, not here.
 //
 // `--fake <module>` gives the guard a fake service to ask before it refuses a
-// write (a module exporting openFake, packages/evals/src/fakes/cast): a call
+// write (a module exporting openFake, apps/evals/src/fakes/cast): a call
 // the fake models is answered as prod would answer it, from a world kept
 // beside the run, so the turn goes on past its first write and later calls
 // see what it did. calls.log marks such a call FAKED. The fake runs once per

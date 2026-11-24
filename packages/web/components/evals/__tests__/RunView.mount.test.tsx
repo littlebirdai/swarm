@@ -208,7 +208,7 @@ describe("RunView", () => {
     expect(chips).toContain(row.model!);
     expect(chips).toContain(row.judgeModel!);
     expect(text(q(container, "[data-ev-run-chips] [title^='Prompt epoch']"))).toMatch(/^e\d+$/);
-    expect(q(container, "[data-ev-lock]")?.getAttribute("title")).toMatch(/EVALS_HOME|packages\/evals/);
+    expect(q(container, "[data-ev-lock]")?.getAttribute("title")).toMatch(/EVALS_HOME|apps\/evals/);
     expect(qa(container, "[data-ev-seed]").length).toBe(fx.call.run.siblings.length + 1);
     expect(q(container, "[data-ev-self]")).not.toBeNull();
     // The hints read the registry, so they show what the bindings are (the registry writes letters as capitals).

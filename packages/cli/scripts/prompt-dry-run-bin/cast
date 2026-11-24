@@ -13,7 +13,7 @@
 #    else "No open proposals."; with --withdraw it writes and is refused;
 #  - any argv from reads/<key>.out, exit code from reads/<key>.exit (0 when
 #    absent). The key is the sha256 of each argument followed by \x1f, the same
-#    key packages/evals/src/served.ts computes when it captures the reads;
+#    key apps/evals/src/served.ts computes when it captures the reads;
 #  - an argv with no capture of its own, from the longest leading part of it
 #    filed with a `.prefix` marker beside its `.out`: a synthetic world marks
 #    `read <id>` that way, so `cast read <id> --full` or `--ask "..."` answers
@@ -46,7 +46,7 @@
 #
 # calls.log keeps each argv shell-quoted: an argument that is not a plain word
 # is single-quoted ('it'\''s' for a quote inside), so a line splits back into
-# the arguments it was (packages/evals/src/served.ts loggedArgv).
+# the arguments it was (apps/evals/src/served.ts loggedArgv).
 #
 # With DRY_RUN_CLASSIFY set, the guard only says what it would make of the
 # argv: it prints `read` or `write`, logs nothing and runs nothing. The eval
@@ -109,7 +109,7 @@ withdraw=""
 if [ "${1:-} ${2:-}" = "org proposals" ]; then for a in "$@"; do [[ "$a" == --withdraw* ]] && withdraw=1; done; fi
 
 # The key a read is filed under, served or recorded live: sha256 of each
-# argument followed by \x1f (packages/evals/src/served.ts servedReadKey).
+# argument followed by \x1f (apps/evals/src/served.ts servedReadKey).
 read_key() {
   if command -v shasum >/dev/null 2>&1; then printf '%s\x1f' "$@" | shasum -a 256 | cut -d' ' -f1
   else printf '%s\x1f' "$@" | sha256sum | cut -d' ' -f1; fi
@@ -388,7 +388,7 @@ if [ -z "$LIVE_READ" ] && [ -n "${DRY_RUN_FAKE_VIA_BROKER:-}" ] && [ -n "${DRY_R
   fake_via_broker "$@"; fake_code=$?
   [ "$fake_code" = 125 ] || exit "$fake_code"
 elif [ -z "$LIVE_READ" ] && [ -n "${DRY_RUN_FAKE:-}" ]; then
-  # By hand, outside a harness: the fake is an executable beside the run (packages/evals/src/fakes/bin.ts).
+  # By hand, outside a harness: the fake is an executable beside the run (apps/evals/src/fakes/bin.ts).
   fake_tree="$(command_tree)" || fake_tree=""
   # The trailing x keeps the answer's last newline through the substitution.
   fake_out="$(DRY_RUN_FAKE_TREE="$fake_tree" bun "$DRY_RUN_FAKE" "$@"; c=$?; printf x; exit $c)"; fake_code=$?

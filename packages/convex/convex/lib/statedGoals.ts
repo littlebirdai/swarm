@@ -19,7 +19,7 @@ export type StatedGoal = { at: number; by: string; line: string; where: string; 
 export type StatedGoals = { lines: StatedGoal[]; truncated: boolean };
 
 /** The model the read runs on. Measured on 110 hand-labelled Union lines
- *  (packages/evals/scripts/stated-goals-measure.ts, 2026-11-17, 3 runs each):
+ *  (apps/evals/scripts/stated-goals-measure.ts, 2026-11-17, 3 runs each):
  *  this prompt on Sonnet picked direction at precision 0.81 to 0.94 and
  *  recall 0.73 to 0.82; the keyword-free prompt first written for Haiku, on
  *  Haiku, at precision 0.22 to 0.42. This prompt was tuned on Sonnet, so

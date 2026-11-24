@@ -30,7 +30,7 @@ export const EVALS_UNAVAILABLE_WORDS: Record<Exclude<EvalsUnavailableReason, "ch
   "checkout-not-owned": "The checkout that EVALS_HOME/checkout.json names is not owned by this user.",
   "checkout-bad-header": "The checkout's ./evals script does not start with the known header.",
   "checkout-not-toplevel": "The checkout that EVALS_HOME/checkout.json names is not a git toplevel.",
-  "checkout-no-entry": "The checkout has no packages/evals/src/index.ts.",
+  "checkout-no-entry": "The checkout has no apps/evals/src/index.ts.",
 };
 
 const CHECKOUT_REASONS = new Set<string>(Object.keys(EVALS_UNAVAILABLE_WORDS));
