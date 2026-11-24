@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import {
   costParts,
   costUsd,

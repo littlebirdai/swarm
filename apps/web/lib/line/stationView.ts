@@ -6,7 +6,7 @@ import {
   type FlowEdgeIn,
   type FlowNodeIn,
   type FlowStationKind,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import { edgeWords } from "./lineModel";
 import type { FlowStations } from "./flowStations";
 

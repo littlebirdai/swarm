@@ -11,7 +11,7 @@ import {
   foldFlow,
   flowPathWords,
   type PoolFlowSummary,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import {
   graphExtends,
   parseWorkflowSource,
@@ -21,7 +21,7 @@ import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates.js";
 import {
   DEFAULT_LINE_SLUG,
   DEFAULT_STEPS_LABEL,
-} from "@codecast/shared/contracts/lineSlug";
+} from "@codecast/flows/lineSlug";
 import type { WorkflowGraph } from "./types.js";
 import { defaultFlowsCache, writeTeamFlowIndex } from "./teamFlowIndex.js";
 

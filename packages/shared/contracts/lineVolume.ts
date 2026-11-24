@@ -13,7 +13,7 @@
 //             a recording read for issues.
 // Pure.
 import { quietWatchEnd, utcDayKey, windowDays } from "./flowMap";
-import { segmentTopOf } from "./flowPool";
+import { segmentTopOf } from "@codecast/flows/flowPool";
 import { clearsBar, type FlowBar } from "./linePriority";
 import { endedFailing, mergeLeft, runEnd } from "./lineRunEnd";
 import { FUNNEL_DAYS, type FunnelRun, type FunnelTask } from "./lineFunnel";

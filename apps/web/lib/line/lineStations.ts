@@ -8,7 +8,7 @@ import {
   DEFAULT_LINE_SLUG,
   LINE_SLUG_RE,
   lineSlugOf,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/flows/lineSlug";
 import {
   REPO_LINE_REL_DIR,
   REPO_LINE_REL_PATH,

@@ -22,8 +22,8 @@ import {
   flowGraphAttr,
   publishableFlowSource,
   withGraphAttrs,
-} from "@codecast/shared/contracts/flowPool";
-import { LINE_SLUG_RE } from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/flows/flowPool";
+import { LINE_SLUG_RE } from "@codecast/flows/lineSlug";
 import { createDataContext } from "./data";
 import {
   isTeamMember,

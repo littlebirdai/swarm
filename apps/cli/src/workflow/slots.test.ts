@@ -6,7 +6,7 @@ import {
   parseWorkflowSource,
   validateWorkflow,
 } from "./parser";
-import { foldFlow } from "@codecast/shared/contracts/flowPool";
+import { foldFlow } from "@codecast/flows/flowPool";
 
 // A library flow as a backbone with slots, and flows that extend it and fill
 // them with steps they write in place (parser.ts parseWorkflowSource).

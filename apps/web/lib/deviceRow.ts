@@ -80,8 +80,8 @@ export type Device = {
   loop_freeze_max_ms?: number;
   loop_freeze_top?: string;
   /** A cloud host's own readiness (its heartbeat) and its managing laptop's report (Settings > Machines). */
-  host_readiness?: import("@codecast/shared/contracts").HostReadiness;
-  cloud_host?: import("@codecast/shared/contracts").CloudHostReport;
+  host_readiness?: import("@codecast/cloud-hosts/cloudHostReport").HostReadiness;
+  cloud_host?: import("@codecast/cloud-hosts/cloudHostReport").CloudHostReport;
   /** Work waiting for this host since then (its next beat clears it), and the server's own start of it when it owns one (lib/hostWake). */
   wake_requested_at?: number;
   cloud_wake?: {
@@ -91,7 +91,7 @@ export type Device = {
     last_error?: string;
   };
   /** Autoscale with this host as the template (devices.cloud_autoscale). */
-  cloud_autoscale?: import("@codecast/shared/contracts").CloudAutoscale;
+  cloud_autoscale?: import("@codecast/cloud-hosts/cloudHostReport").CloudAutoscale;
   /** What keeps this machine from reading a cloud agent provider (its heartbeat): it is not connected to that one. */
   cloud_agent_blocks?: import("@codecast/shared/contracts").CloudAgentSetupBlock[];
   tailnet?: import("@codecast/shared/contracts/peerTransport").PeerTailnet;

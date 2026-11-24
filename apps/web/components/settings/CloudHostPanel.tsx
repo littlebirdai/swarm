@@ -17,7 +17,7 @@ import type {
   CloudHostAction,
   CloudHostReport,
   HostReadiness,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { Button } from "../ui/button";

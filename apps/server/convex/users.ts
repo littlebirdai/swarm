@@ -70,10 +70,10 @@ import {
   type DirectoryMapping,
 } from "./privacy";
 import {
-  isReservedDevice,
   isUnattendedConversation,
   isTestArtifactPath,
 } from "@codecast/shared/contracts";
+import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import {
   DAEMON_COMMAND_TTL_MS,

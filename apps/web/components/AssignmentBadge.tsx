@@ -42,7 +42,7 @@ import { SessionAccountLine } from "./conversation/SessionAccountLabel";
 import { RoleFace } from "./org/RoleFace";
 import { MakeRoleDialog } from "./org/MakeRoleDialog";
 import { MirrorMenuItems } from "./LocalMirror";
-import { cloudSeedTitle } from "@codecast/shared/contracts";
+import { cloudSeedTitle } from "@codecast/cloud-hosts/cloudWorkspace";
 import { useNowWhen } from "../hooks/useCoarseNow";
 
 type Runner = { id?: string; name: string; image?: string | null };

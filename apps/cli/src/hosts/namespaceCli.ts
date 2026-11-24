@@ -10,7 +10,7 @@ import {
   RUN_LIMIT_WARN_MINUTES,
   runEndsAt,
   runMinutesLeft,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { formatDuration } from "@codecast/time";
 import {
   checkIdleMinutes,

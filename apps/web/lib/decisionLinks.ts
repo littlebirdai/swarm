@@ -1,4 +1,4 @@
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import type {
   DecisionDetailItem,
   SessionDecisionItem,

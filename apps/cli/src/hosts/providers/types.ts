@@ -1,4 +1,4 @@
-import type { WakePhase } from "@codecast/shared/contracts";
+import type { WakePhase } from "@codecast/cloud-hosts/cloudHostReport";
 import type { CloudHost, HostState } from "../../browser/cloudHost.js";
 
 export interface HostFacts {

@@ -50,7 +50,7 @@ import {
   CHANGE_FLOW_SLUG,
   defaultFlowOf,
   takesSessionChange,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import {
   changesAnything,
   libraryEntry,

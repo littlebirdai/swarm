@@ -33,7 +33,7 @@ import {
 import { mergeTrees, overlayTree, sshHostSide } from "./liveSync.js";
 import type { LiveSyncJobs } from "./liveSyncJobs.js";
 import { FETCH_EXCLUDED_NAMES, homeLoginReason } from "./mirror/discovery.js";
-import { groupSyncSkipped } from "@codecast/shared/contracts";
+import { groupSyncSkipped } from "@codecast/cloud-hosts/localMirror";
 import {
   describeSkipped,
   runRemoteSide,

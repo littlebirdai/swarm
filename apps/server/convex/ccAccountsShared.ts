@@ -7,7 +7,6 @@ export { isWorkflowRunLog };
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import {
-  isReservedDevice,
   blockedKindsForAgent,
   fallbackProfiles,
   isUsageExhausted,
@@ -26,6 +25,7 @@ import {
   type CcUsage,
   UNREVIVABLE_BANNER_KINDS,
 } from "@codecast/shared/contracts";
+import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 
 // The usage snapshot type and its predicates live in @codecast/shared/contracts
 // (the CLI reads them too); re-exported here so existing web/convex imports keep

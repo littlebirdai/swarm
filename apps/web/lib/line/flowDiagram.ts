@@ -12,7 +12,7 @@ import {
   type FlowNodeIn,
   type FlowStation,
   type FlowStationKind,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 import { edgeWords } from "./lineModel";
 
 export type StepState = "idle" | "done" | "current" | "stopped";

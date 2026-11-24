@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { CloudPlacementProgress } from "@codecast/shared/contracts";
+import type { CloudPlacementProgress } from "@codecast/cloud-hosts/cloudPlacementProgress";
 import { placementSteps } from "../CloudPlacementStrip";
 import { cloneHostLedger } from "../settings/AddCloudHost";
 

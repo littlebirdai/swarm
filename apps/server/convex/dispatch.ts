@@ -112,12 +112,14 @@ import {
   fromConvexAgentType,
   type ConvexAgentType,
   isHostedAgentType,
-  checkoutInUseMessage,
-  normalizeCloudWorkspace,
-  posixRepoBasename,
   recordingPressStale,
   recordingPressStaleWords,
 } from "@codecast/shared/contracts";
+import {
+  checkoutInUseMessage,
+  normalizeCloudWorkspace,
+  posixRepoBasename,
+} from "@codecast/cloud-hosts/cloudWorkspace";
 import {
   applyHideTransition,
   hideBudgetLeft,
@@ -166,11 +168,11 @@ import {
   performSetCloudAutoscale,
   performSetLocalMirror,
 } from "./cloud";
+import type { CloudHostAction } from "@codecast/cloud-hosts/cloudHostReport";
 import type {
-  CloudHostAction,
   LocalMirrorMode,
   MirrorResolve,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/localMirror";
 import {
   effectiveStartFrom,
   parkOnCloudHost,

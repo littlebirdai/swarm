@@ -29,10 +29,7 @@ import { attemptVerdict, problemState, shownWatches } from "./timeline";
 import { startableCause, type LineCauseTask } from "../lineFlow";
 import { decisionOutcome } from "./decisionOutcome";
 import { wouldLabel } from "./fixDecision";
-import {
-  guessPhase,
-  type LinePhaseKey,
-} from "@codecast/shared/contracts/linePhases";
+import { guessPhase, type LinePhaseKey } from "@codecast/flows/linePhases";
 import { ASK_LINE } from "@codecast/shared/contracts/personAsk";
 import { NO_GOAL } from "@codecast/shared/contracts/goalsBrief";
 import type { SwitchLedger } from "../../components/consequential/ConsequentialSwitch";

@@ -21,7 +21,7 @@ import {
   type FlowLibraryState,
 } from "../../../hooks/useFlowObject";
 import { type AppFlow } from "../../../lib/line/flowPool";
-import { takesSessionChange } from "@codecast/shared/contracts/flowPool";
+import { takesSessionChange } from "@codecast/flows/flowPool";
 import { journeyOf, runIsLive } from "../../../lib/ship/journey";
 import { JourneyView } from "../../ship/Journey";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";

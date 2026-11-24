@@ -19,7 +19,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, mutation, query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
-import { flowGraphAttr } from "@codecast/shared/contracts/flowPool";
+import { flowGraphAttr } from "@codecast/flows/flowPool";
 import { workspaceGrantsAccess } from "./lib/access";
 import { recordGraphVersion } from "./workflows";
 import {

@@ -3,11 +3,11 @@
 // Subscribes to a short signature of the fields the stage reads, so a host
 // beating every 30s re-renders nothing while its wake has not changed.
 import { useMemo } from "react";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import {
   RUN_LIMIT_WARN_MINUTES,
-  deviceDisplayName,
   runMinutesLeft,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { useInboxStore } from "../store/inboxStore";
 import { useCoarseNow } from "./useCoarseNow";
 import { useDaemonHealth, useObserverSettling } from "./useDaemonHealth";

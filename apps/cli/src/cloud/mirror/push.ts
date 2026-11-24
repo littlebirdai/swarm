@@ -57,7 +57,7 @@ import {
   type ProjectContext,
 } from "./discovery.js";
 import { transformByKind, type MirrorKind } from "./transform.js";
-import { CLOUD_START_RUN_MS } from "@codecast/shared/contracts";
+import { CLOUD_START_RUN_MS } from "@codecast/cloud-hosts/cloudPlacement";
 
 const gzipAsync = promisify(gzip);
 

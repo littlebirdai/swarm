@@ -1,10 +1,12 @@
 import {
   sustainedResourcePressure,
   evaluateOffloadRequirements,
-  type HostReadiness,
-  type CloudHostReport,
   type ResourcePoint,
 } from "@codecast/shared/contracts";
+import {
+  type HostReadiness,
+  type CloudHostReport,
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { freshness, memoryUsed } from "../components/resources/resourceModel";
 import type {
   OffloadPlan,

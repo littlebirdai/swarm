@@ -6,7 +6,7 @@
  */
 
 import * as fs from "node:fs";
-import { HOST_NOVNC_PORT } from "@codecast/shared/contracts";
+import { HOST_NOVNC_PORT } from "@codecast/cloud-hosts/cloudHostReport";
 
 /** The Xvfb display everything on the box shares. */
 export const SCREEN_DISPLAY = ":99";

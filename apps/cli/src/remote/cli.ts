@@ -502,7 +502,7 @@ export function registerRemoteCommand(program: Command): void {
             await import("./session-move.js");
           const { fetchRootOccupant } = await import("../cloud/prepare.js");
           const { checkoutInUseMessage } =
-            await import("@codecast/shared/contracts");
+            await import("@codecast/cloud-hosts/cloudWorkspace");
           const remoteCwd = remoteRepoPath(
             host,
             gitRootOf(resolveLocalSession(sessionId).cwd),

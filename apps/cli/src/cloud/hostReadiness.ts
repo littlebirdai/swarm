@@ -18,7 +18,7 @@ import {
   runEndsAt,
   runMinutesLeft,
   type HostReadiness,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { RunLimitHoldError } from "../terminalHold.js";
 
 const FILES = [

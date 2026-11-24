@@ -10,7 +10,7 @@ import { taskStatusKey } from "../../../lib/taskStatuses";
 import {
   DEFAULT_LINE_SLUG,
   DEFAULT_STEPS_LABEL,
-} from "@codecast/shared/contracts/lineSlug";
+} from "@codecast/flows/lineSlug";
 
 export type LineTaskLike = {
   _id: string;

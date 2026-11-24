@@ -27,7 +27,7 @@ import {
   RUN_LIMIT_HOLD_MINUTES,
   runEndsAt,
   runMinutesLeft,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 
 export { readRepoNeed, tooSmallFor, type RepoNeed };
 

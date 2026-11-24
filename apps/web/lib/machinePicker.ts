@@ -23,6 +23,7 @@
  * Kept pure, and out of the component, so the ladder is testable.
  */
 
+import { THIS_DEVICE } from "@codecast/shared/contracts";
 import {
   cloudHostBootable,
   deviceServesPath,
@@ -31,9 +32,8 @@ import {
   machineGoneQuiet,
   machineOutOfService,
   platformCanOpenPath,
-  THIS_DEVICE,
-  type CloudHostReport,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacement";
+import { type CloudHostReport } from "@codecast/cloud-hosts/cloudHostReport";
 
 export type MachineCandidate = {
   device_id: string;

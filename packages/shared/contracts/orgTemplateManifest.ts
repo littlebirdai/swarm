@@ -3,7 +3,7 @@
 // (publish) and the web (the hire form) all read one definition. File handling
 // for a release folder stays in apps/cli/src/orgTemplateArtifact.ts.
 
-import { LINE_SLUG_RE } from "./lineSlug";
+import { LINE_SLUG_RE } from "@codecast/flows/lineSlug";
 
 /** POSIX or Windows absolute, without node:path, so this module runs anywhere. */
 const isAbsolutePath = (value: string) =>

@@ -93,12 +93,12 @@ import {
   verdictFromProbe,
 } from "@codecast/sessions/liveness";
 import {
-  CLOUD_START_RUN_MS,
   canonicalSlashCommand,
   isHomeDirectoryPath,
   stampDeliveryId,
   withoutDeliveryId,
 } from "@codecast/shared/contracts";
+import { CLOUD_START_RUN_MS } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   codePasteSignInUrl,
   deviceCodePrompt,
@@ -6390,7 +6390,7 @@ let hostReadinessReporter:
 // Loaded on the first heartbeat, off the daemon's boot graph (bench/bootGraph.guard.test.ts).
 let lineSlotsReporter: import("./lineSlots.js").LineSlotsReporter | null = null;
 async function hostReadinessNext(): Promise<
-  import("@codecast/shared/contracts").HostReadiness | undefined
+  import("@codecast/cloud-hosts/cloudHostReport").HostReadiness | undefined
 > {
   try {
     if (!hostReadinessReporter)

@@ -16,7 +16,7 @@ import {
   CLOUD_PLACEMENT_STEPS,
   type CloudPlacementProgress,
   type CloudPlacementStep,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacementProgress";
 import { useInboxStore } from "../store/inboxStore";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 import { useHostLoads } from "../hooks/useHostLoads";

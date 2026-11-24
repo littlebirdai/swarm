@@ -6,7 +6,7 @@
 // publishes it beside the repository's deploy targets (deploys.md DP10), and
 // the app draws it; all three read this one shape. Derived, never edited.
 
-import type { FlowEdgeIn, FlowNodeIn } from "./flowPool";
+import type { FlowEdgeIn, FlowNodeIn } from "@codecast/flows/flowPool";
 import type { DeployTargetPolicy, DeployTargetRuns } from "./deployTargets";
 import type { LineDeployStep } from "./lineDeploy";
 

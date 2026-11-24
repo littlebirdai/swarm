@@ -25,7 +25,7 @@ import {
   repoNameOf,
   type LocalMirror,
   type LocalMirrorMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/localMirror";
 import { useInboxStore } from "../store/inboxStore";
 import { openExternalUrl } from "../lib/desktop";
 import { useCoarseNow } from "../hooks/useCoarseNow";

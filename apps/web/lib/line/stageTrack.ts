@@ -6,7 +6,7 @@ import {
   PHASE_ORDER,
   guessPhase,
   type LinePhaseKey,
-} from "@codecast/shared/contracts/linePhases";
+} from "@codecast/flows/linePhases";
 import type { LineRunModel, LineVisit } from "./lineModel";
 
 export const STAGE_WORDS: Record<LinePhaseKey, string> = {

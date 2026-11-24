@@ -24,10 +24,7 @@ import {
   useRepoFlows,
 } from "../../../hooks/useRepoFlows";
 import { appPool, linesFirst, type AppFlow } from "../../../lib/line/flowPool";
-import {
-  defaultFlowOf,
-  takesSessionChange,
-} from "@codecast/shared/contracts/flowPool";
+import { defaultFlowOf, takesSessionChange } from "@codecast/flows/flowPool";
 import {
   asksBeforeLand,
   journeyOf,

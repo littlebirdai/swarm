@@ -1,4 +1,4 @@
-import type { HostReadiness } from "./cloudHostReport";
+import type { HostReadiness } from "@codecast/cloud-hosts/cloudHostReport";
 import {
   fmtBytes,
   type ResourcePoint,

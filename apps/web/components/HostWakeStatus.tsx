@@ -9,7 +9,7 @@ import { WAKE_STEPS, wakeElapsed } from "../lib/hostWake";
 import {
   RUN_LIMIT_HOLD_MINUTES,
   WAKE_PHASES,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import type { HostWake } from "../hooks/useHostWake";
 import { StatusDot } from "./StatusDot";
 import { TopbarChip } from "./TopbarButton";

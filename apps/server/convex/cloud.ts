@@ -25,26 +25,32 @@ import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { enqueueStartSession } from "./devices";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { releasePreviousOwner } from "./sessionRelease";
+import { fromConvexAgentType } from "@codecast/shared/contracts";
+import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import {
   checkoutInUseMessage,
+  isHttpOrigin,
+  type CloudWorkspaceMode,
+} from "@codecast/cloud-hosts/cloudWorkspace";
+import {
   CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES,
   CLOUD_HOST_ACTIONS,
   isCloudHostSize,
-  CLOUD_LEAVE_OUT_MAX,
+  type CloudHostAction,
+} from "@codecast/cloud-hosts/cloudHostReport";
+import { CLOUD_LEAVE_OUT_MAX } from "@codecast/cloud-hosts/cloudPlacement";
+import {
   CLOUD_PLACEMENT_LINE_CHARS,
   CLOUD_PLACEMENT_LINES_MAX,
   CLOUD_PLACEMENT_STEPS,
-  fromConvexAgentType,
-  isHttpOrigin,
+} from "@codecast/cloud-hosts/cloudPlacementProgress";
+import {
   LOCAL_MIRROR_MODES,
   LOCAL_MIRROR_STATUSES,
   mirrorLaptops,
-  type CloudHostAction,
-  type CloudWorkspaceMode,
   type LocalMirrorMode,
   type MirrorResolve,
-} from "@codecast/shared/contracts";
-import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
+} from "@codecast/cloud-hosts/localMirror";
 import { resolveConversationRefRanked } from "./conversationSessionLookup";
 import {
   cloudHostReportValidator,
@@ -147,7 +153,6 @@ export const placeConversation = mutation({
       },
       "cloud_hosts_disabled",
     );
-
     const fence = placementFence(conv, args.expect_token);
     if (fence)
       return {
@@ -179,7 +184,6 @@ export const placeConversation = mutation({
       if (occupant)
         throw new Error(checkoutInUseMessage(args.project_path, occupant));
     }
-
     await ctx.db.patch(args.conversation_id, {
       owner_device_id: args.device_id,
       project_path: args.project_path,
@@ -218,7 +222,6 @@ export const placeConversation = mutation({
         newDeviceId: args.device_id,
       });
     }
-
     let commandId: Id<"daemon_commands"> | null = null;
     if (args.start) {
       commandId = await enqueueStartSession(ctx, userId, {
@@ -504,7 +507,6 @@ export const hostSessions = query({
 // ---------------------------------------------------------------------------
 // Browser logins on the host: `cast browser sync <site>` from a cloud session
 // ---------------------------------------------------------------------------
-
 type CarrierDevice = {
   device_id: string;
   is_remote?: boolean;
@@ -686,7 +688,6 @@ export const commandOutcome = query({
 // ---------------------------------------------------------------------------
 // Git push access from the host: a GitHub App installation token
 // ---------------------------------------------------------------------------
-
 /**
  * What the host's git credential helper prints, or why it cannot.
  *
@@ -704,7 +705,6 @@ export type HostGitCredential = {
   expires_at: number;
   installation_id: number;
 };
-
 export type HostGitCredentialRefusal = { reason: string };
 
 /**
@@ -951,7 +951,6 @@ export const hostGitCredential = action({
 // ---------------------------------------------------------------------------
 // Live mirror of a cloud session into a laptop worktree (conversations.local_mirror)
 // ---------------------------------------------------------------------------
-
 /**
  * Start or stop mirroring a cloud session's tree to a laptop. Picks the laptop
  * with mirrorLaptops (the same choice the web menu labels), or the one the
@@ -1341,7 +1340,6 @@ export const localMirrorActivity = query({
 // ---------------------------------------------------------------------------
 // A cloud host as the app shows it: the managing laptop's report and the web's actions
 // ---------------------------------------------------------------------------
-
 /**
  * A cloud host's own readiness (cloud/hostReadiness.ts), forwarded by the
  * heartbeat route in its own call: a shape this server does not know fails

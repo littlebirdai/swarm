@@ -96,8 +96,8 @@ import {
   CLOUD_AUTOSCALE_DEFAULT_SIZE,
   CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES,
   CLOUD_HOST_SIZES,
-  cloudSeedLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
+import { cloudSeedLabel } from "@codecast/cloud-hosts/cloudWorkspace";
 import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import { commandGroup } from "../commandGroups.js";
 import { commandTree, unknownCommandNextStep } from "../commandSuggestion.js";

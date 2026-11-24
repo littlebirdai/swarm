@@ -1,5 +1,5 @@
 "use client";
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Eye, GitBranch } from "lucide-react";

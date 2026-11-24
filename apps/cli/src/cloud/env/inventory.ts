@@ -50,7 +50,7 @@ import {
 import {
   SYNC_SKIP_WORDS,
   type SyncSkipReason,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/localMirror";
 import type { Config } from "../../config/types.js";
 import { ParityLedger, parityKey } from "./parity.js";
 

@@ -588,8 +588,7 @@ export function registerFlowCommands(
         for (const e of f.errors) console.error(`✗ ${e}`);
         process.exit(1);
       }
-      const { flowPathWords } =
-        await import("@codecast/shared/contracts/flowPool");
+      const { flowPathWords } = await import("@codecast/flows/flowPool");
       console.log(
         `✓ ${f.label} (${f.kind}${f.draft ? `, draft of ${f.draft}` : ""}): ${flowPathWords(f).path}`,
       );
@@ -647,8 +646,7 @@ export function registerFlowCommands(
         console.error((r.err || r.out).trim());
         process.exit(1);
       }
-      const { flowPathWords } =
-        await import("@codecast/shared/contracts/flowPool");
+      const { flowPathWords } = await import("@codecast/flows/flowPool");
       console.log(`✓ ${found.label} published: ${flowPathWords(found).path}`);
     });
 

@@ -683,7 +683,7 @@ export async function flowsLine(
     const [{ poolFlows, workspaceDefaultFlow }, { flowPathWords }] =
       await Promise.all([
         import("./workflow/flowPool.js"),
-        import("@codecast/shared/contracts/flowPool"),
+        import("@codecast/flows/flowPool"),
       ]);
     const pool = poolFlows(cwd ?? process.cwd(), null, pushed).filter(
       (f) => f.takes.includes("branch") && !f.errors.length,

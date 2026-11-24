@@ -12,9 +12,9 @@
 // cards reach who they reach on the seat's own machine (orgLine.startRoleRun).
 import {
   fromConvexAgentType,
-  pathUnderRoot,
   signedOutAgents,
 } from "@codecast/shared/contracts";
+import { pathUnderRoot } from "@codecast/cloud-hosts/cloudPlacement";
 import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import { isDeviceOnline } from "../ccAccountsShared";
 

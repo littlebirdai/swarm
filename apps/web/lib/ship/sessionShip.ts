@@ -4,7 +4,7 @@
 // from the team's deploy records (live in dp-N, deploy failed), so a session
 // whose commits went out without a flow still says it made it out. Pure:
 // hooks/useSessionShipState reads it over the store.
-import { segmentTopOf } from "@codecast/shared/contracts/flowPool";
+import { segmentTopOf } from "@codecast/flows/flowPool";
 import type {
   DeployReach,
   ReachState,

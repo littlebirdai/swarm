@@ -219,7 +219,7 @@ One finding, opened in place.
 
 ### LJ6.4 `StageTrack`
 
-Six dots, read from `model.steps[id].stage` (`LinePhaseKey`, `shared/contracts/linePhases.ts`): understand is **Investigate**, prove is **Prove**, build is **Build**, check is **Verify**, decide is **Present**, ship is **Ship**. Ship is drawn only once Present is done. Each dot is done, current, failed or not reached, and links to the run page at that stage's last step.
+Six dots, read from `model.steps[id].stage` (`LinePhaseKey`, `packages/flows/src/linePhases.ts`): understand is **Investigate**, prove is **Prove**, build is **Build**, check is **Verify**, decide is **Present**, ship is **Ship**. Ship is drawn only once Present is done. Each dot is done, current, failed or not reached, and links to the run page at that stage's last step.
 
 One line beside it is the only statement of state on the page (a wait's age, here and on For you, the run header, the Decide step and the Work row, is one timestamp: when the open decision was asked; `lineMap runVisits` dates a person's waiting step from its pending decision, never from a runner's restart of the node, ct-59338): "Waiting on you since Oct 10", "Asked Oct 10, no answer", "Failed at Analyze after 2s", "No progress for 2h at Build", "Prove finished: go on to Build?", "Build ended without a report", "Merged Oct 10, not in production", "In production Oct 11, watching until Oct 18".
 

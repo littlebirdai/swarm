@@ -1,4 +1,4 @@
-import { CLOUD_HOST_SIZES } from "@codecast/shared/contracts";
+import { CLOUD_HOST_SIZES } from "@codecast/cloud-hosts/cloudHostReport";
 import { agentSpawnPath } from "../../agentSpawnPath.js";
 import type { CloudHost, HostState } from "../../browser/cloudHost.js";
 import { execFileSync } from "../../proc.js";

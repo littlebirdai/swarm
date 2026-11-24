@@ -5,7 +5,7 @@ import {
   deviceWakesOnUse,
   pathUnderRoot,
   platformCanOpenPath,
-} from "./cloudPlacement";
+} from "../src/cloudPlacement";
 
 const host = {
   platform: "linux",

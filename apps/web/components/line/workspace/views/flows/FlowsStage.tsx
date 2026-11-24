@@ -16,7 +16,7 @@ import { useWatchEffect } from "../../../../../hooks/useWatchEffect";
 import { useMountEffect } from "../../../../../hooks/useMountEffect";
 import type { LineSelectionPatch } from "../../../../../lib/line/lineWorkspaceUrl";
 import { processKeyOf } from "../../../../../lib/line/lineGraphs";
-import { segmentTopOf } from "@codecast/shared/contracts/flowPool";
+import { segmentTopOf } from "@codecast/flows/flowPool";
 import { LIVE_ENTRY, type LiveAtStep } from "../graph/GraphCanvas";
 import { hasOpenModal } from "../../../../../shortcuts";
 import { keyBelongsElsewhere } from "../../../../../shortcuts/keyOwnership";

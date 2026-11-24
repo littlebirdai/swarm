@@ -28768,6 +28768,24 @@
   "packages/chat/test/timeline.test.ts": {
     "swarm/no-comments": 21
   },
+  "packages/cloud-hosts/src/cloudHostReport.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/cloud-hosts/src/cloudPlacement.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/cloud-hosts/src/cloudPlacementProgress.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/cloud-hosts/src/cloudWorkspace.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/cloud-hosts/src/localMirror.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/cloud-hosts/test/cloudWorkspace.test.ts": {
+    "swarm/no-comments": 3
+  },
   "packages/comments/src/anchorKey.ts": {
     "swarm/no-comments": 19
   },
@@ -28872,6 +28890,27 @@
   },
   "packages/files/test/index.test.ts": {
     "swarm/no-comments": 2
+  },
+  "packages/flows/src/flowEdit.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/flows/src/flowPool.ts": {
+    "swarm/no-comments": 47
+  },
+  "packages/flows/src/linePhases.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/flows/src/lineSlug.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/flows/src/repoFlows.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/flows/src/runStart.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/flows/test/flowPool.test.ts": {
+    "swarm/no-comments": 7
   },
   "packages/keyboard/src/keyBindings.ts": {
     "swarm/no-comments": 44
@@ -29224,23 +29263,8 @@
   "packages/shared/contracts/cloudAgents.ts": {
     "swarm/no-comments": 97
   },
-  "packages/shared/contracts/cloudHostReport.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/contracts/cloudPlacement.ts": {
-    "swarm/no-comments": 22
-  },
-  "packages/shared/contracts/cloudPlacementProgress.ts": {
-    "swarm/no-comments": 11
-  },
   "packages/shared/contracts/cloudSessionSync.ts": {
     "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/cloudWorkspace.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/cloudWorkspace.ts": {
-    "swarm/no-comments": 18
   },
   "packages/shared/contracts/codecastConfig.ts": {
     "swarm/no-comments": 32
@@ -29359,17 +29383,8 @@
   "packages/shared/contracts/fence.ts": {
     "swarm/no-comments": 8
   },
-  "packages/shared/contracts/flowEdit.ts": {
-    "swarm/no-comments": 29
-  },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/flowPool.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/flowPool.ts": {
-    "swarm/no-comments": 47
   },
   "packages/shared/contracts/follow.ts": {
     "swarm/no-comments": 14
@@ -29491,9 +29506,6 @@
   "packages/shared/contracts/lineFunnel.ts": {
     "swarm/no-comments": 43
   },
-  "packages/shared/contracts/linePhases.ts": {
-    "swarm/no-comments": 10
-  },
   "packages/shared/contracts/linePriority.ts": {
     "swarm/no-comments": 35
   },
@@ -29506,9 +29518,6 @@
   "packages/shared/contracts/lineRunEnd.ts": {
     "swarm/no-comments": 26
   },
-  "packages/shared/contracts/lineSlug.ts": {
-    "swarm/no-comments": 5
-  },
   "packages/shared/contracts/lineTimeline.ts": {
     "swarm/no-comments": 11
   },
@@ -29520,9 +29529,6 @@
   },
   "packages/shared/contracts/lineWords.ts": {
     "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/localMirror.ts": {
-    "swarm/no-comments": 17
   },
   "packages/shared/contracts/machineMessages.bootstrap.test.ts": {
     "swarm/no-comments": 3
@@ -29764,9 +29770,6 @@
   "packages/shared/contracts/replayPlayer.ts": {
     "swarm/no-comments": 109
   },
-  "packages/shared/contracts/repoFlows.ts": {
-    "swarm/no-comments": 6
-  },
   "packages/shared/contracts/resourceOffloadIntent.ts": {
     "swarm/no-comments": 1
   },
@@ -29807,9 +29810,6 @@
     "swarm/no-comments": 77
   },
   "packages/shared/contracts/runEnd.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/runStart.ts": {
     "swarm/no-comments": 7
   },
   "packages/shared/contracts/sanitizeText.ts": {

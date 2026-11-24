@@ -44,10 +44,7 @@ import {
   type LineStationEdit,
   type PublishedRepoLine,
 } from "@codecast/shared/contracts/lineProfile";
-import {
-  DEFAULT_LINE_SLUG,
-  LINE_SLUG_RE,
-} from "@codecast/shared/contracts/orgProposal";
+import { DEFAULT_LINE_SLUG, LINE_SLUG_RE } from "@codecast/flows/lineSlug";
 
 export { REPO_LINE_FILE_RE, REPO_LINE_REL_DIR, REPO_LINE_REL_PATH };
 

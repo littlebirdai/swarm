@@ -9,15 +9,15 @@
 // each, for any graph's stations, and the shape a graph that is not
 // codecast's line takes on the map (its terminal steps folded into the map's
 // ends, its stations given a phase).
-import { DEFAULT_STEPS_LABEL } from "@codecast/shared/contracts/lineSlug";
+import { DEFAULT_STEPS_LABEL } from "@codecast/flows/lineSlug";
 import {
   CARD_GATE_NODE_ID,
   LINE_END_NODES,
 } from "@codecast/shared/contracts/changeCard";
-import { DEFAULT_LINE_SLUG } from "@codecast/shared/contracts/orgProposal";
+import { DEFAULT_LINE_SLUG } from "@codecast/flows/lineSlug";
 import { isRepoLineSlug } from "@codecast/shared/contracts/lineProfile";
 import { choiceWords, stationWords, type LinePhaseKey } from "./runReport";
-import { PHASE_ORDER, guessPhase } from "@codecast/shared/contracts/linePhases";
+import { PHASE_ORDER, guessPhase } from "@codecast/flows/linePhases";
 import { knownName } from "./sourceNames";
 export { fileStepLabel, stepLabel } from "./runReport";
 

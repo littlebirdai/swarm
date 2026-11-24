@@ -1,13 +1,13 @@
 import type { Device } from "../components/DeviceBadge";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import {
   cloudHostManaged,
   cloudHostRetired,
   cloudPlacementFor,
-  deviceDisplayName,
   isReservedDevice,
-  type CloudHostReport,
-  type CloudStartFrom,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacement";
+import { type CloudHostReport } from "@codecast/cloud-hosts/cloudHostReport";
+import { type CloudStartFrom } from "@codecast/cloud-hosts/cloudWorkspace";
 import {
   defaultMachineId,
   intendedMachineId,

@@ -15,7 +15,7 @@ import {
   SEGMENT_SEP,
   type FlowEdgeIn,
   type FlowNodeIn,
-} from "@codecast/shared/contracts/flowPool";
+} from "@codecast/flows/flowPool";
 
 /** `you`: an open card on the stage the viewer may answer; `person`: a person answers there, the viewer or not. */
 export type StageWho = "session" | "agent" | "you" | "person" | "auto";

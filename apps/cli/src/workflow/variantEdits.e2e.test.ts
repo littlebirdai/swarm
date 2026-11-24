@@ -432,8 +432,7 @@ describe("the backbone's default way back (graph [fix=])", () => {
     expect(g.edits).toEqual([
       { op: "add", station: "lint", label: "Lint", after: "pr", fix: "brief" },
     ]);
-    const { flowEditWords } =
-      await import("@codecast/shared/contracts/flowEdit");
+    const { flowEditWords } = await import("@codecast/flows/flowEdit");
     expect(
       flowEditWords(
         g.edits![0],

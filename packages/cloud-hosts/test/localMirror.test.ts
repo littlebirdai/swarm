@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mirrorLaptops, repoNameOf } from "./localMirror";
+import { mirrorLaptops, repoNameOf } from "../src/localMirror";
 
 const now = 1_000_000;
 const devices = [

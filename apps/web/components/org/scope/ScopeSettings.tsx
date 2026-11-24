@@ -22,7 +22,7 @@ import { useInboxStore } from "../../../store/inboxStore";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useWorkflows } from "../../../hooks/useSyncWorkflows";
 import { lineOptions } from "./lineBoard";
-import { lineSlugOf } from "@codecast/shared/contracts/orgProposal";
+import { lineSlugOf } from "@codecast/flows/lineSlug";
 import { DAILY_CAP_KEYS } from "@codecast/shared/contracts/orgCapacity";
 import { useLineForks } from "../../../hooks/useLineForks";
 import { lineSettingsHref } from "../../../lib/lineSettings";

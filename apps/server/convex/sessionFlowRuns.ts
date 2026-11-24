@@ -12,7 +12,7 @@ import {
   newRunReads,
   withAgentSessions,
 } from "./workflow_runs";
-import { sourceTakesSessionChange } from "@codecast/shared/contracts/flowPool";
+import { sourceTakesSessionChange } from "@codecast/flows/flowPool";
 import { workspaceGrantsAccess } from "./lib/access";
 import { runWorkflowOf } from "./lib/runGraph";
 

@@ -2,7 +2,7 @@
 // override a shipped or published flow of the same slug, as `cast flow run` resolves them in that repository, so the
 // Ship picker draws the flow its press runs.
 import { describe, expect, test } from "bun:test";
-import type { RepoFlow } from "@codecast/shared/contracts/repoFlows";
+import type { RepoFlow } from "@codecast/flows/repoFlows";
 import { appPool } from "../flowPool";
 
 // A repository's `change`: PR, then CI and a review side by side, then merge, with the session fixing what they find.

@@ -5,12 +5,10 @@
  * final word on each removal (devices.performRemoveDevices refuses an online
  * machine); this only decides what the page offers.
  */
-import {
-  machineOutOfService,
-  type CloudHostReport,
-} from "@codecast/shared/contracts";
+import { machineOutOfService } from "@codecast/cloud-hosts/cloudPlacement";
+import { type CloudHostReport } from "@codecast/cloud-hosts/cloudHostReport";
 
-export { STALE_MACHINE_MS } from "@codecast/shared/contracts";
+export { STALE_MACHINE_MS } from "@codecast/cloud-hosts/cloudPlacement";
 
 export type RemovableMachine = {
   device_id: string;

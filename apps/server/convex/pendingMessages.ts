@@ -3,7 +3,7 @@ import {
   heartbeatsFor,
 } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
-import { isReservedDevice } from "@codecast/shared/contracts";
+import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";
 import { noteScreenRecordingSent } from "./lib/screenRecordingSent";
 import { steeringOwnerFor, suggestFromTeammate } from "./teamSuggestions";

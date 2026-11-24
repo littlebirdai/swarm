@@ -10,17 +10,13 @@
 // command judge the same plan.
 import fs from "node:fs";
 import path from "node:path";
-import {
-  SEGMENT_SEP,
-  foldFlow,
-  flowPathWords,
-} from "@codecast/shared/contracts/flowPool";
+import { SEGMENT_SEP, foldFlow, flowPathWords } from "@codecast/flows/flowPool";
 import {
   flowEditWords,
   whenPaths,
   type FlowEdit,
   type FlowEditChange,
-} from "@codecast/shared/contracts/flowEdit";
+} from "@codecast/flows/flowEdit";
 import { generateUnifiedPatch } from "@codecast/diff";
 import {
   graphExtends,

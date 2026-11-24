@@ -4,8 +4,8 @@
 // each with the variants that extend it underneath, and the segments. A live
 // flow is a flow switched on with sources feeding one queue. Pure formatters
 // over the pool and the server's live flow rows; flowCommand.ts reads and prints.
-import { segmentTopOf } from "@codecast/shared/contracts/flowPool";
-import { flowEditWords } from "@codecast/shared/contracts/flowEdit";
+import { segmentTopOf } from "@codecast/flows/flowPool";
+import { flowEditWords } from "@codecast/flows/flowEdit";
 import type { PoolFlow } from "./workflow/flowPool.js";
 import type { WorkflowGraph, WorkflowNode } from "./workflow/types.js";
 

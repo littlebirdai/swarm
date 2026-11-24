@@ -13,7 +13,7 @@ import { useState } from "react";
 import {
   CLOUD_HOST_SIZES,
   type CloudHostSize,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   SwitchReview,

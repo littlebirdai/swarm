@@ -1,6 +1,6 @@
 "use client";
 
-import { flowName } from "@codecast/shared/contracts/flowPool";
+import { flowName } from "@codecast/flows/flowPool";
 import { useMemo, useState } from "react";
 import { ShareControl } from "../../../../components/ShareControl";
 import { PageHeader } from "../../../../components/ui/page-header";

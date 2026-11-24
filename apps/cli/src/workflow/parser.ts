@@ -4,7 +4,7 @@ import * as path from "path";
 import { createHash } from "crypto";
 import { conditionError } from "./condition";
 import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates";
-import { SEGMENT_SEP, segmentTopOf } from "@codecast/shared/contracts/flowPool";
+import { SEGMENT_SEP, segmentTopOf } from "@codecast/flows/flowPool";
 import {
   Parser,
   tokenize,

@@ -25,12 +25,14 @@ import {
   policyWorkspaceOf,
   requireTeamPolicyAllows,
 } from "./lib/teamPolicyGuard";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import {
   CLOUD_START_RUN_MS,
   cloudHostManaged,
   cloudPlacementFor,
-  deviceDisplayName,
   deviceWakesOnUse,
+} from "@codecast/cloud-hosts/cloudPlacement";
+import {
   normalizeCloudStartFrom,
   normalizeCloudWorkspace,
   sharedCheckoutOccupant,
@@ -38,7 +40,7 @@ import {
   type CheckoutOccupantRow,
   type CloudStartFrom,
   type CloudWorkspaceMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudWorkspace";
 
 /** The daemon poll's command TTL (users.daemonHeartbeat expires older ones). */
 export const COMMAND_TTL_MS = DAEMON_COMMAND_TTL_MS;
