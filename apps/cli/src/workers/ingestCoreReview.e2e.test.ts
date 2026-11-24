@@ -31,7 +31,7 @@ for (const mutant of ["none", "c1", "c2", "c2-queue", "c3", "c4", "c5"])
                 ? mutantCopy(
                     home.root,
                     path.resolve(import.meta.dir, "ingestValidation.ts"),
-                    "job.client === 'cursorDb' ? value.rawBubbleCount : ",
+                    'job.client === "cursorDb"\n              ? value.rawBubbleCount\n              : ',
                     "",
                     "validator-byte-ordinal.ts",
                   )

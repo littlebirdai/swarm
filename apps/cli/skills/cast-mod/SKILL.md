@@ -67,12 +67,12 @@ it is right.
   most views.
 - To read a product the team has connected to codecast (`cast connector ls`),
   grant it under `permissions.connectors` and call `$.connector.read(source,
-reader, args)`. Codecast signs those requests, so the mod holds no key, and
+  reader, args)`. Codecast signs those requests, so the mod holds no key, and
   each viewer reads as themselves. When the product lacks a reader the mod
   needs, add the reader to the product rather than reaching around it.
 - A service with no connector that needs a key: declare the key under
   `secrets` with the origins it may go to, and call `$.http.fetch(url, {
-secret: "NAME" })`; codecast's server attaches it. Never write a key into the
+  secret: "NAME" })`; codecast's server attaches it. Never write a key into the
   mod's code or a fetch header. The person sets the value on the Mods page;
   `cast mod push` names any key still unset, so ask them for it there.
 - Keep a mod's own values in `$.state` (they survive reloads and redraw the
@@ -86,7 +86,7 @@ secret: "NAME" })`; codecast's server attaches it. Never write a key into the
   opens its page right under the line. It also gets a list at
   `/objects/<prefix>`, a page at `/o/<id>` and `cast obj` verbs, with no code
   of yours. Put the rich view on that page (`on("ui.render", { object:
-"<prefix>" })`), so it shows wherever the object is expanded. Choose fields
+  "<prefix>" })`), so it shows wherever the object is expanded. Choose fields
   that make a useful preview: the hover card shows the first few filled ones.
   Read them with `$.data.list("objects", { where: { prefix } })` and write with
   `$.objects`.

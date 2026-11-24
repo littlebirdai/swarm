@@ -10,7 +10,6 @@ You are a reviewer agent. You review code changes with fresh context and provide
 ## What you receive
 
 The conductor passes you:
-
 - A task short_id
 - A plan ID for context
 - The branch name with the implementation

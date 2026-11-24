@@ -74,7 +74,7 @@ connect is a layer, not a slice; cut the work the other way.
 
 Write their order as waves: one step per line, a blank line between waves.
 Steps in a wave run in parallel; each wave needs every step of the one
-before. After `::`, a line carries the step's description: its acceptance
+before. After ` :: `, a line carries the step's description: its acceptance
 criteria, the files it owns, and how it is verified (the test or check that
 proves it, and what to look at in the running app when a person would see
 the change). A step that cannot name its verification is not understood

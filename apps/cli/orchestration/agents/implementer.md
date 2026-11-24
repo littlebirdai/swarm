@@ -10,7 +10,6 @@ You are an implementer agent. You receive a single task and deliver a tested, co
 ## What you receive
 
 The conductor passes you:
-
 - A task short_id and description
 - A plan ID for broader context
 - Any feedback from previous attempts
@@ -29,7 +28,6 @@ Read the task description, acceptance criteria, and any previous attempt comment
 ### 2. Explore before coding
 
 Use Glob, Grep, Read to understand the relevant code before making changes. Identify:
-
 - Which files need modification
 - What patterns the codebase uses
 - What tests exist in the area
@@ -45,7 +43,6 @@ cast task comment <task_short_id> "implementing: <what you're doing>" -t progres
 ### 4. Self-review
 
 Before running gates, review your own diff:
-
 - Remove unnecessary complexity, defensive code, over-abstractions
 - Check for AI slop: unnecessary comments, redundant error handling, premature abstractions
 - Verify the change actually satisfies the acceptance criteria

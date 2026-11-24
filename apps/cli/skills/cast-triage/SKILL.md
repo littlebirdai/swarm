@@ -28,7 +28,7 @@ something another session or you can supply, or is dead with output.
   work: `cast send <id>` the answer.
 - Waiting on a peer that already delivered: point it at the delivery.
 - Dead, work complete: `cast kill <id>`. Dead, work incomplete: `cast
-restart <id>` and a message to continue from the pin.
+  restart <id>` and a message to continue from the pin.
 - Truly needs the human: leave it, and write its ask in one line.
 
 Never kill or stash a session another person owns without saying so; their

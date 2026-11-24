@@ -103,10 +103,11 @@ function fixture(writeSucceeded = true) {
   const hookAt = source.indexOf(
     "      const inheritedMode = data.permission_mode || prev?.permission_mode;",
   );
-  const hookState = source.slice(
-    hookAt,
-    source.indexOf("      if (classifyBypassBlock", hookAt),
-  );
+  expect(hookAt).toBeGreaterThan(-1);
+  const hookBody = source.slice(hookAt);
+  const hookEnd = hookBody.search(/^\s*if \(\s*classifyBypassBlock\(/m);
+  expect(hookEnd).toBeGreaterThan(0);
+  const hookState = hookBody.slice(0, hookEnd);
   const hook = `function receiveHook(data) { const prev = undefined; const sessionId = "sid"; ${hookState} classifyBypassBlock(awaitingAskUserQuestion, sessionId, data.status, data.permission_mode, data.message); sendAgentStatus(syncServiceRef, "conv", sessionId, data.status); }`;
 
   const streamAt = source.indexOf("startPaneStream(target, {");

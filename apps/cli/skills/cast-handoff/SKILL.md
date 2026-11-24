@@ -42,7 +42,7 @@ Record any decision the doc names with `cast decisions add "<title>" --reason
 ## Hand it on
 
 - Another agent or model: `cast handoff --to codex` (or `--to claude --model
-opus`, `--to gemini`, `--model sonnet` for the same agent). The server
+  opus`, `--to gemini`, `--model sonnet` for the same agent). The server
   writes a brief of this session, composes the new session's first prompt from
   it with the read commands for this transcript, starts the session in this
   directory as an inbox card linked both ways, binds it to this session's task

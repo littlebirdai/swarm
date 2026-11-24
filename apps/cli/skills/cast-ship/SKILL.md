@@ -56,7 +56,7 @@ The bound session is woken on a review, a failing check, a stale branch, a
 conflict and the merge. On each wake:
 
 - Review threads: `cast pr threads`, fix or answer each, push, then `cast pr
-resolve <thread>` for the ones you settled. Do not resolve a thread you
+  resolve <thread>` for the ones you settled. Do not resolve a thread you
   disagreed with; reply on it and leave it open.
 - Failing checks: `gh run view <id> --log-failed`, fix, push.
 - Behind or conflicted: `git fetch origin main && git rebase origin/main`,

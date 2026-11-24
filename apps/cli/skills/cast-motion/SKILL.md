@@ -69,19 +69,9 @@ This is all the runtime needs; the `hyperframes-core` and
   one when it is served, and the renderer brings its own.
 
 ```html
-<div
-  id="root"
-  data-composition-id="main"
-  data-width="1920"
-  data-height="1080"
-  data-duration="45"
->
-  <section id="beat-question" class="clip" data-start="0" data-duration="6">
-    …
-  </section>
-  <section id="beat-reveal" class="clip" data-start="30" data-duration="15">
-    …
-  </section>
+<div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-duration="45">
+  <section id="beat-question" class="clip" data-start="0" data-duration="6">…</section>
+  <section id="beat-reveal" class="clip" data-start="30" data-duration="15">…</section>
 </div>
 <script>
   const tl = gsap.timeline({ paused: true });

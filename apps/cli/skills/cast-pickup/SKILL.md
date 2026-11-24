@@ -8,23 +8,18 @@ Reground from shared state, not from memory of an earlier conversation.
 Everything below was captured when this skill was invoked.
 
 ## Bound work
-
 !`cast task context --current 2>/dev/null; cast plan context --current 2>/dev/null`
 
 ## Pinned state
-
 !`cast state 2>/dev/null || echo "no pinned state"`
 
 ## This project, last two days
-
 !`cast feed -s 2d -n 8 2>/dev/null`
 
 ## Repository
-
 !`git status -sb 2>/dev/null; git log --oneline -8 2>/dev/null; git stash list 2>/dev/null`
 
 ## Live panes
-
 !`tmux list-sessions 2>/dev/null || echo "no tmux sessions"`
 
 ## Then

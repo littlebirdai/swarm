@@ -163,8 +163,8 @@ if (
       "\nexport const fixtureReceipts={acceptedPending,pruneAcceptedTranscript};\n";
   else if (process.argv[3] === "retry-mutant") {
     const retry =
-      "if (transcriptRetries.has(sessionId)) throw new TranscriptIngestRetry(`Transcript ${sessionId} retains unread data`);";
-    assert.ok(source.includes(retry));
+      /if \(transcriptRetries\.has\(sessionId\)\)\s*throw new TranscriptIngestRetry\(\s*`Transcript \$\{sessionId\} retains unread data`,?\s*\);/;
+    assert.equal(source.match(new RegExp(retry, "g"))?.length, 1);
     source = source.replace(retry, "");
   } else if (process.argv[3] === "custody-mutant") {
     assert.ok(
@@ -185,11 +185,11 @@ if (
   if (process.argv[3] === "core-review" && process.env.F3_FIXTURE_CORE_MUTANT) {
     const name = process.env.F3_FIXTURE_CORE_MUTANT;
     const mutations: Record<string, [string, string]> = {
-      c1: ["    retirePendingTranscript(pending,sessionId,accepted);", ""],
+      c1: ["    retirePendingTranscript(pending, sessionId, accepted);", ""],
       "c2-queue": ["    if (dispatchRefused) throw err;", ""],
       c3: ["transcriptRetryOwners.defer(", "(() => false)("],
       c5: [
-        '  if(pendingTranscriptVersions.get(pending)!==version){transcriptCapacityRefused(sessionId,"pending publication changed");return;}',
+        '  if (pendingTranscriptVersions.get(pending) !== version) {\n    transcriptCapacityRefused(sessionId, "pending publication changed");\n    return;\n  }',
         "",
       ],
     };

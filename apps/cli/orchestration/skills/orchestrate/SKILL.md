@@ -85,7 +85,6 @@ Agent(
 Spawn up to 3-5 workers per wave. Prefer fewer workers touching independent file scopes over many workers risking conflicts.
 
 Pass each worker:
-
 - The task short_id and full description
 - The plan doc content (key constraints and decisions)
 - Any relevant context from previous attempts
@@ -99,7 +98,6 @@ cast task show <task_short_id>
 ```
 
 **If the worker succeeded** (task marked done):
-
 - Spawn a reviewer agent to check the work:
   ```
   Agent(
@@ -110,12 +108,10 @@ cast task show <task_short_id>
   ```
 
 **If the worker is blocked** (BLOCKED marker):
-
 - Read the blocker details from task comments
 - Decide: can you unblock it (re-scope, split task, fix dependency)? Or escalate to the user?
 
 **If the worker failed silently** (no status update):
-
 - Check if the worktree has changes: `git -C .codecast/worktrees/<name> diff --stat`
 - If no changes, re-queue the task
 - If partial changes, review them and decide
