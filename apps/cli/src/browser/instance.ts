@@ -390,7 +390,7 @@ export function chromeLaunchArgs(opts: LaunchOptions): string[] {
 
 /** On macOS, spawning an app bundle's binary makes the OS activate it, so a
  *  headed launch goes through `open -g` instead. */
-function useOpenFor(bin: string, opts: LaunchOptions): boolean {
+function shouldLaunchWithOpen(bin: string, opts: LaunchOptions): boolean {
   return (
     process.platform === "darwin" && !opts.headless && bin.includes(".app/")
   );
@@ -475,14 +475,16 @@ export async function launchManagedChrome(
     "..",
     `${path.basename(opts.userDataDir)}.chrome.log`,
   );
-  const logFd = useOpenFor(bin, opts) ? "ignore" : fs.openSync(logPath, "w");
+  const logFd = shouldLaunchWithOpen(bin, opts)
+    ? "ignore"
+    : fs.openSync(logPath, "w");
 
   // On macOS, spawning an app bundle's binary makes the OS activate it, so a
   // launch yanks the screen away from whatever the human is doing. `open -g`
   // starts it without activating; `-n` allows our own instance alongside any
   // Chrome they already have open, and `--args` passes the flags through.
   // Everywhere else, spawning the binary directly is already unobtrusive.
-  const useOpen = useOpenFor(bin, opts);
+  const useOpen = shouldLaunchWithOpen(bin, opts);
   const appPath = useOpen ? bin.slice(0, bin.indexOf(".app/") + 4) : "";
   const child = useOpen
     ? spawn("open", ["-g", "-n", "-a", appPath, "--args", ...args], {

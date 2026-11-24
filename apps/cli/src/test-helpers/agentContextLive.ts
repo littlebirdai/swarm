@@ -11,7 +11,7 @@ import * as path from "node:path";
 import type { AgentContext, AgentContextCommand } from "../agentContext.js";
 
 // `cast browser` registers one of two verb sets depending on whether the
-// agent-browser engine is installed on the machine (useEngine in browser/cli.ts),
+// agent-browser engine is installed on the machine (shouldUseEngine in browser/cli.ts),
 // so a subcommand comparison is only meaningful with that choice pinned. Its own
 // escape hatch pins it; callers that build their own program set it too.
 export const PINNED_ENV = { CAST_BROWSER_LEGACY: "1" };

@@ -252,7 +252,7 @@ function readStatusFile(
   }
 }
 
-function useOpenRoute(route?: PermissionProbeRoute): boolean {
+function shouldOpenRoute(route?: PermissionProbeRoute): boolean {
   if (route) return route === "open";
   return launchesThroughOpen();
 }
@@ -270,7 +270,7 @@ function launchStatusProbe(
       [helperExecutablePath(appPath), ...args],
       logFile,
     );
-  if (useOpenRoute(route)) {
+  if (shouldOpenRoute(route)) {
     // `open` is a launcher, not the probe: it hands the app to LaunchServices
     // and exits, so watching IT for an exit would report success as a death.
     // It does report a refusal (a bundle LaunchServices will not open) in its

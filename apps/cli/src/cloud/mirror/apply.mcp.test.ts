@@ -14,10 +14,10 @@ import {
   seedHost,
   source,
   write,
-  useHostHome,
+  installHostHomeHooks,
 } from "./apply.testkit";
 
-useHostHome();
+installHostHomeHooks();
 
 test("portable MCP edits and removals preserve unrelated host MCP and trust", async () => {
   seedHost();

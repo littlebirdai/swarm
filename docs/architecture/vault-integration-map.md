@@ -273,7 +273,7 @@ File: `cli/src/browser/credentials.ts` (rationale in the header at :1-39).
 **`cast browser` verbs**
 
 - Entry point: `cli/src/browser/cli.ts:252` `registerBrowserCommand`, with `br = program.command("browser").alias("br")` at :286-289.
-- When the agent-browser engine is available (`useEngine()` at :222) it hands off to `registerEngineCommands` (`browser/cliEngine.ts:1228`):
+- When the agent-browser engine is available (`shouldUseEngine()` at :222) it hands off to `registerEngineCommands` (`browser/cliEngine.ts:1228`):
   - Pass-through verbs come from the `PASSTHROUGH` table at :228 (open, snapshot, read, click, type, fill, ...), looped at about :1255.
   - Codecast's own verbs are `targetFlags(br.command("..."))` calls, e.g. `login [url]` at :1401 and `sync [url]` at :1408.
 - The legacy driver's verbs follow at `cli.ts:317-1393`, e.g. `sync` at :383.

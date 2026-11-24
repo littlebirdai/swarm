@@ -20,7 +20,7 @@ import {
   readActiveCredentialAsync,
   credentialHealth,
   saveProfile,
-  useProfile,
+  activateProfile,
   switchProfile,
   switchModeFor,
   launchProfileName,
@@ -599,7 +599,7 @@ describe("logged-out stub containment (sandboxed $HOME)", () => {
     expect(stored.credentials.claudeAiOauth.accessToken).toBe("at-123");
   });
 
-  it("useProfile refuses to activate a poisoned profile and leaves the active login untouched", () => {
+  it("activateProfile refuses to activate a poisoned profile and leaves the active login untouched", () => {
     saveProfile("footage");
     // Poison the stored profile the way the old save-on-switch bug did.
     fs.writeFileSync(
@@ -613,7 +613,7 @@ describe("logged-out stub containment (sandboxed $HOME)", () => {
     // The profile's own credential store never takes a stub, so it still holds
     // the good pair and the read recovers it. Only once that copy is gone is
     // the profile truly unusable.
-    expect(() => useProfile("footage")).not.toThrow();
+    expect(() => activateProfile("footage")).not.toThrow();
     // (that switch re-snapshotted the good active login; poison again, and this
     // time without a store copy to fall back on)
     fs.writeFileSync(
@@ -625,7 +625,7 @@ describe("logged-out stub containment (sandboxed $HOME)", () => {
       }),
     );
     deleteProfileStore("footage");
-    expect(() => useProfile("footage")).toThrow(/unusable|logged-out/);
+    expect(() => activateProfile("footage")).toThrow(/unusable|logged-out/);
     // The switch failed BEFORE writing anything: the active credential still
     // has its real tokens.
     expect(
@@ -2162,7 +2162,7 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
       profileFor("at-old", "uuid-a", "a@x.com", NOW - 60_000),
     );
     invalidateAccountsCache();
-    const result = useProfile("a");
+    const result = activateProfile("a");
     expect(result.keptLive).toBe(true);
     const live = JSON.parse(
       fs.readFileSync(path.join(home, ".claude", ".credentials.json"), "utf-8"),
@@ -2734,8 +2734,8 @@ describe("per-profile credential stores (sandboxed $HOME, file store)", () => {
     expect(
       credentialIsFresher(credFor("at-a", Date.now() + 3_600_000), rotated),
     ).toBe(false);
-    // useProfile reads through the overlay: the keychain gets the rotated pair.
-    useProfile("a");
+    // activateProfile reads through the overlay: the keychain gets the rotated pair.
+    activateProfile("a");
     expect(
       JSON.parse(
         fs.readFileSync(
@@ -2977,7 +2977,7 @@ describe("switch identity integrity (sandboxed $HOME)", () => {
     );
     invalidateAccountsCache();
 
-    useProfile("bbb");
+    activateProfile("bbb");
     expect(activeToken()).toBe("token-b");
     // The label must name B. Naming A is what poisoned the store.
     expect(activeAccountSummary()?.uuid).toBe("uuid-b");
@@ -3026,7 +3026,7 @@ describe("switch identity integrity (sandboxed $HOME)", () => {
     invalidateAccountsCache();
 
     // The switch-away re-snapshot must not overwrite aaa with B's token.
-    useProfile("aaa");
+    activateProfile("aaa");
     const stored = JSON.parse(
       fs.readFileSync(
         path.join(home, ".codecast", "cc-accounts", "aaa.json"),

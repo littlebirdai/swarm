@@ -1293,7 +1293,8 @@ export function MarkdownContent({
 }) {
   // Inside a message a long press is the message's menu, so its text is not
   // natively selectable there (Select text in that menu opens a view that is).
-  const selectable = selectableProp ?? !useMessageLongPress();
+  const messageLongPress = useMessageLongPress();
+  const selectable = selectableProp ?? !messageLongPress;
   // Insight extraction runs on every assistant text (same placement as web's
   // assistant-message flat run) so cards show up on ALL surfaces that render
   // markdown — message bubbles, tool results, plan/teammate cards.

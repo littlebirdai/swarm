@@ -405,7 +405,7 @@ export type SigninUseDeps = {
  * Keychain, so a cloud host runs it unchanged: the sign-in comes from the
  * backend.
  */
-export async function useVaultSignin(
+export async function applyVaultSignin(
   rawUrl: string,
   deps: SigninUseDeps,
 ): Promise<SecretNeedsApproval | void> {
@@ -651,7 +651,7 @@ export async function signInOnOpen(
 ): Promise<void> {
   const port = bridge ?? readState()?.port;
   if (!port) return;
-  const held = await useVaultSignin(url, {
+  const held = await applyVaultSignin(url, {
     port,
     conversation,
     log,

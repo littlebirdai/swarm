@@ -591,14 +591,12 @@
     "swarm/no-comments": 49
   },
   "apps/cli/src/browser/cli.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 164
   },
   "apps/cli/src/browser/cliEngine.test.ts": {
     "swarm/no-comments": 13
   },
   "apps/cli/src/browser/cliEngine.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 286
   },
   "apps/cli/src/browser/cloudHost.tailnet.test.ts": {
@@ -726,7 +724,6 @@
     "swarm/no-comments": 36
   },
   "apps/cli/src/browser/instance.ts": {
-    "react-hooks/rules-of-hooks": 2,
     "swarm/no-blocking-child-process-call": 3,
     "swarm/no-comments": 141
   },
@@ -1212,7 +1209,6 @@
     "swarm/no-comments": 238
   },
   "apps/cli/src/ccAccounts.ts": {
-    "react-hooks/rules-of-hooks": 19,
     "swarm/no-blocking-child-process-call": 9,
     "swarm/no-comments": 515
   },
@@ -1239,7 +1235,6 @@
     "swarm/no-comments": 14
   },
   "apps/cli/src/ccPool.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 34
   },
   "apps/cli/src/ccProfileFlags.ts": {
@@ -1601,11 +1596,7 @@
   "apps/cli/src/cloud/liveSyncJobs.ts": {
     "swarm/no-comments": 24
   },
-  "apps/cli/src/cloud/mirror/apply.mcp.test.ts": {
-    "react-hooks/rules-of-hooks": 1
-  },
   "apps/cli/src/cloud/mirror/apply.test.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 23
   },
   "apps/cli/src/cloud/mirror/apply.testkit.ts": {
@@ -1711,7 +1702,6 @@
     "swarm/no-comments": 45
   },
   "apps/cli/src/cloud/transfer.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-blocking-child-process-call": 7,
     "swarm/no-comments": 62
   },
@@ -1999,7 +1989,6 @@
     "swarm/no-comments": 20
   },
   "apps/cli/src/computer/permissions.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-blocking-child-process-call": 3,
     "swarm/no-comments": 38
   },
@@ -2722,7 +2711,6 @@
     "swarm/no-comments": 51
   },
   "apps/cli/src/evals/evalsServer.test.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 13
   },
   "apps/cli/src/evals/evalsServer.ts": {
@@ -4293,11 +4281,9 @@
     "swarm/no-comments": 44
   },
   "apps/cli/src/secrets/signinBrowser.test.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 15
   },
   "apps/cli/src/secrets/signinBrowser.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 53
   },
   "apps/cli/src/secrets/signinCommand.test.ts": {
@@ -5615,7 +5601,6 @@
     "swarm/no-comments": 24
   },
   "apps/cli/src/workflow/subjectStation.e2e.test.ts": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 37
   },
   "apps/cli/src/workflow/subjectStation.testkit.ts": {
@@ -6869,7 +6854,6 @@
     "swarm/no-comments": 11
   },
   "apps/mobile/components/MarkdownRenderer.tsx": {
-    "react-hooks/rules-of-hooks": 1,
     "swarm/no-comments": 98
   },
   "apps/mobile/components/MessageLongPress.tsx": {
@@ -12490,7 +12474,6 @@
     "swarm/no-comments": 16
   },
   "apps/server/convex/teamReadKeys.ts": {
-    "react-hooks/rules-of-hooks": 2,
     "swarm/no-comments": 27
   },
   "apps/server/convex/teamReadKeysSchema.ts": {

@@ -1174,7 +1174,7 @@ export async function runVerb(
     // own through the bridge, or the agent browser (on a cloud host, the one
     // that applies). The desktop pane is the human's view and gets none.
     if (url && !pane)
-      await useVaultSignin(
+      await applyVaultSignin(
         url,
         real ? bridgeEndpoint(await requireRealBridge()) : undefined,
       );
@@ -1565,7 +1565,7 @@ export async function carryLogins(
  * newer cookies when the browser already uses it. Loaded only when `open`
  * runs, and never fails the open.
  */
-async function useVaultSignin(
+async function applyVaultSignin(
   url: string,
   bridge?: CdpEndpoint,
 ): Promise<void> {
