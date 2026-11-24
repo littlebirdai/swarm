@@ -14,12 +14,8 @@ import {
   foldOps,
   toElement,
   type ArtifactOp,
-} from "../../../packages/shared/artifacts/core";
-import {
-  buildModel,
-  sortOps,
-  workbookFor,
-} from "../../../packages/shared/artifacts/sheets";
+} from "@codecast/artifacts/core";
+import { buildModel, sortOps, workbookFor } from "@codecast/artifacts/sheets";
 
 setDefaultTimeout(240_000);
 

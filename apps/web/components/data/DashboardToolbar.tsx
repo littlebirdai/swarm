@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { dashboard } from "@codecast/shared/artifacts";
+import { dashboard } from "@codecast/artifacts";
 import { CheckMark } from "./blocks";
 
 export type PanelKind = "sources" | "design" | "checks" | "check" | "edit";

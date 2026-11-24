@@ -36,7 +36,7 @@ import {
   deliveredOutcome,
   type ReviewVerdict,
   type SendOutcome,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { sessionWaiting } from "./lib/sendOutcome";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
 
@@ -84,7 +84,7 @@ export const add = mutation({
     // Absent or 0 means the note is about the whole file.
     line_number: v.optional(v.number()),
     line_end: v.optional(v.number()),
-    // The noted lines' text and context (shared/comments/codeAnchor.ts).
+    // The noted lines' text and context (packages/comments/src/codeAnchor.ts).
     anchor_lines: v.optional(codeAnchorValidator),
     content: v.string(),
     diff_identity: v.optional(v.string()),

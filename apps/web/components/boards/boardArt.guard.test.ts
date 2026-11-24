@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { BOARD_ART, boardArtFor } from "@codecast/shared/artifacts/board";
+import { BOARD_ART, boardArtFor } from "@codecast/artifacts/board";
 import { BOARD_ART_URLS } from "./boardArtUrls";
 
 describe("board illustrations", () => {

@@ -2,7 +2,7 @@
 // cursor layer alone (components/live/LiveCursors): a pan republishes it
 // several times a second, and only the cursors redraw for it. One per open
 // artifact (its page, a call's stage).
-import type { ArtifactPosition } from "@codecast/shared/artifacts";
+import type { ArtifactPosition } from "@codecast/artifacts";
 import type { ScreenPoint } from "../components/live/registry";
 
 type ScreenMapFn = (pos: ArtifactPosition) => ScreenPoint | null;

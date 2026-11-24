@@ -18,7 +18,7 @@ import {
   extractSessionTrailer,
   overlapLinesBySha,
   type ContentLine,
-} from "@codecast/shared/blame";
+} from "@codecast/blame";
 import { defaultConfigDir } from "./config/configDir.js";
 import { webBaseUrl } from "./config/readLocalConfig.js";
 

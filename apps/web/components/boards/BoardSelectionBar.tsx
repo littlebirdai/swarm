@@ -37,7 +37,7 @@ import {
   BOARD_COLORS,
   boardArtFor,
   type AlignMode,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import { BoardArtPicker } from "./BoardArtPicker";
 import { SHAPE_CHOICES, shapeChoice } from "./boardShapeChoices";
 import { BOARD_ART_URLS } from "./boardArtUrls";

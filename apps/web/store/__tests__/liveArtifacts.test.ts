@@ -330,7 +330,7 @@ describe("live artifact store", () => {
   it("a write that clears a field shows the field gone while it waits behind another send", async () => {
     const { layerElements } =
       await import("../../components/live/useLiveArtifact");
-    const { applyOp, fromElement } = await import("@codecast/shared/artifacts");
+    const { applyOp, fromElement } = await import("@codecast/artifacts");
     const stored = {
       _id: "x",
       doc_id: DOC,

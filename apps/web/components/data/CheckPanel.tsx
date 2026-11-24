@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { Copy, Play, X } from "lucide-react";
 import { toast } from "sonner";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { CheckMark, type BlockEnv } from "./blocks";
 import { CheckRows, type RowsScope } from "./CheckRows";
 import { useInboxStore } from "../../store/inboxStore";

@@ -2,7 +2,7 @@
 // The Sheets product (ct-91885) replaces this view in components/live/registry.ts.
 import { useMemo, useRef, useState } from "react";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
-import { sheet, type ArtifactElement } from "@codecast/shared/artifacts";
+import { sheet, type ArtifactElement } from "@codecast/artifacts";
 import { useLiveElements } from "../useLiveArtifact";
 import type { LiveViewProps } from "../registry";
 

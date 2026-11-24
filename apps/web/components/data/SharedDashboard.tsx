@@ -3,7 +3,7 @@
 // still opens the query, source and rows behind a number.
 import "./dashboard.css";
 import { useCallback, useMemo, useState } from "react";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useDashboardFeed, useDataResults } from "../../hooks/useDashboardData";
 import { DashboardGrid, FormatBody } from "./DashboardGrid";

@@ -17,7 +17,7 @@ import {
   type ArtifactElement,
   type ArtifactOp,
   type Json,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { PanelShell, Field } from "./CheckPanel";
 import { RowsTable, CheckMark, type BlockEnv } from "./blocks";
 import { ArgsEditor } from "./ArgsEditor";

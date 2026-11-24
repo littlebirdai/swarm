@@ -12,8 +12,11 @@
   "dependencies": {
     "@auth/core": "^0.37.2",
     "@codecast/analytics": "workspace:*",
+    "@codecast/artifacts": "workspace:*",
+    "@codecast/blame": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
+    "@codecast/comments": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/policy": "workspace:*",

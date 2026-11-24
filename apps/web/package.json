@@ -16,8 +16,11 @@
   "dependencies": {
     "@codecast/agents": "workspace:*",
     "@codecast/analytics": "workspace:*",
+    "@codecast/artifacts": "workspace:*",
+    "@codecast/blame": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
+    "@codecast/comments": "workspace:*",
     "@codecast/convex": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",

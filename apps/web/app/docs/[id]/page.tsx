@@ -22,7 +22,7 @@ import {
 import { docTypeStyle } from "../../../lib/docTypeStyle";
 import { DocumentDetailLayout } from "../../../components/DocumentDetailLayout";
 import { LiveArtifactPage } from "../../../components/live/LiveArtifactPage";
-import { isArtifactDocType } from "@codecast/shared/artifacts";
+import { isArtifactDocType } from "@codecast/artifacts";
 import {
   EntryTimeline,
   type TimelineEntry,

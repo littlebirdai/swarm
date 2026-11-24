@@ -10,7 +10,7 @@ import {
   todaySerial,
   type PaletteColor,
   type ValidationOption,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import { chipStyle } from "./cellPaint";
 import "./formulaAssist.css";
 

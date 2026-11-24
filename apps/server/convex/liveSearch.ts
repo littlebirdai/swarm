@@ -1,5 +1,5 @@
 // Finding a board, sheet or dashboard by the words inside it. Each artifact
-// keeps one live_search row: the text shared/artifacts/search.ts draws from its
+// keeps one live_search row: the text packages/artifacts/src/search.ts draws from its
 // saved layer, under the doc's workspace key. A write to the saved layer asks
 // for a reindex a little later (one per quiet spell, not one per keystroke);
 // a search reads the viewer's own workspaces and checks access on each hit.
@@ -15,7 +15,7 @@ import {
   isArtifactDocType,
   searchSnippet,
   type ArtifactElement,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 /** How long after a write the text is redrawn: edits inside it share one reindex. */
 export const SEARCH_REINDEX_MS = 20_000;

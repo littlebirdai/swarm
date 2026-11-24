@@ -1,10 +1,6 @@
 // What a cell's error means and, when one is safe, a fix: the formula it
 // would become, put into the editor so the person sees it and presses Enter.
-import {
-  ERROR_DOCS,
-  errorFix,
-  errorHint,
-} from "@codecast/shared/artifacts/sheets";
+import { ERROR_DOCS, errorFix, errorHint } from "@codecast/artifacts/sheets";
 
 /** Engine messages that only restate the error's title. */
 const RESTATES = new Set(["division by zero", "circular reference"]);

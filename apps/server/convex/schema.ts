@@ -3381,7 +3381,7 @@ export default defineSchema(
       file_path: v.optional(v.string()),
       line_number: v.optional(v.number()),
       // The commented line's text with two lines of context, to find it again
-      // after the code moves (shared/comments/codeAnchor.ts).
+      // after the code moves (packages/comments/src/codeAnchor.ts).
       anchor_lines: v.optional(codeAnchorValidator),
       // Agent-reply comments: an opt-in "ask the agent to reply" spawns a hidden
       // fork whose answer is mirrored back into this comment. author_kind="agent"
@@ -4806,7 +4806,7 @@ export default defineSchema(
       line_number: v.optional(v.number()),
       line_end: v.optional(v.number()),
       // The commented lines' text with two lines of context, so a reader finds
-      // the passage again after the code moves (shared/comments/codeAnchor.ts).
+      // the passage again after the code moves (packages/comments/src/codeAnchor.ts).
       anchor_lines: v.optional(codeAnchorValidator),
       // "LEFT" (old side of a diff) | "RIGHT". Absent = the file as it is at ref.
       side: v.optional(v.string()),
@@ -4885,7 +4885,7 @@ export default defineSchema(
       origin: v.optional(v.union(v.literal("quote"), v.literal("comment"))),
       message_id: v.optional(v.id("messages")),
       block_index: v.optional(v.number()),
-      // The quoted text and where it sat (shared/comments/proseAnchor.ts).
+      // The quoted text and where it sat (packages/comments/src/proseAnchor.ts).
       prose_anchor: v.optional(proseAnchorValidator),
       verdict: v.optional(v.union(v.literal("approve"), v.literal("cut"))),
       // ── Findings as promises (fix loop) ──
@@ -11221,7 +11221,7 @@ export default defineSchema(
       ),
       // chat: root chat_messages id. comment: `${conversation_id}:${anchorKey}`
       // where anchorKey is `msg:<message_id>` | `file:<path>:<line>` | `global`
-      // (commentAnchorKey in @codecast/shared/comments). task: task id.
+      // (commentAnchorKey in @codecast/comments). task: task id.
       // page: artifact id (one card per page discussion). code:
       // `${repository}@${ref}#${anchorKey}` (codeThreadRootKey), one thread of
       // review_comments on a commit, a pull request head or a line of either.

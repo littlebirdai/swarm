@@ -1,8 +1,8 @@
-// The painted board illustrations (names in @codecast/shared/artifacts/boardArt.ts),
+// The painted board illustrations (names in @codecast/artifacts/boardArt.ts),
 // one WebP per name in ./art: 256 px squares on a transparent ground, generated
 // once with gpt-image-1.5 from one shared style prompt so the set reads as one
 // family. boardArt.guard.test.ts keeps the names, the files and this map agreeing.
-import type { BoardArt } from "@codecast/shared/artifacts/board";
+import type { BoardArt } from "@codecast/artifacts/board";
 import art_rocket from "./art/rocket.webp";
 import art_map from "./art/map.webp";
 import art_lightbulb from "./art/lightbulb.webp";

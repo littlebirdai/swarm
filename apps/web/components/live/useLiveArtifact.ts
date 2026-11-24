@@ -42,7 +42,7 @@ import {
   type ArtifactOp,
   type ArtifactPosition,
   type ElementState,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { loadOutbox } from "../../store/idbCache";
 import { isStubDoc } from "./liveStub";

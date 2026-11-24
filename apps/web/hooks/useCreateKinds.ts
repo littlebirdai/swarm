@@ -19,14 +19,14 @@ import {
   dashboard,
   type ArtifactOp,
   type ArtifactType,
-} from "@codecast/shared/artifacts";
-import { SHEET_TEMPLATES } from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts";
+import { SHEET_TEMPLATES } from "@codecast/artifacts/sheets";
 import {
   BOARD_TEMPLATES,
   BOARD_TEMPLATE_ART,
   BOARD_TEMPLATE_LABELS,
   templateOps,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import { BOARD_ART_URLS } from "../components/boards/boardArtUrls";
 import type { ShortcutAction } from "../shortcuts";
 

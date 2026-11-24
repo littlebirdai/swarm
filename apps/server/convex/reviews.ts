@@ -18,7 +18,7 @@ import { githubSentence } from "./prCli";
 import { pendingRowsFor, withoutOthersPending } from "./codeComments";
 import { sendNotesToSession } from "./reviewNotes";
 import { codecastPrUrl } from "@codecast/shared/contracts";
-import { failedOutcome } from "@codecast/shared/comments";
+import { failedOutcome } from "@codecast/comments";
 
 async function requireReviewAccess(ctx: any, userId: any, reviewId: any) {
   const review = await ctx.db.get(reviewId);

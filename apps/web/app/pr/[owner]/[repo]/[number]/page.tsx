@@ -1,10 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import {
-  codeThreadRootKey,
-  type CodeAnchorText,
-} from "@codecast/shared/comments";
+import { codeThreadRootKey, type CodeAnchorText } from "@codecast/comments";
 import { repoObjectGitHubUrl } from "@codecast/shared/entities";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dashboard } from "@codecast/shared/artifacts";
+import { dashboard } from "@codecast/artifacts";
 import { axisLabel, chartOption } from "../chartOption";
 import type { ChartTheme } from "../../ops/chart/chartTheme";
 

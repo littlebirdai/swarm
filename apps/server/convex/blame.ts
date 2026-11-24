@@ -8,7 +8,7 @@ import {
   BLAME_ALGORITHM_VERSION,
   contentLinesToMatch,
   MAX_CONTENT_LINES,
-} from "@codecast/shared/blame";
+} from "@codecast/blame";
 import { checkConversationAccess } from "./privacy";
 import {
   bodyBytes,
@@ -59,7 +59,7 @@ export type SessionRef = {
 // session (daemon publish or webhook). `hash`: a file_changes commit row whose
 // stored short hash prefixes the sha. `subject`: a commit row matched by
 // subject line and time. `overlap`: nothing named the commit, but enough of
-// its lines match what the session's edits wrote (shared/blame's gate).
+// its lines match what the session's edits wrote (packages/blame's gate).
 // `edit`: the line's text found in an edit the session made, which is the
 // authoring session even when a different one committed.
 export type BlameVia =

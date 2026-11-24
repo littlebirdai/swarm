@@ -1,4 +1,4 @@
-import type { ArtifactElement } from "@codecast/shared/artifacts";
+import type { ArtifactElement } from "@codecast/artifacts";
 import { resultFor, type DataResult } from "../../hooks/useDashboardData";
 
 /**

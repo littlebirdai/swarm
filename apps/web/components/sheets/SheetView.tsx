@@ -2,7 +2,7 @@
 // Reads come from the doc's elements (useLiveElements), folded into a model
 // and a recalculating Workbook held across renders and synced by diff, so an
 // edit re-evaluates only what depends on it. Writes are element ops from
-// @codecast/shared/artifacts/sheets through live.apply. Other participants'
+// @codecast/artifacts/sheets through live.apply. Other participants'
 // selections and an agent's write range are outlined in their color.
 import {
   useCallback,
@@ -16,11 +16,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Radio } from "lucide-react";
-import type {
-  ArtifactOp,
-  ArtifactPresence,
-  Json,
-} from "@codecast/shared/artifacts";
+import type { ArtifactOp, ArtifactPresence, Json } from "@codecast/artifacts";
 import {
   a1,
   findMatcher,

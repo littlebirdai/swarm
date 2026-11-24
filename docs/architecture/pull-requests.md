@@ -110,7 +110,7 @@ leave together, one of two ways:
   can still go to GitHub after the agent has acted.
 
 Both messages come from one builder, `buildReviewBatchPrompt` in
-`@codecast/shared/comments`, which `cast review send` also uses. A verdict
+`@codecast/comments`, which `cast review send` also uses. A verdict
 changes the opening line and what the agent is asked to do; the notes render the
 same way on every path.
 

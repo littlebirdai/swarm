@@ -1,7 +1,7 @@
 // Where a line comment sits in a diff once the code has moved on.
 //
 // A diff shows only its hunks, so the file it reads is full of holes. The
-// passage is looked for among the lines the diff shows (shared/comments
+// passage is looked for among the lines the diff shows (packages/comments/src
 // codeAnchor): found, the thread hangs there; not found, it is outdated only
 // when its old line is on screen to carry it, and otherwise stays off the
 // diff as it always did, because a passage outside every hunk may simply be
@@ -11,7 +11,7 @@ import {
   placeAnchor,
   type AnchorPlacement,
   type CodeAnchorText,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 type DiffRow = {
   type: string;

@@ -6,7 +6,7 @@
 import { useCallback } from "react";
 import { useInboxStore } from "../../store/inboxStore";
 import { tabPatchOps, type SheetModel, type TabFilter } from "./sheetCore";
-import type { ArtifactOp } from "@codecast/shared/artifacts";
+import type { ArtifactOp } from "@codecast/artifacts";
 
 export type FilterScope = "shared" | "mine";
 export type SetFilter = (f: TabFilter | null, scope?: FilterScope) => void;

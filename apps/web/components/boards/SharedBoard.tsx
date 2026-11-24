@@ -3,7 +3,7 @@
 import "./board.css";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, Scan } from "lucide-react";
-import { elbowObstacles } from "@codecast/shared/artifacts/board";
+import { elbowObstacles } from "@codecast/artifacts/board";
 import type { LiveSharedViewProps } from "../live/registry";
 import { BoardElementView, ConnectorView } from "./BoardElements";
 import { drawOrder, fitBox } from "./boardFrame";

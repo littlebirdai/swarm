@@ -47,7 +47,7 @@ import {
   describeSendOutcome,
   failedOutcome,
   type SendOutcome,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { accentVar } from "../../lib/externalEvents";
 import {
   mergeStateMeta,

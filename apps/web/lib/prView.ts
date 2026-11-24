@@ -18,7 +18,7 @@ import {
 
 // The phone reads a check's outcome from here, as it always has; the rule lives in shared/contracts/prRefs.
 export { checkOutcome, type CheckOutcome };
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 import {
   diffLineKey,
   normalizeDiffSide,
@@ -167,7 +167,7 @@ export type CodeCommentRow = {
   line_number?: number;
   line_end?: number;
   side?: string;
-  /** The commented lines' text and context (shared/comments/codeAnchor.ts). */
+  /** The commented lines' text and context (packages/comments/src/codeAnchor.ts). */
   anchor_lines?: CodeAnchorText;
   resolved?: boolean;
   resolved_at?: number;

@@ -14,7 +14,7 @@ import {
   fromElement,
   type ArtifactOp,
   type ElementState,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 export type LiveLayer = "main" | "draft" | "comments";
 

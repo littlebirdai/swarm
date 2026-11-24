@@ -3,7 +3,7 @@
 // connect and pan. Every drag paints through live.preview and lands with one
 // live.commit on pointerup, so a gesture is one undo step and one sync burst.
 import { useCallback, useRef, useState } from "react";
-import type { ArtifactOp } from "@codecast/shared/artifacts";
+import type { ArtifactOp } from "@codecast/artifacts";
 import {
   BOARD_DEFAULT_SIZE,
   clearOffset,
@@ -25,8 +25,8 @@ import {
   type Box,
   type Pt,
   type SnapGuide,
-} from "@codecast/shared/artifacts/board";
-import { newElementKey } from "@codecast/shared/artifacts";
+} from "@codecast/artifacts/board";
+import { newElementKey } from "@codecast/artifacts";
 import { zoomAround, type BoardCamera } from "./useBoardCamera";
 import type { BoardEl, BoardLive, BoardTool } from "./boardTypes";
 

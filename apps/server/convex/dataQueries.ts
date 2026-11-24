@@ -30,7 +30,7 @@ import {
   capResult,
   parseRefresh,
 } from "@codecast/shared/contracts/pageData";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { PAGE_READERS, queryText, type ReaderScope } from "./lib/pageReaders";
 import { runReader, normalizeRow, dueAt } from "./pageData";
 import { requireAccessibleDoc } from "./lib/access";

@@ -27,8 +27,8 @@ import { fetchUserUsageDays, seesTeamSpend } from "./usageDaily";
 import { resolveWorkspaceProject } from "./projectRef";
 import { sourceByRef } from "./ingestScope";
 import { cachedManifest } from "../sources/app";
-import { dashboard as dashboardData } from "@codecast/shared/artifacts";
-import { readSheetRange } from "@codecast/shared/artifacts/sheet";
+import { dashboard as dashboardData } from "@codecast/artifacts";
+import { readSheetRange } from "@codecast/artifacts/sheet";
 
 const { sheetTable } = dashboardData;
 

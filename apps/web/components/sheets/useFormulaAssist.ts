@@ -12,7 +12,7 @@ import {
   FUNCTION_NAMES,
   callAt,
   functionMatches,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import { fnPrefixAt, type EditStore } from "./editStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 

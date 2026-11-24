@@ -17,7 +17,7 @@ import {
   type ArtifactElement,
   type ArtifactOp,
   type ArtifactType,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { sendLiveOps } from "./useLiveArtifact";
 import { useInboxStore } from "../../store/inboxStore";
 import { spawnSessionWithPrompt } from "../../lib/spawnSession";

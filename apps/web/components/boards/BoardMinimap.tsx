@@ -7,7 +7,7 @@ import {
   elementBounds,
   unionBox,
   type Box,
-} from "@codecast/shared/artifacts/board";
+} from "@codecast/artifacts/board";
 import type { BoardCamera } from "./useBoardCamera";
 import type { BoardEl } from "./boardTypes";
 import { colorToken, stickyFill } from "./boardColors";

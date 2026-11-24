@@ -22,7 +22,7 @@ import { isConvexId } from "@codecast/web/store/inboxStore";
 import { DOC_TYPE_CONFIG } from "@/components/DocItem";
 import { MarkdownContent } from "@/components/MarkdownRenderer";
 import { describeDates } from "@codecast/time";
-import { isArtifactDocType } from "@codecast/shared/artifacts";
+import { isArtifactDocType } from "@codecast/artifacts";
 import { openWebPage, WEB_ORIGIN } from "@/lib/links";
 
 export default function DocDetailScreen() {

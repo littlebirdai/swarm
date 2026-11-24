@@ -3,10 +3,10 @@ import {
   type AnchorPlacement,
   type CodeAnchorText,
   type ProsePlacement,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 // What a line thread says when the code under it moved on
-// (shared/comments/codeAnchor.ts). A moved thread names the line it was
+// (packages/comments/src/codeAnchor.ts). A moved thread names the line it was
 // written on; an outdated one quotes the lines it was about, because the code
 // it hangs beside is no longer what the comment means.
 
@@ -29,7 +29,7 @@ export function AnchorPlacementChip({
   );
 }
 
-/** The same chip for a note on prose (shared/comments/proseAnchor.ts): "moved"
+/** The same chip for a note on prose (packages/comments/src/proseAnchor.ts): "moved"
  *  when its block moved, OUTDATED when the block is gone or cannot be told
  *  apart from a copy of it. */
 export function ProsePlacementChip({

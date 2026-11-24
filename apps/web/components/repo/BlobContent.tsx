@@ -15,7 +15,7 @@ import {
   codeThreadRootKey,
   placeAnchor,
   type AnchorPlacement,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { useRepoLocation } from "./useRepoFamily";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 import { PRLineThread } from "../pr/PRThread";
@@ -534,7 +534,7 @@ function CommentedBlobView({
   // deleted line (LEFT) belong to a diff, not to this view, and stay out of it.
   //
   // Each thread hangs where its passage is in THIS version of the file, found
-  // by the text it was written on (shared/comments/codeAnchor.ts); a thread
+  // by the text it was written on (packages/comments/src/codeAnchor.ts); a thread
   // whose passage is gone stays at its old line, marked outdated.
   const fileLines = useMemo(() => content.split("\n"), [content]);
   const placed = useMemo(() => {

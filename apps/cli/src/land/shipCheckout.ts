@@ -20,10 +20,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileAsync, spawn, type ChildProcess } from "../proc.js";
-import {
-  SESSION_TRAILER_KEY,
-  sessionTrailerValue,
-} from "@codecast/shared/blame";
+import { SESSION_TRAILER_KEY, sessionTrailerValue } from "@codecast/blame";
 import {
   isCredentialFilePath,
   liveVendorToken,

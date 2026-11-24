@@ -2,7 +2,7 @@
 
 import type { PageComment, ThreadRead } from "./threadsTypes";
 import type { Doc, Id } from "./_generated/dataModel";
-import { parseCodeThreadRootKey } from "@codecast/shared/comments";
+import { parseCodeThreadRootKey } from "@codecast/comments";
 import { plainPreview } from "./chatText";
 import { canAccessComment, codeThreadRows } from "./codeComments";
 import {

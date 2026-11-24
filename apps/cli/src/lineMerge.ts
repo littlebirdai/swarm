@@ -191,7 +191,7 @@ export const sleepSync: Wait = (ms) => {
 
 /** The squash commit's body: each of the branch's own commits whole, as a `* ` bullet, the shape GitHub gives a
  *  squash, so every Codecast-Session trailer stays in the trailer block that ends its commit's bullet, where
- *  `cast blame` reads it (shared/blame splitSessionTrailer). A repository whose squash default is the PR's
+ *  `cast blame` reads it (packages/blame splitSessionTrailer). A repository whose squash default is the PR's
  *  description would otherwise drop them all. Null when the branch's commits cannot be read, and gh writes its own. */
 export function squashBody(
   exec: Exec,

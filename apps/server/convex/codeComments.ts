@@ -38,7 +38,7 @@ import {
 import { webBaseUrl } from "./lib/slackOAuth";
 import { touchThread } from "./threadReads";
 import type { MutationCtx } from "./_generated/server";
-import { codeThreadRootKey } from "@codecast/shared/comments";
+import { codeThreadRootKey } from "@codecast/comments";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
 import { isQuoteRow } from "./lib/quoteRows";
 import {
@@ -431,7 +431,7 @@ export const create = mutation({
     line_number: v.optional(v.number()),
     line_end: v.optional(v.number()),
     side: v.optional(v.string()),
-    // The commented lines' text and context (shared/comments/codeAnchor.ts).
+    // The commented lines' text and context (packages/comments/src/codeAnchor.ts).
     anchor_lines: v.optional(codeAnchorValidator),
     content: v.string(),
     pull_request_id: v.optional(v.id("pull_requests")),

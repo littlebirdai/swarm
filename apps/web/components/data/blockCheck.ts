@@ -1,4 +1,4 @@
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { resultFor } from "../../hooks/useDashboardData";
 import type { BlockEnv } from "./blocks";
 

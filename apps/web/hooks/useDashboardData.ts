@@ -11,7 +11,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { useWatchEffect } from "./useWatchEffect";
 import { useAction, useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { useSyncCollection } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";
 

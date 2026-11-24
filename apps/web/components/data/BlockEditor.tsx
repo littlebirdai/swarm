@@ -12,7 +12,7 @@ import {
   type ArtifactElement,
   type ArtifactOp,
   type Json,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { PanelShell, Field } from "./CheckPanel";
 import { resultFor } from "../../hooks/useDashboardData";
 import { useRef } from "react";

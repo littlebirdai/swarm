@@ -4,7 +4,7 @@
 // a quote to the agent. A comment is that blockquote followed by the user's reply.
 
 import type { OrgReplyVerdict } from "@codecast/shared/contracts/orgProposal";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 
 // A person's answer to one card of an org proposal (org-staffing.md S39),
 // held in the same batch as the quotes until the next send applies it. The

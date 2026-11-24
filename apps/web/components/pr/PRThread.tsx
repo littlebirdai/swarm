@@ -18,7 +18,7 @@ import {
   AnchorPlacementQuote,
   placementBorderClass,
 } from "../comments/AnchorPlacementNote";
-import type { AnchorPlacement } from "@codecast/shared/comments";
+import type { AnchorPlacement } from "@codecast/comments";
 import "../chat/chat.css";
 import { teamMembersOf } from "../../lib/activeTeam";
 

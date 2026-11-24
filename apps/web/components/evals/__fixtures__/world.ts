@@ -56,7 +56,7 @@ import {
   type AnyRouteHandler,
   type RouteHandler,
 } from "@platform/evals/query";
-import { sessionTrailerValue } from "@codecast/shared/blame";
+import { sessionTrailerValue } from "@codecast/blame";
 import {
   type Batch,
   DAY,

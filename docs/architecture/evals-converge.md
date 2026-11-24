@@ -618,7 +618,7 @@ export interface EvalsHost {
   useConnection(): { state: string; screen: ReactNode | null };
   parseUnifiedDiff?(patch: string): unknown; // codecast: lib/unifiedDiffParser
   // The session that wrote a commit, read from the raw trailer value git hands over (CommitRef.session).
-  // Without it a commit names no session and its message shows whole. codecast: @codecast/shared/blame.
+  // Without it a commit names no session and its message shows whole. codecast: @codecast/blame.
   commitSession?: {
     id(trailer: string): string | null;
     strip(message: string): string;
@@ -709,7 +709,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
     - sonner copy (`useCopy` is platform's, in `react/hooks.ts`)
     - `useConnection`: the evalsStore connection and the LocalDaemonUnreachable screens, with the slow-daemon retry countdown
     - unifiedDiffParser
-    - `commitSession` over `@codecast/shared/blame` (C7)
+    - `commitSession` over `@codecast/blame` (C7)
     - `useRunPanels` (`runPanels.tsx`, C4) returning the Calls, Agent, Guard and Files tabs (`anatomyTabs` decides which a rep has) over CallPane, AgentTranscript, GuardLog and RunFiles, with their counts and the guard's live-read flag; it holds the open file and reads `GET /run/:id/file`, so RunPage carries no codecast route
     - `run` (P4b): `commands` returning the folder path, replay and rescore copies, and `VerdictFoot` drawing the "Analyzer grade" section from `extra`, so the run page reads as it does today
     - the routes only codecast serves (C10): `navSections` (the Multiplayer sim), `useSearchIndex` over `GET /search`, `useRunFile` over `GET /run/:id/file`, `usePatch` over `GET /patch/:sha`, and `useBisectActions` over the three POST routes

@@ -1,7 +1,7 @@
 import {
   parseCodeThreadRootKey,
   parseCommentThreadRootKey,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { useInboxStore } from "../store/inboxStore";
 import type { ThreadInboxRow } from "../store/threadTypes";
 import type { ThreadCardModel } from "./threadCards";

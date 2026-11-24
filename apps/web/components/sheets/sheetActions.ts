@@ -58,7 +58,7 @@ import type { FormatAction } from "./FormatBar";
 import type { MutableRefObject, Dispatch, SetStateAction } from "react";
 import type { LiveHandle } from "../live/useLiveArtifact";
 import type { SetFilter } from "./useSheetFilter";
-import type { ArtifactOp } from "@codecast/shared/artifacts";
+import type { ArtifactOp } from "@codecast/artifacts";
 
 export const DEF_COL_W = 104;
 export const DEF_ROW_H = 26;

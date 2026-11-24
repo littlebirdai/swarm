@@ -25,7 +25,7 @@ import {
   askAgentBrief,
   type ArtifactOp,
   type ArtifactType,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { mayEditLive, type Caller } from "./lib/liveArtifactAccess";
 
 export type NewComment = {

@@ -10,7 +10,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { toast } from "sonner";
 import { Map as MapIcon, Minus, Plus, Scan, ScanSearch } from "lucide-react";
-import type { ArtifactPosition } from "@codecast/shared/artifacts";
+import type { ArtifactPosition } from "@codecast/artifacts";
 import {
   boardArtFor,
   BOARD_TEMPLATES,
@@ -33,8 +33,8 @@ import {
   unionBox,
   type Box,
   type Pt,
-} from "@codecast/shared/artifacts/board";
-import { newElementKey } from "@codecast/shared/artifacts";
+} from "@codecast/artifacts/board";
+import { newElementKey } from "@codecast/artifacts";
 import {
   useLiveComments,
   useLiveElements,

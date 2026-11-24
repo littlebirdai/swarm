@@ -5,7 +5,7 @@
 // applies, since they go wrong the day the data turns.
 import { useRef, useState } from "react";
 import { Hash } from "lucide-react";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { useCommittedDraft } from "../../hooks/useCommittedDraft";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

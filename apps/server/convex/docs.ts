@@ -7,7 +7,7 @@ import {
   refuseArtifactBodyWrite,
   requireArtifactEditor,
 } from "./lib/liveArtifactAccess";
-import { ARTIFACT_SPECS, isArtifactDocType } from "@codecast/shared/artifacts";
+import { ARTIFACT_SPECS, isArtifactDocType } from "@codecast/artifacts";
 import { makeFunctionReference } from "convex/server";
 import { ensureLiveSearch } from "./liveSearch";
 import {

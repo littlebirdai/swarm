@@ -8,7 +8,7 @@ import {
   dashboard,
   type ArtifactElement,
   type ArtifactOp,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { LiveTextField } from "./LiveTextField";
 import { PanelShell, Field } from "./CheckPanel";
 import { pickAskTarget, sendAsk, type AskDoc } from "../live/askAgent";

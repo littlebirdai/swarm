@@ -29,10 +29,7 @@ import {
   type ExamplePairExample,
 } from "@platform/evals/react";
 import { toast } from "sonner";
-import {
-  SESSION_TRAILER_KEY,
-  splitSessionTrailer,
-} from "@codecast/shared/blame";
+import { SESSION_TRAILER_KEY, splitSessionTrailer } from "@codecast/blame";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { landOn } from "../../hooks/useDiffAddress";
 import { useTabActive, useTabVisible } from "../../hooks/usePagePresence";

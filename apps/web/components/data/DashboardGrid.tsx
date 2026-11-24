@@ -5,7 +5,7 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { Download, GripVertical, Pencil, Trash2 } from "lucide-react";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import type { ReactNode } from "react";
 import { ScrollyStory, VisualShort } from "./stories";
 import {

@@ -64,7 +64,7 @@ import {
   deliveredOutcome,
   failedOutcome,
   type SendWaiting,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { sessionWaiting } from "./lib/sendOutcome";
 import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { isTeamMember, isVisibilityShareable } from "./privacy";

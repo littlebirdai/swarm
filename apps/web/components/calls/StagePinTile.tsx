@@ -5,10 +5,7 @@
 // other object is its card. In a strip it is a small card that says what it is.
 import { memo, useContext, type ReactNode } from "react";
 import { ExternalLink, FileText, Globe, Lock, PinOff } from "lucide-react";
-import {
-  isArtifactDocType,
-  type ArtifactType,
-} from "@codecast/shared/artifacts";
+import { isArtifactDocType, type ArtifactType } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import type { StagePinRow } from "../../hooks/useStagePins";
 import { useSyncDocDetail } from "../../hooks/useSyncDocs";

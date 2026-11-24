@@ -55,7 +55,7 @@ import {
   specForCli,
   type ArtifactOp,
   type ElementState,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 
 const { vLayer, vPosition } = liveArtifactValidators;
 

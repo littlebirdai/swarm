@@ -2,7 +2,7 @@
 // a filtered view is a link to send, and how to change it.
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { dashboard } from "@codecast/shared/artifacts";
+import { dashboard } from "@codecast/artifacts";
 
 const todayUtc = (now: number) => new Date(now).toISOString().slice(0, 10);
 

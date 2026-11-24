@@ -6,7 +6,7 @@
 // The real id arrives one of two ways: the create's own answer (createLiveArtifact calls promoteStubDoc),
 // or, after a reload lost that answer, the docs row the server made carrying the placeholder as its
 // client_key (watchStubDocs finds it).
-import { fromElement, type ArtifactOp } from "@codecast/shared/artifacts";
+import { fromElement, type ArtifactOp } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import type { LiveLayer } from "../../store/liveArtifactsSlice";
 import { routerNavigate } from "../../lib/tabRoutes";

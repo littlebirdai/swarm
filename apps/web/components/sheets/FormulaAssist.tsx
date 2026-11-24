@@ -11,7 +11,7 @@ import {
   argIndexFor,
   argLabel,
   type FnCategory,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import type { FormulaAssist } from "./useFormulaAssist";
 import "./formulaAssist.css";
 

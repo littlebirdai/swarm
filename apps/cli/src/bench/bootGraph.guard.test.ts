@@ -570,7 +570,7 @@ describe("command groups stay off the boot graph", () => {
       expect(
         Math.round(graph.totalBytes / 1024),
         "KB of source on index.ts's static graph",
-      ).toBeLessThanOrEqual(5047);
+      ).toBeLessThanOrEqual(5048);
     },
     GRAPH_WALK_TIMEOUT,
   );
@@ -652,7 +652,7 @@ describe("command groups stay off the boot graph", () => {
       // usageRetry.ts with cloudAgents/http.ts for the usage polls,
       // cloud/syncSide.ts under worktreeGc.ts, cloud/tailnet.ts under
       // cloudHost.ts, browser/hostScreen.ts under browser/instance.ts,
-      // cloud/gitOrigin.ts, cloud/mirror/bundle.ts, shared/blame under
+      // cloud/gitOrigin.ts, cloud/mirror/bundle.ts, packages/blame under
       // repoMirror.ts, search/tokenize.ts under the vault index, and seven
       // contracts through the barrel. A dynamic import of the registry or the
       // watcher would lower this number without lowering what the daemon

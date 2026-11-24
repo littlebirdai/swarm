@@ -3,7 +3,7 @@
 // screen space beside its pin.
 import { memo, useState } from "react";
 import { Bot, Check } from "lucide-react";
-import type { ArtifactElement } from "@codecast/shared/artifacts";
+import type { ArtifactElement } from "@codecast/artifacts";
 import { relativeTime } from "../../lib/entityDisplay";
 import type { BoardEl } from "./boardTypes";
 import {

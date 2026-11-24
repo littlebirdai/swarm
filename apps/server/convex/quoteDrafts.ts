@@ -25,7 +25,7 @@ import {
   deliveredOutcome,
   PROSE_ANCHOR_MAX_CHARS,
   type SendOutcome,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 /** Most quotes one save or send carries; a batch is a handful. */
 export const MAX_QUOTES_PER_CALL = 100;

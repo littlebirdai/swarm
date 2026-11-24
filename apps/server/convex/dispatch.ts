@@ -11,7 +11,7 @@ import { heldKeysFor } from "./lib/accessKeys";
 import { addWaitCore, removeWaitCore, type AddWaitInput } from "./taskWaits";
 import { relateCore } from "./taskLinks";
 import { normalizeCharacterFields } from "@codecast/shared/contracts/sessionCharacter";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 import {
   answerRefusal,
   guardClientResolution,

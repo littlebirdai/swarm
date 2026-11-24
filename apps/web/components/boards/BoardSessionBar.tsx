@@ -6,7 +6,7 @@ import { useNowWhen } from "../../hooks/useCoarseNow";
 import { Timer as TimerIcon, Vote } from "lucide-react";
 import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { clock, votesOf, type BoardSession } from "./boardSession";
-import { elementBounds } from "@codecast/shared/artifacts/board";
+import { elementBounds } from "@codecast/artifacts/board";
 import type { BoardEl } from "./boardTypes";
 
 const TIMER_MINUTES = [1, 3, 5, 10];

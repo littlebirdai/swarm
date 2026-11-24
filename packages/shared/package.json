@@ -154,13 +154,7 @@
     "./render/codeRuns": "./render/codeRuns.ts",
     "./tasks": "./tasks/index.ts",
     "./tasks/resumeSources": "./tasks/resumeSources.ts",
-    "./artifacts": "./artifacts/index.ts",
-    "./artifacts/board": "./artifacts/board.ts",
-    "./artifacts/sheet": "./artifacts/sheet.ts",
-    "./artifacts/sheets": "./artifacts/sheets/index.ts",
     "./replay": "./replay/index.ts",
-    "./comments": "./comments/index.ts",
-    "./blame": "./blame/index.ts",
     "./ratchet": "./ratchet/index.ts",
     "./search": "./search/index.ts",
     "./search/tokenize": "./search/tokenize.ts",
@@ -172,6 +166,7 @@
     "./contracts/teamHosts": "./contracts/teamHosts.ts",
     "./contracts/secretRules": "./contracts/secretRules.ts",
     "./contracts/secretShapes": "./contracts/secretShapes.ts",
+    "./contracts/fence": "./contracts/fence.ts",
     "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {

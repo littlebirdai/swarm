@@ -1,7 +1,7 @@
 // Comment threads of a live artifact: roots newest first, each with its
 // replies oldest first. The comments panel and every product's pins group
 // the comments layer through this one function.
-import type { ArtifactElement } from "@codecast/shared/artifacts";
+import type { ArtifactElement } from "@codecast/artifacts";
 
 export type LiveThread = { root: ArtifactElement; replies: ArtifactElement[] };
 

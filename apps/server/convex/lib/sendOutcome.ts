@@ -1,11 +1,11 @@
 import { heartbeatsFor } from "./sessionHeartbeat";
-// Server half of the shared send outcome (shared/comments/sendOutcome.ts):
+// Server half of the shared send outcome (packages/comments/src/sendOutcome.ts):
 // whether a message just queued for a session will be read now or waits.
 import {
   HEARTBEAT_ALIVE_MS,
   MID_TURN_AGENT_STATUSES,
 } from "@codecast/shared/contracts";
-import type { SendWaiting } from "@codecast/shared/comments";
+import type { SendWaiting } from "@codecast/comments";
 import type { Id } from "../_generated/dataModel";
 
 /**

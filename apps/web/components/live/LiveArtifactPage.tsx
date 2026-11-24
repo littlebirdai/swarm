@@ -37,7 +37,7 @@ import {
   artifactSpec,
   type ArtifactElement,
   type ArtifactType,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { ShareControl } from "../ShareControl";
 import { policyTeamOf } from "@codecast/policy/managedPolicy";

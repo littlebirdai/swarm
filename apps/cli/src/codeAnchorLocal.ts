@@ -1,6 +1,6 @@
 // Line comments read against the code on this machine.
 //
-// A comment keeps the text it was written on (shared/comments/codeAnchor.ts).
+// A comment keeps the text it was written on (packages/comments/src/codeAnchor.ts).
 // Writing one from a checkout captures that text from the file; listing them
 // finds each passage again in the file as it is now, so `cast review ls` and
 // `cast pr threads` print where the code is rather than where it was.
@@ -13,7 +13,7 @@ import {
   placeAnchor,
   type AnchorPlacement,
   type CodeAnchorText,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 const LARGEST_FILE = 4 * 1024 * 1024;
 

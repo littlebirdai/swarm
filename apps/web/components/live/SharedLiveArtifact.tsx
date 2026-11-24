@@ -4,10 +4,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@codecast/convex/convex/_generated/api";
-import {
-  describeElements,
-  type ArtifactType,
-} from "@codecast/shared/artifacts";
+import { describeElements, type ArtifactType } from "@codecast/artifacts";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { AppLoader } from "../AppLoader";
 import { LIVE_SHARED_VIEWS } from "./registry";

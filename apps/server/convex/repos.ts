@@ -73,7 +73,7 @@ import {
   BLAME_ALGORITHM_VERSION,
   contentLinesToMatch,
   overlapLinesBySha,
-} from "@codecast/shared/blame";
+} from "@codecast/blame";
 import {
   WORKTREES_KIND,
   mergeWorktreesPayload,

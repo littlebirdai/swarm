@@ -12,7 +12,7 @@ import {
   type ArtifactElement,
   type ArtifactPresence,
   type ElementState,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { liveRowId, type LiveLayer } from "../../store/liveArtifactsSlice";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

@@ -12,7 +12,7 @@ import {
 import { linkOf } from "./cellPaint";
 import { relativeTime } from "../../lib/entityDisplay";
 import type { LiveHandle } from "../live/useLiveArtifact";
-import type { ArtifactOp } from "@codecast/shared/artifacts";
+import type { ArtifactOp } from "@codecast/artifacts";
 import { colLetters, rectA1, validationAt, validationOps } from "./sheetCore";
 import { CursorPopover } from "../ui/context-menu";
 import { DatePicker, ListPicker, ValidationEditor } from "./CellPickers";

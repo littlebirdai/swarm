@@ -15,7 +15,7 @@ import {
   Terminal,
   Users,
 } from "lucide-react";
-import { parseCodeThreadRootKey } from "@codecast/shared/comments";
+import { parseCodeThreadRootKey } from "@codecast/comments";
 import type {
   ThreadInboxRow,
   ThreadKind,

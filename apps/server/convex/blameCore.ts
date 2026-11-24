@@ -14,7 +14,7 @@ import {
   COMMIT_DEADLINE_SLACK_MS,
   MIN_LINE_MATCH_LEN,
   overlapLineSet,
-} from "@codecast/shared/blame";
+} from "@codecast/blame";
 
 export const MIN_SHA_PREFIX = 7;
 export { MIN_LINE_MATCH_LEN };

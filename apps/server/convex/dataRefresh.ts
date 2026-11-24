@@ -7,7 +7,7 @@
 import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation } from "./functions";
-import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
+import { dashboard, type ArtifactElement } from "@codecast/artifacts";
 import { readLiveElements } from "./liveArtifacts";
 import { dashboardDoc, wantCore } from "./dataQueries";
 

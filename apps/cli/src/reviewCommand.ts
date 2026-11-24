@@ -26,7 +26,7 @@ import {
   type AnchorPlacement,
   type CodeAnchorText,
   type SendOutcome,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import {
   captureLocalAnchor,
   placeComments,

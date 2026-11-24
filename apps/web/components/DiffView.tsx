@@ -23,7 +23,7 @@ import {
 import { parsePatch } from "../lib/patchParser";
 import { buildDiffModel, diffRows, type DiffRow } from "../lib/diffModel";
 import type { PendingComment } from "../lib/quoteFormat";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 import {
   captureDiffAnchor,
   placeInDiff,

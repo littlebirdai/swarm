@@ -16,13 +16,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import type { ArtifactPresence } from "@codecast/shared/artifacts";
+import type { ArtifactPresence } from "@codecast/artifacts";
 import {
   formatValue,
   splitError,
   type CellNumberFormat,
   type TabMeta,
-} from "@codecast/shared/artifacts/sheets";
+} from "@codecast/artifacts/sheets";
 import { useEditState, type EditStore } from "./editStore";
 import { AssistPopup, FunctionList } from "./FormulaAssist";
 import { useFormulaAssist } from "./useFormulaAssist";

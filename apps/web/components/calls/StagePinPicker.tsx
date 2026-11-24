@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { Pin, Plus, Sheet, SquareKanban } from "lucide-react";
 import { toast } from "sonner";
 import { parseStagePinRef } from "@codecast/shared/contracts/stagePins";
-import type { ArtifactType } from "@codecast/shared/artifacts";
+import type { ArtifactType } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 import { usePressOutside } from "../../hooks/usePressOutside";

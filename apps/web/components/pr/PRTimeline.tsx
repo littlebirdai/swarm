@@ -12,7 +12,7 @@ import { CommentMarkdown } from "../comments/CommentMarkdown";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { PRCommentCard, PRComposer } from "./PRThread";
 import { ResolveTool } from "../comments/CommentCard";
-import { codeThreadRootKey } from "@codecast/shared/comments";
+import { codeThreadRootKey } from "@codecast/comments";
 import {
   accentSoft,
   accentVar,

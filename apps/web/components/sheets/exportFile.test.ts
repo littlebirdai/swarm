@@ -4,7 +4,7 @@ import {
   toElement,
   type ArtifactElement,
   type ArtifactOp,
-} from "@codecast/shared/artifacts";
+} from "@codecast/artifacts";
 import { LiveSheet } from "./sheetCore";
 import { sheetCsv, sheetXlsx } from "./exportFile";
 import { readXlsx } from "./importFile";
