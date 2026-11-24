@@ -1,0 +1,259 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [],
+  "jsPlugins": [
+    "./scripts/oxlint-plugin.mjs"
+  ],
+  "categories": {
+    "correctness": "off"
+  },
+  "env": {
+    "builtin": true
+  },
+  "rules": {
+    "swarm/no-comments": "error"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/routeTree.gen.ts",
+    "apps/mobile/ios/**",
+    "apps/mobile/android/**",
+    "apps/mobile/.expo/**",
+    "**/dist-ssr/**",
+    "apps/web/dist-perf/**",
+    "apps/web/build/**",
+    "apps/web/out/**",
+    "apps/web/public/**",
+    "**/_generated/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "**/*.{ts,tsx}"
+      ],
+      "plugins": [
+        "react"
+      ],
+      "rules": {
+        "react/rules-of-hooks": "error",
+        "react/exhaustive-deps": [
+          "error",
+          {
+            "additionalHooks": "^useWatchEffect$"
+          }
+        ],
+        "react/static-components": "error",
+        "react/use-memo": "error",
+        "react/void-use-memo": "error",
+        "react/preserve-manual-memoization": "warn",
+        "react/incompatible-library": "warn",
+        "react/immutability": "warn",
+        "react/globals": "error",
+        "react/refs": "warn",
+        "react/set-state-in-effect": "warn",
+        "react/error-boundaries": "error",
+        "react/purity": "warn",
+        "react/set-state-in-render": "error",
+        "react/unsupported-syntax": "warn"
+      }
+    },
+    {
+      "files": [
+        "apps/**/*.{ts,tsx}",
+        "packages/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "node:child_process",
+                "importNames": [
+                  "spawnSync",
+                  "execSync",
+                  "execFileSync"
+                ],
+                "message": "Use async child_process APIs instead of blocking sync variants."
+              },
+              {
+                "name": "child_process",
+                "importNames": [
+                  "spawnSync",
+                  "execSync",
+                  "execFileSync"
+                ],
+                "message": "Use async child_process APIs instead of blocking sync variants."
+              }
+            ]
+          }
+        ],
+        "swarm/no-blocking-child-process-call": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/**/*.{ts,tsx,mts,cts}",
+        "packages/**/*.{ts,tsx,mts,cts}",
+        "plugins/**/*.{ts,tsx,mts,cts}"
+      ],
+      "rules": {
+        "swarm/no-raw-child-process": "error"
+      }
+    },
+    {
+      "files": [
+        "**/test/**",
+        "**/tests/**",
+        "**/__tests__/**",
+        "**/*.test.{ts,tsx,mts,cts}",
+        "**/*test-support.ts",
+        "**/test-fixture.ts",
+        "**/scripts/**"
+      ],
+      "rules": {
+        "swarm/no-raw-child-process": "off"
+      }
+    },
+    {
+      "files": [
+        "**/__tests__/**",
+        "**/*.test.{ts,tsx,mts,cts}",
+        "**/scripts/**"
+      ],
+      "rules": {
+        "swarm/no-blocking-child-process-call": "off",
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs}"
+      ],
+      "plugins": [
+        "react"
+      ],
+      "env": {
+        "browser": true,
+        "node": true,
+        "es2021": true
+      },
+      "rules": {
+        "constructor-super": "error",
+        "for-direction": "error",
+        "getter-return": "error",
+        "no-async-promise-executor": "error",
+        "no-case-declarations": "error",
+        "no-class-assign": "error",
+        "no-compare-neg-zero": "error",
+        "no-cond-assign": "error",
+        "no-const-assign": "error",
+        "no-constant-binary-expression": "error",
+        "no-constant-condition": [
+          "error",
+          {
+            "checkLoops": false
+          }
+        ],
+        "no-debugger": "error",
+        "no-delete-var": "error",
+        "no-dupe-class-members": "error",
+        "no-dupe-else-if": "error",
+        "no-dupe-keys": "error",
+        "no-duplicate-case": "error",
+        "no-empty-character-class": "error",
+        "no-empty-pattern": "error",
+        "no-empty-static-block": "error",
+        "no-ex-assign": "error",
+        "no-extra-boolean-cast": "error",
+        "no-fallthrough": "error",
+        "no-func-assign": "error",
+        "no-global-assign": "error",
+        "no-import-assign": "error",
+        "no-invalid-regexp": "error",
+        "no-irregular-whitespace": "error",
+        "no-loss-of-precision": "error",
+        "no-misleading-character-class": "error",
+        "no-new-native-nonconstructor": "error",
+        "no-nonoctal-decimal-escape": "error",
+        "no-obj-calls": "error",
+        "no-prototype-builtins": "error",
+        "no-regex-spaces": "error",
+        "no-self-assign": "error",
+        "no-setter-return": "error",
+        "no-sparse-arrays": "error",
+        "no-this-before-super": "error",
+        "no-unexpected-multiline": "error",
+        "no-unreachable": "error",
+        "no-unsafe-finally": "error",
+        "no-unsafe-negation": "error",
+        "no-unsafe-optional-chaining": "error",
+        "no-unused-labels": "error",
+        "no-unused-private-class-members": "error",
+        "no-useless-backreference": "error",
+        "no-useless-catch": "error",
+        "no-with": "error",
+        "require-yield": "error",
+        "use-isnan": "error",
+        "valid-typeof": "error",
+        "react/display-name": "error",
+        "react/jsx-key": "error",
+        "react/jsx-no-duplicate-props": "error",
+        "react/jsx-no-target-blank": "error",
+        "react/jsx-no-undef": "error",
+        "react/no-children-prop": "error",
+        "react/no-danger-with-children": "error",
+        "react/no-direct-mutation-state": "error",
+        "react/no-find-dom-node": "error",
+        "react/no-is-mounted": "error",
+        "react/no-render-return-value": "error",
+        "react/no-string-refs": "error",
+        "react/no-unknown-property": "error",
+        "react/require-render-return": "error",
+        "swarm/no-direct-use-effect": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/web/**/*.{js,jsx,mjs}"
+      ],
+      "rules": {
+        "react/rules-of-hooks": "error",
+        "react/exhaustive-deps": [
+          "warn",
+          {
+            "additionalHooks": "^useWatchEffect$"
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "apps/web/**/*.{ts,tsx}",
+        "apps/mobile/**/*.{ts,tsx}"
+      ],
+      "rules": {
+        "swarm/ime-safe-key-handlers": "error",
+        "swarm/no-native-title-on-button": "error",
+        "swarm/no-native-title-with-aria-label": "error",
+        "swarm/no-raw-resize-observer": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/{web,mobile}/**/*.{test,stories}.{ts,tsx}",
+        "apps/{web,mobile}/**/__tests__/**",
+        "apps/{web,mobile}/**/test/**",
+        "apps/{web,mobile}/**/tests/**"
+      ],
+      "rules": {
+        "swarm/ime-safe-key-handlers": "off",
+        "swarm/no-native-title-on-button": "off",
+        "swarm/no-native-title-with-aria-label": "off",
+        "swarm/no-raw-resize-observer": "off"
+      }
+    }
+  ]
+}
