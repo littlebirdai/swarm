@@ -2,7 +2,7 @@ import { GraduationCap } from "lucide-react";
 import {
   LEARNING_OPT_IN_LABEL,
   LEARNING_OPT_IN_SENTENCE,
-} from "@codecast/shared/contracts/orgTemplateLearning";
+} from "@codecast/org-templates/orgTemplateLearning";
 import { useLearningSwitch } from "../../hooks/useLearningSwitch";
 import { Switch } from "../ui/switch";
 import { SettingsRow, SettingsSection } from "./ui";

@@ -8,7 +8,7 @@ import {
   parseProposal,
   type ExpectationProposalInput,
 } from "../../../../../packages/shared/contracts/expectations";
-import { substitute } from "../../../../../packages/shared/contracts/orgTemplateManifest";
+import { substitute } from "@codecast/org-templates/orgTemplateManifest";
 import { treeRoot } from "../../paths";
 import { gate, type ReplayResult, type SurfaceImpl } from "../../surface";
 import {

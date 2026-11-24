@@ -22,7 +22,7 @@ import {
   performWriteLoaderCharter,
   refuseHiredRowFromWire,
 } from "./orgTemplates";
-import { templateLoaderPrompt } from "@codecast/shared/contracts/orgTemplateManifest";
+import { templateLoaderPrompt } from "@codecast/org-templates/orgTemplateManifest";
 import { applyOrgChange } from "./orgInit";
 import { charterText, giveCharter } from "./roleCharter.testkit";
 

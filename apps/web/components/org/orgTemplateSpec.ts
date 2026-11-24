@@ -7,7 +7,7 @@ import {
   templateRoleFields,
   type OrgTemplate,
   type TemplateInput,
-} from "@codecast/shared/contracts/orgTemplateManifest";
+} from "@codecast/org-templates/orgTemplateManifest";
 import type { OrgAuthorityGrant, OrgChange } from "@codecast/org/orgProposal";
 import { updateCard, type UpdateSource } from "./templateUpdate";
 

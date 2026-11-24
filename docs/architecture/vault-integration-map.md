@@ -303,7 +303,7 @@ File: `cli/src/browser/credentials.ts` (rationale in the header at :1-39).
 
 ## 9. Org templates declaring required secrets
 
-- **Schema:** `shared/contracts/orgTemplateManifest.ts:13-14`. `TemplateInputKind` includes `"secret"`; a `TemplateInput` is `{key, label, kind, required?, help?, unlocks?}`. Secrets cannot carry a default (:147).
+- **Schema:** `packages/org-templates/src/orgTemplateManifest.ts:13-14`. `TemplateInputKind` includes `"secret"`; a `TemplateInput` is `{key, label, kind, required?, help?, unlocks?}`. Secrets cannot carry a default (:147).
 - **Server:** `convex/convex/orgTemplates.ts`.
   - Secret answers are refused as plain config (:214-215).
   - Bound or missing state is computed from `row.bindings?.[key]` at :362 and :436, returned as `secrets: [{key, label, bound, unlocks}]`.

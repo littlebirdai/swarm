@@ -29296,6 +29296,30 @@
   "packages/network/src/internalHost.ts": {
     "swarm/no-comments": 22
   },
+  "packages/org-templates/src/orgTemplateBind.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/org-templates/src/orgTemplateLearning.ts": {
+    "swarm/no-comments": 33
+  },
+  "packages/org-templates/src/orgTemplateLearningOptIn.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/org-templates/src/orgTemplateManifest.ts": {
+    "swarm/no-comments": 32
+  },
+  "packages/org-templates/src/orgTemplateReadiness.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/org-templates/src/orgTemplateRelease.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/org-templates/src/orgTemplateState.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/org-templates/test/orgTemplateLearning.test.ts": {
+    "swarm/no-comments": 5
+  },
   "packages/org/src/briefStanding.ts": {
     "swarm/no-comments": 37
   },
@@ -29948,30 +29972,6 @@
     "swarm/no-comments": 1
   },
   "packages/shared/contracts/modelCall.ts": {
-    "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/orgTemplateBind.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/orgTemplateLearning.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/orgTemplateLearning.ts": {
-    "swarm/no-comments": 33
-  },
-  "packages/shared/contracts/orgTemplateLearningOptIn.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/orgTemplateManifest.ts": {
-    "swarm/no-comments": 32
-  },
-  "packages/shared/contracts/orgTemplateReadiness.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/orgTemplateRelease.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/contracts/orgTemplateState.ts": {
     "swarm/no-comments": 19
   },
   "packages/shared/contracts/orgWhere.ts": {

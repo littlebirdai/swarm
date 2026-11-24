@@ -1,7 +1,7 @@
 import { autonomyOn } from "@codecast/org/roleAutonomy";
-import { routineState } from "@codecast/shared/contracts/orgTemplateReadiness";
-import type { SetupNeed } from "@codecast/shared/contracts/orgTemplateState";
-import { answerProblem } from "@codecast/shared/contracts/orgTemplateManifest";
+import { routineState } from "@codecast/org-templates/orgTemplateReadiness";
+import type { SetupNeed } from "@codecast/org-templates/orgTemplateState";
+import { answerProblem } from "@codecast/org-templates/orgTemplateManifest";
 import {
   useState,
   type CSSProperties,
@@ -30,7 +30,7 @@ import {
 import {
   LEARNING_OPT_IN_LABEL,
   LEARNING_OPT_IN_SENTENCE,
-} from "@codecast/shared/contracts/orgTemplateLearning";
+} from "@codecast/org-templates/orgTemplateLearning";
 import { Button } from "../ui/button";
 import {
   ConsequentialSwitch,

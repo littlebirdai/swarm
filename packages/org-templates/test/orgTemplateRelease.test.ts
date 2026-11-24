@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { OrgTemplate } from "./orgTemplateManifest";
+import type { OrgTemplate } from "../src/orgTemplateManifest";
 import {
   updateNames,
   bumpRefusal,
@@ -14,7 +14,7 @@ import {
   versionBump,
   withClasses,
   type ReleaseLike,
-} from "./orgTemplateRelease";
+} from "../src/orgTemplateRelease";
 
 const base = (version = "1.0.0"): OrgTemplate => ({
   schemaVersion: 2,
@@ -128,7 +128,7 @@ describe("classifyRelease", () => {
       explainRelease(
         base(),
         edit("1.1.0", (m) => {
-          m.role.caps.tokens_per_day = 400000;
+          m.role.caps!.tokens_per_day = 400000;
         }),
       ),
     ).toMatchObject({
@@ -565,7 +565,7 @@ describe("tools a template ships", () => {
   });
   test("a tool token is known only for a declared tool; tool entries are checked by kind", async () => {
     const { validateTemplate, validateTokens, toolIds } =
-      await import("./orgTemplateManifest");
+      await import("../src/orgTemplateManifest");
     const m = validateTemplate({
       ...base(),
       schemaVersion: 2,

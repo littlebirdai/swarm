@@ -618,7 +618,7 @@ is opted in, the server:
    short ids, session ids, long hex, issue numbers), a quoted passage, a code
    block, or a name from the workspace (its people, team, projects, instance,
    handle, answers and host), by `lessonLeaks` in
-   `shared/contracts/orgTemplateLearning.ts`. A refused lesson is dropped and
+   `packages/org-templates/src/orgTemplateLearning.ts`. A refused lesson is dropped and
    counted by its reason; its text goes nowhere.
 4. files what passed through H9's lesson path (`org_template_lessons`, the
    publisher's key, `source: "learning"`, no evidence links) and advances the
@@ -695,7 +695,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
   can open; anyone who sees a setup item done marks it, the role included; a
   role's own item needs evidence. State lives on the receipt until the instances table
   exists; the verbs and their rules stay as they are when it does.
-- **Readiness**: `packages/shared/contracts/orgTemplateReadiness.ts`, one pure
+- **Readiness**: `packages/org-templates/src/orgTemplateReadiness.ts`, one pure
   module for the CLI, the server and the web. Any unmet requirement, never met
   or lapsed, lowers an apply routine to propose; spend or publish authority at
   understand trust also lowers it, without blocking activation. `status` returns
@@ -715,7 +715,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
   scoreboard and setup through the shared rules, instance status with readiness,
   lessons filed under the publisher's key with the writer seeing only status.
   The manifest validator and the record rules moved to
-  `packages/shared/contracts/orgTemplateManifest.ts` and `orgTemplateState.ts`;
+  `packages/org-templates/src/orgTemplateManifest.ts` and `orgTemplateState.ts`;
   the CLI files re-export them. `bind` registers the row; the record verbs post
   to it once it exists; new verbs `lesson`, `publish` and `catalog`.
 - **The half that changes existing behaviour** (2026-09-21, the org program's
@@ -860,7 +860,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
 
 ## As built (2026-10-02): the learning loop (H12)
 
-- **The rules** in `shared/contracts/orgTemplateLearning.ts`: the switch's one
+- **The rules** in `packages/org-templates/src/orgTemplateLearning.ts`: the switch's one
   sentence (`LEARNING_OPT_IN_SENTENCE`); `structuralSignals` (open or skipped
   setup steps, failed, idle or blocked routines, failed or stale evidence, in
   the manifest's own words, each with a key the instance remembers);
@@ -899,7 +899,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
 - **The run**: `docs/prompts/template-learning.md`, armed as a daily `--spawn`
   trigger with `cast org template learn due` as its precheck (the commands in
   H12). Not armed in prod; nothing deployed; no template published.
-- **Tests**: `shared/contracts/orgTemplateLearning.test.ts`,
+- **Tests**: `@codecast/org-templates/orgTemplateLearning.test.ts`,
   `convex/orgTemplateLearning.test.ts` (the opt-in gate at the plan, the
   digest and the filing; the digest's contents; refusal by kind; what each side
   reads; status, due, the canary verdict over time; rollout and the bind that
@@ -912,7 +912,7 @@ Design: "How a hired role changes after it is hired" (codecast.sh/a/zpzDVh1idtlC
 Every change on a stable instance waits for a person's click (sd-424); nothing
 here applies an update by itself.
 
-- **The rules** in `shared/contracts/orgTemplateRelease.ts`. `classifyRelease
+- **The rules** in `packages/org-templates/src/orgTemplateRelease.ts`. `classifyRelease
 (prev, next)` diffs two manifests: **authority** (authority entries, a routine's
   mode, the line, the role's name or handle), **structure** (routines added,
   removed or re-cadenced; inputs, setup, evidence, ledgers, scoreboard; the
@@ -957,6 +957,6 @@ text}]` (newest first), `update_rollback`, `update_names` (routine id to
   release, the instance's own for removed items) beside `update_available`
   and `update_digest`; instance status adds `release: {version, status, class,
 yanked}`.
-- **Tests**: `shared/contracts/orgTemplateRelease.test.ts`, the release block
+- **Tests**: `@codecast/org-templates/orgTemplateRelease.test.ts`, the release block
   of `convex/orgTemplates.test.ts`, and publish/yank/retire in
   `cli/src/orgTemplate.test.ts`.

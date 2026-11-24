@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
 import { RoleFace } from "./RoleFace";
-import type { TemplateRoutine } from "@codecast/shared/contracts/orgTemplateManifest";
+import type { TemplateRoutine } from "@codecast/org-templates/orgTemplateManifest";
 import {
   humanSetupCount,
   isDefaultLeadTemplate,

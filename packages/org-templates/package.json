@@ -1,0 +1,28 @@
+{
+  "name": "@codecast/org-templates",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./orgTemplateBind": "./src/orgTemplateBind.ts",
+    "./orgTemplateLearning": "./src/orgTemplateLearning.ts",
+    "./orgTemplateLearningOptIn": "./src/orgTemplateLearningOptIn.ts",
+    "./orgTemplateManifest": "./src/orgTemplateManifest.ts",
+    "./orgTemplateReadiness": "./src/orgTemplateReadiness.ts",
+    "./orgTemplateRelease": "./src/orgTemplateRelease.ts",
+    "./orgTemplateState": "./src/orgTemplateState.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/flows": "workspace:*",
+    "@codecast/org": "workspace:*",
+    "@codecast/provider-keys": "workspace:*"
+  }
+}

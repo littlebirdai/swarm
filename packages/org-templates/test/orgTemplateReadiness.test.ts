@@ -4,7 +4,7 @@ import {
   routineReadiness,
   type ReadinessManifest,
   type ReadinessState,
-} from "./orgTemplateReadiness";
+} from "../src/orgTemplateReadiness";
 
 const H = 3600000,
   D = 24 * H;

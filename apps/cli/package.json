@@ -50,6 +50,7 @@
     "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",
+    "@codecast/org-templates": "workspace:*",
     "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/projects": "workspace:*",

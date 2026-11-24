@@ -14,7 +14,7 @@ import {
   ORG_TEMPLATE_SECRETS_DIR,
   type OrgTemplateBindArgs,
   type OrgTemplateBindResult,
-} from "@codecast/shared/contracts/orgTemplateBind";
+} from "@codecast/org-templates/orgTemplateBind";
 import { decryptProviderKeyPayload } from "./providerKeyCrypto.js";
 import { atomicWriteFile } from "./atomicWrite.js";
 

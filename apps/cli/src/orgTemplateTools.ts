@@ -9,7 +9,7 @@ import {
   explainRelease,
   REQUIRED_BUMP,
   type ReleaseClass,
-} from "@codecast/shared/contracts/orgTemplateRelease";
+} from "@codecast/org-templates/orgTemplateRelease";
 import type { OrgInitDeps } from "./orgInit.js";
 import {
   canonicalDirectory,

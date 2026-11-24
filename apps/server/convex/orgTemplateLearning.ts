@@ -36,8 +36,8 @@ import {
 import {
   compareVersions,
   type OrgTemplate,
-} from "@codecast/shared/contracts/orgTemplateManifest";
-import { readiness } from "@codecast/shared/contracts/orgTemplateState";
+} from "@codecast/org-templates/orgTemplateManifest";
+import { readiness } from "@codecast/org-templates/orgTemplateState";
 import {
   LEARNING,
   canaryVerdict,
@@ -54,7 +54,7 @@ import {
   type LearningDigest,
   type Redirect,
   type WorkspaceFacts,
-} from "@codecast/shared/contracts/orgTemplateLearning";
+} from "@codecast/org-templates/orgTemplateLearning";
 import { parsePlaybook } from "@codecast/org/rolePlaybook";
 import {
   CODECAST_TEMPLATE_ACCESS,

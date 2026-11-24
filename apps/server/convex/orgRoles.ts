@@ -39,7 +39,7 @@ import {
   wakeTuneRefusal,
   type RoleWake,
 } from "@codecast/org/rolePlaybook";
-import { intervalMs } from "@codecast/shared/contracts/orgTemplateManifest";
+import { intervalMs } from "@codecast/org-templates/orgTemplateManifest";
 import {
   EXECUTIVE_ASSISTANT_HANDLE,
   EXECUTIVE_ASSISTANT_NAME,
