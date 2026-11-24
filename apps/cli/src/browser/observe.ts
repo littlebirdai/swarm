@@ -27,7 +27,7 @@ export const RECORDER_MAX = 500;
 /**
  * The stamp that tells a codecast page an agent drives this tab.
  *
- * The web's desktop hand-off gate (packages/web/lib/desktopHandoff.ts) holds
+ * The web's desktop hand-off gate (apps/web/lib/desktopHandoff.ts) holds
  * a background tab for two minutes, then hands it to the desktop app when the
  * human looks at it — right for a cmd-clicked link, fatal for a tab an agent
  * opened to read a page. Every driver writes this key before any page script

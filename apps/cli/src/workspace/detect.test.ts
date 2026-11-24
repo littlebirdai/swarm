@@ -262,11 +262,11 @@ describe("detectProject — no browser by detection", () => {
     expect(m.browser.enabled).toBe(false);
   });
 
-  test("next.config.js and a nested packages/web vite config leave it off too", () => {
+  test("next.config.js and a nested apps/web vite config leave it off too", () => {
     touch("package.json", "{}");
     touch("bun.lock");
     touch("next.config.js", "module.exports = {};");
-    touch("packages/web/vite.config.ts", "");
+    touch("apps/web/vite.config.ts", "");
     expect(detectProject(tmpDir).browser.enabled).toBe(false);
   });
 

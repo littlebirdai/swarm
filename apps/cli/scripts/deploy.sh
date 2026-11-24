@@ -80,7 +80,7 @@ export RELEASE_MANIFEST_SIGNING_KEY
 R2_BUCKET="codecast"
 : "${R2_ENDPOINT:?Set R2_ENDPOINT (e.g. https://<account-id>.r2.cloudflarestorage.com)}"
 export AWS_DEFAULT_REGION="auto"
-BINARIES_DIR="../../packages/web/binaries"
+BINARIES_DIR="../../apps/web/binaries"
 # The exact outputs of one build-binaries.sh run. Every consumer (R2 upload,
 # prewarm, GitHub release) iterates this list — never glob the dir, which
 # accumulates strays across runs (a local `cast` symlink once shipped to R2

@@ -10,7 +10,7 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 |---------|-------------|
 | `apps/cli` | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages |
 | `apps/server` | Backend: schema, queries, mutations, auth, HTTP routes |
-| `packages/web` | React + Vite web app |
+| `apps/web` | React + Vite web app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff) |
 | `apps/desktop` | Desktop app (Electron wrapper around the web app) |
 | `apps/mobile` | iOS app (Expo / React Native) |
@@ -57,10 +57,10 @@ EOF
 >
 > The pusher and `deploy.sh` refuse a tree behind the `codecast-sh/codecast` remote's `main`, whatever that remote is called; with no such remote they fall back to `origin`. If you cloned a fork, add it so they check the real source of truth: `git remote add upstream git@github.com:codecast-sh/codecast.git`. A fork's own `main` can sit hundreds of commits behind, and a push from that tree deletes every newer function from production.
 
-### `packages/web/.env.local`
+### `apps/web/.env.local`
 
 ```bash
-cat > packages/web/.env.local << 'EOF'
+cat > apps/web/.env.local << 'EOF'
 VITE_CONVEX_URL=https://convex.codecast.sh
 VITE_SENTRY_DSN=<get-from-team-lead>
 VITE_POSTHOG_KEY=<get-from-team-lead>
@@ -125,7 +125,7 @@ This starts Vite on port 3200 and the Convex pusher (`apps/server/scripts/gated-
 ### Running packages separately
 
 ```bash
-cd packages/web && bun run dev       # Vite dev server (HMR) on vite's default port
+cd apps/web && bun run dev       # Vite dev server (HMR) on vite's default port
 cd apps/cli && bun run dev       # the cast CLI from source (pass a command, e.g. `bun run dev status`)
 ```
 

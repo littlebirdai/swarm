@@ -23,7 +23,7 @@ export const DONE_STILL_WORKED_DAYS = 7;
 export const ACTIVITY_WINDOW_DAYS = 30;
 
 // A repo laid out as a monorepo hides the meaningful unit one level down:
-// "packages/web/..." is the web package, not "packages". The top-level dir is
+// "apps/web/..." is the web app, under "apps". The top-level dir is
 // the unit everywhere else.
 const CONTAINER_DIRS = new Set(["packages", "apps", "services", "libs", "crates", "modules", "src"]);
 
@@ -39,7 +39,7 @@ export function pathPrefixOf(filePath: string): string {
 
 /** The areas one commit lands on, from the files it touched: the deepest
  *  directory every file shares, reduced to the package or top level area it
- *  names. A commit whose files all sit under packages/web is one area; a
+ *  names. A commit whose files all sit under apps/web is one area; a
  *  commit that spans packages (the shared directory is a bare container, or
  *  the root) lands on each area it touched, because it is evidence for each
  *  seam. No file list means no area can be read: [] and the caller counts it
@@ -65,12 +65,12 @@ export function commitAreaPrefixes(files: Array<{ filename: string }> | null | u
 }
 
 /** The area a filesystem path (a session's project_path) sits in, read as the
- *  tail after a container dir, so "/home/me/src/repo/packages/web" reads as
- *  "packages/web" and lines up with a commit's file prefix. */
+ *  tail after a container dir, so "/home/me/src/repo/apps/web" reads as
+ *  "apps/web" and lines up with a commit's file prefix. */
 export function projectPathPrefix(projectPath: string | null | undefined): string | null {
   const parts = (projectPath ?? "").split("/").filter(Boolean);
-  // The deepest container wins: a checkout is ".../src/repo/packages/web", and
-  // the package (packages/web) is the unit, not the repo root under src.
+  // The deepest container wins: a checkout is ".../src/repo/apps/web", and
+  // the package (apps/web) is the unit, not the repo root under src.
   for (let i = parts.length - 2; i >= 0; i--) {
     if (CONTAINER_DIRS.has(parts[i])) return `${parts[i]}/${parts[i + 1]}`;
   }
@@ -79,7 +79,7 @@ export function projectPathPrefix(projectPath: string | null | undefined): strin
 
 /** The area a session works in, so it lands on the same row as the commits:
  *  its project path relative to its git root, reduced the way a commit's file
- *  is ("" at the root, "packages/web" inside a package). Without a git root
+ *  is ("" at the root, "apps/web" inside a package). Without a git root
  *  the path's own tail is the best reading (projectPathPrefix). A session at
  *  the repository root and a commit with no file list then share the "" row
  *  for that repository instead of sitting under two different keys. */

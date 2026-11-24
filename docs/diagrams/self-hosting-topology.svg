@@ -57,7 +57,7 @@
   <!-- Web server -->
   <rect class="card" x="300" y="60" width="280" height="68" rx="8"/>
   <text class="l" x="314" y="82">web server (Railway service)</text>
-  <text class="n" x="314" y="100">Hono + the SPA, packages/web</text>
+  <text class="n" x="314" y="100">Hono + the SPA, apps/web</text>
   <text class="n" x="314" y="116">yourdomain.com</text>
   <path class="data" d="M300 86 H228" marker-end="url(#aData)"/>
   <text class="l dataLbl" x="250" y="78">app</text>

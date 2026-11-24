@@ -12,9 +12,9 @@ import {
   parseUserMessage,
   stripMentionContext,
 } from "@codecast/shared/contracts";
-import { isStickyEligible, stickyPromptContent } from "../../../../packages/web/lib/stickyPrompt";
-import { commandExpansionName } from "../../../../packages/web/lib/conversationProcessor";
-import { isFlowPressMessage } from "../../../../packages/web/lib/line/flowMessages";
+import { isStickyEligible, stickyPromptContent } from "../../../../apps/web/lib/stickyPrompt";
+import { commandExpansionName } from "../../../../apps/web/lib/conversationProcessor";
+import { isFlowPressMessage } from "../../../../apps/web/lib/line/flowMessages";
 
 // Human-send detection + the per-day counters behind the "Typed" and "Words"
 // chart metrics. A send is a user-role message a person typed as their own

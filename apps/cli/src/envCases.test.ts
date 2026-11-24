@@ -254,7 +254,7 @@ describe("what the CLI and web can print", () => {
       }
     };
     walk(path.join(root, "apps/cli/src"));
-    walk(path.join(root, "packages/web"));
+    walk(path.join(root, "apps/web"));
     expect(hits).toEqual(["apps/cli/src/envCases.ts"]);
   });
 });

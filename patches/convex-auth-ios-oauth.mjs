@@ -24,7 +24,7 @@ const SENTINEL = "codecastIosOAuth";
 function copies(rel) {
   // Every copy in the tree, not just the root one. bun gives each workspace
   // package its own node_modules entry, and a test resolves the package from
-  // ITS package (packages/web), so a patch applied only at the root can be
+  // ITS package (apps/web), so a patch applied only at the root can be
   // invisible to the file that reads it. Resolving each path to its real
   // location collapses the symlinks, so a shared copy is patched once.
   const roots = [

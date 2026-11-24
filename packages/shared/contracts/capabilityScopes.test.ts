@@ -50,8 +50,8 @@ describe("project scope keys", () => {
   });
 
   it("a subpath rides after # and a local project is user-qualified", () => {
-    expect(buildProjectScopeKey({ originUrl: "git@github.com:o/r.git", subpath: "/packages/web/" }))
-      .toBe("git:github.com/o/r#packages/web");
+    expect(buildProjectScopeKey({ originUrl: "git@github.com:o/r.git", subpath: "/apps/web/" }))
+      .toBe("git:github.com/o/r#apps/web");
     expect(buildProjectScopeKey({ path: "/Users/x/scratch", userId: "u_1" }))
       .toBe("local:u_1:/Users/x/scratch");
     // A path without a user is refused: a path means nothing without whose.

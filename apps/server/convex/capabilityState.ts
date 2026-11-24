@@ -252,7 +252,7 @@ function normalizeItem(raw: unknown): NormalizedItem | undefined {
   const name = identityText(raw.name, MAX_NAME_CHARS);
   // No allow-list on `kind`. A kind we do not model yet is still something the
   // user has, and the renderers show it verbatim rather than dropping the row
-  // (`packages/web/components/capabilities/CapabilityCard.tsx` KindChip). An
+  // (`apps/web/components/capabilities/CapabilityCard.tsx` KindChip). An
   // allow-list here would make a newer daemon's new kind vanish silently, which
   // is the one failure a mirror cannot afford.
   if (!kind || !name) return undefined;

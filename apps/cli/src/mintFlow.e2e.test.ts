@@ -5,7 +5,7 @@ import { shellQuote, spawnTmuxPane } from "./test-helpers/tmuxPane";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { encryptProviderKey } from "../../../packages/web/lib/providerKeyCrypto";
+import { encryptProviderKey } from "../../../apps/web/lib/providerKeyCrypto";
 import { getProviderKeyPublicKey, decryptProviderKeyPayload } from "./providerKeyCrypto";
 import { submitApprovalCode } from "./mintFlowControl";
 import { extractSetupToken } from "./ccAccounts";

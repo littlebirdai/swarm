@@ -69,8 +69,8 @@ describe("publicSessionRef", () => {
 
 describe("pathInRepository", () => {
   test("strips the checkout root and nothing else", () => {
-    expect(pathInRepository("/Users/a/src/codecast/packages/web/app.tsx", "/Users/a/src/codecast")).toBe("packages/web/app.tsx");
-    expect(pathInRepository("/Users/a/src/codecast/packages/web/app.tsx", "/Users/a/src/codecast/")).toBe("packages/web/app.tsx");
+    expect(pathInRepository("/Users/a/src/codecast/apps/web/app.tsx", "/Users/a/src/codecast")).toBe("apps/web/app.tsx");
+    expect(pathInRepository("/Users/a/src/codecast/apps/web/app.tsx", "/Users/a/src/codecast/")).toBe("apps/web/app.tsx");
   });
 
   test("a file outside the checkout, or a session with no root, has no repository path", () => {

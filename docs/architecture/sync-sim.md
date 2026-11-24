@@ -4,11 +4,11 @@ The multiplayer simulation harness runs several principals (people, their daemon
 
 This is the operating manual. The design and the reasons behind it are in [multiplayer-sim-harness.md](multiplayer-sim-harness.md) (Phase 2 of pl-810). The single-user convergence argument the sim extends is [sync-convergence.md](sync-convergence.md), and the host and follower protocol it models is [sync-host.md](sync-host.md).
 
-Everything lives under `packages/web/store/__tests__/sim/`, plus the server router in `apps/server/convex/simBackend.testing.ts`.
+Everything lives under `apps/web/store/__tests__/sim/`, plus the server router in `apps/server/convex/simBackend.testing.ts`.
 
 ## Running it
 
-From `packages/web`:
+From `apps/web`:
 
 | Command | What it does |
 |---|---|
@@ -24,7 +24,7 @@ From `packages/web`:
 | `bun run sim visibilityFlip --seed 174182 --order="<channels>"` | replay one delivery order, pasted from a report |
 | `bun run sim --help` | every flag |
 
-The runner (`packages/web/scripts/sim.ts`) only turns flags into environment variables and spawns `bun test store/__tests__/sim/ --isolate`, or with a filter `bun test store/__tests__/sim/sim.test.ts --isolate`. The variables are the source of truth, so `SIM_SCENARIO=visibilityFlip bun test store/__tests__/sim/sim.test.ts --isolate` does the same thing:
+The runner (`apps/web/scripts/sim.ts`) only turns flags into environment variables and spawns `bun test store/__tests__/sim/ --isolate`, or with a filter `bun test store/__tests__/sim/sim.test.ts --isolate`. The variables are the source of truth, so `SIM_SCENARIO=visibilityFlip bun test store/__tests__/sim/sim.test.ts --isolate` does the same thing:
 
 | Variable | Flag | Meaning |
 |---|---|---|
@@ -41,7 +41,7 @@ Put the filter before `--trace`: a bare word after `--trace` is read as its labe
 
 A filtered run takes about 15 seconds on a loaded laptop, most of it importing the store and convex once; the whole sim (every scenario and self-test) about 80 seconds.
 
-Typecheck the harness with `cast check sim` (its tsconfig adds bun types and covers the legacy sims and `packages/web/scripts/sim.ts`). The convex half is in `cast check convex`.
+Typecheck the harness with `cast check sim` (its tsconfig adds bun types and covers the legacy sims and `apps/web/scripts/sim.ts`). The convex half is in `cast check convex`.
 
 ## Layers
 
@@ -267,11 +267,11 @@ SIM_SEEDS=23 bun test store/__tests__/inboxConvergenceSim.test.ts
 
 ## CI
 
-The `test-web` job runs `bun test --isolate` in `packages/web`, which includes `sim/sim.test.ts`, the pure sim tests and the legacy suites; there is no separate sim job. That step sets `SIM_OUT` to `${{ runner.temp }}/sim`, and when the job fails an `actions/upload-artifact` step uploads that directory as `sim-artifacts`, so the report's `result.json` and `events.jsonl` can be read without rerunning. Red scenarios write their (expected) failure artifacts there on every run, so the upload holds those too.
+The `test-web` job runs `bun test --isolate` in `apps/web`, which includes `sim/sim.test.ts`, the pure sim tests and the legacy suites; there is no separate sim job. That step sets `SIM_OUT` to `${{ runner.temp }}/sim`, and when the job fails an `actions/upload-artifact` step uploads that directory as `sim-artifacts`, so the report's `result.json` and `events.jsonl` can be read without rerunning. Red scenarios write their (expected) failure artifacts there on every run, so the upload holds those too.
 
 ## Disposable Convex deployment
 
-The in-process server cannot show real optimistic concurrency conflicts, real scheduler timing, HTTP routes, the exact production error shape, or exactly-once delivery across a real reconnect. For those, run the backend locally as an anonymous deployment in a scratch copy of the tree. `bun scripts/rig/stack.mjs up` (from `packages/web`) runs steps 1 to 4 below with the guards they state, sets the auth keys Convex Auth signs with, and starts a vite on port 3297 pointed at the deployment; it is what the browser smoke suite runs on (`packages/web/scripts/README.md`). Its scratch copy is `/tmp/codecast-smoke-deploy` and its pane `smoke-deploy`. The recipe below is the same thing by hand.
+The in-process server cannot show real optimistic concurrency conflicts, real scheduler timing, HTTP routes, the exact production error shape, or exactly-once delivery across a real reconnect. For those, run the backend locally as an anonymous deployment in a scratch copy of the tree. `bun scripts/rig/stack.mjs up` (from `apps/web`) runs steps 1 to 4 below with the guards they state, sets the auth keys Convex Auth signs with, and starts a vite on port 3297 pointed at the deployment; it is what the browser smoke suite runs on (`apps/web/scripts/README.md`). Its scratch copy is `/tmp/codecast-smoke-deploy` and its pane `smoke-deploy`. The recipe below is the same thing by hand.
 
 1. **Make a scratch copy** of the tracked and untracked but not ignored files, so no `.env.local` travels, and link the dependencies. Never use the main checkout or a `cast ws` worktree: both carry the production admin key.
 

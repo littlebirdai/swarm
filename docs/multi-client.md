@@ -57,7 +57,7 @@ that never cleared "working" reads as idle). It is never a stuck spinner.
 
 Two capability surfaces read straight off the registry:
 
-- **Model / effort control**: `AGENT_MODEL_CONFIG` is derived from the descriptors that carry a `modelConfig` (every client except Gemini). The web pickers (`ModelEffortPicker`, `canControlModel` in `packages/web/lib/modelSwitch.ts`) render only when a config exists, so Gemini has no picker. Only Claude can switch model mid-session (`midSession: true`); for the rest the choice applies at launch and is tracked from the transcript after.
+- **Model / effort control**: `AGENT_MODEL_CONFIG` is derived from the descriptors that carry a `modelConfig` (every client except Gemini). The web pickers (`ModelEffortPicker`, `canControlModel` in `apps/web/lib/modelSwitch.ts`) render only when a config exists, so Gemini has no picker. Only Claude can switch model mid-session (`midSession: true`); for the rest the choice applies at launch and is tracked from the transcript after.
 - **Pane prompt monitoring** (`capabilities.panePromptMonitoring`): only Claude and Codex have their tmux pane watched for structured permission / question prompts.
 
 The tmux name prefixes are registry-derived too: `resumeTmuxPrefix` reads

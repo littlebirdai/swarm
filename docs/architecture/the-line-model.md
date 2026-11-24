@@ -236,7 +236,7 @@ findings or the clusters that group them.
   failing, not the system misbehaving.
 
 Three numbers say how quality is going, and none of them is the count of
-findings. `packages/web/lib/line/lineMetrics.ts` computes all three from the
+findings. `apps/web/lib/line/lineMetrics.ts` computes all three from the
 store's signals, causes and runs over a window (`lineMetrics`):
 
 1. **Expectation breaks per day** (`expectationBreaks`): signals created in

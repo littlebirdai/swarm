@@ -378,7 +378,7 @@ container never clips them.
 Build these once in `src/ui/` and use them everywhere.
 
 - **`<Face avatar size typing? title>`**: an `<img>` of `AVATAR_URLS[key]`
-  (imported from `packages/web/lib/orgAvatars.tsx`, never copied) in a
+  (imported from `apps/web/lib/orgAvatars.tsx`, never copied) in a
   squircle per 4.3. Sizes 16, 20, 24, 28, 32, 58. `typing` adds a 14px
   surface bubble with three 3px ink-3 dots at its top right. `title` is
   `"{name} the {AVATAR_LABELS[key]}"`. If the image fails: `--sunk` fill and
@@ -412,7 +412,7 @@ Build these once in `src/ui/` and use them everywhere.
   when live, persimmon at 45% opacity and frozen when failed.
 - **`<Spinner>`**: 13px ring per 4.4.2.
 - **`<Blob size>`**: Clay's face per section 2. Sizes 16, 22, 28, 44.
-- **Keys**: import `KeyCap` from `packages/web/components/KeyCap.tsx` and
+- **Keys**: import `KeyCap` from `apps/web/components/KeyCap.tsx` and
   always render it inside `<span class="keys">`. `.keys kbd` restyles it:
   18px tall, min-width 18, padding 0 4, radius `--r-xs`, surface fill,
   `inset 0 0 0 1px --line-2, inset 0 -1.5px 0 --line-2`, ink-2,

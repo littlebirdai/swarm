@@ -44,7 +44,7 @@ export const TARGETS = [
   {
     id: "web",
     name: "web dist",
-    path: "packages/web/dist",
+    path: "apps/web/dist",
     // Text assets only: the key lands in the JS bundle, and scanning fonts and
     // images for it just burns IO.
     extensions: [".js", ".mjs", ".html", ".css"],
@@ -54,7 +54,7 @@ export const TARGETS = [
   {
     id: "cli",
     name: "CLI binaries",
-    path: "packages/web/binaries",
+    path: "apps/web/binaries",
     // Compiled bun binaries: no extension on unix, .exe on windows.
     match: (file) => /^codecast-[a-z0-9-]+(\.exe)?$/.test(file),
     expect: "absent",

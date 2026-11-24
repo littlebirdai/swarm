@@ -622,7 +622,7 @@ export const revokeGuestLink = mutation({
 });
 
 /** Turn off every open link into a room, made at or after `since`: the
- *  call-e2e harness's cleanup (packages/web/scripts/call-e2e/cleanup.mjs, run
+ *  call-e2e harness's cleanup (apps/web/scripts/call-e2e/cleanup.mjs, run
  *  through apps/server/run.sh), so a test link never outlives the run
  *  that made it. The same revoke the panel's "turn off" does, in its
  *  creator's name, so waiting guests on it lose their place the same way. */

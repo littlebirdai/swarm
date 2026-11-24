@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { repair } from "./agentPromptRepair";
 import { makeFakeDb } from "./testDb";
 import { buildExistingMessagePatch } from "./messages";
-import { parseInboundSessionMessage } from "../../../packages/web/components/sessionMessage";
+import { parseInboundSessionMessage } from "../../../apps/web/components/sessionMessage";
 
 const reviewed = {
   "parent": "jx7297y2rfkpskb14mgbsjm5e58dv709",

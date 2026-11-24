@@ -35,7 +35,7 @@ import { Mono } from '../../constants/fonts';
 import { CHROME_FONT_CAP, Spacing, Theme, chipShell, chipText, chipTint } from '../../constants/Theme';
 
 // The mobile form of the web message navigator popover
-// (packages/web/components/MessageBrowserPopover.tsx). Rows and filtering come
+// (apps/web/components/MessageBrowserPopover.tsx). Rows and filtering come
 // from the shared module; this file owns only the sheet chrome, the search and
 // chip state, and the inline expansion a long press triggers.
 

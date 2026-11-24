@@ -55,8 +55,8 @@ daemon.pid
 daemon.log
 
 # Built binaries
-packages/web/public/binaries/
-packages/web/binaries/
+apps/web/public/binaries/
+apps/web/binaries/
 
 # CLI build artifacts
 apps/cli/daemon.js
@@ -98,14 +98,14 @@ videos/
 # Scratch UI harnesses (throwaway, per-session). A session builds a standalone
 # page to verify one component in Chrome, then abandons it — nothing under this
 # prefix is tracked, so ignore the whole convention rather than each new name.
-packages/web/_*.tsx
-packages/web/_*.html
-packages/web/public/_*.html
-packages/web/_chiptest.*
+apps/web/_*.tsx
+apps/web/_*.html
+apps/web/public/_*.html
+apps/web/_chiptest.*
 dist-ssr/
 
 # Private production bundles built for CPU profiling (hundreds of MB)
-packages/web/dist-perf/
+apps/web/dist-perf/
 
 # Social posting tooling (private ops, keys and account workflow)
 scripts/publora.mjs
@@ -121,11 +121,11 @@ apps/cli/*
 # Scratch convex probes (one-off prod queries, never shipped)
 apps/server/_*.mjs
 _tok.json
-packages/web/public/_tok.json
-packages/web/tsconfig.*.tmp.json
+apps/web/public/_tok.json
+apps/web/tsconfig.*.tmp.json
 
 # tsc incremental state, regenerated on every typecheck
-packages/web/*.tsbuildinfo
+apps/web/*.tsbuildinfo
 
 # Installs inside the vendored @platform mirror. CI installs the mirror as one
 # workspace at platform/ to run its tests (scripts/vendor-platform.sh --test);

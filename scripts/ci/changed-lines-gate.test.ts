@@ -26,14 +26,14 @@ const finding = (file: string | null, line: number): Finding => ({
 describe("parseAddedLines", () => {
   test("reads the post-image side of each hunk", () => {
     const diff = [
-      "diff --git a/packages/web/a.ts b/packages/web/a.ts",
-      "--- a/packages/web/a.ts",
-      "+++ b/packages/web/a.ts",
+      "diff --git a/apps/web/a.ts b/apps/web/a.ts",
+      "--- a/apps/web/a.ts",
+      "+++ b/apps/web/a.ts",
       "@@ -10,0 +11,2 @@",
       "+one",
       "+two",
     ].join("\n");
-    expect(parseAddedLines(diff).get("packages/web/a.ts")).toEqual([{ start: 11, end: 12 }]);
+    expect(parseAddedLines(diff).get("apps/web/a.ts")).toEqual([{ start: 11, end: 12 }]);
   });
 
   test("a hunk header without a count covers exactly one line", () => {
@@ -105,13 +105,13 @@ describe("parseAddedLines", () => {
   });
 
   test("reads a path with a space, which git terminates with a tab", () => {
-    const diff = ["--- /dev/null", "+++ b/packages/web/a b.ts\t", "@@ -0,0 +1,1 @@", "+x"].join("\n");
-    expect([...parseAddedLines(diff).keys()]).toEqual(["packages/web/a b.ts"]);
+    const diff = ["--- /dev/null", "+++ b/apps/web/a b.ts\t", "@@ -0,0 +1,1 @@", "+x"].join("\n");
+    expect([...parseAddedLines(diff).keys()]).toEqual(["apps/web/a b.ts"]);
   });
 
   test("unquotes a path git C-quoted", () => {
-    const diff = ['+++ "b/packages/web/a\\tb.ts"', "@@ -0,0 +1,1 @@", "+x"].join("\n");
-    expect([...parseAddedLines(diff).keys()]).toEqual(["packages/web/a\tb.ts"]);
+    const diff = ['+++ "b/apps/web/a\\tb.ts"', "@@ -0,0 +1,1 @@", "+x"].join("\n");
+    expect([...parseAddedLines(diff).keys()]).toEqual(["apps/web/a\tb.ts"]);
   });
 });
 
@@ -143,16 +143,16 @@ describe("isAddedLine", () => {
 
 describe("selectNewFindings", () => {
   const added: Map<string, Array<{ start: number; end: number }>> = new Map([
-    ["packages/web/a.tsx", [{ start: 20, end: 22 }]],
+    ["apps/web/a.tsx", [{ start: 20, end: 22 }]],
   ]);
 
   test("keeps a finding on an added line and drops one on untouched code", () => {
-    expect(selectNewFindings([finding("packages/web/a.tsx", 21)], added)).toHaveLength(1);
-    expect(selectNewFindings([finding("packages/web/a.tsx", 19)], added)).toHaveLength(0);
+    expect(selectNewFindings([finding("apps/web/a.tsx", 21)], added)).toHaveLength(1);
+    expect(selectNewFindings([finding("apps/web/a.tsx", 19)], added)).toHaveLength(0);
   });
 
   test("drops every finding in a file the change never touched", () => {
-    expect(selectNewFindings([finding("packages/web/other.tsx", 21)], added)).toHaveLength(0);
+    expect(selectNewFindings([finding("apps/web/other.tsx", 21)], added)).toHaveLength(0);
   });
 
   test("keeps a finding with no file — no line can excuse it", () => {
@@ -162,12 +162,12 @@ describe("selectNewFindings", () => {
   test("a finding anchored above the hunk stays out, even though it spans into it", () => {
     // The legacy `useEffect` case: its call expression reaches over the added
     // line, but it starts on untouched code, so it is not this change's debt.
-    expect(selectNewFindings([finding("packages/web/a.tsx", 18)], added)).toHaveLength(0);
+    expect(selectNewFindings([finding("apps/web/a.tsx", 18)], added)).toHaveLength(0);
   });
 });
 
 describe("parseEslintFindings", () => {
-  const cwd = `${import.meta.dir}/../../packages/web`;
+  const cwd = `${import.meta.dir}/../../apps/web`;
 
   test("keeps errors, drops warnings, and carries the rule id", () => {
     const stdout = JSON.stringify([
@@ -182,7 +182,7 @@ describe("parseEslintFindings", () => {
     ]);
     expect(parseEslintFindings(stdout, cwd)).toEqual([
       {
-        file: "packages/web/components/A.tsx",
+        file: "apps/web/components/A.tsx",
         line: 12,
         code: "no-restricted-syntax",
         message: "no useEffect",

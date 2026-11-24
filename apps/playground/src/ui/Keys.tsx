@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { KeyCap } from "../../../../packages/web/components/KeyCap";
+import { KeyCap } from "../../../../apps/web/components/KeyCap";
 
 /** Keyboard keys, always as KeyCaps restyled by `.keys kbd` (base.css).
  *  Inside a control they are for eyes only (`hidden`): the control says its

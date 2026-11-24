@@ -178,7 +178,7 @@ test("parseWorktreeList marks the first entry primary and drops prunable ones", 
 
 test("parseRawDiff drops nested worktrees and node_modules symlinks", () => {
   const z = "0".repeat(40), b = "b".repeat(40);
-  const out = `:000000 160000 ${z} ${b} A\t.codecast/worktrees/x\n:000000 120000 ${z} ${b} A\tnode_modules\n:000000 120000 ${z} ${b} A\tpackages/web/node_modules\n:000000 120000 ${z} ${b} A\tlink\n`;
+  const out = `:000000 160000 ${z} ${b} A\t.codecast/worktrees/x\n:000000 120000 ${z} ${b} A\tnode_modules\n:000000 120000 ${z} ${b} A\tapps/web/node_modules\n:000000 120000 ${z} ${b} A\tlink\n`;
   expect(parseRawDiff(out).map((r) => r.path)).toEqual(["link"]);
 });
 

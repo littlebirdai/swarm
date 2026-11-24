@@ -45,7 +45,7 @@ const base = (over: Partial<CoverageInputs> = {}): CoverageInputs => ({
   ],
   roles: [role("r_platform", "platform"), role("r_a", "design", ["p_brand"]), role("r_b", "marketing", ["p_brand"]), role("r_root", "head-of-people")],
   areas: [
-    { repository: "acme/app", path_prefix: "packages/web", commits_30d: 40, authors: [], sessions_30d: 12, project_id: "p_platform" },
+    { repository: "acme/app", path_prefix: "apps/web", commits_30d: 40, authors: [], sessions_30d: 12, project_id: "p_platform" },
     { repository: "acme/tools", path_prefix: "", commits_30d: 9, authors: [], sessions_30d: 3 },
     { repository: "acme/old", path_prefix: "", commits_30d: 0, authors: [], sessions_30d: 0 },
   ],

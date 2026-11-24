@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-const require = createRequire(new URL("../../../packages/web/package.json", import.meta.url));
+const require = createRequire(new URL("../../../apps/web/package.json", import.meta.url));
 const root = dirname(require.resolve("@xterm/xterm/package.json"));
 const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const js = readFileSync(join(root, "lib/xterm.js"), "utf8").replace(/\n\/\/# sourceMappingURL=.*$/m, "");

@@ -2,7 +2,7 @@
 //
 // The text needs no storage of its own: the command and its text are already
 // in the transcript as the tool call that ran it, and the conversation view
-// reads them from there (packages/web/components/castCommand.ts sayTextOf).
+// reads them from there (apps/web/components/castCommand.ts sayTextOf).
 // A thread in clean mode shows only these and the person's own messages, so
 // everything else the agent writes stays working notes. The command checks
 // the text and confirms in one line; it never echoes the text back.

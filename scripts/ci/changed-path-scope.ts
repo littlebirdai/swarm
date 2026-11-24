@@ -53,7 +53,7 @@ export type Area = (typeof AREAS)[number];
 // files reach it; one that only a few files reach is cheaper left to
 // test-always.
 //
-// The other jobs follow what they execute: `lint` lints packages/web only,
+// The other jobs follow what they execute: `lint` lints apps/web only,
 // `typecheck` filters to cli + web (with the sim program) + convex + evals +
 // playground, and `build` builds web, cli, the extensions and playground.
 export const JOB_AREAS: Record<string, Area[]> = {
@@ -114,7 +114,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   // The eval home (docs/architecture/evals-home.md). Its unit tests run as a
   // step of test-cli.
   ["evals", ["apps/evals/"]],
-  ["web", ["packages/web/"]],
+  ["web", ["apps/web/"]],
   ["convex", ["apps/server/"]],
   ["shared", ["packages/shared/"]],
   // The vendored mirror is its own area: a change to it runs the platform

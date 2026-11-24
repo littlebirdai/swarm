@@ -114,12 +114,12 @@ read as "simple, fast, fun, and real software", in that order.
   `.env.local`). It is a workspace member and imports:
   - `@codecast/shared/contracts/orgAvatars` and `sessionCharacter` for
     characters,
-  - the avatar art (`packages/web/components/org/avatars/*.webp`) and the
+  - the avatar art (`apps/web/components/org/avatars/*.webp`) and the
     `RoleAvatar` component / `lib/orgAvatars.ts` pattern (import or a thin
     local wrapper over the same files, never copies of the art),
-  - `KeyCap` (`packages/web/components/KeyCap.tsx`) for keyboard hints,
+  - `KeyCap` (`apps/web/components/KeyCap.tsx`) for keyboard hints,
   - `@platform/agent` (`runAssistant`, `defineTool`, `Type`) for the builder.
-- Never edit `packages/web`, `apps/server` or `platform/` for this product
+- Never edit `apps/web`, `apps/server` or `platform/` for this product
   except to export something genuinely shared (and then reuse it from both).
 
 ### Convex data model (playground deployment)

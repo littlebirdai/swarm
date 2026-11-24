@@ -6,7 +6,7 @@ describe("structuredResultModel", () => {
     const m = structuredResultModel({
       verdict: "PASS",
       findings: [
-        { severity: "minor", file: "packages/web/lib/stickyPrompt.ts", issue: "Vault-ready messages reach the sticky header.", fix: "Exclude vault_ready there." },
+        { severity: "minor", file: "apps/web/lib/stickyPrompt.ts", issue: "Vault-ready messages reach the sticky header.", fix: "Exclude vault_ready there." },
         { severity: "critical", file: "/Users/ashot/src/codecast/apps/server/convex/secrets.ts", line: 42, issue: "Value in a log line." },
       ],
       notes: "I re-ran **everything**.",
@@ -18,7 +18,7 @@ describe("structuredResultModel", () => {
     if (findings.kind !== "records") return;
     expect(findings.items[0]).toEqual({
       badge: { text: "minor", tone: "warn" },
-      location: { path: "packages/web/lib/stickyPrompt.ts", display: "packages/web/lib/stickyPrompt.ts" },
+      location: { path: "apps/web/lib/stickyPrompt.ts", display: "apps/web/lib/stickyPrompt.ts" },
       title: "Vault-ready messages reach the sticky header.",
       fields: [],
       texts: [{ label: "Fix", text: "Exclude vault_ready there." }],
@@ -31,7 +31,7 @@ describe("structuredResultModel", () => {
   test("an implementer's report: summary leads, file lists are paths, empty arrays stay", () => {
     const m = structuredResultModel({
       status: "done",
-      files_changed: ["/Users/ashot/src/codecast/packages/web/components/secrets/parts.tsx"],
+      files_changed: ["/Users/ashot/src/codecast/apps/web/components/secrets/parts.tsx"],
       verification: "Ran cast check web.",
       summary: "All four fixes are in.",
       open_issues: [],
@@ -40,7 +40,7 @@ describe("structuredResultModel", () => {
     expect(m.status?.tone).toBe("good");
     expect(m.fields).toEqual([{ label: "Tests passed", value: "33" }]);
     expect(m.sections.map((s) => s.label)).toEqual(["Summary", "Files changed", "Verification", "Open issues"]);
-    expect(m.sections[1]).toEqual({ kind: "list", label: "Files changed", items: ["codecast/packages/web/components/secrets/parts.tsx"], paths: true });
+    expect(m.sections[1]).toEqual({ kind: "list", label: "Files changed", items: ["codecast/apps/web/components/secrets/parts.tsx"], paths: true });
     expect(m.sections[3]).toEqual({ kind: "list", label: "Open issues", items: [], paths: false });
   });
 

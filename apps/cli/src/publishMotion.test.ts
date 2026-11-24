@@ -77,7 +77,7 @@ test("the thumbnail page loads the pinned runtime before the composition and hol
 });
 
 test("a screenshot counts only once its PNG is whole", () => {
-  const png = fs.readFileSync(path.join(__dirname, "../../../packages/web/public/favicon-32x32.png"));
+  const png = fs.readFileSync(path.join(__dirname, "../../../apps/web/public/favicon-32x32.png"));
   expect(isCompletePng(png)).toBe(true);
   expect(isCompletePng(png.subarray(0, png.length - 12))).toBe(false);
   expect(isCompletePng(Buffer.from("not a png at all, just text"))).toBe(false);

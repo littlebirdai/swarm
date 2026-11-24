@@ -101,7 +101,7 @@ describe("risks", () => {
   const base = { insertions: 0, deletions: 0, conversations: [], pr_ids: [], task_ids: [] };
 
   test("schema reads only the slice's own area", () => {
-    const c = commit({ sha: "a", paths: { "apps/server/convex/schema.ts": 3, "packages/web/x.ts": 1, "docs/a.md": 1 } });
+    const c = commit({ sha: "a", paths: { "apps/server/convex/schema.ts": 3, "apps/web/x.ts": 1, "docs/a.md": 1 } });
     expect(computeRisks({ ...base, units: [{ commit: c, area: null }] }, { ships: [], linked: true })).toEqual([{ code: "schema", evidence: ["apps/server/convex/schema.ts"] }]);
     expect(computeRisks({ ...base, units: [{ commit: c, area: "web" }] }, { ships: [], linked: true })).toEqual([]);
   });

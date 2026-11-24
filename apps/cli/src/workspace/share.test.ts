@@ -97,9 +97,9 @@ describe("detectProject share list", () => {
   });
 
   test("offers nothing when the workspace-link trap is present", () => {
-    mkdirIn(primary, "packages/web");
+    mkdirIn(primary, "apps/web");
     mkdirIn(primary, "node_modules/@scope");
-    fs.symlinkSync("../../packages/web", path.join(primary, "node_modules/@scope/web"));
+    fs.symlinkSync("../../apps/web", path.join(primary, "node_modules/@scope/web"));
 
     expect(detectProject(primary).setup.share).toEqual([]);
   });

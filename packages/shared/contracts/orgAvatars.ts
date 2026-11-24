@@ -1,6 +1,6 @@
 // Personified roles (docs/architecture/org-staffing.md S13): the key list of
 // the portraits a role may wear. The images live in
-// packages/web/components/org/avatars/; this list is what the server
+// apps/web/components/org/avatars/; this list is what the server
 // validates against and what the default is drawn from, so a key stored on a
 // role always names an icon the web can draw.
 //

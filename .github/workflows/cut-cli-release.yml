@@ -154,7 +154,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd packages/web/binaries
+          cd apps/web/binaries
           for artifact in codecast-darwin-arm64 codecast-darwin-x64; do
             codesign --verify --strict --verbose=2 "$artifact"
             info=$(codesign -dvv "$artifact" 2>&1)
@@ -262,7 +262,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd packages/web/binaries
+          cd apps/web/binaries
           manifest='{}'
           for artifact in \
             codecast-darwin-arm64 \
@@ -313,10 +313,10 @@ jobs:
           retention-days: 3
           if-no-files-found: error
           path: |
-            packages/web/binaries/codecast-darwin-arm64
-            packages/web/binaries/codecast-darwin-x64
-            packages/web/binaries/computer-helper.tar
-            packages/web/binaries/computer-helper.json
+            apps/web/binaries/codecast-darwin-arm64
+            apps/web/binaries/codecast-darwin-x64
+            apps/web/binaries/computer-helper.tar
+            apps/web/binaries/computer-helper.json
             ${{ runner.temp }}/release-manifest.json
 
       - name: Upload the staging objects to R2
@@ -338,7 +338,7 @@ jobs:
           uploaded_after=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           echo "UPLOADED_AFTER=$uploaded_after" >> "$GITHUB_ENV"
           sleep 2
-          cd packages/web/binaries
+          cd apps/web/binaries
           for artifact in \
             codecast-darwin-arm64 \
             codecast-darwin-x64 \

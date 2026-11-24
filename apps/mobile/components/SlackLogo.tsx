@@ -1,7 +1,7 @@
 import Svg, { Path } from 'react-native-svg';
 
 // The Slack mark, in Slack's own four colours: the same glyph web draws
-// (packages/web/components/SlackLogo.tsx). `muted` greys it, for a line we
+// (apps/web/components/SlackLogo.tsx). `muted` greys it, for a line we
 // mirrored OUT to Slack rather than one that came from there.
 const MUTED = '#8a8a8a';
 

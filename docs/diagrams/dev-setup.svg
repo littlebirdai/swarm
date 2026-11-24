@@ -67,7 +67,7 @@
 
   <rect class="card" x="56" y="278" width="234" height="66" rx="8"/>
   <text class="l" x="70" y="300">Vite</text>
-  <text class="n" x="70" y="318">packages/web</text>
+  <text class="n" x="70" y="318">apps/web</text>
   <text class="n" x="70" y="334">port 3200+N</text>
 
   <rect class="core" x="330" y="278" width="262" height="152" rx="8"/>

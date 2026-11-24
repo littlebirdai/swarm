@@ -196,7 +196,7 @@ function gitIgnoredPaths(repoRoot: string, rels: readonly string[]): Set<string>
 /**
  * True if `rel` holds symlinks pointing back into the repo but outside `rel`
  * itself — the shape a package manager creates for workspace packages
- * (`node_modules/@scope/web -> ../../packages/web`).
+ * (`node_modules/@scope/web -> ../../apps/web`).
  *
  * Why refuse those: the links are relative and resolve from the real
  * directory, so inside a worktree they reach the PRIMARY checkout's source

@@ -13,7 +13,7 @@
 // the DOM — it is a native layer, not an element — so anything the app draws
 // over the pane (the palette, a menu, a drag veil, a modal) would be painted
 // under it. The renderer therefore hides the view whenever an overlay is up
-// (packages/web/lib/nativeOverlayGuard.ts), and this module hides it for the
+// (apps/web/lib/nativeOverlayGuard.ts), and this module hides it for the
 // cases only the shell can see: a minimized window, a hidden window, a host
 // renderer that navigated away.
 //

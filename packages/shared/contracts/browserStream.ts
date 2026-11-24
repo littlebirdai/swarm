@@ -1,5 +1,5 @@
 // Remote browser watching: the contract between the web viewer
-// (packages/web/lib/browserWatchRelay.ts), the Convex relay
+// (apps/web/lib/browserWatchRelay.ts), the Convex relay
 // (apps/server/convex/browserStream.ts) and the daemon's relay loop
 // (apps/cli/src/browser/watchRelay.ts).
 //

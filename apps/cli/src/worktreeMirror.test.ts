@@ -68,8 +68,8 @@ describe("buildWorktreeMirror", () => {
   test("a session belongs to the deepest worktree holding its cwd", async () => {
     const mirror = (await buildWorktreeMirror(ROOT, {
       sessions: [
-        { conversationId: "conv-main", cwd: `${ROOT}/packages/web` },
-        { conversationId: "conv-wt", cwd: `${WT}/packages/web` },
+        { conversationId: "conv-main", cwd: `${ROOT}/apps/web` },
+        { conversationId: "conv-wt", cwd: `${WT}/apps/web` },
       ],
     }, fakeGit()))!;
     const byName = Object.fromEntries(payloadOf(mirror).worktrees.map((w) => [w.name, w.sessions]));
@@ -142,11 +142,11 @@ describe("mergeWorktreesPayload", () => {
 
 describe("worktreeOfPath", () => {
   test("names the repository root and worktree of any path inside one", () => {
-    expect(worktreeOfPath(`${WT}/packages/web/app.ts`)).toEqual({ path: WT, root: ROOT, name: "tips-modes" });
+    expect(worktreeOfPath(`${WT}/apps/web/app.ts`)).toEqual({ path: WT, root: ROOT, name: "tips-modes" });
     expect(worktreeOfPath(AGENT)).toEqual({ path: AGENT, root: ROOT, name: "agent-a1" });
     expect(worktreeOfPath(".codecast/worktrees/tips-modes/app.ts")).toEqual({ path: ".codecast/worktrees/tips-modes", root: "", name: "tips-modes" });
     expect(worktreeOfPath(`${AGENT}/.codecast/worktrees/inner`)).toEqual({ path: `${AGENT}/.codecast/worktrees/inner`, root: AGENT, name: "inner" });
-    expect(worktreeOfPath(`${ROOT}/packages/web`)).toBeNull();
+    expect(worktreeOfPath(`${ROOT}/apps/web`)).toBeNull();
     expect(worktreeOfPath(`${ROOT}/.codecast/worktrees`)).toBeNull();
   });
 });

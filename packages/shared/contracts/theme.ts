@@ -4,7 +4,7 @@
 // A theme is data, never CSS: a value per named token, for light and dark.
 // The token names below are the contract, so they only grow; how each one
 // reaches the app's internal variables lives in one web file
-// (packages/web/lib/theme/themeVars.ts), free to change with the app.
+// (apps/web/lib/theme/themeVars.ts), free to change with the app.
 
 /** Colors, as hex: #rgb or #rrggbb, or with alpha (#rgba, #rrggbbaa) to let a backdrop show through. */
 export const THEME_COLOR_TOKENS = [

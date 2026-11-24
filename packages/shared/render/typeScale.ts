@@ -1,6 +1,6 @@
 // The type scale the Modern style sets words in: seven steps, the same values
 // as the web's tailwind.config.ts fontSize (text-mark ... text-display) and
-// the --fs-* variables in packages/web/app/globals.css. 12 is the floor for
+// the --fs-* variables in apps/web/app/globals.css. 12 is the floor for
 // words; mark (11) is for glyph-like marks only: counts in small badges, key
 // caps, avatar initials and labels set in capitals.
 //

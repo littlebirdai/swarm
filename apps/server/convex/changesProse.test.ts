@@ -75,7 +75,7 @@ describe("storyPromptInput", () => {
   test("orders commits largest first, keeps a batch commit's slice to the story's areas, and filters paths by area", () => {
     const small = commitOf("c1", "fix(cli): retry", { cli: [1, 5, 1] }, { top_paths: ["apps/cli/a.ts"] });
     const batch = commitOf("c2", "feat: everything", { cli: [2, 40, 4], web: [5, 300, 20], convex: [4, 90, 9] }, {
-      top_paths: ["packages/web/big.tsx", "apps/cli/b.ts", "apps/server/c.ts"],
+      top_paths: ["apps/web/big.tsx", "apps/cli/b.ts", "apps/server/c.ts"],
     });
     const input = storyPromptInput(facts(), [small, batch], [], []);
     expect(input.commits.map((c) => c.sha)).toEqual(["c2", "c1"]);
@@ -361,8 +361,8 @@ async function setup() {
     } as any));
 
   const day = async (date: string) => {
-    await commit(`a1-${date}`, "feat(web): line pages", at("09:00", date), ["packages/web/line.tsx", "packages/web/page.tsx"], { conversation_id: ids.vis });
-    await commit(`a2-${date}`, "fix(web): line page scroll", at("09:30", date), ["packages/web/line.tsx"], { conversation_id: ids.vis });
+    await commit(`a1-${date}`, "feat(web): line pages", at("09:00", date), ["apps/web/line.tsx", "apps/web/page.tsx"], { conversation_id: ids.vis });
+    await commit(`a2-${date}`, "fix(web): line page scroll", at("09:30", date), ["apps/web/line.tsx"], { conversation_id: ids.vis });
     await commit(`b1-${date}`, `fix(cli): ${SECRET} upload\n\nBody of the private fix.`, at("10:00", date), ["apps/cli/upload.ts"], {
       conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev",
     });
@@ -580,7 +580,7 @@ describe("runProse through rebuildDay", () => {
     expect(written.capped_at).toBeUndefined();
 
     sent = [];
-    await s.commit(`g1-${PAST}`, "feat(web): line search", at("14:00"), ["packages/web/search.tsx"]);
+    await s.commit(`g1-${PAST}`, "feat(web): line search", at("14:00"), ["apps/web/search.tsx"]);
     const docs = await s.byShas("d1");
     await s.t.run(async (ctx) => ctx.db.patch(docs._id, { cost_usd: DAILY_CAP_USD, cap_version: STORY_PROMPT_VERSION, cap_cost_usd: DAILY_CAP_USD }));
     await s.rebuild();
@@ -599,8 +599,8 @@ describe("runProse through rebuildDay", () => {
       const s = await setup();
       const last = Date.now() - 60_000;
       const date = localDate(last, "UTC");
-      await s.commit("live1", "feat(web): line pages", last - 30 * 60_000, ["packages/web/line.tsx"], { conversation_id: s.ids.vis });
-      await s.commit("live2", "fix(web): line page scroll", last, ["packages/web/line.tsx"], { conversation_id: s.ids.vis });
+      await s.commit("live1", "feat(web): line pages", last - 30 * 60_000, ["apps/web/line.tsx"], { conversation_id: s.ids.vis });
+      await s.commit("live2", "fix(web): line page scroll", last, ["apps/web/line.tsx"], { conversation_id: s.ids.vis });
 
       await s.rebuild(date);
       expect(storyCalls()).toEqual([]);
@@ -622,7 +622,7 @@ describe("runProse through rebuildDay", () => {
     const { start, end } = dayBounds(date, "UTC");
     if (end - now < 2 * 60_000) return; // the day ends under the test: nothing live to hold back
     if (now - start < 2 * SETTLE_MS) return; // a settled commit would fall on yesterday
-    await s.commit("w1", "feat(web): line pages", now - 2 * SETTLE_MS, ["packages/web/line.tsx"], { conversation_id: s.ids.vis });
+    await s.commit("w1", "feat(web): line pages", now - 2 * SETTLE_MS, ["apps/web/line.tsx"], { conversation_id: s.ids.vis });
     await s.rebuild(date);
     expect(editionCalls()).toHaveLength(1);
     const first = (await s.digest(date))!;

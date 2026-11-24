@@ -228,10 +228,10 @@ describe("a corrected tsconfig path", () => {
 
   test("the same tsconfig keeps the running watcher", async () => {
     const dir = watchDir("/tree2", "web");
-    writeWatchState(dir, { pid: process.pid, project: "web", tsconfig: "packages/web/tsconfig.json", root: "/tree2", startedAt: 1, inProgress: false, finishedAt: Date.now(), errors: 0 });
+    writeWatchState(dir, { pid: process.pid, project: "web", tsconfig: "apps/web/tsconfig.json", root: "/tree2", startedAt: 1, inProgress: false, finishedAt: Date.now(), errors: 0 });
     fs.writeFileSync(outputPath(dir), "\n");
     let starts = 0;
-    const r = await checkProject({ name: "web", tsconfig: "packages/web/tsconfig.json" }, "/tree2", { start: () => starts++ });
+    const r = await checkProject({ name: "web", tsconfig: "apps/web/tsconfig.json" }, "/tree2", { start: () => starts++ });
     expect(starts).toBe(0);
     expect(r.started).toBe(false);
   });
@@ -525,7 +525,7 @@ describe("projectsTouching", () => {
     const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "touching-")));
     try {
       const projects = [
-        { name: "web", tsconfig: "packages/web/tsconfig.json" },
+        { name: "web", tsconfig: "apps/web/tsconfig.json" },
         { name: "cli", tsconfig: "apps/cli/tsconfig.json" },
         { name: "convex", tsconfig: "apps/server/tsconfig.json" },
       ];
@@ -534,14 +534,14 @@ describe("projectsTouching", () => {
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(buildInfoPath(dir), JSON.stringify({ fileNames: files.map((f) => path.relative(dir, path.join(root, f))) }));
       };
-      info("web", ["packages/web/app.tsx", "packages/shared/x.ts"]);
+      info("web", ["apps/web/app.tsx", "packages/shared/x.ts"]);
       info("cli", ["apps/cli/src/a.ts"]);
       info("convex", ["apps/server/f.ts", "packages/shared/x.ts"]);
       const names = (changed: string[]) => projectsTouching(root, projects, changed).map((p) => p.name);
       expect(names(["packages/shared/x.ts"])).toEqual(["web", "convex"]);
       expect(names(["apps/cli/src/new.ts"])).toEqual(["cli"]);
       expect(names(["README.md", "docs/a.md"])).toEqual([]);
-      expect(names(["packages/web/tsconfig.json"])).toEqual(["web"]);
+      expect(names(["apps/web/tsconfig.json"])).toEqual(["web"]);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

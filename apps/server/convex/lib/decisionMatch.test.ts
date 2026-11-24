@@ -11,8 +11,8 @@ describe("decisionTouches", () => {
   });
 
   test("matches by governed path in the same repo, and names the files", () => {
-    const d = { repo: "codecast-sh/codecast", files: ["packages/web/store/"] };
-    expect(decisionTouches(d, change(["packages/web/store/a.ts", "README.md"]))).toEqual({ files: ["packages/web/store/a.ts"], session: false });
+    const d = { repo: "codecast-sh/codecast", files: ["apps/web/store/"] };
+    expect(decisionTouches(d, change(["apps/web/store/a.ts", "README.md"]))).toEqual({ files: ["apps/web/store/a.ts"], session: false });
   });
 
   test("the same path in another repo does not match", () => {

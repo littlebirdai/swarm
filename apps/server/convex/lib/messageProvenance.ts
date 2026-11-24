@@ -20,8 +20,8 @@
 // terminal, are not.
 import type { Doc } from "../_generated/dataModel";
 import { canonicalSlashCommand, isHostedAgentType, parseDecisionAnswer, stripMentionContext, stripPastedContent } from "@codecast/shared/contracts";
-import { stickyPromptContent } from "../../../../packages/web/lib/stickyPrompt";
-import { cleanUserMessage, isBareNudge } from "../../../../packages/web/components/sessionMessage";
+import { stickyPromptContent } from "../../../../apps/web/lib/stickyPrompt";
+import { cleanUserMessage, isBareNudge } from "../../../../apps/web/components/sessionMessage";
 import { isPressedMessage, isProgramLaunched, isUserMessageNoise } from "./userSend";
 
 export type MessageProvenance = "typed_composer" | "typed_local" | "program";

@@ -1,5 +1,5 @@
 // Board illustrations (ct-92151): a fixed set of painted spot illustrations
-// bundled with the web app (packages/web/components/boards/art/<name>.webp).
+// bundled with the web app (apps/web/components/boards/art/<name>.webp).
 // A sticky's or shape's `icon` names one of these, or holds an emoji. The
 // common emoji resolve to their painted twin, so a board an agent wrote with
 // emoji draws the same art.

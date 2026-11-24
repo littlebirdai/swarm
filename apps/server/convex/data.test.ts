@@ -174,7 +174,7 @@ describe("project scoping stops at a path boundary", () => {
   test("a sibling directory sharing the prefix is another project", () => {
     expect(pathIsWithin("/repo/codecast-web", "/repo/codecast")).toBe(false);
     expect(pathIsWithin("/repo/codecast", "/repo/codecast")).toBe(true);
-    expect(pathIsWithin("/repo/codecast/packages/web", "/repo/codecast")).toBe(true);
+    expect(pathIsWithin("/repo/codecast/apps/web", "/repo/codecast")).toBe(true);
     // A worktree lives under its repository, and a trailing slash names the same directory.
     expect(pathIsWithin("/repo/codecast/.codecast/worktrees/fix", "/repo/codecast/")).toBe(true);
     expect(pathIsWithin("/repo/codecast-web", "/repo/codecast/")).toBe(false);

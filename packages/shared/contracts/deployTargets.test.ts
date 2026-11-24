@@ -42,7 +42,7 @@ describe("deploy targets from config (deploys.md DP10)", () => {
 describe("what waits on a target (DP12)", () => {
   test("a commit ships to a target when it touches one of its paths; unknown files count", () => {
     expect(commitTouchesTarget(["apps/server/**"], ["apps/server/convex/a.ts"])).toBe(true);
-    expect(commitTouchesTarget(["apps/server/**"], ["packages/web/a.ts"])).toBe(false);
+    expect(commitTouchesTarget(["apps/server/**"], ["apps/web/a.ts"])).toBe(false);
     expect(commitTouchesTarget(["apps/server/**"], null)).toBe(true);
     expect(commitTouchesTarget([], ["anything"])).toBe(true);
   });

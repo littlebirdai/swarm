@@ -19,7 +19,7 @@ describe("splitCodeRuns", () => {
 
   test("paths, files and flags are code", () => {
     expect(code("edited src/api/hooks.ts")).toEqual(["src/api/hooks.ts"]);
-    expect(code("see packages/web/lib/stickyPrompt.ts:88 first")).toEqual(["packages/web/lib/stickyPrompt.ts:88"]);
+    expect(code("see apps/web/lib/stickyPrompt.ts:88 first")).toEqual(["apps/web/lib/stickyPrompt.ts:88"]);
     expect(code("open ~/code and ./a")).toEqual(["~/code", "./a"]);
     expect(code("update README.md")).toEqual(["README.md"]);
     expect(code("run it with --dry-run")).toEqual(["--dry-run"]);

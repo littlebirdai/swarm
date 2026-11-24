@@ -67,7 +67,7 @@ Settings → Connected agents lists every grant with its client, return host, wh
 
 ## Switching it on
 
-Set `MCP_FORWARD_SECRET` to the same random value on Railway (web) and Convex first, so registration limits key on callers rather than on the web server. The OAuth routes and the consent calls answer only on a deployment with `MCP_OAUTH_ENABLED=1`; elsewhere they are 404 or refuse, and `/mcp` takes a `cast` token alone. `MCP_PUBLIC_ORIGIN` (default `https://codecast.sh`) is the issuer and resource origin; `MCP_WEB_ORIGIN` is where the consent page lives. `codecast.sh` proxies `/mcp`, `/oauth/register`, `/oauth/token` and the two well-known documents to the Convex site (`packages/web/server/index.ts`).
+Set `MCP_FORWARD_SECRET` to the same random value on Railway (web) and Convex first, so registration limits key on callers rather than on the web server. The OAuth routes and the consent calls answer only on a deployment with `MCP_OAUTH_ENABLED=1`; elsewhere they are 404 or refuse, and `/mcp` takes a `cast` token alone. `MCP_PUBLIC_ORIGIN` (default `https://codecast.sh`) is the issuer and resource origin; `MCP_WEB_ORIGIN` is where the consent page lives. `codecast.sh` proxies `/mcp`, `/oauth/register`, `/oauth/token` and the two well-known documents to the Convex site (`apps/web/server/index.ts`).
 
 ## Rollout
 

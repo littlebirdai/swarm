@@ -9,9 +9,9 @@ import type { ChangeCommit, ReleaseBurst, ShipEvent } from "./types";
 /** Default path map. A surface covers the areas of its paths. */
 export const SURFACE_PATHS: Record<string, readonly string[]> = {
   cli: ["apps/cli/", "packages/shared/"],
-  desktop: ["apps/desktop/", "packages/electron/", "packages/web/", "packages/shared/"],
+  desktop: ["apps/desktop/", "packages/electron/", "apps/web/", "packages/shared/"],
   backend: ["apps/server/", "packages/convex/"],
-  web: ["packages/web/", "packages/shared/"],
+  web: ["apps/web/", "packages/shared/"],
   extension: ["apps/browser-extension/", "packages/chrome-extension/"],
   mobile: ["apps/mobile/"],
 };

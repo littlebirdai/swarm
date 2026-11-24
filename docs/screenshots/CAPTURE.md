@@ -2,24 +2,24 @@
 
 The product screenshots in the README, the docs page and the guides come from the real app running in docs shots mode: a dev-only build that renders every route over a fixture "Acme" workspace (Alex Rivera, Maya Ortiz and Sarah Chen working on webhook retries) with no server, its own origin, and no outbox. Nothing from a real workspace can reach an image, which matters because this repository is public. Never capture the live app for a public image: a real inbox shows other teams, private sessions and people's faces.
 
-The fixture world lives in `packages/web/lib/acmeWorld/`, shared with the phone's store shots mode. Change it there and recapture to change what a shot shows.
+The fixture world lives in `apps/web/lib/acmeWorld/`, shared with the phone's store shots mode. Change it there and recapture to change what a shot shows.
 
 ## How shots are made
 
 ```bash
-packages/web/scripts/docs-shots-dev.sh                    # shots server on :3290
-bun packages/web/scripts/docs-shots.ts                    # every shot
-bun packages/web/scripts/docs-shots.ts --batch <name>     # one batch
-bun packages/web/scripts/docs-shots.ts <name> <name>      # just these
+apps/web/scripts/docs-shots-dev.sh                    # shots server on :3290
+bun apps/web/scripts/docs-shots.ts                    # every shot
+bun apps/web/scripts/docs-shots.ts --batch <name>     # one batch
+bun apps/web/scripts/docs-shots.ts <name> <name>      # just these
 ```
 
-Each shot is one entry in `packages/web/docs-shots/batches/<batch>.ts`: the route, any setup, the crop, and the output path under `packages/web/public`. The script captures at 2x and composes the capture through `packages/web/docs-shots/frame.html` (window, element or phone frame, Modern palette plate) into a `.webp`. `packages/web/docs-shots/README.md` has the details. Phone shots come from the iOS simulator in store shots mode (`apps/mobile/store-shots/`) and go through the same frame with `--batch phone`.
+Each shot is one entry in `apps/web/docs-shots/batches/<batch>.ts`: the route, any setup, the crop, and the output path under `apps/web/public`. The script captures at 2x and composes the capture through `apps/web/docs-shots/frame.html` (window, element or phone frame, Modern palette plate) into a `.webp`. `apps/web/docs-shots/README.md` has the details. Phone shots come from the iOS simulator in store shots mode (`apps/mobile/store-shots/`) and go through the same frame with `--batch phone`.
 
 ## The README set
 
 The PNGs here are the README's copies of framed docs shots, scaled to 1920 wide (the phone shot to 900):
 
-| File | Source under `packages/web/public` |
+| File | Source under `apps/web/public` |
 |---|---|
 | `hero.png` | `docs/app/inbox.webp` |
 | `inbox.png` | `documentation/shots/inbox.webp` |
@@ -39,7 +39,7 @@ The PNGs here are the README's copies of framed docs shots, scaled to 1920 wide 
 To refresh one after recapturing its source:
 
 ```bash
-magick packages/web/public/docs/app/inbox.webp -resize '1920x>' -strip docs/screenshots/hero.png
+magick apps/web/public/docs/app/inbox.webp -resize '1920x>' -strip docs/screenshots/hero.png
 ```
 
 Look at every capture before keeping it.

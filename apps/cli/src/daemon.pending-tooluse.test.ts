@@ -27,7 +27,7 @@ describe("extractPendingToolUseFromTail", () => {
   test("returns null when the newest tool_use already completed (buffered AskUserQuestion case)", () => {
     // Read completed; AskUserQuestion tool_use is buffered (not in the transcript yet).
     const tail = [
-      assistantToolUse("toolu_read", "Read", { file_path: "/repo/packages/web/app/settings/cli/page.tsx" }),
+      assistantToolUse("toolu_read", "Read", { file_path: "/repo/apps/web/app/settings/cli/page.tsx" }),
       userToolResult("toolu_read"),
       line({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "I've read it end-to-end" }] } }),
     ].join("\n");

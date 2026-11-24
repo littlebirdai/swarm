@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const installer = process.env.CAST_INSTALLER_TEST_SCRIPT ?? resolve(import.meta.dir, "../../../packages/web/public/install.sh");
+const installer = process.env.CAST_INSTALLER_TEST_SCRIPT ?? resolve(import.meta.dir, "../../../apps/web/public/install.sh");
 const driver = join(import.meta.dir, "test-helpers/installerTerminal.py");
 const homes: string[] = [];
 

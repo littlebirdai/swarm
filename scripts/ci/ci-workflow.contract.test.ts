@@ -161,7 +161,7 @@ describe("code_paths", () => {
       return git(repo, "rev-parse", "HEAD");
     };
     const first = commit("README.md");
-    const web = commit("packages/web/a.ts");
+    const web = commit("apps/web/a.ts");
     git(repo, "checkout", "-q", "-b", "feature", first);
     const cli = commit("apps/cli/b.ts");
     git(repo, "checkout", "-q", "main");
@@ -188,7 +188,7 @@ describe("code_paths", () => {
 
     test("a push diffs against the commit main pointed at before it", () => {
       expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: web, PUSH_SHA: docs })).toEqual(["docs/c.md"]);
-      expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: first, PUSH_SHA: docs })).toEqual(["docs/c.md", "packages/web/a.ts"]);
+      expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: first, PUSH_SHA: docs })).toEqual(["apps/web/a.ts", "docs/c.md"]);
     });
 
     test("no usable base leaves the list empty, which runs every job", () => {

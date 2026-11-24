@@ -1,7 +1,7 @@
 // The shipped pool of flows as the web reads it (docs/architecture/flows.md
 // FL2, FL6). The web has no DOT parser, so this module renders each shipped
 // flow, parsed with its segments expanded, into two committed snapshots under
-// packages/web/lib/line. The first is what the pool lists (kind, stations in
+// apps/web/lib/line. The first is what the pool lists (kind, stations in
 // order, ends, the segments it uses) and the graph to draw; every surface
 // that names a flow loads it. The second is each station's words and settings
 // (prompt, script, model, limits), read only when a person opens a station,
@@ -14,7 +14,7 @@ import { describeFlow, joinsPool, type PoolWhere } from "./flowPool";
 import { parseWorkflowSource } from "./parser";
 import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates";
 
-export const SHIPPED_FLOWS_SNAPSHOT_PATH = "packages/web/lib/line/shippedFlows.generated.ts";
+export const SHIPPED_FLOWS_SNAPSHOT_PATH = "apps/web/lib/line/shippedFlows.generated.ts";
 
 const NODE_FIELDS = ["id", "label", "shape", "type", "backend", "agent", "segment", "segment_label", "segment_flow", "segment_entry", "segment_exit", "slot", "segment_generated", "stop", "max_visits", "timeout", "machine"] as const;
 
@@ -33,7 +33,7 @@ export function shippedFlowsSnapshot() {
   return Object.entries(BUILTIN_WORKFLOW_TEMPLATES).filter(([slug, src]) => joinsPool(slug, src)).map(([slug, src]) => flowSnapshot(slug, src, "shipped", null));
 }
 
-export const SHIPPED_FLOW_STATIONS_SNAPSHOT_PATH = "packages/web/lib/line/shippedFlowStations.generated.ts";
+export const SHIPPED_FLOW_STATIONS_SNAPSHOT_PATH = "apps/web/lib/line/shippedFlowStations.generated.ts";
 
 /** A station's words, stored once in `texts` and named by index: the change line repeats every segment's prompts. */
 const STATION_TEXT_FIELDS = ["prompt", "script", "system", "doc"] as const;

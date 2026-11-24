@@ -14,7 +14,7 @@ import { canAccessTask } from "./lib/access";
 import { findTaskByRef } from "./taskEvidence";
 import { isNonEmptyMessage } from "./lib/conversationBasics";
 import type { ScanCursor } from "./lib/conversationRead";
-import { commandExpansionName } from "../../../packages/web/lib/conversationProcessor";
+import { commandExpansionName } from "../../../apps/web/lib/conversationProcessor";
 import { launchedByProgram, mayBeTyped, messageProvenance, queuedTwin, sameWordsKey, typedPart } from "./lib/messageProvenance";
 import { walkOriginatorChain, type CardFacts, type ChainLink, type ChainStop, type CiteRun, type TypedLine } from "./lib/originatorChain";
 import { verifyApiToken } from "./apiTokens";

@@ -56,7 +56,7 @@ export function cwdFromTranscript(jsonlPath: string, slug = path.basename(path.d
   // the only one that reflects where the session runs now.
   // A record's cwd also follows the agent's own `cd`, so the newest entry whose
   // slug is the transcript's project folder wins: that is where the agent was
-  // launched and resumes. A `cd packages/web` otherwise moved the session into
+  // launched and resumes. A `cd apps/web` otherwise moved the session into
   // a host checkout named "web" (2026-10-09).
   let last: string | null = null;
   let launch: string | null = null;

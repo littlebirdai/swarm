@@ -151,7 +151,7 @@ describe("rules (a) to (c) in isolation", () => {
   });
 
   test("sessions sharing a task merge; the earlier session anchors", () => {
-    const a = commit({ sha: "a", conversation_id: "s1", timestamp: T0, paths: { "packages/web/a.ts": 5 } });
+    const a = commit({ sha: "a", conversation_id: "s1", timestamp: T0, paths: { "apps/web/a.ts": 5 } });
     const b = commit({ sha: "b", conversation_id: "s2", timestamp: T0 + MIN, paths: { "packages/convex/b.ts": 5 } });
     const r = build({ commits: [b, a], visible: [{ conversation_id: "s1", task_ids: ["ct1"] }, { conversation_id: "s2", task_ids: ["ct1"] }] });
     expect(r.stories).toHaveLength(1);
@@ -215,8 +215,8 @@ describe("rules (a) to (c) in isolation", () => {
       commit({ sha: "m2", subject: "fix(cli): b", timestamp: T0 + 170 * MIN, paths: { "apps/cli/a.ts": 1 } }),
       commit({ sha: "m3", subject: "fix(cli): c", timestamp: T0 + 360 * MIN, paths: { "apps/cli/a.ts": 1 } }),
       commit({ sha: "m4", subject: "fix(auth): d", timestamp: T0 + MIN, paths: { "apps/cli/a.ts": 1 } }),
-      commit({ sha: "b1", branch: "feat/x", timestamp: T0, paths: { "packages/web/a.ts": 9 } }),
-      commit({ sha: "b2", branch: "feat/x", timestamp: T0 + MIN, paths: { "packages/convex/a.ts": 1, "packages/web/b.ts": 1, "docs/a.md": 1 } }),
+      commit({ sha: "b1", branch: "feat/x", timestamp: T0, paths: { "apps/web/a.ts": 9 } }),
+      commit({ sha: "b2", branch: "feat/x", timestamp: T0 + MIN, paths: { "packages/convex/a.ts": 1, "apps/web/b.ts": 1, "docs/a.md": 1 } }),
     ];
     const r = build({ commits: cs });
     expect(r.stories.map((s) => s.commit_shas.join(",")).sort()).toEqual(["b1,b2", "m1,m2", "m3", "m4"]);
@@ -255,7 +255,7 @@ describe("rules (a) to (c) in isolation", () => {
   });
 
   test("PRs join by commit or by visible session", () => {
-    const a = commit({ sha: "a", conversation_id: "s1", paths: { "packages/web/a.ts": 5 } });
+    const a = commit({ sha: "a", conversation_id: "s1", paths: { "apps/web/a.ts": 5 } });
     const b = commit({ sha: "b", subject: "fix(cli): b", pr_id: "pr9", paths: { "apps/cli/a.ts": 5 } });
     const r = build({ commits: [a, b], visible: [{ conversation_id: "s1" }], prs: [{ id: "pr1", conversation_ids: ["s1"] }, { id: "pr2", shas: ["b"] }, { id: "pr3", conversation_ids: ["private"] }] });
     expect(holding(r.stories, "a")[0].pr_ids).toEqual(["pr1"]);
@@ -263,7 +263,7 @@ describe("rules (a) to (c) in isolation", () => {
   });
 
   test("a squash or merge commit joins the pull request its subject names, unless a private session made it", () => {
-    const squash = commit({ sha: "sq", subject: "Stop asking for fields the card never asked for (#3827)", paths: { "packages/web/a.ts": 5 } });
+    const squash = commit({ sha: "sq", subject: "Stop asking for fields the card never asked for (#3827)", paths: { "apps/web/a.ts": 5 } });
     const merge = commit({ sha: "mg", subject: "Merge pull request #12 from acme/feat-x", timestamp: T0 + 300 * MIN, paths: { "apps/cli/a.ts": 5 } });
     const hidden = commit({ sha: "hd", subject: "feat(mobile): private (#40)", conversation_id: "secret", timestamp: T0 + 600 * MIN, paths: { "apps/mobile/a.ts": 5 } });
     const prs = [{ id: "pr3827", number: 3827 }, { id: "pr12", number: 12 }, { id: "pr40", number: 40 }, { id: "pr7", number: 7 }];
@@ -274,7 +274,7 @@ describe("rules (a) to (c) in isolation", () => {
   });
 
   test("a private session's own task and PR links stay out of the story, and the bulk risk still fires", () => {
-    const big = commit({ sha: "p1", subject: "feat(web): big private work", conversation_id: "secret", task_ids: ["ct-9"], pr_id: "pr-secret", paths: { "packages/web/a.ts": 2000 } });
+    const big = commit({ sha: "p1", subject: "feat(web): big private work", conversation_id: "secret", task_ids: ["ct-9"], pr_id: "pr-secret", paths: { "apps/web/a.ts": 2000 } });
     const s = holding(build({ commits: [big], visible: [] }).stories, "p1")[0];
     expect(s.task_ids).toEqual([]);
     expect(s.pr_ids).toEqual([]);

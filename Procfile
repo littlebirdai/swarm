@@ -1,1 +1,1 @@
-web: cd packages/web && bun run start
+web: cd apps/web && bun run start

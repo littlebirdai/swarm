@@ -1,7 +1,7 @@
 // Pure unified-diff/patch parsing. Shared by the web diff viewer and the
 // server-side file-change materializer — no React/DOM/Convex deps so it can run
 // in a Convex mutation. The web-only presentation helper (getFileStatus) stays
-// in packages/web/lib/patchParser.ts.
+// in apps/web/lib/patchParser.ts.
 
 export interface PatchHunk {
   oldStart: number;

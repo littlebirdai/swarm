@@ -109,7 +109,7 @@ describe("dispatch editable fields", () => {
 
 
 test("every current client action has an admitted dispatch contract", () => {
-  const directory = join(import.meta.dir, "../../../packages/web/store");
+  const directory = join(import.meta.dir, "../../../apps/web/store");
   const actions = new Set<string>();
   for (const name of readdirSync(directory)) {
     if (!name.endsWith(".ts") || name.includes(".test.")) continue;

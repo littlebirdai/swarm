@@ -23,7 +23,7 @@ Source: `packages/shared/contracts/agentClients.ts` (`AGENT_CLIENTS`).
 
 ## Apps and platforms
 
-Source: `packages/web/app/(marketing)/download/`.
+Source: `apps/web/app/(marketing)/download/`.
 
 - Web app at codecast.sh.
 - macOS desktop app (Apple Silicon).
@@ -32,7 +32,7 @@ Source: `packages/web/app/(marketing)/download/`.
 
 ## Pricing
 
-Source: `packages/web/app/(marketing)/pricing/page.tsx`.
+Source: `apps/web/app/(marketing)/pricing/page.tsx`.
 
 - Free for individuals, forever: unlimited sessions, every agent, full sync, all apps, self-hosting.
 - Team: $20 per seat per month, early access by request. There is no self-serve billing yet.
@@ -42,7 +42,7 @@ Source: `packages/web/app/(marketing)/pricing/page.tsx`.
 
 ## Features that exist today
 
-Each has a page at codecast.sh/features/<slug> (`packages/web/app/(marketing)/features/catalog.ts`).
+Each has a page at codecast.sh/features/<slug> (`apps/web/app/(marketing)/features/catalog.ts`).
 
 | Feature | What you can say | Page |
 |---|---|---|

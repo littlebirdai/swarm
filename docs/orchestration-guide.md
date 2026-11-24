@@ -104,7 +104,7 @@ After the main implementation is done, run drive rounds to find issues:
 
 ```bash
 cast plan drive pl-xxxx --rounds 3              # default 3
-cast plan drive pl-xxxx --scope packages/web    # focus the critic on a directory or pattern
+cast plan drive pl-xxxx --scope apps/web    # focus the critic on a directory or pattern
 ```
 
 Each round:

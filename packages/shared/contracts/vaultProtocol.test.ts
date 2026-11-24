@@ -38,7 +38,7 @@ describe("vaultFileKind", () => {
 
   test("dotfiles and extensionless names are text, matched case-insensitively", () => {
     expect(vaultFileKind(".gitignore")).toBe("text");
-    expect(vaultFileKind("packages/web/.env")).toBe("text");
+    expect(vaultFileKind("apps/web/.env")).toBe("text");
     expect(vaultFileKind("Makefile")).toBe("text");
     expect(vaultFileKind("docker/dockerfile")).toBe("text");
     expect(vaultFileKind("LICENSE")).toBe("text");

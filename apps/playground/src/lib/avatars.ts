@@ -2,7 +2,7 @@
 // gets in `init`. The app is a public https page, so Chrome refuses
 // http://localhost images there: a shell on http sends data: URLs instead.
 import { AVATAR_KEYS, type AvatarKey } from "@codecast/shared/contracts/orgAvatars";
-import { AVATAR_LABELS, AVATAR_URLS } from "../../../../packages/web/lib/orgAvatars";
+import { AVATAR_LABELS, AVATAR_URLS } from "../../../../apps/web/lib/orgAvatars";
 
 export { AVATAR_KEYS, AVATAR_LABELS, AVATAR_URLS, type AvatarKey };
 

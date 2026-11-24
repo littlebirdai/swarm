@@ -1,6 +1,6 @@
 // Vault loopback protocol — the contract between the daemon's local HTTP/WS
 // bridge (apps/cli/src/terminal/terminalServer.ts /vault/* routes) and the
-// web vault client (packages/web/lib/vault/client.ts).
+// web vault client (apps/web/lib/vault/client.ts).
 //
 // A vault is a registered local directory of markdown files. The local
 // filesystem is canonical: the browser reads and writes it directly over the

@@ -18,9 +18,9 @@ import { REPO_ROOT } from '../paths';
  */
 export const evalsTool = (): string[] => [process.execPath, process.env.CODECAST_EVALS_API_TOOL || join(REPO_ROOT, 'apps', 'evals', 'src', 'index.ts')];
 
-/** The multiplayer sim runner (`bun run sim` in packages/web), and the dir it runs from. */
+/** The multiplayer sim runner (`bun run sim` in apps/web), and the dir it runs from. */
 export const simRunner = (): { argv: string[]; cwd: string } => {
-  const web = join(REPO_ROOT, 'packages', 'web');
+  const web = join(REPO_ROOT, 'apps', 'web');
   return { argv: [process.execPath, join(web, 'scripts', 'sim.ts')], cwd: web };
 };
 

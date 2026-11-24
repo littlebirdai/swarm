@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { formatAgentPrompt, mergeAgentPromptSources, resolveAgentPromptSource, subagentPromptParent } from "./agentPromptOrigin";
 import { parseCodexSessionFile } from "./parser";
-import { parseInboundSessionMessage } from "../../../packages/web/components/sessionMessage";
+import { parseInboundSessionMessage } from "../../../apps/web/components/sessionMessage";
 import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
 
 const parent = "jx7297y2rfkpskb14mgbsjm5e58dv709";

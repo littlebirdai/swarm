@@ -10,7 +10,7 @@
 Candidate A ("doorbell, reimagined") is what ships: a friendly knock
 (G#5→E5) then a brighter answer (B5→E6) over a soft low E, struck-bell
 timbre. Web plays the SAME motif synthesized live in
-packages/web/lib/sounds.ts (soundCallRing) — keep the two in step. One cell
+apps/web/lib/sounds.ts (soundCallRing) — keep the two in step. One cell
 is CALL_RING_PERIOD_MS (3.0s, packages/shared/contracts/callPush.ts).
 
 Design goals: warm, friendly, technical-clean (Solarized/terminal brand),

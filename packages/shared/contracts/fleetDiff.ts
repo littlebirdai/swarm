@@ -357,7 +357,7 @@ export function capabilityIdentity(
  *
  * Exported because everything that joins against a row derives this string —
  * the browser's display index, the store's drift table
- * (`packages/web/store/capabilities.ts`, `capabilityRowKey`) — and a consumer
+ * (`apps/web/store/capabilities.ts`, `capabilityRowKey`) — and a consumer
  * that spells it itself is a second definition of identity, waiting to disagree
  * with this one on the first input where case or separator matters.
  */

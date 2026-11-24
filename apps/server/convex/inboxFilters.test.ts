@@ -2,7 +2,7 @@ import { openTasksVouchForWaiting, isTransientRateLimit429, throttleBannerConten
 import { describe, expect, test } from "bun:test";
 // The REAL web helpers, imported so the cross-check below enforces the
 // convex/web agreement instead of restating it.
-import { isSessionStashed, isSessionKilled, isSessionDismissed } from "../../../packages/web/lib/sessionRetirement";
+import { isSessionStashed, isSessionKilled, isSessionDismissed } from "../../../apps/web/lib/sessionRetirement";
 import {
   isNoiseTitle,
   isOrphanOrSubagent,
