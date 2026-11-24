@@ -1,4 +1,4 @@
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 
 export function createPendingDeliveryBatches<
   T extends { conversation_id: string; human?: boolean },

@@ -7,7 +7,7 @@ import type {
   SessionMessageIntent,
 } from "@codecast/shared/contracts";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
-import type { SentFileData } from "@codecast/shared/files";
+import type { SentFileData } from "@codecast/files";
 import type { ChatWakePrompt, HuddleSummaryTag } from "../sessionMessage";
 import type { ParsedScreenRecording } from "@codecast/shared/contracts";
 import type { ExternalEventRecord } from "../../lib/externalEventRecord";

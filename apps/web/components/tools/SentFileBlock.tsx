@@ -19,7 +19,7 @@ import {
   isPreviewableKind,
   type FileKind,
   type SentFileData,
-} from "@codecast/shared/files";
+} from "@codecast/files";
 import { useStorageImageUrl } from "../../hooks/useStorageImageUrl";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useImageGallery } from "../ImageGallery";

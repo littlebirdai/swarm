@@ -10,7 +10,6 @@
   "types": "./index.ts",
   "exports": {
     ".": "./index.ts",
-    "./network": "./network/index.ts",
     "./contracts": "./contracts/index.ts",
     "./contracts/agentAccess": "./contracts/agentAccess.ts",
     "./contracts/resourceOffloadIntent": "./contracts/resourceOffloadIntent.ts",
@@ -165,7 +164,6 @@
     "./artifacts/board": "./artifacts/board.ts",
     "./artifacts/sheet": "./artifacts/sheet.ts",
     "./artifacts/sheets": "./artifacts/sheets/index.ts",
-    "./files": "./files/index.ts",
     "./replay": "./replay/index.ts",
     "./team": "./team/index.ts",
     "./team/directoryRules": "./team/directoryRules.ts",
@@ -182,7 +180,6 @@
     "./ratchet": "./ratchet/index.ts",
     "./agents": "./agents/index.ts",
     "./search": "./search/index.ts",
-    "./async": "./async/index.ts",
     "./changes": "./changes/index.ts",
     "./contracts/mods": "./contracts/mods.ts",
     "./contracts/internalHost": "./contracts/internalHost.ts",

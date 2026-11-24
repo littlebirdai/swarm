@@ -17,7 +17,7 @@
  */
 
 import type { PageSession } from "./instance.js";
-import { mediaTypeForFile } from "@codecast/shared/files";
+import { mediaTypeForFile } from "@codecast/files";
 import { pageForRef } from "./oopif.js";
 
 export class ElementGone extends Error {

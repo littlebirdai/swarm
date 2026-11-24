@@ -36,7 +36,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import {
   SECRET_REDACTION_MAX,
   SECRET_REDACTION_MIN,

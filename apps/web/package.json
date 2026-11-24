@@ -17,6 +17,8 @@
     "@codecast/analytics": "workspace:*",
     "@codecast/convex": "workspace:*",
     "@codecast/diff": "workspace:*",
+    "@codecast/files": "workspace:*",
+    "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",

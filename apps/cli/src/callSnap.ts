@@ -90,7 +90,7 @@ import {
 import { agentTempPath, secureTempFile } from "./tempFiles.js";
 import { rememberCallFrames } from "./callFrameRefs.js";
 import { fmt, icons } from "./colors.js";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 
 // ── Limits ────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { join } from "node:path";
 
 import type { Command } from "commander";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import type { EvalSources, Freeze } from "@platform/evals";
 import { fmt } from "@platform/cli-kit/colors";
 import { formatCost } from "@platform/cli-kit/format";

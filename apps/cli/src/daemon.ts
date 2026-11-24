@@ -106,7 +106,7 @@ import {
   materializeFileTags,
 } from "@codecast/shared/contracts";
 import { downloadAttachedFile } from "./attachedFileDownload.js";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import {
   holdConversationForPrompt,
   isForcedPastDialog,

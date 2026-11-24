@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 
 import {
   cliFetchRead,

@@ -11,7 +11,7 @@
  */
 
 import * as fs from "node:fs";
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 
 export type MirrorLedger = Map<string, string>;
 

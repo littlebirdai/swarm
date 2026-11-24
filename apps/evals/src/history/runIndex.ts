@@ -10,7 +10,7 @@ import {
 import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { mapLimit } from "@codecast/shared/async";
+import { mapLimit } from "@codecast/async";
 import {
   type GuardCounts,
   GUARD_STATUSES,
