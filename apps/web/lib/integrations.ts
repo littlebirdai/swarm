@@ -31,7 +31,7 @@ import {
   type AppConnectionStatus,
   type AppDescriptor,
   type AppId,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import { formatRelative } from "./utils";
 import {
   useInboxStore,
@@ -93,7 +93,7 @@ export type AppConnectionActions = {
   busy: boolean;
   /**
    * The last refusal, in plain words: a reason code goes through the
-   * connectors' one table (shared/contracts/connectorReasons.ts), and
+   * connectors' one table (packages/connectors/src/connectorReasons.ts), and
    * a sentence passes through. A connect action that answers `{ok:false,error}`
    * is usually the server saying an env var pair is missing, kept as-is because
    * "not configured" without naming the variable sends the reader looking in

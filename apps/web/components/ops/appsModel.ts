@@ -9,7 +9,7 @@ import {
   type AppManifest,
   type AppWatch,
   type JsonSchema,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import { parseReaderQuery } from "@codecast/ingest/ingest";
 import { relTimeShort } from "@codecast/time";
 import { watchHealth } from "./metricModel";

@@ -9,7 +9,10 @@
 
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { ExternalLink, Eye, EyeOff, Lock } from "lucide-react";
-import { tokenCreateUrl, type AppDescriptor } from "@codecast/shared/contracts";
+import {
+  tokenCreateUrl,
+  type AppDescriptor,
+} from "@codecast/connectors/appDescriptors";
 import { QuietButton } from "./parts";
 
 /**

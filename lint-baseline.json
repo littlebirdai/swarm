@@ -28957,6 +28957,36 @@
   "packages/comments/test/sendOutcome.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/connectors/src/appConnector.ts": {
+    "swarm/no-comments": 50
+  },
+  "packages/connectors/src/appDescriptors.ts": {
+    "swarm/no-comments": 56
+  },
+  "packages/connectors/src/codecastConfig.ts": {
+    "swarm/no-comments": 32
+  },
+  "packages/connectors/src/codecastSignature.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/connectors/src/connectorReasons.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/connectors/src/githubAppInstallState.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/connectors/src/productView.ts": {
+    "swarm/no-comments": 34
+  },
+  "packages/connectors/test/appConnector.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/connectors/test/codecastSignature.drift.test.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/connectors/test/codecastSignature.test.ts": {
+    "swarm/no-comments": 3
+  },
   "packages/convex-errors/src/convexErrors.ts": {
     "swarm/no-comments": 13
   },
@@ -29635,15 +29665,6 @@
   "packages/shared/contracts/apiErrorBanner.usageDialog.test.ts": {
     "swarm/no-comments": 7
   },
-  "packages/shared/contracts/appConnector.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/appConnector.ts": {
-    "swarm/no-comments": 50
-  },
-  "packages/shared/contracts/appDescriptors.ts": {
-    "swarm/no-comments": 56
-  },
   "packages/shared/contracts/capabilityResolver.golden.test.ts": {
     "swarm/no-comments": 10
   },
@@ -29677,18 +29698,6 @@
   "packages/shared/contracts/closedSession.ts": {
     "swarm/no-comments": 30
   },
-  "packages/shared/contracts/codecastConfig.ts": {
-    "swarm/no-comments": 32
-  },
-  "packages/shared/contracts/codecastSignature.drift.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/codecastSignature.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/codecastSignature.ts": {
-    "swarm/no-comments": 58
-  },
   "packages/shared/contracts/commandRun.test.ts": {
     "swarm/no-comments": 1
   },
@@ -29697,9 +29706,6 @@
   },
   "packages/shared/contracts/commandsSession.test.ts": {
     "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/connectorReasons.ts": {
-    "swarm/no-comments": 22
   },
   "packages/shared/contracts/decisionAnswerLabel.test.ts": {
     "swarm/no-comments": 3
@@ -29736,9 +29742,6 @@
   },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/githubAppInstallState.ts": {
-    "swarm/no-comments": 18
   },
   "packages/shared/contracts/goalsBrief.test.ts": {
     "swarm/no-comments": 1
@@ -29792,7 +29795,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 29
+    "swarm/no-comments": 26
   },
   "packages/shared/contracts/initiative.test.ts": {
     "swarm/no-comments": 2
@@ -29973,9 +29976,6 @@
   },
   "packages/shared/contracts/problemScore.ts": {
     "swarm/no-comments": 36
-  },
-  "packages/shared/contracts/productView.ts": {
-    "swarm/no-comments": 34
   },
   "packages/shared/contracts/proposalCard.line.test.ts": {
     "swarm/no-comments": 4

@@ -649,7 +649,7 @@ export function firstAsks(can: MailAbilities | null | undefined): {
 // ── Connections ────────────────────────────────────────────────────────────
 
 /** A connect or disconnect refusal in plain words, through the connectors'
- *  one reason table (shared/contracts/connectorReasons.ts). The lane adds only the
+ *  one reason table (packages/connectors/src/connectorReasons.ts). The lane adds only the
  *  not-configured case: the server names env variables there, which the
  *  settings page wants and this reader does not. */
 export function plainConnectError(

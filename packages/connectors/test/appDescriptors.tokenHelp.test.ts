@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { APP_DESCRIPTORS, tokenCreateUrl } from "./appDescriptors";
+import { APP_DESCRIPTORS, tokenCreateUrl } from "../src/appDescriptors";
 
 describe("tokenCreateUrl: where the person makes the token", () => {
   test("fills the host the person typed, else its default, without a doubled slash", () => {

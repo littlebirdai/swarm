@@ -22,7 +22,7 @@ import { formatCallTime } from "@codecast/entities";
 import {
   formatCodecastConfig,
   mergeCodecastConfig,
-} from "@codecast/shared/contracts/codecastConfig";
+} from "@codecast/connectors/codecastConfig";
 
 export { bucketSeries };
 

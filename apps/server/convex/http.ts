@@ -39,7 +39,7 @@ import {
 } from "./lib/cliRoute";
 import { INGEST_PREFIXES, ingestPreflight, ingestServe } from "./ingestHttp";
 import { publishedKeys } from "./lib/codecastSigning";
-import { CODECAST_KEYS_PATH } from "@codecast/shared/contracts/codecastSignature";
+import { CODECAST_KEYS_PATH } from "@codecast/connectors/codecastSignature";
 import { ENROLL_PATH, enrollHttp } from "./lib/enrollHttp";
 import { TEAM_SESSIONS_PATH, teamSessionsHttp } from "./lib/teamReadKeyHttp";
 import {

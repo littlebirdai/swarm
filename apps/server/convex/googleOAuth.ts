@@ -473,7 +473,7 @@ export const getConnectUrl = action({
       api_token: args.api_token,
     });
     // Refusals are stable codes; the web describes them in one table
-    // (packages/shared/contracts/connectorReasons.ts) for every surface.
+    // (packages/connectors/src/connectorReasons.ts) for every surface.
     if (!who) return { ok: false, error: "signed_out" };
     const grants =
       args.grant === undefined
@@ -765,7 +765,7 @@ export const confirmConnection = action({
     }
     if (res.ok) return { ok: true };
     // A stable code (no_such_installation, expired, bad_token, wrong_account), described
-    // by the page the person landed on (shared/contracts/connectorReasons.ts).
+    // by the page the person landed on (packages/connectors/src/connectorReasons.ts).
     return { ok: false, error: res.error ?? "confirm_failed" };
   },
 });

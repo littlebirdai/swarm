@@ -14,7 +14,7 @@
 // an app declares no such view is remembered for the page load, so one mint
 // answers for every card of that app and view.
 //
-// The frame talks only through contracts/productView.ts: a message counts
+// The frame talks only through packages/connectors/src/productView.ts: a message counts
 // when it comes from the minted origin and from this iframe's own window, and
 // carries the protocol's source tag. It sizes the card (`ready`, `height`),
 // or says it cannot draw (`error`). When the app declares no such view, the
@@ -40,7 +40,7 @@ import {
   parseProductViewMessage,
   type ProductViewHostMessage,
   type ProductViewRef,
-} from "@codecast/shared/contracts/productView";
+} from "@codecast/connectors/productView";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useActiveWorkspaceKey } from "../../../hooks/useWorkspaceCollection";
 import { useNearViewport } from "../../../hooks/useNearViewport";

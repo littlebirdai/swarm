@@ -3,7 +3,7 @@
 // writes onto each project it files into (projects.line_profile). The CLI
 // loader, the Convex mutation and the web store all name these types, so the
 // three cannot drift. Pure types and one comparison; no runtime deps.
-import { canonicalJson } from "./appConnector";
+import { canonicalJson } from "@codecast/connectors/appConnector";
 import type { SignalKind } from "@codecast/signals/signalFingerprint";
 import {
   LINE_DEPLOY_DEFAULTS,

@@ -9,7 +9,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import vectors from "./__fixtures__/codecastSignature.vectors.json";
+import vectors from "../src/__fixtures__/codecastSignature.vectors.json";
 import {
   SIGNATURE_HEADERS,
   SIGNATURE_WINDOW_MS,
@@ -18,7 +18,7 @@ import {
   pathAndQueryOf,
   publicJwks,
   type CodecastJwk,
-} from "./codecastSignature";
+} from "../src/codecastSignature";
 import * as platform from "../../../platform/packages/analytics/src/codecastVerify";
 
 const UNION = path.join(

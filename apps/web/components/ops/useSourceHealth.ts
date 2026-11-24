@@ -3,13 +3,13 @@
 // its flow map. Readers only: the surface that mounts this feeds the lists
 // (OpsShell does; Settings mounts the feeders itself).
 import { createElement, Fragment, useMemo } from "react";
-import type { AppConnectionsResult } from "@codecast/shared/contracts";
+import type { AppConnectionsResult } from "@codecast/connectors/appDescriptors";
 import {
   parseAppManifest,
   watchKey,
   type AppManifest,
   type AppWatch,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import { useCollectionRows } from "../../hooks/useCollectionRows";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useFlowMapRow } from "../../hooks/useFlowMap";

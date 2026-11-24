@@ -58,7 +58,7 @@ describe("a paused watch", () => {
       .map((w: any) => dueWatches({ watches: [w] } as any, [], at)[0])
       .filter(Boolean);
     expect(keys.length).toBe(2);
-    const { watchKey } = require("@codecast/shared/contracts/appConnector");
+    const { watchKey } = require("@codecast/connectors/appConnector");
     const state = [
       { key: watchKey(manifest.watches[0]), polled_at: 0, paused: true },
       { key: watchKey(manifest.watches[1]), polled_at: at },

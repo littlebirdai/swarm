@@ -19,7 +19,7 @@ import {
 import {
   APP_DESCRIPTORS,
   type AppConnectionsResult,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import {
   teamFeatureEnabled,
   type TeamFeatureKey,

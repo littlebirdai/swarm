@@ -6,7 +6,7 @@ import {
   isProductViewHostMessage,
   parseProductViewMessage,
   parseProductViewRef,
-} from "./productView";
+} from "../src/productView";
 
 const contact = "3f2b8c1e-9d4a-4e2b-8f1c-0a1b2c3d4e5f";
 

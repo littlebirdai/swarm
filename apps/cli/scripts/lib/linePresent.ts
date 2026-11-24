@@ -14,7 +14,7 @@ import {
 } from "../../src/decideCommand.ts";
 import { parseWorkflowFile } from "../../src/workflow/parser.ts";
 import { stationBrief } from "../../src/workflow/runner.ts";
-import { parseProductViewRef } from "../../../../packages/shared/contracts/productView.ts";
+import { parseProductViewRef } from "@codecast/connectors/productView";
 import {
   PAGE_HEIGHT_MESSAGE,
   injectPageTheme,

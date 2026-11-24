@@ -3,7 +3,7 @@
 // this module calls exactly that and nothing else.
 //
 // - Every request carries codecast's signature (lib/codecastSigning.ts,
-//   @codecast/shared/contracts/codecastSignature), naming the source and its
+//   @codecast/connectors/codecastSignature), naming the source and its
 //   workspace, so an app verifies codecast with no shared secret. A
 //   connection may also hold a bearer secret, for apps that prefer one.
 // - The manifest is fetched with the connection's credential, checked by
@@ -26,7 +26,7 @@
 // - Watches poll a declared reader and fold its rows into check or job groups
 //   through ingest.applyBatch, so transitions fire like any other source.
 //
-// The pure rules live in @codecast/shared/contracts/appConnector, where the
+// The pure rules live in @codecast/connectors/appConnector, where the
 // CLI and web read them too.
 import { v } from "convex/values";
 import {
@@ -79,7 +79,7 @@ import {
   type AppManifest,
   type AppReader,
   type AppWatch,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 
 export type RunCtx = {
   runQuery: (ref: any, args: any) => Promise<any>;

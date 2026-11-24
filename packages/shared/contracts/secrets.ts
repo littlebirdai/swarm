@@ -8,7 +8,7 @@
 // Pure and isomorphic: TOTP uses Web Crypto (crypto.subtle), present in
 // Convex, Node/Bun and the browser.
 
-import { isPublicSuffix, siteOf } from "./productView";
+import { isPublicSuffix, siteOf } from "@codecast/connectors/productView";
 import {
   ENV_NAME_RE,
   envNameProblem,

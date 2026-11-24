@@ -13,7 +13,7 @@ import type {
   AppConnectionScope,
   AppConnectionStatus,
   AppDescriptor,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import {
   APP_LOOK,
   ISSUE_SYNC_APPS,

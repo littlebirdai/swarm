@@ -7,14 +7,14 @@
 //   ```
 //
 // and the bare reference `union:conversation/<contact id>@<iso>` in prose
-// (contracts/productView.ts). Alone on its line a reference is the view; in
+// (packages/connectors/src/productView.ts). Alone on its line a reference is the view; in
 // running text it is a pill. Pure.
 import {
   formatProductViewRef,
   isProductViewAt,
   parseProductViewRef,
   type ProductViewRef,
-} from "@codecast/shared/contracts/productView";
+} from "@codecast/connectors/productView";
 
 export const VIEW_FENCE_LANG = "view";
 

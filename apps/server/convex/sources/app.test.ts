@@ -13,7 +13,7 @@ import {
   generateSigningKey,
   pathAndQueryOf,
   verifyCodecastRequest,
-} from "@codecast/shared/contracts/codecastSignature";
+} from "@codecast/connectors/codecastSignature";
 
 const h = (fn: any) => fn._handler;
 const KEY = "test-connection-secrets-key";

@@ -35,7 +35,7 @@ import {
   type AppConnectionStatus,
   type AppConnectionsResult,
   type AppId,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import { Id } from "./_generated/dataModel";
 
 /** The installer's display name — their name, else email, else honest null. */
