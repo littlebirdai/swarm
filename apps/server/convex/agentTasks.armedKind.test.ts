@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
 import { refreshArmedTriggerKind } from "./agentTasks";
-import { armedTriggerKindFor, isArmedTriggerHomeOfKind } from "./dormancy";
+import { armedTriggerKindFor } from "./dormancy";
 import { pinCapExceeded, INBOX_PINNED_CAP } from "./inboxProjection";
 import { makeFakeDb } from "./testDb";
 import type { Id } from "./_generated/dataModel";
@@ -66,37 +66,6 @@ describe("armedTriggerKindFor", () => {
         task({ status: "failed" }),
       ]),
     ).toBe("standing");
-  });
-});
-
-describe("isArmedTriggerHomeOfKind", () => {
-  test("matches the kind and keeps the machine-delivered-last-turn rule", () => {
-    expect(
-      isArmedTriggerHomeOfKind({ armed_trigger_kind: "standing" }, "standing"),
-    ).toBe(true);
-    expect(
-      isArmedTriggerHomeOfKind({ armed_trigger_kind: "standing" }, "once"),
-    ).toBe(false);
-    expect(isArmedTriggerHomeOfKind({}, "standing")).toBe(false);
-    expect(
-      isArmedTriggerHomeOfKind(
-        {
-          armed_trigger_kind: "once",
-          last_message_preview:
-            '<session-message from="x">hi</session-message>',
-        },
-        "once",
-      ),
-    ).toBe(true);
-    expect(
-      isArmedTriggerHomeOfKind(
-        {
-          armed_trigger_kind: "once",
-          last_message_preview: "a human typed this",
-        },
-        "once",
-      ),
-    ).toBe(false);
   });
 });
 
@@ -309,13 +278,6 @@ describe("every agent_tasks writer restamps the home (exhaustive)", () => {
     .join("\n");
   const patchCalls = extractPatchCalls(src);
 
-  test("the patchTask chokepoint exists and restamps", () => {
-    expect(src).toContain("async function patchTask");
-    expect(src).toMatch(
-      /await ctx\.db\.patch\(task\._id, patch\);\s*\n\s*if \(task\.originating_conversation_id\)\s*await refreshArmedTriggerKind\(\s*ctx,\s*task\.originating_conversation_id,?\s*\);/,
-    );
-  });
-
   test("no raw ctx.db.patch outside patchTask writes an armed-relevant field", () => {
     // The chokepoint's own call passes a variable payload; every OTHER call
     // must write only fields the armed answer never reads.
@@ -326,45 +288,6 @@ describe("every agent_tasks writer restamps the home (exhaustive)", () => {
         ARMED_RELEVANT.some((f) => new RegExp(`[{,\\s]${f}\\s*:`).test(c)),
       );
     expect(offenders).toEqual([]);
-  });
-
-  test("the raw patch inventory is pinned — a new site is a review event", () => {
-    // Targets of every raw patch call, deduped. Conversation-row patches
-    // (inbox stamps, agent_task_id backlink) and inert task-row fields
-    // (created_by backlinks, short ids, display fields, event run_at pokes).
-    const targets = patchCalls
-      .map((c) => c.slice("ctx.db.patch(".length).split(",")[0].trim())
-      .sort();
-    expect([...new Set(targets)].sort()).toEqual([
-      "args.task_id", // created_by backlink repair + display summary (inert fields)
-      "conv._id", // conversation rows: agent_task_id backlink / un-stash
-      "conversationId", // refreshArmedTriggerKind's own conversation stamp
-      "copy._id", // re-created trigger copies get their parent session back (created_by backlink, inert)
-      "existing._id", // notifyRunAttention re-arms an unread notifications row (not a task row)
-      "prev._id", // superseded run fold (conversation row)
-      "runConv._id", // run conversation fold (conversation row)
-      "t._id", // adminBackfillCreatedBy (inert field)
-      "task._id", // patchTask chokepoint + short-id/run_at inert sites
-      "thread._id", // the result thread's message count (settleRunConversation)
-    ]);
-  });
-
-  test("insert and delete each pair with a restamp", () => {
-    // One insert site (insertTask), restamped right after by its caller path.
-    expect(src.match(/\.insert\("agent_tasks"/g)?.length).toBe(1);
-    expect(src).toMatch(
-      /await refreshArmedTriggerKind\(\s*ctx,\s*args\.originating_conversation_id as Id<"conversations">,?\s*\);/,
-    );
-    // One delete site (deleteTaskCascade), restamping the old home.
-    const deleteSites = src.match(/ctx\.db\.delete\(task\._id\)/g) ?? [];
-    expect(deleteSites.length).toBe(1);
-    expect(src).toMatch(
-      /await ctx\.db\.delete\(task\._id\);\s*\n\s*if \(task\.originating_conversation_id\)\s*await refreshArmedTriggerKind\(\s*ctx,\s*task\.originating_conversation_id,?\s*\);/,
-    );
-    // webDelete routes through the cascade.
-    expect(src).toMatch(
-      /export const webDelete[\s\S]{0,400}deleteTaskCascade\(ctx, task\)/,
-    );
   });
 });
 

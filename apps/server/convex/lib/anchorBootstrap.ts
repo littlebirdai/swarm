@@ -38,7 +38,7 @@ export const DECISION_DISCUSSION_GUIDANCE =
 // How a standing agent talks to the person reading its thread. The thread
 // reads as a chat of the person's messages and what the agent said with
 // `cast say`; everything else it writes stays out of view.
-export const SAY_GUIDANCE =
+const SAY_GUIDANCE =
   "Talk to people here with `cast say`, in markdown (`cast say -` for more than a line); nothing else you write reaches them. When someone asks you for something, answer before you go to work on it: what you will do and who will do it. When done, say what came of it, once and whole: what you found, what you did, what you need, and any page to see. If nothing is for them, stay quiet.";
 
 // How a role talks when its thread shows the whole transcript: the person

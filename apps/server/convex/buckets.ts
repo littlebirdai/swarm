@@ -196,7 +196,7 @@ async function createBucketRow(
 // matchBucketByName's exact-then-substring lookup. Filing/creating by name must
 // not fuzzy-match ("api" should never land on an existing "apiv2" label), so the
 // resolve-or-create and rename/archive paths use exact matching.
-export async function findActiveBucketByExactName<
+async function findActiveBucketByExactName<
   B extends { name: string; archived_at?: number },
 >(buckets: B[], name: string): Promise<B | null> {
   const needle = name.trim().toLowerCase();

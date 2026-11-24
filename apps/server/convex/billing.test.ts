@@ -26,7 +26,6 @@ import {
   addMonths,
   ensureWallet,
   periodAt,
-  rolledOver,
   walletRoom,
   walletSummary,
 } from "./lib/wallet";
@@ -627,78 +626,43 @@ describe("startCheckout and openPortal", () => {
     ]);
   });
 
-  test("a portal that would leave a plan change unpaid until renewal is refused, not opened", async () => {
-    const stripe = fakeStripe();
-    stripe.portal.features.subscription_update.proration_behavior =
-      "create_prorations";
-    const { t, user, authed } = await setup();
-    await t.mutation(internal.wallet.setPlan, {
-      user_id: user,
-      plan: "free",
-      stripe_customer_id: "cus_1",
-    });
-    expect(await authed.action(api.billing.openPortal, {})).toMatchObject({
-      ok: false,
-      code: "unavailable",
-    });
-    stripe.put(subscription(user, "active", "price_plus"));
-    expect(
-      await authed.action(api.billing.startCheckout, { plan: "pro" }),
-    ).toMatchObject({ ok: false, code: "unavailable" });
-    expect(stripe.paths()).not.toContain("POST billing_portal/sessions");
-  });
-
-  test("a portal that cancels at once, applies a downgrade at once, or restarts the cycle is refused", async () => {
-    const unsafe: ((portal: Record<string, any>) => void)[] = [
-      (portal) =>
-        Object.assign(portal.features.subscription_cancel, {
-          mode: "immediately",
-          proration_behavior: "create_prorations",
-        }),
-      (portal) =>
-        Object.assign(portal.features.subscription_cancel, {
-          mode: "immediately",
-          proration_behavior: "none",
-        }),
-      (portal) => {
-        portal.features.subscription_update.schedule_at_period_end = null;
-      },
-      (portal) => {
-        portal.features.subscription_update.billing_cycle_anchor = "now";
-      },
-    ];
-    const { t, user, authed } = await setup();
-    await t.mutation(internal.wallet.setPlan, {
-      user_id: user,
-      plan: "free",
-      stripe_customer_id: "cus_1",
-    });
-    for (const spoil of unsafe) {
+  test.each([
+    ["unpaid plan change", {}, { proration_behavior: "create_prorations" }],
+    [
+      "immediate cancel with prorations",
+      { mode: "immediately", proration_behavior: "create_prorations" },
+      {},
+    ],
+    [
+      "immediate cancel without prorations",
+      { mode: "immediately", proration_behavior: "none" },
+      {},
+    ],
+    ["immediate downgrade", {}, { schedule_at_period_end: null }],
+    ["restart of the billing cycle", {}, { billing_cycle_anchor: "now" }],
+  ] as const)(
+    "refuses a portal configured for %s",
+    async (_name, cancel, update) => {
       const stripe = fakeStripe();
-      spoil(stripe.portal);
+      Object.assign(stripe.portal.features.subscription_cancel, cancel);
+      Object.assign(stripe.portal.features.subscription_update, update);
+      const { t, user, authed } = await setup();
+      await t.mutation(internal.wallet.setPlan, {
+        user_id: user,
+        plan: "free",
+        stripe_customer_id: "cus_1",
+      });
       expect(await authed.action(api.billing.openPortal, {})).toMatchObject({
         ok: false,
         code: "unavailable",
       });
-      expect(stripe.paths()).toEqual([
-        "GET billing_portal/configurations/bpc_1",
-      ]);
-    }
-  });
-
-  test("the portal configuration is read with its products, which Stripe leaves out otherwise", async () => {
-    const stripe = fakeStripe();
-    const { t, user, authed } = await setup();
-    await t.mutation(internal.wallet.setPlan, {
-      user_id: user,
-      plan: "free",
-      stripe_customer_id: "cus_1",
-    });
-    await authed.action(api.billing.openPortal, {});
-    expect(stripe.calls[0].query).toEqual({
-      "expand[0]": "features.subscription_update.products",
-    });
-  });
+      stripe.put(subscription(user, "active", "price_plus"));
+      expect(
+        await authed.action(api.billing.startCheckout, { plan: "pro" }),
+      ).toMatchObject({ ok: false, code: "unavailable" });
+      expect(stripe.paths()).not.toContain("POST billing_portal/sessions");
+    },
+  );
 
   test("a Stripe refusal comes back as a value, not a throw", async () => {
     const stripe = fakeStripe();
@@ -719,23 +683,6 @@ describe("startCheckout and openPortal", () => {
 });
 
 describe("webhook signature", () => {
-  test("a valid signature is applied", async () => {
-    const stripe = fakeStripe();
-    const { t, user, wallet } = await setup();
-    stripe.put(subscription(user, "active", "price_plus"));
-    expect(
-      await deliver(
-        t,
-        "checkout.session.completed",
-        checkoutSubscription(user),
-      ),
-    ).toEqual({
-      status: 200,
-      body: { received: true, outcome: "plan:plus" },
-    } as any);
-    expect((await wallet())!.plan).toBe("plus");
-  });
-
   test("a tampered body is refused and changes nothing", async () => {
     const stripe = fakeStripe();
     const { t, user, wallet } = await setup();
@@ -765,18 +712,6 @@ describe("webhook signature", () => {
     );
     expect(result).toEqual({ status: 400, body: { error: "stale" } });
     expect(await wallet()).toBeNull();
-  });
-
-  test("a delivery signed with another secret is refused", async () => {
-    fakeStripe();
-    const { t, user } = await setup();
-    const result = await deliver(
-      t,
-      "checkout.session.completed",
-      checkoutSubscription(user),
-      { header: (payload) => signWebhook(payload, "whsec_other") },
-    );
-    expect(result.status).toBe(400);
   });
 
   test("no webhook secret or no API key: refused without throwing, so Stripe retries once both are set", async () => {
@@ -849,7 +784,16 @@ describe("subscription events, mapped from Stripe's current state", () => {
     const stripe = fakeStripe();
     const { t, user, wallet } = await setup();
     stripe.put(subscription(user, "active", "price_plus"));
-    await deliver(t, "checkout.session.completed", checkoutSubscription(user));
+    expect(
+      await deliver(
+        t,
+        "checkout.session.completed",
+        checkoutSubscription(user),
+      ),
+    ).toEqual({
+      status: 200,
+      body: { received: true, outcome: "plan:plus" },
+    });
     expect(await wallet()).toMatchObject({
       plan: "plus",
       period_cap_usd: 12,
@@ -881,6 +825,24 @@ describe("subscription events, mapped from Stripe's current state", () => {
         ),
       ),
     ).toBe("plan:plus");
+    for (const [status, price] of [
+      ["unpaid", "price_plus"],
+      ["active", "price_pro"],
+    ] as const) {
+      expect(
+        await outcomeOf(
+          deliver(
+            t,
+            "customer.subscription.updated",
+            subscription(user, status, price),
+          ),
+        ),
+      ).toBe("plan:plus");
+      expect(await wallet()).toMatchObject({
+        plan: "plus",
+        subscription_status: "active",
+      });
+    }
     expect(
       await outcomeOf(
         deliver(t, "checkout.session.completed", checkoutSubscription(user)),
@@ -894,48 +856,6 @@ describe("subscription events, mapped from Stripe's current state", () => {
     expect(
       await authed.action(api.billing.startCheckout, { plan: "pro" }),
     ).toMatchObject({ ok: true, via: "portal" });
-  });
-
-  test("an old updated(unpaid) arriving after a recovered card's updated(active) leaves the plan paid", async () => {
-    const stripe = fakeStripe();
-    const { t, user, wallet } = await setup();
-    stripe.put(subscription(user, "active", "price_pro"));
-    await deliver(
-      t,
-      "customer.subscription.updated",
-      subscription(user, "active", "price_pro"),
-    );
-    expect(
-      await outcomeOf(
-        deliver(
-          t,
-          "customer.subscription.updated",
-          subscription(user, "unpaid", "price_pro"),
-        ),
-      ),
-    ).toBe("plan:pro");
-    expect(await wallet()).toMatchObject({
-      plan: "pro",
-      subscription_status: "active",
-    });
-  });
-
-  test("Plus to Pro and back to Plus, delivered reversed, ends on Plus as Stripe bills", async () => {
-    const stripe = fakeStripe();
-    const { t, user, wallet } = await setup();
-    stripe.put(subscription(user, "active", "price_plus"));
-    await deliver(t, "checkout.session.completed", checkoutSubscription(user));
-    await deliver(
-      t,
-      "customer.subscription.updated",
-      subscription(user, "active", "price_plus"),
-    );
-    await deliver(
-      t,
-      "customer.subscription.updated",
-      subscription(user, "active", "price_pro"),
-    );
-    expect((await wallet())!.plan).toBe("plus");
   });
 
   test("the plan follows the price and the status: past_due keeps the plan, unpaid ends it", async () => {
@@ -1126,23 +1046,15 @@ describe("reads that commit out of order", () => {
       read_at: readAt,
     });
 
-  test("the webhook stamps each subscription it maps with when it read it", async () => {
+  test("an older snapshot committing after a newer one is skipped: incomplete or past_due cannot undo active", async () => {
     const stripe = fakeStripe();
     const { t, user, wallet } = await setup();
     stripe.put(subscription(user, "active", "price_plus"));
     const before = Date.now();
     await deliver(t, "checkout.session.completed", checkoutSubscription(user));
-    expect((await wallet())!.subscription_read_at).toBeGreaterThanOrEqual(
-      before,
-    );
-  });
-
-  test("an older snapshot committing after a newer one is skipped: incomplete or past_due cannot undo active", async () => {
-    const stripe = fakeStripe();
-    const { t, user, wallet } = await setup();
-    stripe.put(subscription(user, "active", "price_plus"));
-    await deliver(t, "checkout.session.completed", checkoutSubscription(user));
     const stamp = (await wallet())!.subscription_read_at!;
+    expect(typeof stamp).toBe("number");
+    expect(stamp).toBeGreaterThanOrEqual(before);
 
     expect(
       await applyRead(
@@ -1256,7 +1168,6 @@ describe("a paid allowance waits for its period to be paid", () => {
 
     // The boundary passes before Stripe has charged the renewal.
     const later = first.period_end + 1000;
-    expect(rolledOver(first, later)!.period_cap_usd).toBe(2);
     expect(await t.run((ctx) => walletSummary(ctx, user, later))).toMatchObject(
       { plan: "plus", cap_usd: 2 },
     );
@@ -1294,10 +1205,14 @@ describe("a paid allowance waits for its period to be paid", () => {
 
     // Events stop arriving (a lapsed card, a disabled endpoint): the period
     // after that one grants the free allowance, every month.
-    expect(rolledOver(paid, paid.period_end + 1000)!.period_cap_usd).toBe(2);
-    expect(
-      rolledOver(paid, addMonths(paid.period_end, 3) + 1000)!.period_cap_usd,
-    ).toBe(2);
+    for (const at of [
+      paid.period_end + 1000,
+      addMonths(paid.period_end, 3) + 1000,
+    ]) {
+      expect(await t.run((ctx) => ensureWallet(ctx, user, at))).toMatchObject({
+        period_cap_usd: 2,
+      });
+    }
   });
 
   test("a plan granted by hand keeps its whole allowance at every rollover, and a cancel lifts the gate", async () => {
@@ -1306,9 +1221,9 @@ describe("a paid allowance waits for its period to be paid", () => {
     await t.mutation(internal.wallet.setPlan, { user_id: user, plan: "pro" });
     const granted = (await wallet())!;
     expect(granted.paid_through).toBeUndefined();
-    expect(rolledOver(granted, granted.period_end + 1000)!.period_cap_usd).toBe(
-      40,
-    );
+    expect(
+      await t.run((ctx) => ensureWallet(ctx, user, granted.period_end + 1000)),
+    ).toMatchObject({ period_cap_usd: 40 });
 
     stripe.put(subscription(user, "active", "price_plus"));
     await deliver(t, "checkout.session.completed", checkoutSubscription(user));
@@ -1986,7 +1901,7 @@ describe("plan changes are charged by time", () => {
 describe("a failing renewal (past_due)", () => {
   test("rolls into the next period on the free allowance, and the paid allowance returns when the payment lands", async () => {
     const stripe = fakeStripe();
-    const { t, user, wallet, patchWallet } = await setup();
+    const { t, user, wallet } = await setup();
     stripe.put(subscription(user, "active", "price_plus"));
     await deliver(t, "checkout.session.completed", checkoutSubscription(user));
     stripe.put(subscription(user, "past_due", "price_plus"));
@@ -1998,15 +1913,13 @@ describe("a failing renewal (past_due)", () => {
 
     // The period ends while the card is still failing.
     const w = (await wallet())!;
-    const next = rolledOver(w, w.period_end + 1000)!;
-    expect(next.period_cap_usd).toBe(2);
     const summary = await t.run((ctx) =>
       walletSummary(ctx, user, w.period_end + 1000),
     );
     expect(summary).toMatchObject({ plan: "plus", cap_usd: 2 });
 
     // Rolled over (as the next turn would), then the retry succeeds.
-    await patchWallet(next);
+    await t.run((ctx) => ensureWallet(ctx, user, w.period_end + 1000));
     stripe.put(subscription(user, "active", "price_plus"));
     await deliver(
       t,

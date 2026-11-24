@@ -1,4 +1,3 @@
-import { managedSessionsBeatingSince } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
 // Claude Code account switching + mass-continue for limit-blocked sessions.
 //
@@ -71,8 +70,6 @@ import {
   fleetAccount,
   parkedOnActiveAccount,
   resumePinFor,
-  activeCodexProfile,
-  codexAccountNeedsRestart,
   listOnlineDevices,
   findFlowDevice,
   runsOwnFleet,
@@ -3087,68 +3084,6 @@ export const recordCodexAccount = mutation({
       await ctx.db.patch(conv._id, { codex_account: args.codex_account });
     }
     return { codex_account: args.codex_account ?? null };
-  },
-});
-
-// A pane that stopped reporting for this long is not part of the live fleet any
-// more, and a dead pane cannot be stale. Deliberately generous: the cost of
-// naming a session that just died is one restart button nobody presses, while
-// missing a live one leaves it burning the wrong account's window.
-const CODEX_PANE_LIVE_MS = 10 * 60 * 1000;
-
-/**
- * The live Codex sessions whose process is still running an account the machine
- * has since moved off — the "restart to move this session" prompt's whole input.
- *
- * Scoped to the live fleet (managed_sessions, one row per running pane) rather
- * than to every conversation ever: a restart can only be offered for a process
- * that exists, and the fleet is small where the conversation history is not.
- */
-export const listStaleCodexSessions = query({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return [];
-    const now = Date.now();
-    const devices = await ctx.db
-      .query("devices")
-      .withIndex("by_user_id", (q) => q.eq("user_id", userId))
-      .collect();
-    const deviceById = new Map(devices.map((d) => [d.device_id, d]));
-    const live = await managedSessionsBeatingSince(
-      ctx,
-      now - CODEX_PANE_LIVE_MS,
-      userId,
-    );
-    const out: Array<{
-      conversation_id: Id<"conversations">;
-      session_id: string;
-      title?: string;
-      device_id?: string;
-      codex_account: string;
-      active_account?: string;
-    }> = [];
-    const seen = new Set<string>();
-    for (const session of live) {
-      if (!session.conversation_id || seen.has(session.conversation_id))
-        continue;
-      const conv = await ctx.db.get(session.conversation_id);
-      if (!conv || !conv.codex_account) continue;
-      const device = conv.owner_device_id
-        ? deviceById.get(conv.owner_device_id)
-        : undefined;
-      if (!codexAccountNeedsRestart(conv, device)) continue;
-      seen.add(session.conversation_id);
-      out.push({
-        conversation_id: conv._id,
-        session_id: session.session_id,
-        title: conv.title,
-        device_id: conv.owner_device_id,
-        codex_account: conv.codex_account,
-        active_account: activeCodexProfile(device),
-      });
-    }
-    return out;
   },
 });
 

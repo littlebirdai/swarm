@@ -17,7 +17,7 @@ import { escHtml, escAttr } from "./htmlEscape";
 // GitHub-style heading slugs: lowercase, strip punctuation, spaces to hyphens,
 // numeric suffix on repeats. One `seen` map per render keeps ids unique
 // within a document without leaking state between concurrent renders.
-export function slugify(text: string, seen: Map<string, number>): string {
+function slugify(text: string, seen: Map<string, number>): string {
   const base =
     text
       .toLowerCase()
@@ -95,7 +95,7 @@ function cell(
 }
 
 /** Rendered body HTML (no document shell). */
-export async function renderMarkdownBody(md: string): Promise<string> {
+async function renderMarkdownBody(md: string): Promise<string> {
   return createMarked().parse(md, { async: true });
 }
 
@@ -335,7 +335,7 @@ const MAIN_CLOSE = `\n</main>`;
  * brandArtifactHtml at serve time like any HTML: the bar reserves its own
  * 40px at the top of <html> and follows the page's background as it changes,
  * so the theme never has to talk to the bar. */
-export function mdDocumentHtml(o: { title: string; bodyHtml: string }): string {
+function mdDocumentHtml(o: { title: string; bodyHtml: string }): string {
   return `<!doctype html>
 <html lang="en">
 <head>

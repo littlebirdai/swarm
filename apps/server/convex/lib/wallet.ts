@@ -67,10 +67,7 @@ export const allowancePlan = rules.allowancePlan;
 
 /** The patch that moves a wallet into the period holding `now`, or null when
  *  it is already there. */
-export function rolledOver(
-  wallet: Doc<"wallets">,
-  now: number,
-): PeriodFigures | null {
+function rolledOver(wallet: Doc<"wallets">, now: number): PeriodFigures | null {
   return nextPeriod(
     periodAnchor(wallet),
     wallet,

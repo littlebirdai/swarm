@@ -257,33 +257,6 @@ describe("listConnections", () => {
     expect(mate["linear:personal"]).toEqual(notConnected("linear", "personal"));
   });
 
-  test("a google install reports personal scope, the email, and a disconnect id", async () => {
-    const apps = byId(
-      await run(
-        ctx(
-          OWNER,
-          tables({
-            google_installations: [
-              {
-                _id: "gi_1",
-                scope_user_id: OWNER,
-                email: "ashot@example.com",
-                created_at: 1700000000000,
-              },
-            ],
-          }),
-        ),
-      ),
-    );
-    expect(apps["gmail:personal"]).toMatchObject({
-      status: "connected",
-      scope: "personal",
-      by_me: true,
-      detail: "ashot@example.com",
-      disconnect_id: "gi_1",
-    });
-  });
-
   test("with several google accounts the entry names the assistant's account, never a pending one, and Disconnect targets it", async () => {
     const READ = "https://www.googleapis.com/auth/gmail.readonly";
     const MODIFY = "https://www.googleapis.com/auth/gmail.modify";
@@ -314,6 +287,8 @@ describe("listConnections", () => {
     const apps = byId(await run(ctx(OWNER, tables({ google_installations }))));
     expect(apps["gmail:personal"]).toMatchObject({
       status: "connected",
+      scope: "personal",
+      by_me: true,
       detail: "full@example.com",
       disconnect_id: "gi_full",
     });

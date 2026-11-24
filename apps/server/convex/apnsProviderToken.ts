@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./functions";
 import type { QueryCtx } from "./_generated/server";
 
-export const APNS_TOKEN_REFRESH_MS = 50 * 60 * 1000;
+const APNS_TOKEN_REFRESH_MS = 50 * 60 * 1000;
 
 async function tokenRow(ctx: Pick<QueryCtx, "db">, key: string) {
   return ctx.db

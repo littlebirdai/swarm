@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { autoSwitchCheck, switchAheadCheck } from "./accountSwitch";
 import { makeFakeDb } from "./testDb";
-import {
-  continueTargetPin,
-  parkedOnActiveAccount,
-  runsOwnFleet,
-  runsPushedLogin,
-} from "./ccAccountsShared";
+import {} from "./ccAccountsShared";
 
 // A line host drawing on its team's line pool runs its own fleet store. Its
 // account must stay visible to recovery and movable by it (the 2026-10-24
@@ -148,20 +143,6 @@ function fixture(
 }
 
 describe("a line host on its own fleet store", () => {
-  test("is a machine of its own to recovery, unlike a host on the pushed login", () => {
-    const f = fixture();
-    expect(runsOwnFleet(f.host)).toBe(true);
-    expect(runsPushedLogin(f.host)).toBe(false);
-    const pushed = { is_remote: true, cc_accounts: { profiles: [] } };
-    expect(runsOwnFleet(pushed)).toBe(false);
-    expect(runsPushedLogin(pushed)).toBe(true);
-    // On its fleet store nothing is pinned, and a park is its fleet account's.
-    expect(continueTargetPin(f.host as any, f.now)).toBeUndefined();
-    expect(
-      parkedOnActiveAccount({ cc_account: null }, f.host as any, f.now),
-    ).toBe(true);
-  });
-
   test("a park on a spent pool account moves the host to the pool account with room", async () => {
     const f = fixture();
     const res = await f.run("line-host");
@@ -257,6 +238,16 @@ describe("a line host on its own fleet store", () => {
     expect(await ahead.ahead("line-host")).toMatchObject({
       acted: "switch",
       profile: "pool-b",
+    });
+    const laptop = withCam(1);
+    Object.assign(laptop.laptop, {
+      cc_auto_switch: true,
+      cc_recovery_ask: false,
+    });
+    laptop.laptop.cc_accounts.profiles[0].usage = meter(97);
+    expect(await laptop.ahead()).toMatchObject({
+      acted: "switch",
+      profile: "cam",
     });
     // Already on it, and near a limit: the host leaves. The refusal only blocks arriving.
     const leaving = withCam(97);

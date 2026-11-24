@@ -101,7 +101,6 @@ async function world(overrides: Record<string, any[]> = {}) {
   const db = makeFakeDb(tables);
   const query = db.query.bind(db);
   const pages: Array<{ cursor: string | null; numItems: number }> = [];
-  const indexes: string[] = [];
   const cursorRanges = new Map<string, string>();
   db.query = (table: string) => {
     const builder = query(table);
@@ -111,7 +110,6 @@ async function world(overrides: Record<string, any[]> = {}) {
     // read with a different bound refuses the cursor with InvalidCursor.
     let range = "";
     builder.withIndex = (name: string, fn: any) => {
-      indexes.push(name);
       const bounds: unknown[] = [];
       const recorder: any = new Proxy(
         {},
@@ -162,7 +160,7 @@ async function world(overrides: Record<string, any[]> = {}) {
       },
     },
   };
-  return { ctx, tables, pages, indexes, scheduled };
+  return { ctx, tables, pages, scheduled };
 }
 
 const dispatch = (ctx: any, args = {}) =>
@@ -177,7 +175,7 @@ const claim = (ctx: any, taskId = "agent_tasks_cloud") =>
   });
 
 describe("dispatchCloudTriggers", () => {
-  for (const route of ["inline", "role", "role-fallback"]) {
+  for (const route of ["inline", "role", "role-paused", "role-fallback"]) {
     test.each([7200, 8100])(
       `${route} delivers the complete %i-character mandate and lifecycle through its final wrapper`,
       async (length) => {
@@ -193,7 +191,10 @@ describe("dispatchCloudTriggers", () => {
             {
               _id: "role_cloud",
               short_id: "or-1",
-              status: route === "role-fallback" ? "retired" : "active",
+              status:
+                { "role-fallback": "retired", "role-paused": "paused" }[
+                  route
+                ] ?? "active",
               anchor_id: "anchors_cloud",
               scope_type: "personal",
               scope_user_id: USER,
@@ -228,6 +229,8 @@ describe("dispatchCloudTriggers", () => {
         expect(delivered).toStartWith("<scheduled-task ");
         expect(delivered).toContain(`${prompt}\n\n${lifecycle}`);
         expect(delivered).toContain(sentinel);
+        expect(delivered).toContain("cast trigger complete tr-42 --summary");
+        expect(delivered).toContain("cast trigger cancel tr-42");
         expect(delivered).toContain(
           "if cancellation is outside this run's authority",
         );
@@ -240,57 +243,8 @@ describe("dispatchCloudTriggers", () => {
     );
   }
 
-  test("a role routine receives the same lifecycle defaults without changing its mandate or mode", async () => {
-    const { ctx, tables } = await world({
-      org_roles: [
-        {
-          _id: "role_cloud",
-          status: "paused",
-          anchor_id: CONV,
-          scope_type: "personal",
-          scope_user_id: USER,
-          host_user_id: USER,
-        },
-      ],
-      agent_tasks: [
-        task({
-          short_id: "tr-42",
-          mode: "propose",
-          schedule_type: "recurring",
-          interval_ms: 60_000,
-          prompt: "Ongoing mandate: keep checking until explicitly ended.",
-        }),
-      ],
-    });
-    tables.conversations[0].standing_role_id = "role_cloud";
-    const original = tables.agent_tasks[0].prompt;
-    await dispatch(ctx);
-    expect(tables.pending_messages).toHaveLength(1);
-    const cause = tables.pending_messages[0].content;
-    expect(cause).toContain(original);
-    expect(cause).toContain("cast trigger complete tr-42 --summary");
-    expect(cause).toContain(
-      "save the outcome first, then cancel only this trigger with cast trigger cancel tr-42",
-    );
-    expect(cause).toContain(
-      "A spawned run is its parent session's worker, never an independent inbox thread",
-    );
-    expect(cause).toContain(
-      "--needs-attention claims the human's eyes, so pass it only when they themselves must act",
-    );
-    expect(cause).toContain(
-      "Ongoing mandates remain active until explicitly ended",
-    );
-    expect(cause).toContain("Preserve safe-mode restrictions");
-    expect(tables.agent_tasks[0]).toMatchObject({
-      prompt: original,
-      mode: "propose",
-      status: "scheduled",
-    });
-  });
-
   test("queues a once trigger on the existing rail and completes it with audit evidence", async () => {
-    const { ctx, tables, pages, indexes, scheduled } = await world();
+    const { ctx, tables, scheduled } = await world();
     expect(await dispatch(ctx)).toEqual({
       scanned: 1,
       dispatched: 1,
@@ -353,8 +307,9 @@ describe("dispatchCloudTriggers", () => {
       args: { ownerUserId: USER, deviceId: DEVICE, requestAt: NOW },
     });
     expect(tables.daemon_commands ?? []).toHaveLength(0);
-    expect(pages).toEqual([{ cursor: null, numItems: 50 }]);
-    expect(indexes[0]).toBe("by_status_run_at");
+    expect((await dispatch(ctx)).dispatched).toBe(0);
+    expect(tables.pending_messages).toHaveLength(1);
+    expect(tables.agent_tasks[0].run_count).toBe(1);
     expect(log.mock.calls).toEqual([
       [
         "cloud_trigger_dispatched",
@@ -469,15 +424,6 @@ describe("dispatchCloudTriggers", () => {
       expect(tables.pending_messages).toHaveLength(0);
     },
   );
-
-  test("repeated dispatch does not enqueue or count the same one-shot run twice", async () => {
-    const { ctx, tables } = await world();
-    await dispatch(ctx);
-    expect((await dispatch(ctx)).dispatched).toBe(0);
-    expect(tables.pending_messages).toHaveLength(1);
-    expect(tables.agent_tasks[0].run_count).toBe(1);
-    expect(log.mock.calls).toHaveLength(1);
-  });
 
   test.each(["pending", "delivered"])(
     "reuses an existing %s row with the stable client id",

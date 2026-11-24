@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { makeFakeDb, schemaIndexes } from "./testDb";
+import schema from "./schema";
 import {
   applyTaskUpdate,
   cancelTasksBoundToConversation,
@@ -14,11 +16,10 @@ import {
 // withIndex(...).collect(), patch(id, fields) and get(id). The home
 // conversation is a row too, so the armed_trigger_kind stamp every lifecycle
 // transition writes (refreshArmedTriggerKind) is observable.
-function fakeDb(rows: any[], indexes: string[] = []) {
+function fakeDb(rows: any[]) {
   const db = {
     query: (_table: string) => ({
-      withIndex: (name: string, cb: (q: any) => any) => {
-        indexes.push(name);
+      withIndex: (_name: string, cb: (q: any) => any) => {
         const eqs: Array<[string, any]> = [];
         const q = {
           eq(field: string, val: any) {
@@ -160,24 +161,38 @@ describe("reactivateTasksCanceledOnKill", () => {
 // runner's tasks by status read their whole trigger history each time: undoing
 // the kill of a session with seven subagents read 19 MB in one mutation.
 describe("kill and restore read only the conversation's own tasks", () => {
-  test("both go through the originating conversation index and skip another runner's task", async () => {
-    const indexes: string[] = [];
+  test("reads stay bounded and the teammate's task stays scheduled", async () => {
     const mine = taskRow({ _id: "mine" });
     const teammates = taskRow({ _id: "teammates", user_id: "user2" });
-    const ctx = fakeDb([mine, teammates, home()], indexes);
-
-    expect(
-      await cancelTasksBoundToConversation(
-        ctx as any,
-        USER as any,
-        CONV as any,
-      ),
-    ).toBe(1);
-    expect(
-      await reactivateTasksCanceledOnKill(ctx as any, USER as any, CONV as any),
-    ).toBe(1);
-
-    expect(new Set(indexes)).toEqual(new Set(["by_originating_conversation"]));
+    const unrelated = Array.from({ length: 100 }, (_, i) =>
+      taskRow({ _id: `other_${i}`, originating_conversation_id: "conv2" }),
+    );
+    const db = makeFakeDb(
+      { agent_tasks: [mine, teammates, ...unrelated], conversations: [home()] },
+      { indexes: schemaIndexes(schema) },
+    );
+    let rowsRead = 0;
+    const query = db.query.bind(db);
+    db.query = (table: string) => {
+      const builder = query(table);
+      if (table !== "agent_tasks") return builder;
+      const indexRange = query(table);
+      const withIndex = builder.withIndex.bind(builder);
+      builder.withIndex = (...args: Parameters<typeof withIndex>) => {
+        indexRange.withIndex(...args);
+        return withIndex(...args);
+      };
+      const collect = builder.collect.bind(builder);
+      builder.collect = async () => {
+        rowsRead += (await indexRange.collect()).length;
+        return collect();
+      };
+      return builder;
+    };
+    const args = [{ db } as any, USER as any, CONV as any] as const;
+    expect(await cancelTasksBoundToConversation(...args)).toBe(1);
+    expect(await reactivateTasksCanceledOnKill(...args)).toBe(1);
+    expect(rowsRead).toBeLessThanOrEqual(8);
     expect(mine.status).toBe("scheduled");
     expect(teammates.status).toBe("scheduled");
     expect((teammates as any).canceled_on_kill_at).toBeUndefined();
@@ -311,48 +326,25 @@ describe("applyTaskUpdate", () => {
     const OTHER = "conv2";
     const other = () => ({ _id: OTHER, user_id: USER });
 
-    test("unbinding turns an inject trigger into a spawn trigger that keeps its home as parent", async () => {
-      const task = editable();
-      const { db, rows } = fakeDb([task, home()]);
-
-      const result = await applyTaskUpdate(
-        { db } as any,
-        task as any,
-        { originating_conversation_id: null },
-        ACTOR,
-      );
-
-      expect(result).toEqual({
-        ok: true,
-        changed: ["originating_conversation_id", "created_by_conversation_id"],
-      });
-      expect(task.originating_conversation_id).toBeUndefined();
-      expect((task as any).created_by_conversation_id).toBe(CONV);
-      expect(revisionsOf(rows)[0].before.originating_conversation_id).toBe(
-        CONV,
-      );
-    });
-
     test("rebinding moves the trigger and refreshes BOTH homes", async () => {
       const task = editable();
-      const homeConv = home();
-      const otherConv = other();
-      const { db } = fakeDb([task, homeConv, otherConv]);
+      const homeConv = { ...home(), armed_trigger_kind: "standing" };
+      const otherConv = { ...other(), armed_trigger_kind: "none" };
+      const db = makeFakeDb({
+        agent_tasks: [task],
+        conversations: [homeConv, otherConv],
+      });
 
       await applyTaskUpdate(
         { db } as any,
-        task as any,
+        { ...task } as any,
         { originating_conversation_id: OTHER as any },
         ACTOR,
       );
 
       expect(task.originating_conversation_id).toBe(OTHER);
-      // The old home no longer has an armed trigger; the new one does. Without
-      // the second refresh the new home's badge would lag until something else
-      // touched it, because patchTask reads the binding off the pre-edit row.
-      expect(homeConv.armed_trigger_kind ?? "none").toBe("none");
-      expect(otherConv.armed_trigger_kind).toBeDefined();
-      expect(otherConv.armed_trigger_kind).not.toBe("none");
+      expect(homeConv.armed_trigger_kind).toBe("none");
+      expect(otherConv.armed_trigger_kind).toBe("standing");
     });
 
     test("the result thread and the wake flag are editable and audited", async () => {

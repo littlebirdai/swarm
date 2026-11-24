@@ -197,20 +197,23 @@ describe("browser watch relay", () => {
     expect(commands(db)).toHaveLength(0);
     await run(watchBrowser, as(db, ME), view);
     expect(await run(getBrowser, as(db, STRANGER), view)).toBeNull();
-    expect(
-      (
-        await run(sendBrowserInput, as(db, STRANGER), {
-          ...view,
-          events: [{ kind: "insertText", text: "x" }],
-        })
-      ).ok,
-    ).toBe(false);
+    await run(cliPushBrowserFrame, as(db, ME), { api_token: "t", ...view });
+    const input = { ...view, events: [{ kind: "insertText", text: "x" }] };
+    expect(await run(sendBrowserInput, as(db, ME), input)).toEqual({
+      ok: true,
+    });
+    expect(await run(sendBrowserInput, as(db, STRANGER), input)).toEqual({
+      ok: false,
+      reason: "not-watching",
+    });
   });
 
-  test("a key with tmux format characters is refused", async () => {
-    const db = fixtures();
-    await expect(
-      run(watchBrowser, as(db, ME), { device_id: "mini", key: "cc-#{pane}" }),
-    ).rejects.toThrow();
+  test.each([
+    [{ ...view, key: "cc-#{pane}" }, "Invalid session key"],
+    [{ ...view, tmux_session: "cc-#{pane}" }, "Invalid session"],
+  ] as const)("refuses tmux format characters in %j", async (args, message) => {
+    await expect(run(watchBrowser, as(fixtures(), ME), args)).rejects.toThrow(
+      message,
+    );
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { briefingFor, performRebriefWorkspaceAgents } from "./anchors";
+import { briefingFor, rebriefWorkspaceAgents } from "./anchors";
 
 // Workspace agents (no role seat) get the opening that ships now only through
 // a rebrief, and that opening names who reads their conversation from the
@@ -84,6 +84,15 @@ function world() {
   return { tables, ctx: { db: makeFakeDb(tables) } as any };
 }
 
+const performRebrief = (
+  ctx: any,
+  args: { dry_run?: boolean; key?: string; only?: string[] },
+) =>
+  (rebriefWorkspaceAgents as any)._handler(ctx, args) as Promise<{
+    sent: { anchor: string }[];
+    skipped: number;
+  }>;
+
 describe("workspace agent rebrief", () => {
   test("a personal agent whose directory shares its session is told the team reads it", async () => {
     const { ctx, tables } = world();
@@ -98,20 +107,20 @@ describe("workspace agent rebrief", () => {
 
   test("the sweep reaches every live workspace agent once, and no role seat", async () => {
     const { ctx, tables } = world();
-    const dry = await performRebriefWorkspaceAgents(ctx, { dry_run: true });
+    const dry = await performRebrief(ctx, { dry_run: true });
     expect(dry.sent.map((s) => s.anchor)).toEqual(["a_personal", "a_team"]);
     expect(dry.skipped).toBe(1);
     expect(tables.pending_messages).toHaveLength(0);
-    await performRebriefWorkspaceAgents(ctx, { key: "17" });
+    await performRebrief(ctx, { key: "17" });
     expect(tables.pending_messages).toHaveLength(2);
     expect(tables.pending_messages[0].content).toBe(
       await briefingFor(ctx, tables.anchors[0]),
     );
-    await performRebriefWorkspaceAgents(ctx, { key: "17" });
+    await performRebrief(ctx, { key: "17" });
     expect(tables.pending_messages).toHaveLength(2);
     expect(
       (
-        await performRebriefWorkspaceAgents(ctx, {
+        await performRebrief(ctx, {
           only: ["a_team"],
           dry_run: true,
         })

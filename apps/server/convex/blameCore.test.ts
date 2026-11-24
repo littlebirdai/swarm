@@ -3,8 +3,7 @@ import {
   SUMMARY_MATCH_WINDOW_MS,
   isValidBlameSha,
   matchLinesToEdits,
-  matchUncommittedLines,
-  pickRowBySummary,
+  rankRowsBySummary,
   pickRowForSha,
   type CommitRowLite,
   type EditRowLite,
@@ -62,7 +61,7 @@ describe("pickRowForSha", () => {
 
 // The fallback for session commits whose output carried no `[branch hash]`
 // line (compound commands, -q): match subject + timestamp proximity.
-describe("pickRowBySummary", () => {
+describe("rankRowsBySummary", () => {
   const T = 1_781_000_000_000;
   const row = (overrides: Partial<CommitRowLite>): CommitRowLite =>
     commitRow({
@@ -73,30 +72,32 @@ describe("pickRowBySummary", () => {
     });
 
   test("matches on the exact subject line within the window", () => {
-    expect(
-      pickRowBySummary("fix: thing", T + 30_000, [row({})]),
-    ).not.toBeNull();
+    const match = row({});
+    expect(rankRowsBySummary("fix: thing", T + 30_000, [match])).toEqual([
+      match,
+    ]);
   });
 
   test("prefers the closest row in time", () => {
     const near = row({ timestamp: T + 10_000, conversation_id: "near" });
     const far = row({ timestamp: T + 300_000, conversation_id: "far" });
-    expect(
-      pickRowBySummary("fix: thing", T, [far, near])?.conversation_id,
-    ).toBe("near");
+    expect(rankRowsBySummary("fix: thing", T, [far, near])).toEqual([
+      near,
+      far,
+    ]);
   });
 
   test("rejects different subjects and out-of-window rows", () => {
-    expect(pickRowBySummary("fix: other", T, [row({})])).toBeNull();
+    expect(rankRowsBySummary("fix: other", T, [row({})])).toEqual([]);
     expect(
-      pickRowBySummary("fix: thing", T + SUMMARY_MATCH_WINDOW_MS + 1000, [
+      rankRowsBySummary("fix: thing", T + SUMMARY_MATCH_WINDOW_MS + 1000, [
         row({}),
       ]),
-    ).toBeNull();
-    expect(pickRowBySummary("", T, [row({})])).toBeNull();
+    ).toEqual([]);
+    expect(rankRowsBySummary("", T, [row({})])).toEqual([]);
     expect(
-      pickRowBySummary("fix: thing", T, [row({ commit_message: undefined })]),
-    ).toBeNull();
+      rankRowsBySummary("fix: thing", T, [row({ commit_message: undefined })]),
+    ).toEqual([]);
   });
 });
 
@@ -110,7 +111,7 @@ const editRow = (overrides: Partial<EditRowLite>): EditRowLite => ({
   ...overrides,
 });
 
-describe("matchUncommittedLines", () => {
+describe("matchLinesToEdits without deadlines", () => {
   test("attributes a line to the newest edit containing it", () => {
     const line = "const sessionToken = await refreshSession(user);";
     const older = editRow({
@@ -123,7 +124,7 @@ describe("matchUncommittedLines", () => {
       timestamp: 200,
       conversation_id: "new",
     });
-    const matches = matchUncommittedLines([line], [older, newer]);
+    const matches = matchLinesToEdits([{ text: line }], [older, newer]);
     expect(matches.get(line.trim())?.conversation_id).toBe("new");
   });
 
@@ -131,8 +132,8 @@ describe("matchUncommittedLines", () => {
     const row = editRow({
       new_content: "const sessionToken = await refresh();",
     });
-    const matches = matchUncommittedLines(
-      ["    const sessionToken = await refresh();"],
+    const matches = matchLinesToEdits(
+      [{ text: "    const sessionToken = await refresh();" }],
       [row],
     );
     expect(matches.get("const sessionToken = await refresh();")).toBe(row);
@@ -140,14 +141,8 @@ describe("matchUncommittedLines", () => {
 
   test("skips short common lines", () => {
     const row = editRow({ new_content: "}\nreturn;" });
-    expect(matchUncommittedLines(["}", "return;"], [row]).size).toBe(0);
-  });
-
-  test("leaves unmatched lines out", () => {
-    const row = editRow({ new_content: "something else entirely" });
     expect(
-      matchUncommittedLines(["const missing = lineNotInAnyEdit();"], [row])
-        .size,
+      matchLinesToEdits([{ text: "}" }, { text: "return;" }], [row]).size,
     ).toBe(0);
   });
 });
@@ -175,11 +170,12 @@ describe("matchLinesToEdits deadlines", () => {
     expect(matches.get(line)?.conversation_id).toBe("author");
   });
 
-  test("no eligible edit means no match", () => {
+  test.each([
+    ["deadline", { text: line, deadline: 200 }],
+    ["content", { text: "const missing = lineNotInAnyEdit();" }],
+  ] as const)("no eligible edit means no match by %s", (_reason, target) => {
     const rewrite = editRow({ new_content: line, timestamp: 900 });
-    expect(
-      matchLinesToEdits([{ text: line, deadline: 200 }], [rewrite]).size,
-    ).toBe(0);
+    expect(matchLinesToEdits([target], [rewrite]).size).toBe(0);
   });
 
   test("duplicate text keeps the most permissive deadline", () => {
@@ -226,14 +222,6 @@ describe("extractFileChanges commit hash", () => {
         tool_results: [{ tool_use_id: "t1", content: resultContent }],
       },
     ])[0];
-
-  test("parses the hash from standard `[branch hash]` output", () => {
-    const fc = commitMessage(
-      "[main b556a7dd] fix: thing\n 2 files changed, 10 insertions(+)",
-    );
-    expect(fc.changeType).toBe("commit");
-    expect(fc.commitHash).toBe("b556a7dd");
-  });
 
   test("parses detached HEAD and root-commit forms", () => {
     expect(

@@ -21,27 +21,14 @@
 import { currentMembershipVisibility } from "./teamVisibility";
 import { v } from "convex/values";
 import {
-  MAX_ARTIFACT_BYTES,
   MAX_ARTIFACT_MB,
-  MAX_DOCUMENT_BYTES,
   MAX_DOCUMENT_MB,
   accessSummary,
   artifactUrl,
   lineDiff,
   teamGateRefusal,
-  type DiffOp,
 } from "./lib/artifactRules";
-export {
-  MAX_ARTIFACT_BYTES,
-  MAX_ARTIFACT_MB,
-  MAX_DOCUMENT_BYTES,
-  MAX_DOCUMENT_MB,
-  accessSummary,
-  artifactUrl,
-  lineDiff,
-  teamGateRefusal,
-  type DiffOp,
-};
+export { artifactUrl };
 import {
   query,
   mutation,
@@ -117,7 +104,6 @@ export const MAX_COMMENT_CHARS = 2000;
 // Slugs and keys come from a leaf module so other features (guest call
 // links) mint unguessable strings the same way without loading this graph.
 import { newSecret, newSlug } from "./lib/slug";
-export { newSecret, newSlug };
 
 // ---------------------------------------------------------------------------
 // Row shaping
@@ -1363,10 +1349,6 @@ export function commentDeliveryBody(
   return out.join("\n");
 }
 
-// Test seam: the session send, swappable so delivery policy is testable
-// without the whole pending_messages rail.
-export const commentDelivery = { send: performSessionSend };
-
 async function deliverCommentsToSession(
   ctx: MutationCtx,
   artifact: Doc<"artifacts">,
@@ -1389,7 +1371,7 @@ async function sendCommentsToSession(
   const body = commentDeliveryBody(artifact, list);
   try {
     const waiting = await sessionWaiting(ctx, artifact.session_conversation_id);
-    await commentDelivery.send(ctx, artifact.user_id, {
+    await performSessionSend(ctx, artifact.user_id, {
       to: artifact.session_conversation_id.toString(),
       body,
     });

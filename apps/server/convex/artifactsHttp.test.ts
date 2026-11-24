@@ -4,7 +4,7 @@ import {
   cachePolicy,
   REVOCATION_BOUND_MS,
 } from "./artifactsHttp";
-import { MAX_DOCUMENT_BYTES } from "./artifacts";
+import { MAX_DOCUMENT_BYTES } from "./lib/artifactRules";
 
 async function sha256Hex(s: string): Promise<string> {
   const bytes = new Uint8Array(
@@ -122,7 +122,7 @@ describe("applyEditVersion", () => {
     });
   });
 
-  test("unchanged markdown short-circuits AFTER storing the source blob, then deletes it", async () => {
+  test("an unchanged markdown edit creates no version and leaves no orphan blob", async () => {
     const content = "# Same";
     const { ctx, stored, storageDeletes, mutations } = makeEditCtx();
     const out = await applyEditVersion(
@@ -136,11 +136,9 @@ describe("applyEditVersion", () => {
       "link editor",
     );
     expect(out).toEqual({ version: 3, unchanged: true });
-    // The source blob is stored before the hash comparison and cleaned up on
-    // the short-circuit; the doc blob is never stored.
-    expect(stored).toHaveLength(1);
-    expect(stored[0].type).toBe("text/markdown; charset=utf-8");
-    expect(storageDeletes).toEqual(["st_0"]);
+    expect(storageDeletes.toSorted()).toEqual(
+      stored.map(({ id }) => id).toSorted(),
+    );
     expect(mutations).toHaveLength(0);
   });
 
@@ -320,13 +318,14 @@ describe("publish route evidence binding", () => {
       plan: undefined,
       session_conversation_id: "conversations_s1",
     });
-    // The upsert, then the page's live query set (none declared: an empty set clears any old one).
-    expect(mutations.map((m) => m.name)).toEqual([
-      "artifacts:upsertFromPublish",
-      "pageData:replaceQueries",
-    ]);
-    expect(mutations[1].args).toMatchObject({ set_json: "" });
-    expect(mutations[0].args).toMatchObject({
+    const pageQueries = mutations.find(
+      ({ name }) => name === "pageData:replaceQueries",
+    );
+    expect(pageQueries?.args).toMatchObject({ set_json: "" });
+    const upsert = mutations.find(
+      ({ name }) => name === "artifacts:upsertFromPublish",
+    );
+    expect(upsert?.args).toMatchObject({
       task_id: "tasks_t1",
       plan_id: "plans_p1",
       station: "in_progress",
@@ -396,20 +395,21 @@ describe("cachePolicy", () => {
   const now = 1_700_000_000_000;
 
   test("public content is cacheable, bounded by the revocation window", () => {
-    const policy = cachePolicy({}, now);
-    expect(policy).toBe("public, max-age=60, stale-while-revalidate=300");
-    const maxAge = Number(policy.match(/max-age=(\d+)/)![1]);
-    const stale = Number(policy.match(/stale-while-revalidate=(\d+)/)![1]);
-    expect((maxAge + stale) * 1000).toBeLessThanOrEqual(REVOCATION_BOUND_MS);
+    for (const row of [{}, { expires_at: now + 10 * 3600_000 }]) {
+      const policy = cachePolicy(row, now);
+      expect(policy).toBe("public, max-age=60, stale-while-revalidate=300");
+      const maxAge = Number(policy.match(/max-age=(\d+)/)![1]);
+      const stale = Number(policy.match(/stale-while-revalidate=(\d+)/)![1]);
+      expect((maxAge + stale) * 1000).toBeLessThanOrEqual(REVOCATION_BOUND_MS);
+    }
   });
 
-  test("a password wall makes every representation private and unstored", () => {
-    expect(cachePolicy({ password_hash: "ph" }, now)).toBe("private, no-store");
-  });
-
-  test("an email wall does too", () => {
-    expect(cachePolicy({ email_gate: true }, now)).toBe("private, no-store");
-  });
+  test.each([{ password_hash: "ph" }, { email_gate: true }])(
+    "a page with gate %j is private and unstored",
+    (gate) => {
+      expect(cachePolicy(gate, now)).toBe("private, no-store");
+    },
+  );
 
   test("a far expiry does not shorten the window", () => {
     expect(cachePolicy({ expires_at: now + 7 * 24 * 3600_000 }, now)).toBe(
@@ -428,20 +428,6 @@ describe("cachePolicy", () => {
 
   test("an already-expired page is never cached", () => {
     expect(cachePolicy({ expires_at: now - 1 }, now)).toBe("private, no-store");
-  });
-
-  // Historical versions and versioned assets used to carry max-age=3600 with a
-  // day of stale-while-revalidate. A numbered version's content is immutable;
-  // its availability after a delete is not.
-  test("no representation may outlive the revocation bound", () => {
-    for (const a of [{}, { expires_at: now + 10 * 3600_000 }]) {
-      const policy = cachePolicy(a, now);
-      const total = [...policy.matchAll(/=(\d+)/g)].reduce(
-        (n, m) => n + Number(m[1]),
-        0,
-      );
-      expect(total * 1000).toBeLessThanOrEqual(REVOCATION_BOUND_MS);
-    }
   });
 });
 

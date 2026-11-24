@@ -52,7 +52,7 @@ test("completion through the public mutation produces one actionable bell row ac
       summary,
     });
   await complete("Renew the deployment credential.");
-  await t.run(async (ctx) => {
+  const first = await t.run(async (ctx) => {
     const rows = await ctx.db.query("notifications").collect();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -62,13 +62,22 @@ test("completion through the public mutation produces one actionable bell row ac
       message: "Renew the deployment credential. — Verify deployment",
     });
     await ctx.db.patch(taskId, { status: "running", run_count: 2 });
+    await ctx.db.patch(rows[0]._id, {
+      conversation_id: undefined,
+      created_at: 1,
+    });
+    return rows[0]._id;
   });
   await complete("The deployment credential is still expired.");
   await t.run(async (ctx) => {
     const rows = await ctx.db.query("notifications").collect();
     expect(rows).toHaveLength(1);
-    expect(rows[0].message).toBe(
-      "The deployment credential is still expired. — Verify deployment",
-    );
+    expect(rows[0]).toMatchObject({
+      _id: first,
+      conversation_id: conversationId,
+      message:
+        "The deployment credential is still expired. — Verify deployment",
+    });
+    expect(rows[0].created_at).toBeGreaterThan(1);
   });
 }, 60_000);

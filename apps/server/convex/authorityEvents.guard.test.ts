@@ -15,6 +15,9 @@ const INSERT = /\.insert\(\s*["'`]authority_events["'`]/;
 // names the table in the same statement.
 const TABLE = /["'`]authority_events["'`]/;
 const PATCH_OR_DELETE = /\.(patch|delete|replace)\(/;
+const PURGE_PLAN = "lib/deletionPlans.ts";
+const CONVERSATION_PURGE =
+  /\bunder\(\s*"authority_events",\s*"by_conversation_created",\s*"conversation_id",?\s*\)/;
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -27,27 +30,29 @@ function sources(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-describe("authority_events has one writer and is append only", () => {
-  const files = sources(import.meta.dir);
-  const offenders: string[] = [];
-  for (const abs of files) {
-    const rel = abs.slice(import.meta.dir.length + 1);
-    const src = readFileSync(abs, "utf8");
-    if (rel === WRITER) {
-      expect(INSERT.test(src)).toBe(true);
-      if (PATCH_OR_DELETE.test(src))
-        offenders.push(`${rel}: the writer may only insert`);
-      continue;
+describe("authority_events has one writer and keeps rows until permanent conversation purge", () => {
+  test("only the writer can append and only the conversation purge can remove rows", () => {
+    const offenders: string[] = [];
+    for (const abs of sources(import.meta.dir)) {
+      const rel = abs.slice(import.meta.dir.length + 1);
+      const src = readFileSync(abs, "utf8");
+      if (rel === WRITER) {
+        expect(INSERT.test(src)).toBe(true);
+        if (PATCH_OR_DELETE.test(src))
+          offenders.push(`${rel} changes existing authority events`);
+        continue;
+      }
+      if (rel === "schema.ts") continue;
+      if (INSERT.test(src)) offenders.push(`${rel} inserts authority events`);
+      const rest =
+        rel === PURGE_PLAN ? src.replace(CONVERSATION_PURGE, "") : src;
+      if (
+        TABLE.test(rest) &&
+        (PATCH_OR_DELETE.test(rest) ||
+          /\b(under|purgeRange|purgeChildren|purgeRow)\(/.test(rest))
+      )
+        offenders.push(`${rel} changes existing authority events`);
     }
-    if (rel === "schema.ts") continue;
-    if (INSERT.test(src))
-      offenders.push(`${rel}: inserts into authority_events`);
-    // Any file that names the table and also patches or deletes something is
-    // suspect: the read query is the only reader and it writes nothing.
-    if (TABLE.test(src) && PATCH_OR_DELETE.test(src))
-      offenders.push(`${rel}: names authority_events and patches or deletes`);
-  }
-  test("no file outside the writer inserts, patches or deletes", () => {
     expect(offenders).toEqual([]);
   });
 });

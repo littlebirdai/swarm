@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { bootstrapMessage } from "./anchors";
-import { SAY_GUIDANCE } from "./lib/anchorBootstrap";
 import { isBootstrapPrompt } from "@codecast/shared/contracts";
 
 // A role's opening message (org-roles-standing.md T1): who it is and whom it
@@ -48,7 +47,9 @@ describe("a role's opening message", () => {
     expect(m).toContain("steer it with `cast send <id>`");
     expect(opening(false)).toContain("You do not start work on your own");
     expect(opening(false)).not.toContain("`cast spawn --subagent`");
-    expect(m).toContain(SAY_GUIDANCE);
+    expect(m).toContain("Talk to people here with `cast say`");
+    expect(m).toContain("answer before you go to work on it");
+    expect(m).toContain("nothing else you write reaches them");
     // The decision it presents is answered from the record (decisionDiscussion.ts).
     expect(m).toContain("A person may ask you about a decision you present");
     expect(m.split(/\s+/).length).toBeLessThan(450);
@@ -153,9 +154,14 @@ describe("a workspace agent's opening", () => {
     teamName: "Fernhill",
   };
   test("talks with cast say only when its clean chat is on", () => {
-    expect(
-      bootstrapMessage({ ...facts, scopeType: "team", cleanChat: true }),
-    ).toContain(SAY_GUIDANCE);
+    const cleanChat = bootstrapMessage({
+      ...facts,
+      scopeType: "team",
+      cleanChat: true,
+    });
+    expect(cleanChat).toContain("Talk to people here with `cast say`");
+    expect(cleanChat).toContain("answer before you go to work on it");
+    expect(cleanChat).toContain("nothing else you write reaches them");
     expect(bootstrapMessage({ ...facts, scopeType: "team" })).not.toContain(
       "cast say",
     );

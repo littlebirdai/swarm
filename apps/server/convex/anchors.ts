@@ -880,7 +880,7 @@ export const rebriefRoles = internalMutation({
 // bootstrapMessage reaches a running workspace agent only through a rebrief.
 // `only` takes anchor ids.
 // `apps/server/run.sh anchors:rebriefWorkspaceAgents '{"dry_run":true}'`.
-export async function performRebriefWorkspaceAgents(
+async function performRebriefWorkspaceAgents(
   ctx: any,
   args: RebriefArgs,
 ): Promise<{

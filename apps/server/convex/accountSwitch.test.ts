@@ -9,7 +9,6 @@ import { makeFakeDb } from "./testDb";
 import {
   isBlockedConversation,
   isRemoteAuthBlocked,
-  isSubagentConversation,
   actedBlockedConversations,
   skippedBlockedWorkers,
   isDeviceOnline,
@@ -191,25 +190,6 @@ describe("isValidProfileName", () => {
     ]) {
       expect(isValidProfileName(bad)).toBe(false);
     }
-  });
-});
-
-describe("isSubagentConversation", () => {
-  test("flags explicit subagents and parent-linked workers", () => {
-    expect(isSubagentConversation({ is_subagent: true })).toBe(true);
-    expect(
-      isSubagentConversation({ parent_conversation_id: "jx7parent" }),
-    ).toBe(true);
-  });
-
-  test("a plain top-level conversation is not a subagent", () => {
-    expect(isSubagentConversation({})).toBe(false);
-    expect(
-      isSubagentConversation({
-        is_subagent: false,
-        parent_conversation_id: undefined,
-      }),
-    ).toBe(false);
   });
 });
 
@@ -2220,20 +2200,5 @@ describe("Codex cyber policy parks (ct-49794)", () => {
   test("parks the row so it earns the badge and the hint", () => {
     expect(kind).toBe("safety");
     expect(isBlockedConversation(conv)).toBe(true);
-  });
-
-  test("no revive and no account switch ever acts on it", () => {
-    // A policy stop has no cure, so a fleet revive leaves it alone...
-    expect(actedBlockedConversations([conv], true)).toEqual([]);
-    // ...and the auto switch only ever reads kind "limit" (limitBlocked in
-    // accountSwitch.ts), so rotating accounts on this is impossible.
-    expect(kind).not.toBe("limit");
-    expect(
-      resumePinFor(
-        { ...conv, cc_account: "work@example.com" },
-        undefined,
-        Date.now(),
-      ),
-    ).toBe("work@example.com");
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { sendApns, type ApnsSendArgs } from "./apns";
-import { APNS_TOKEN_REFRESH_MS, get, retain } from "./apnsProviderToken";
+import { get, retain } from "./apnsProviderToken";
 
 const originalEnv = { ...process.env };
 let publicKey: CryptoKey;
@@ -140,7 +140,7 @@ describe("APNs provider token reuse", () => {
   test("renews after 50 minutes and reuses the renewed token", async () => {
     const s = setup();
     await sendApns(s.context(), s.args);
-    s.advance(APNS_TOKEN_REFRESH_MS - 1);
+    s.advance(50 * 60_000 - 1);
     await sendApns(s.context(), s.args);
     expect(s.sent[1]).toBe(s.sent[0]);
     s.advance(1);

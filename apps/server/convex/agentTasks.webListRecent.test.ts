@@ -1,54 +1,8 @@
 import { expect, test } from "bun:test";
 import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
-import { makeFakeDb, schemaIndexes } from "./testDb";
 import schema from "./schema";
 import { allModules } from "./testModules.testkit";
-import { armedAndRecentlyFinished } from "./agentTasks";
-
-const USER = "user_1" as any;
-const row = (n: number, status: string, user = USER) => ({
-  _id: `t${n}`,
-  _creationTime: n,
-  user_id: user,
-  status,
-  retry_count: 0,
-});
-
-test("returns every armed trigger and the newest finished ones up to the limit", async () => {
-  const rows = [
-    row(1, "completed"),
-    row(2, "failed"),
-    row(3, "scheduled"),
-    row(4, "completed"),
-    row(5, "cancelled"),
-    row(6, "paused"),
-    row(7, "completed"),
-    row(8, "running"),
-    row(9, "scheduled", "user_2"),
-    row(10, "completed", "user_2"),
-  ];
-  const db = makeFakeDb(
-    { agent_tasks: rows },
-    { indexes: schemaIndexes(schema) },
-  );
-  const ids = (await armedAndRecentlyFinished({ db }, USER, 3)).map(
-    (t: any) => t._id,
-  );
-  expect(ids.slice(0, 3).sort()).toEqual(["t3", "t6", "t8"]);
-  expect(ids.slice(3)).toEqual(["t7", "t5", "t4"]);
-});
-
-test("a zero limit returns only the armed triggers", async () => {
-  const db = makeFakeDb(
-    { agent_tasks: [row(1, "completed"), row(2, "scheduled")] },
-    { indexes: schemaIndexes(schema) },
-  );
-  expect(
-    (await armedAndRecentlyFinished({ db }, USER, 0)).map((t: any) => t._id),
-  ).toEqual(["t2"]);
-});
-
 async function seedHistory() {
   const t = convexTest(schema, allModules);
   const { user, armed, finished } = await t.run(async (ctx) => {
@@ -96,20 +50,27 @@ async function seedHistory() {
   };
 }
 
-test("webList defaults to all armed triggers and the newest 50 finished triggers", async () => {
-  const { viewer, armed, finished } = await seedHistory();
-  const rows = await viewer.query(anyApi.agentTasks.webList, {});
-  expect(rows).toHaveLength(armed.length + 50);
-  expect(
-    rows
-      .slice(0, armed.length)
-      .map((t: { _id: string }) => t._id)
-      .sort(),
-  ).toEqual(armed.sort());
-  expect(rows.slice(armed.length).map((t: { _id: string }) => t._id)).toEqual(
-    finished.slice(-50).reverse(),
-  );
-});
+test.each([undefined, 3, 0])(
+  "webList returns all armed triggers and the newest finished triggers with limit %s",
+  async (limit) => {
+    const { viewer, armed, finished } = await seedHistory();
+    const rows = await viewer.query(
+      anyApi.agentTasks.webList,
+      limit === undefined ? {} : { recent_finished: limit },
+    );
+    const count = limit ?? 50;
+    expect(rows).toHaveLength(armed.length + count);
+    expect(
+      rows
+        .slice(0, armed.length)
+        .map((t: { _id: string }) => t._id)
+        .sort(),
+    ).toEqual(armed.sort());
+    expect(rows.slice(armed.length).map((t: { _id: string }) => t._id)).toEqual(
+      count === 0 ? [] : finished.slice(-count).reverse(),
+    );
+  },
+);
 
 test("webListHistory pages through owned triggers beyond the roster's default limit", async () => {
   const { viewer, armed, finished } = await seedHistory();
