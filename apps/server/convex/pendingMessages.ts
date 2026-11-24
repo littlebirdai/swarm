@@ -365,8 +365,6 @@ function canDaemonDeliver(
   deviceId: string,
 ): boolean {
   if (delivery.blocked || isFencedPendingMessage(message)) return false;
-  // Delivery is the TARGET owner's job, not the sender's — a teammate's message is delivered by
-  // the owner's daemon. (For a self-send these are the same user.)
   if (pendingMessageOwnerId(message, conversation) !== userId.toString())
     return false;
   if (message.status !== "pending") return false;
