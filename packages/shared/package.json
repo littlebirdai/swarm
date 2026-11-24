@@ -159,7 +159,6 @@
     "./artifacts/sheet": "./artifacts/sheet.ts",
     "./artifacts/sheets": "./artifacts/sheets/index.ts",
     "./replay": "./replay/index.ts",
-    "./blame": "./blame/index.ts",
     "./ratchet": "./ratchet/index.ts",
     "./search": "./search/index.ts",
     "./search/tokenize": "./search/tokenize.ts",

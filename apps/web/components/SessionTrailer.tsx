@@ -2,7 +2,7 @@
 // than a raw URL. The trailer is added by the session trailer hook to each
 // commit an agent runs (apps/cli/src/sessionTrailer.ts); the same parser
 // the server trusts (splitSessionTrailer) takes the line out of the message (hooks/useSessionTrailer).
-import { SESSION_TRAILER_KEY } from "@codecast/shared/blame";
+import { SESSION_TRAILER_KEY } from "@codecast/blame";
 import { EntityIdPill } from "./EntityIdPill";
 
 /** The trailer line as the message showed it: its key, then the session as a pill. */

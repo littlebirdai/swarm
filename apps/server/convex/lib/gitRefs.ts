@@ -14,7 +14,7 @@ import {
   inferEntityTypeFromShortId,
   shortIdSource,
 } from "@codecast/shared/entities";
-import { extractSessionTrailer } from "@codecast/shared/blame";
+import { extractSessionTrailer } from "@codecast/blame";
 import { isConversationOwner, isConversationTeamVisible } from "../privacy";
 import { normalizeRepository } from "@codecast/shared/contracts";
 // accessKeys, not ./access: access.ts pulls in function modules, and this file

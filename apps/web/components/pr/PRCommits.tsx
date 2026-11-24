@@ -6,7 +6,7 @@ import type { PrCommitRow } from "../../lib/prView";
 import type { PRDetailsRead } from "../../hooks/usePRDetails";
 import { PRDetailsFrame } from "./PRDetailsFrame";
 import { EntityIdPill } from "../EntityIdPill";
-import { splitSessionTrailer } from "@codecast/shared/blame";
+import { splitSessionTrailer } from "@codecast/blame";
 
 // The Commits tab: the head branch, oldest first, as GitHub lists it. Each row
 // is a commit page away; the sha is monospace because that is what a person

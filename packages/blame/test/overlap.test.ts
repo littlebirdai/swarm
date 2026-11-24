@@ -7,7 +7,7 @@ import {
   passesOverlapGate,
   CONTENT_MATCH_MAX_AGE_MS,
   MAX_OVERLAP_LINES_PER_COMMIT,
-} from "./index";
+} from "../src/index";
 
 // What a session's edits wrote: a realistic Convex query plus the boilerplate
 // every file in the tree shares.

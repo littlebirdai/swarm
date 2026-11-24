@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { splitSessionTrailer } from "@codecast/shared/blame";
+import { splitSessionTrailer } from "@codecast/blame";
 
 /** The message without its Codecast-Session trailer, and the session it names
  *  (the same parser the server trusts takes the line out). */

@@ -8,7 +8,7 @@ import {
   BLAME_ALGORITHM_VERSION,
   contentLinesToMatch,
   MAX_CONTENT_LINES,
-} from "@codecast/shared/blame";
+} from "@codecast/blame";
 import { checkConversationAccess } from "./privacy";
 import {
   bodyBytes,

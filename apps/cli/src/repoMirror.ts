@@ -24,7 +24,7 @@ import { createHash } from "node:crypto";
 import * as path from "node:path";
 import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
-import { extractSessionTrailer } from "@codecast/shared/blame";
+import { extractSessionTrailer } from "@codecast/blame";
 
 const execFileAsync = promisify(execFile);
 

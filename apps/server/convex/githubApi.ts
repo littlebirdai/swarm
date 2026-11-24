@@ -3,7 +3,7 @@ import { commentIdValidator } from "./lib/conversationCommentRows";
 import { action, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { belongsToSearchRepository, scopedRepoSearch } from "./lib/repoSearch";
-import { extractSessionTrailer } from "@codecast/shared/blame";
+import { extractSessionTrailer } from "@codecast/blame";
 
 const GITHUB_API_BASE = "https://api.github.com";
 

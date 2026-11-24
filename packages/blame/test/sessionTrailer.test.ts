@@ -4,7 +4,7 @@ import {
   sessionTrailerValue,
   SESSION_TRAILER_KEY,
   splitSessionTrailer,
-} from "./index";
+} from "../src/index";
 
 const ID = "jx7bq5kz13a2eypp4a6vdqznas7zvrw2";
 const trailer = `${SESSION_TRAILER_KEY}: ${sessionTrailerValue(ID)}`;

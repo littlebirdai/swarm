@@ -28531,6 +28531,15 @@
   "packages/async/src/index.ts": {
     "swarm/no-comments": 2
   },
+  "packages/blame/src/index.ts": {
+    "swarm/no-comments": 59
+  },
+  "packages/blame/test/overlap.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/blame/test/sessionTrailer.test.ts": {
+    "swarm/no-comments": 7
+  },
   "packages/capabilities/src/agentAccess.ts": {
     "swarm/no-comments": 22
   },
@@ -28854,15 +28863,6 @@
   },
   "packages/shared/artifacts/spec.ts": {
     "swarm/no-comments": 26
-  },
-  "packages/shared/blame/index.ts": {
-    "swarm/no-comments": 59
-  },
-  "packages/shared/blame/overlap.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/blame/sessionTrailer.test.ts": {
-    "swarm/no-comments": 7
   },
   "packages/shared/changes/__fixtures__/commit.ts": {
     "swarm/no-comments": 2

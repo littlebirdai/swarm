@@ -28,6 +28,7 @@
         "@anthropic-ai/sdk": "^0.71.2",
         "@codecast/agents": "workspace:*",
         "@codecast/async": "workspace:*",
+        "@codecast/blame": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/comments": "workspace:*",
         "@codecast/diff": "workspace:*",
@@ -207,6 +208,7 @@
       "dependencies": {
         "@auth/core": "^0.37.2",
         "@codecast/analytics": "workspace:*",
+        "@codecast/blame": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/chat": "workspace:*",
         "@codecast/comments": "workspace:*",
@@ -258,6 +260,7 @@
       "dependencies": {
         "@codecast/agents": "workspace:*",
         "@codecast/analytics": "workspace:*",
+        "@codecast/blame": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/chat": "workspace:*",
         "@codecast/comments": "workspace:*",
@@ -437,6 +440,16 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/blame": {
+      "name": "@codecast/blame",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/capabilities": {
       "name": "@codecast/capabilities",
       "version": "0.0.1",
@@ -455,6 +468,7 @@
       "name": "@codecast/comments",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/blame": "workspace:*",
         "@codecast/shared": "workspace:*",
       },
       "devDependencies": {
@@ -928,6 +942,8 @@
     "@codecast/analytics": ["@codecast/analytics@workspace:packages/analytics"],
 
     "@codecast/async": ["@codecast/async@workspace:packages/async"],
+
+    "@codecast/blame": ["@codecast/blame@workspace:packages/blame"],
 
     "@codecast/capabilities": ["@codecast/capabilities@workspace:packages/capabilities"],
 
