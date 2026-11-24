@@ -1,6 +1,3 @@
-// The metric model's later rounds: sparse ticks, prior-period change, ships,
-// duplicates, HogQL picks, cadence, suggested lines, card joins, loading and
-// missing data.
 import { describe, expect, test } from "bun:test";
 import { windowName, crossings, sortWatches, lineRuns, formatMeasure, isIntegral, clipRunToWindow, durationShort, ticksOf, dataHoles, cutHoles, measuresCount } from "./metricModel";
 import { stats, timeWeights } from "./metricStats";
@@ -17,9 +14,7 @@ describe("round 5: sparse ticks, change against the prior period, ships, duplica
     const daily = [0, 1, 2, 3].map((i) => ({ at: i * D, value: i }));
     const ticks = ticksOf(daily, 1000);
     expect(ticks[1]).toEqual({ pt: daily[1], from: D - 0.3 * D, to: D + 0.3 * D });
-    // A lone value keeps the minimum width.
     expect(ticksOf([{ at: 5, value: 1 }], 1000)[0]).toMatchObject({ from: -995, to: 1005 });
-    // Neighbours are every drawn value: an hourly run beside a daily value narrows its tick.
     const hourly = [{ at: 2 * D + H, value: 9 }];
     expect(ticksOf([daily[2]], 10, [...daily, ...hourly])[0].to).toBe(2 * D + 0.3 * H);
   });
@@ -28,13 +23,11 @@ describe("round 5: sparse ticks, change against the prior period, ships, duplica
     const now = [10, 20].map((value, i) => ({ at: 10 * D + i * D, value }));
     const prior = [10, 10].map((value, i) => ({ at: i * D, value }));
     expect(windowDelta(now, H, prior)).toMatchObject({ vs: "prior", change: 5, pct: 0.5, base: 10, now: 15 });
-    // Without a prior period: the first value of the stretch, but 2 against a spread of 140 is about zero.
     const quiet = [2, 0, 140, 135].map((value, i) => ({ at: i * H, value }));
     expect(windowDelta(quiet, H)).toMatchObject({ vs: "first", base: 2, change: 133, pct: null });
     expect(changeAmount(126, 9)).toBe("+126 from 9");
     expect(tinyBaseline(100, [99, 101, 100])).toBe(false);
     expect(tinyBaseline(0, [1, 2])).toBe(true);
-    // A prior mean of 9 against values up to 147 is small but not zero: the change stays a percent, as the overview shows it.
     const was = [9, 9].map((value, i) => ({ at: i * D, value }));
     const is = [60, 147].map((value, i) => ({ at: 10 * D + i * D, value }));
     expect(windowDelta(is, H, was)?.pct).toBeCloseTo((103.5 - 9) / 9);
@@ -79,7 +72,6 @@ test("a source's counted series: events, issues and its busiest named events, a 
   const source = { provider: "github" as const, hours: [{ hour: h, events: 12 }], event_names: [{ name: "deploy", buckets: [{ hour: h, count: 2 }] }, { name: "quiet", buckets: [] }], groups_open: 4 };
   const groups = [{ first_seen: now - H, status: "open" }, { first_seen: now - H, status: "open", kind: "metric" }];
   const opts = volumeOptions(source, groups, now);
-  // A CI source with kept runs leads with their failed share and run time; with none it offers neither.
   const timed = volumeOptions({ ...source, ci_runs: [{ at: now - H, ok: false, duration_ms: 120_000 }, { at: now - 2 * H, ok: true, duration_ms: 60_000 }] }, groups, now);
   expect(timed.slice(0, 3).map((o) => [o.query, o.value, o.unit])).toEqual([["ci_failure_rate", 50, "%"], ["ci_duration_p50", 1, "min"], ["ci_duration_p95", 2, "min"]]);
   expect(opts.map((o) => [o.query, o.label, o.value])).toEqual([
@@ -102,7 +94,6 @@ describe("round 6: cadence, scoped ships, one change, suggested lines", () => {
     expect(lineRuns(weekly, H).map((r) => [r.sparse, r.points.length, r.step])).toEqual([[false, 9, 7 * D]]);
     const holed = [...weekly.slice(0, 5), ...weekly.slice(5).map((p) => ({ ...p, at: p.at + 60 * D }))];
     expect(lineRuns(holed, H).map((r) => r.points.length)).toEqual([5, 4]);
-    // Two values alone are a line.
     expect(lineRuns([{ at: 0, value: 1 }, { at: 9 * D, value: 2 }], H).map((r) => r.points.length)).toEqual([2]);
   });
 
@@ -123,7 +114,6 @@ describe("round 6: cadence, scoped ships, one change, suggested lines", () => {
     const r = relatedShips({ source: sources[0], sources, deploys, tasks });
     expect(r.deploys.map((d) => d.title)).toEqual(["union release", "by name"]);
     expect(r.tasks.map((t) => t._id)).toEqual(["ashot/union"]);
-    // A project ties tasks and sources by id.
     const ci = relatedShips({ source: sources[2], sources, deploys, tasks });
     expect(ci.tasks.map((t) => t._id)).toEqual(["ashot/codecast"]);
     expect(relatedShips({ source: undefined, sources, deploys, tasks })).toEqual({ deploys: [], tasks: [] });
@@ -145,7 +135,6 @@ describe("round 6: cadence, scoped ships, one change, suggested lines", () => {
     expect([d.now, d.base, d.change, d.pct]).toEqual([15, 10, 5, 0.5]);
     expect(periodChange(cur, [], 7 * D, end)).toBeNull();
     expect(periodChange(cur, null, 7 * D, end)).toBeNull();
-    // Values outside the two spans count for nothing.
     expect(periodChange([...cur, { at: end - 30 * D, value: 999 }], prev, 7 * D, end)!.now).toBe(15);
   });
 
@@ -176,7 +165,6 @@ describe("round 6: cadence, scoped ships, one change, suggested lines", () => {
   });
 
   test("a line past every held value that never fired is not suggested, and the side follows the tail", () => {
-    // A cost that sits near its floor and spikes up: nothing below would ever fire.
     const cost = Array.from({ length: 60 }, (_, i) => ({ at: i * H, value: i % 12 === 0 ? 2400 : 514 + (i % 7) * 30 }));
     expect(suggestDirection(cost)).toBe("above");
     for (const s of lineSuggestions(cost, "below")) expect(s.crossings > 0 || s.value >= 514).toBe(true);
@@ -211,7 +199,6 @@ describe("metrics round 4", () => {
     expect(changeRange("30d")).toBe("30d");
     expect(seriesKey("w", { kind: "range", range: changeRange("all") }, 300)).toBe(seriesKey("w", { kind: "range", range: "7d" }, 300));
     expect(seriesKey("w", { kind: "prev", range: changeRange("all") }, 80)).toBe(seriesKey("w", { kind: "prev", range: "7d" }, 80));
-    // The same values give the same change whichever range asked for them.
     const end = 40 * D;
     const cur = Array.from({ length: 7 * 24 }, (_, i) => ({ at: end - i * H, value: 100 + (i % 9) }));
     const prev = Array.from({ length: 7 * 24 }, (_, i) => ({ at: end - 7 * D - i * H, value: 150 + (i % 5) }));
@@ -221,19 +208,16 @@ describe("metrics round 4", () => {
   });
 
   test("a mean over mixed cadence weighs each value by how long it stood", () => {
-    // Three weekly values, then a day of 10-minute polls of one value.
     const weekly = [1000, 1600, 1200].map((value, i) => ({ at: i * 7 * D, value }));
     const polls = Array.from({ length: 144 }, (_, i) => ({ at: 21 * D + i * 10 * 60_000, value: 900 }));
     const st = stats([...weekly, ...polls])!;
     expect(st.uneven).toBe(true);
-    // The plain mean is pulled to ~911 by the polls; time-weighted, three weeks against a day.
     expect(st.avg).toBeGreaterThan(1200);
     expect(st.avg).toBeLessThan(1300);
     const d = distribution([...weekly, ...polls])!;
     expect(d.uneven).toBe(true);
     expect(d.p50).toBeGreaterThan(1000);
     expect(d.bins.reduce((a, b) => a + b, 0)).toBeCloseTo(d.n, 6);
-    // Evenly spaced values weigh the same: the plain mean and the usual percentiles.
     const even = [3, 1, 4, 1, 5, 9, 2, 6].map((value, i) => ({ at: i * H, value }));
     expect(stats(even)!.avg).toBeCloseTo(31 / 8, 9);
     expect(stats(even)!.uneven).toBe(false);
@@ -279,13 +263,10 @@ describe("round 5: one change, honest loading, bands that end at the recovery", 
   const cardPrev = series([0, 1, 2, 3, 4, 5, 6].map((i) => ({ at: end - 7 * D - i * D - H, value: 95 + i })), end - 7 * D);
 
   test("the page and the overview read the change through one function off the same card series, whatever arrived first", () => {
-    // The overview card's call and the page's call, in either order: the same inputs give the same WindowDelta.
     const card = rangeChange(cardCur, cardPrev, [], "7d", end);
     const page = rangeChange(cardCur, cardPrev, [], "7d", end);
     expect(page).toEqual(card);
-    // All reads the 7d change off the same series.
     expect(rangeChange(cardCur, cardPrev, [], "all", end)).toEqual(card);
-    // Nothing yet from the card series: no number, never a number from another input.
     expect(rangeChange(undefined, cardPrev, [{ at: end - H, value: 1 }], "7d", end)).toBeNull();
   });
 
@@ -309,9 +290,7 @@ describe("round 5: one change, honest loading, bands that end at the recovery", 
     expect(clipRunToWindow([{ at: 0, value: 0 }, { at: 15, value: 15 }, { at: 30, value: 30 }], win)).toEqual([
       { at: 10, value: 10 }, { at: 15, value: 15 }, { at: 20, value: 20 },
     ]);
-    // Two neighbours straddling the whole window: the segment across it.
     expect(clipRunToWindow([{ at: 0, value: 0 }, { at: 40, value: 40 }], win)).toEqual([{ at: 10, value: 10 }, { at: 20, value: 20 }]);
-    // All outside on one side: nothing.
     expect(clipRunToWindow([{ at: 0, value: 0 }, { at: 5, value: 5 }], win)).toEqual([]);
   });
 
@@ -338,9 +317,7 @@ describe("round 5: one change, honest loading, bands that end at the recovery", 
       { at: 30, kind: "crossed" as const },
     ];
     expect(bandsFromTransitions(rows, 50)).toEqual([{ from: 10, to: 20 }, { from: 30, to: 50 }]);
-    // A second crossing before the recovery keeps the first start.
     expect(bandsFromTransitions([{ at: 5, kind: "crossed" }, ...rows], 50)[0]).toEqual({ from: 5, to: 20 });
-    // A value equal to the line is not past it, so the recovery the list names ends the band, never a later value.
     const pts = [{ at: 1, value: 20 }, { at: 2, value: 15 }, { at: 3, value: 16 }];
     const listed = transitionRows([{ at: 1, kind: "crossed", value: 20 }, { at: 2, kind: "recovered", value: 15 }], crossings(pts, 15, "above", true), 0);
     expect(bandsFromTransitions(listed.filter((r) => !r.inferred), 9)).toEqual([{ from: 1, to: 2 }]);
@@ -350,13 +327,11 @@ describe("round 5: one change, honest loading, bands that end at the recovery", 
     const rows = [{ at: 10, kind: "crossed" as const, value: 19 }, { at: 20, kind: "recovered" as const, value: 3 }, { at: 30, kind: "crossed" as const, value: 21 }];
     expect(runningCrossing(rows, 30)).toBe(rows[2]);
     expect(runningCrossing(rows, null)).toBeNull();
-    // No announcement on this device: the episode's start stands in.
     expect(runningCrossing(rows.slice(0, 2), 40)).toEqual({ at: 40, kind: "crossed", value: null });
   });
 
   test("the share of time past the line is time-weighted, a value on the line not past it", () => {
     const pts = [{ at: 0, value: 10 }, { at: 3 * H, value: 20 }, { at: 4 * H, value: 15 }];
-    // 10 stood 3h, 20 stood 1h, 15 (on the line) 1h: 1 of 5 hours past.
     expect(sharePast(pts, 15, "above")).toBe(20);
     expect(sharePast(pts, 15, "below")).toBe(60);
     expect(sharePast([], 15, "above")).toBe(0);
@@ -370,19 +345,16 @@ describe("missing data and a count's precision", () => {
     expect(dataHoles(hourly, H)).toEqual([{ from: 3 * H, to: 54 * H, missed: 50 }]);
     const weekly = [0, 1, 2, 3].map((w) => ({ at: w * 168 * H, value: 1 }));
     expect(dataHoles(weekly, H)).toEqual([]);
-    // A daily backfill running into hourly polls is a change of cadence, not a hole.
     const mixed = [...[0, 1, 2, 3, 4, 5].map((d) => ({ at: d * 24 * H, value: 1 })), ...[0, 1, 2, 3].map((h) => ({ at: 6 * 24 * H + h * H, value: 1 }))];
     expect(dataHoles(mixed, H)).toEqual([]);
   });
   test("lone values and pairs inside an outage do not hide it", () => {
-    // Hourly polls, then a pair a day apart and a lone value, then hourly again.
     const pts = [0, 1, 2, 3, 20, 50, 62, 90, 91, 92, 93].map((h) => ({ at: h * H, value: 1 }));
     const holes = dataHoles(pts, H);
     expect(holes.length).toBeGreaterThan(0);
     expect(holes[holes.length - 1].to).toBe(90 * H);
   });
   test("daily values running into hourly polls are not holes; the stretch after the last one is", () => {
-    // Daily at 11:30, a lone value 36h later, then hourly 12h after it.
     const daily = [0, 24, 48, 72].map((h) => ({ at: h * H, value: 120 }));
     const pts = [...daily, { at: 108 * H, value: 57 }, ...[120, 121, 122, 123].map((h) => ({ at: h * H, value: 20 }))];
     expect(dataHoles(pts, H, H)).toEqual([{ from: 108 * H, to: 120 * H, missed: 11 }]);

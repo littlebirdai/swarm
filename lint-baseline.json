@@ -19283,9 +19283,6 @@
   "apps/web/components/ops/metricRound9.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/web/components/ops/metricRounds.test.ts": {
-    "oxlint/parse": 1
-  },
   "apps/web/components/ops/metricSeries.ts": {
     "swarm/no-comments": 29
   },
