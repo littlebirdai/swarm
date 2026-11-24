@@ -1,5 +1,5 @@
 // A watch's full history (lib/metricPoints.ts) and its monitor
-// (contracts/metricMonitor.ts) through the real mutations and queries on the
+// (packages/ingest/src/metricMonitor.ts) through the real mutations and queries on the
 // fake db: every value lands in metric_points with an hourly rollup, a window
 // reads raw or hourly and folds to the buckets asked, and the monitor's reads
 // in a row, mute and missing data decide what the group hears.
@@ -7,11 +7,11 @@ import { describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 import {
   monitorProblem,
   nextMonitorState,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import { createSource } from "./ingest";
 import {
   createWatch,

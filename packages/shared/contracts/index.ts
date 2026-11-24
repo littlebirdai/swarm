@@ -25,7 +25,6 @@ export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.
-export * from "./sanitizeText";
 // Machine-delivered message detection: web/mobile previews and the convex
 // send classifier must agree on what a human-typed message is.
 export * from "./machineMessages";

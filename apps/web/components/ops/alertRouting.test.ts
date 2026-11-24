@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DELIVERIES_KEPT } from "@codecast/shared/contracts/metricMonitor";
+import { DELIVERIES_KEPT } from "@codecast/ingest/metricMonitor";
 import {
   deliveriesByRow,
   lastUsedRoutes,

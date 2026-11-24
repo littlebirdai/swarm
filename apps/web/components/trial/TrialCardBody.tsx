@@ -47,7 +47,7 @@ import {
   proposalAsRead,
   proposalCase,
 } from "../../lib/trialEvidence";
-import { receivedWords } from "@codecast/shared/contracts/moments";
+import { receivedWords } from "@codecast/ingest/moments";
 import { PROPOSAL_VERDICT_KEY } from "@codecast/shared/contracts/proposalCard";
 import { problemListName } from "../../lib/line/problemTable";
 import { trialWords } from "../../lib/line/fixDecision";

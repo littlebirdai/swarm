@@ -62,7 +62,7 @@ import {
   parseExtractorHeader,
   type JudgeBackend,
   type MomentRecord,
-} from "@codecast/shared/contracts/moments";
+} from "@codecast/ingest/moments";
 import {
   isJudgeCaseKey,
   type CaseTarget,

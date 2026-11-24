@@ -9,7 +9,7 @@ import {
   volumeUnit,
   volumeValue,
   type VolumeQuery,
-} from "@codecast/shared/contracts/volumeWatch";
+} from "@codecast/ingest/volumeWatch";
 import {
   DAY,
   fitStart,
@@ -82,7 +82,7 @@ export function argFields(
     .sort((a, b) => Number(b.required) - Number(a.required));
 }
 
-/** A reader watch's query (`name {json}`, contracts/ingest parseReaderQuery) from typed field values; empty fields are left out. */
+/** A reader watch's query (`name {json}`, packages/ingest/src/ingest parseReaderQuery) from typed field values; empty fields are left out. */
 export function readerQueryText(
   reader: string,
   fields: ArgField[],
@@ -251,7 +251,7 @@ export function duplicateWatch<
   );
 }
 
-// ── Volume series (contracts/volumeWatch), previewed from the client's counters ──
+// ── Volume series (packages/ingest/src/volumeWatch), previewed from the client's counters ──
 
 /** A source's issues without the groups its own watches' alerts opened, as the server counts them. */
 const issuesOnly = <G extends { kind?: string }>(groups: readonly G[]) =>

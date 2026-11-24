@@ -314,7 +314,7 @@ alert line is a plain series: it keeps points and never opens a group.
 - **Where series come from.** A PostHog HogQL query or insight, or an app
   connector's metric reader (`query_kind: "reader"`, query
   `<reader> [json args]`). The reader answers `{ value, unit?, points? }`
-  (contracts/ingest MetricReaderAnswer); a reader that answers its own dated
+  (packages/ingest/src/ingest MetricReaderAnswer); a reader that answers its own dated
   history has that series kept as answered (lib/ingestGroups
   mergeReaderSeries), so a daily number polled hourly is not 60 repeats of one
   day. Union serves its admin home's numbers as `metrics.list` and

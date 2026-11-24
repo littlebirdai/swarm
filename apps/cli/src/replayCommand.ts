@@ -54,7 +54,7 @@ import {
   shortRef,
 } from "./externalDataCli.js";
 import { fenceProductText } from "@codecast/shared/contracts";
-import { INGEST_SHORT_ID_PREFIX } from "@codecast/shared/contracts/ingest";
+import { INGEST_SHORT_ID_PREFIX } from "@codecast/ingest/ingest";
 import {
   REPLAY_BACKFILL_WINDOWS,
   isReplayBackfillWindow,

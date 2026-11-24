@@ -47,7 +47,7 @@ import {
   eventNameRows,
   type EventNameCounts,
   type SourceProvider,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   replayBackfillLine,
   type ReplayBackfill,

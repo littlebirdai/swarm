@@ -41,6 +41,7 @@
     "@codecast/fence": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/flows": "workspace:*",
+    "@codecast/ingest": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",
     "@codecast/memory": "workspace:*",

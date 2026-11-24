@@ -8,7 +8,7 @@ import {
   parseAgentFindings,
   transcriptFromStream,
 } from "./agentJudges";
-import type { MomentRecord } from "./moments";
+import type { MomentRecord } from "@codecast/ingest/moments";
 
 const file = (
   header: string,

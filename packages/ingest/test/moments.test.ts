@@ -8,8 +8,8 @@ import {
   renderMoment,
   validateMomentEvent,
   type MomentRecord,
-} from "./moments";
-import { validateIngestBatch } from "./ingest";
+} from "../src/moments";
+import { validateIngestBatch } from "../src/ingest";
 
 const T = Date.parse("2026-10-09T14:00:00Z");
 

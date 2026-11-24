@@ -58,7 +58,7 @@ import {
   type AgentFinding,
   type ReviewTranscript,
 } from "@codecast/shared/contracts/agentJudges";
-import { MOMENT_KIND } from "@codecast/shared/contracts/moments";
+import { MOMENT_KIND } from "@codecast/ingest/moments";
 
 /** A lease the machine has not renewed in this long goes back to the queue. */
 const LEASE_MS = 10 * 60_000;

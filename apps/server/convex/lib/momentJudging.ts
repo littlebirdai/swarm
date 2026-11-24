@@ -14,10 +14,7 @@ import type {
 } from "@codecast/shared/contracts/modelCall";
 import { momentEvidence, reembedFinding } from "../findingGroups";
 import { newOnResample, type Ruling } from "../judgeRetire";
-import type {
-  MomentRecord,
-  MomentWindow,
-} from "@codecast/shared/contracts/moments";
+import type { MomentRecord, MomentWindow } from "@codecast/ingest/moments";
 import {
   briefAt,
   evidenceMessage,

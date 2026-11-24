@@ -30,6 +30,7 @@ const ROOTS = [
   join(REPO, "packages", "replay", "src"),
   join(REPO, "packages", "calls", "src"),
   join(REPO, "packages", "entities", "src"),
+  join(REPO, "packages", "ingest", "src"),
   join(REPO, "packages", "shared", "contracts"),
   ...PACKAGE_SOURCES,
   join(REPO, "apps", "server", "convex"),

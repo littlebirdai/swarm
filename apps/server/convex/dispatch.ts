@@ -3967,7 +3967,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       ...(p.status === "active" || p.status === "paused"
         ? { status: p.status }
         : {}),
-      // The monitor (contracts/metricMonitor.ts): null takes a setting off.
+      // The monitor (packages/ingest/src/metricMonitor.ts): null takes a setting off.
       ...Object.fromEntries(
         (["eval_reads", "warn", "no_data_after", "muted_until"] as const)
           .filter((k) => p[k] === null || typeof p[k] === "number")

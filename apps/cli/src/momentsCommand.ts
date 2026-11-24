@@ -27,7 +27,7 @@ import {
   durationWords,
   parseExtractorHeader,
   publishedFor,
-} from "@codecast/shared/contracts/moments";
+} from "@codecast/ingest/moments";
 import { parseJudgeSpec } from "@codecast/shared/contracts/judges";
 import {
   AGENT_LIMITS,

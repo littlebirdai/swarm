@@ -158,8 +158,8 @@ describe("emitSkillFrontmatter", () => {
   });
 
   test("the description goes through the SHARED sanitizer — spied, not re-tested", async () => {
-    const contracts = await import("@codecast/shared/contracts");
-    const spy = spyOn(contracts, "sanitizeForeignText");
+    const sanitizer = await import("@codecast/ingest/sanitizeText");
+    const spy = spyOn(sanitizer, "sanitizeForeignText");
     try {
       const { emitSkillFrontmatter } = await import("./skills.js");
       emitSkillFrontmatter(

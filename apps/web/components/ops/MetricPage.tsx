@@ -54,7 +54,7 @@ import { useInboxStore } from "../../store/inboxStore";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { relTimeShort } from "../../lib/utils";
-import { MONITOR_LIMITS } from "@codecast/shared/contracts/metricMonitor";
+import { MONITOR_LIMITS } from "@codecast/ingest/metricMonitor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,7 +136,7 @@ import { useWatchEpisodes } from "./useWatchEpisodes";
 import { DistributionCard } from "./MetricDistribution";
 import { useReadNow } from "./useReadNow";
 import { deliveriesByRow, routedSilently, rowKey } from "./alertRoutingModel";
-import type { AlertDelivery } from "@codecast/shared/contracts/metricMonitor";
+import type { AlertDelivery } from "@codecast/ingest/metricMonitor";
 import type { OpsEvent, OpsGroup, OpsSource, OpsWatch } from "./opsTypes";
 import "./metrics.css";
 import "./metricPage.css";

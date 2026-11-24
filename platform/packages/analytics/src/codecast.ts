@@ -28,7 +28,7 @@ const QUEUE_LIMIT = 2_000;
 const BACKOFF_BASE_MS = 1_000;
 const BACKOFF_MAX_MS = 60_000;
 
-// The item shapes match codecast packages/shared/contracts/ingest.ts IngestItem.
+// The item shapes match codecast packages/ingest/src/ingest.ts IngestItem.
 // The platform package must not import codecast, so they are spelled here.
 export type CodecastLogLevel = "debug" | "info" | "warn" | "error" | "fatal";
 

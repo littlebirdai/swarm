@@ -68,7 +68,7 @@ import {
   type MomentEventItem,
   type MomentRecord,
   type MomentWindow,
-} from "@codecast/shared/contracts/moments";
+} from "@codecast/ingest/moments";
 import { readRulings, type Ruling } from "./judgeRetire";
 import {
   narrowBrief,

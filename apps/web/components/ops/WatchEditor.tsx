@@ -21,15 +21,12 @@ import {
   X,
 } from "lucide-react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import {
-  watchProblem,
-  type WatchKind,
-} from "@codecast/shared/contracts/ingest";
+import { watchProblem, type WatchKind } from "@codecast/ingest/ingest";
 import {
   monitorProblem,
   type AlertNotifyInput,
   type AlertRoute,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import { useOpsWatches } from "../../hooks/useSyncOps";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useInboxStore } from "../../store/inboxStore";

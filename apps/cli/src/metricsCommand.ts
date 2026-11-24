@@ -30,10 +30,7 @@ import {
 } from "./externalDataCli.js";
 import { stdinText } from "./sendBody.js";
 import { formatDuration, parseDuration } from "@codecast/time";
-import type {
-  WatchDirection,
-  WatchKind,
-} from "@codecast/shared/contracts/ingest";
+import type { WatchDirection, WatchKind } from "@codecast/ingest/ingest";
 import { formatSeriesValue } from "@codecast/shared/contracts/initiative";
 
 export interface WatchRow {

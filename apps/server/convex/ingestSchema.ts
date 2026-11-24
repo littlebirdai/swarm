@@ -24,7 +24,7 @@ import {
   TRANSITIONS,
   WATCH_DIRECTIONS,
   WATCH_KINDS,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   REPLAY_BACKFILL_STATUSES,
   REPLAY_BACKFILL_WINDOWS,
@@ -156,7 +156,7 @@ export const ingestUserValidator = v.object({
  * Non-secret settings of a source: what it reads inside its connection.
  * Secrets, and where the connection points (host, base url), live on the
  * app_installations row named by connection_id, never here. Values are
- * checked per provider by sourceConfigProblem (shared/contracts/ingest).
+ * checked per provider by sourceConfigProblem (packages/ingest/src/ingest).
  */
 export const sourceConfigValidator = v.object({
   /** Sentry organization slug; must be the connection's. */
@@ -351,7 +351,7 @@ export const ingestTables = {
       v.object({ open: v.number(), resolved: v.number(), ignored: v.number() }),
     ),
     groups_counted_at: v.optional(v.number()),
-    /** A CI source's finished runs, oldest first (contracts/volumeWatch withCiRun): its failure rate and run time series. */
+    /** A CI source's finished runs, oldest first (packages/ingest/src/volumeWatch withCiRun): its failure rate and run time series. */
     ci_runs: v.optional(
       v.array(
         v.object({
@@ -749,14 +749,14 @@ export const ingestTables = {
         reading: v.optional(v.boolean()),
       }),
     ),
-    /** The monitor (contracts/metricMonitor.ts): reads in a row that flip the state (absent: 1), a warning level short of the line, failed reads in a row that count as missing data (absent: ignored), a mute. */
+    /** The monitor (packages/ingest/src/metricMonitor.ts): reads in a row that flip the state (absent: 1), a warning level short of the line, failed reads in a row that count as missing data (absent: ignored), a mute. */
     eval_reads: v.optional(v.number()),
     warn: v.optional(v.number()),
     no_data_after: v.optional(v.number()),
     muted_until: v.optional(v.number()),
-    /** What its alert does (contracts/metricMonitor alertRoute): files a problem task, or the timeline and triggers only. Absent: the source's rule. */
+    /** What its alert does (packages/ingest/src/metricMonitor alertRoute): files a problem task, or the timeline and triggers only. Absent: the source's rule. */
     on_alert: v.optional(v.union(v.literal("task"), v.literal("timeline"))),
-    /** Who else the alert reaches and what more it does (contracts/metricMonitor AlertNotify, metricAlerts.ts). */
+    /** Who else the alert reaches and what more it does (packages/ingest/src/metricMonitor AlertNotify, metricAlerts.ts). */
     notify: v.optional(
       v.object({
         users: v.optional(v.array(v.id("users"))),
@@ -776,7 +776,7 @@ export const ingestTables = {
         thread_root: v.optional(v.id("chat_messages")),
       }),
     ),
-    /** What each alert did, newest last (contracts/metricMonitor DELIVERIES_KEPT). */
+    /** What each alert did, newest last (packages/ingest/src/metricMonitor DELIVERIES_KEPT). */
     deliveries: v.optional(
       v.array(
         v.object({

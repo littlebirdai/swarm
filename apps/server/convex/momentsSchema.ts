@@ -82,7 +82,7 @@ export const momentsTables = {
     /** The extractor file's git blob sha that produced it. */
     extractor_version: v.optional(v.string()),
     extracted_at: v.optional(v.number()),
-    /** Who it is about, as a list names it (contracts/moments momentWho): the extractor's own `who`, else its body's person facts. */
+    /** Who it is about, as a list names it (packages/ingest/src/moments momentWho): the extractor's own `who`, else its body's person facts. */
     who: v.optional(v.string()),
     /** extracted_at minus event_at. */
     gap_ms: v.optional(v.number()),

@@ -16,7 +16,7 @@ import {
   transitionTriggerEvent,
   validateIngestBatch,
   sourceConfigProblem,
-} from "./ingest";
+} from "../src/ingest";
 import {
   INGEST_TRIGGER_EVENTS,
   TRIGGER_EVENT_LABELS,

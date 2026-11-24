@@ -8,7 +8,7 @@ import type { ScopeArgs } from "./ingestScopeArgs";
 import { createWorkContext } from "../data";
 import { requireUserOrToken } from "./auth";
 import { rowByRef } from "./rowByRef";
-import { normalizeSourceName } from "@codecast/shared/contracts/ingest";
+import { normalizeSourceName } from "@codecast/ingest/ingest";
 
 // `user_id` is the server acting as a person (a published page's queries run
 // as their publisher): only internal functions take it, so a caller can never

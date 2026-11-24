@@ -1,6 +1,6 @@
 // A watched metric's stored series (X7): the points a watch keeps, the
 // source's own history merged under them, and the instants a backfill reads.
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 
 /** The watch's points with one more, oldest first, cut to the newest GROUP_RULES.metric_points. */
 export function appendMetricPoint(

@@ -1,6 +1,6 @@
 // The occurrence chart's layout and a check or metric's state over time.
 // No React, no store.
-import { bucketSeries, GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { bucketSeries, GROUP_RULES } from "@codecast/ingest/ingest";
 import type { OpsEvent, OpsGroup } from "./opsTypes";
 import { DAY, HOUR } from "./issueState";
 

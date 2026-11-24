@@ -17,7 +17,7 @@ import {
   readKeptBody,
   type JudgeRunRow,
 } from "./lib/momentBody";
-import type { MomentRecord } from "@codecast/shared/contracts/moments";
+import type { MomentRecord } from "@codecast/ingest/moments";
 
 /** The moment `ref` names, when this viewer may read it. */
 async function readableMoment(

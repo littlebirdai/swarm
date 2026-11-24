@@ -4,7 +4,7 @@ import {
   bucketSeries,
   GROUP_RULES,
   type GroupKind,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import type { OpsEvent, OpsGroup, OpsSource } from "./opsTypes";
 import { DAY, HOUR, issueState } from "./issueState";
 import {

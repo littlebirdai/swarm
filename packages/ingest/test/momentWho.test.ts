@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { momentWho, parseExtractorOutput } from "./moments";
+import { momentWho, parseExtractorOutput } from "../src/moments";
 
 describe("who a moment is about", () => {
   test("the extractor's own who wins, and parses through", () => {

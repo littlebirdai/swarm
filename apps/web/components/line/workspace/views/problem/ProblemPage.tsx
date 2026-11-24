@@ -28,7 +28,7 @@ import {
   errorWords,
   problemHeadName,
 } from "../../../../../lib/line/problemTable";
-import { errorTitle } from "@codecast/shared/contracts/ingest";
+import { errorTitle } from "@codecast/ingest/ingest";
 import {
   bandLine,
   cameBack,

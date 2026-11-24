@@ -9,7 +9,7 @@ import { useState } from "react";
 import {
   monitorProblem,
   type MonitorDirection,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import { useInboxStore } from "../../store/inboxStore";
 import { backtest, type Backtest } from "./alertBacktest";
 import { EVAL_READS, parseThreshold } from "./metricEditing";

@@ -1,7 +1,7 @@
 // The ingest door (ingestHttp.ts): admission, key guessing, paths, origins and bodies.
 import { describe, expect, test } from "bun:test";
 import { gzipSync, strToU8 } from "fflate";
-import { INGEST_LIMITS } from "@codecast/shared/contracts/ingest";
+import { INGEST_LIMITS } from "@codecast/ingest/ingest";
 import { sourceForKey } from "./ingest";
 import { bumpWindow } from "./ipRateLimit";
 import {

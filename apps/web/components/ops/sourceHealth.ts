@@ -14,10 +14,7 @@ import {
   normalDay,
   sourceState,
 } from "@codecast/shared/contracts/flowMap";
-import {
-  bucketSeries,
-  parseReaderQuery,
-} from "@codecast/shared/contracts/ingest";
+import { bucketSeries, parseReaderQuery } from "@codecast/ingest/ingest";
 import {
   replayBackfillLine,
   replayBackfillState,

@@ -17,7 +17,7 @@ import {
 
 // Feed styles for a product's transitions (docs/architecture/external-data.md
 // X3, X10). The kinds are the trigger names a transition fires
-// (contracts/ingest transitionTriggerEvent), or the bare transition when it
+// (packages/ingest/src/ingest transitionTriggerEvent), or the bare transition when it
 // fires none. Red is reserved for what needs a person; a recovery is green.
 // `deploy` keeps the git table's style, so a product's deploy and `cast ship
 // mark` read as the same moment. Imported once from App.tsx.

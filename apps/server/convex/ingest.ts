@@ -39,7 +39,7 @@ import { connectionRowFor } from "./oauthConnectors";
 import { sha256Hex } from "./lib/hash";
 import { nextShortId } from "./counters";
 import { resolveWorkspaceProject } from "./lib/projectRef";
-import { withCiRun } from "@codecast/shared/contracts/volumeWatch";
+import { withCiRun } from "@codecast/ingest/volumeWatch";
 import { capForeignText, inlineForeignText } from "@codecast/fence/fence";
 import { recordExternalEventOnce } from "./externalEvents";
 import { recordDeployMarker } from "./deploys";
@@ -105,7 +105,7 @@ import {
   normalizeSourceName,
   sourceConfigProblem,
   type IngestItem,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   ciCheckFingerprint,
   groupFingerprint,

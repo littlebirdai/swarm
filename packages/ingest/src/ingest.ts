@@ -507,7 +507,7 @@ export const WATCH_KINDS_BY_PROVIDER: Partial<
 > = {
   posthog: ["hogql", "insight"],
   app: ["reader"],
-  // What codecast counts itself (contracts/volumeWatch): every source that sends errors, logs or runs.
+  // What codecast counts itself (packages/ingest/src/volumeWatch): every source that sends errors, logs or runs.
   sentry: ["volume"],
   sdk: ["volume"],
   http: ["volume"],

@@ -3,7 +3,7 @@
 // webhook already kept is not kept twice.
 import { describe, expect, test } from "bun:test";
 import { recentRepos, runFacts } from "./ciBackfill";
-import { withCiRuns } from "@codecast/shared/contracts/volumeWatch";
+import { withCiRuns } from "@codecast/ingest/volumeWatch";
 
 const repo = { full_name: "codecast-sh/codecast", default_branch: "main" };
 const run = (over: Record<string, any> = {}) => ({
