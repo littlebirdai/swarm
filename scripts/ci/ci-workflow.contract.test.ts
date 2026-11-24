@@ -215,10 +215,8 @@ describe("code_paths", () => {
 // or it drifts red unnoticed (bun test strips types). A program counts when one
 // of the packages the typecheck job filters to runs it from its own script.
 describe("typecheck", () => {
-  // A known gap, not a second toolchain: packages/mobile has no `typecheck`
-  // script, so nothing in CI typechecks it. `cast check mobile` is its only
-  // check. Drop it from this list when the package gains the script and the
-  // job's filter gains the package.
+  // The CI job filter excludes apps/mobile. Its program runs locally via
+  // `cast check mobile`. Drop it from this list when the job includes it.
   const NOT_IN_TYPECHECK_JOB = ["mobile"];
   const checkToml = Bun.TOML.parse(
     readFileSync(new URL("../../.codecast/check.toml", import.meta.url), "utf8"),

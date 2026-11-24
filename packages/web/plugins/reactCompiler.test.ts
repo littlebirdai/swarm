@@ -37,7 +37,7 @@ describe("the compiler's allowlist", () => {
     expect(inReactCompilerSources(abs("components/conversation/__tests__/x.tsx"), LIST)).toBe(false);
     expect(inReactCompilerSources(abs("components/conversation/row.native.tsx"), LIST)).toBe(false);
     expect(inReactCompilerSources(abs("components/conversation/conversationChat.css"), LIST)).toBe(false);
-    expect(inReactCompilerSources(path.resolve(WEB, "..", "mobile", "components/conversation/x.tsx"), LIST)).toBe(false);
+    expect(inReactCompilerSources(path.resolve(WEB, "..", "..", "apps", "mobile", "components/conversation/x.tsx"), LIST)).toBe(false);
   });
 
   test("a Vite id's query is ignored", () => {

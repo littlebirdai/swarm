@@ -85,8 +85,8 @@ export const MAIN_PAGE: Shot[] = [
   },
   {
     name: "mobile",
-    // The phone's inbox from its own store shots (packages/mobile/store-shots), the same world.
-    raw: "packages/mobile/store-shots/raw/docs/phone-inbox.png",
+    // The phone's inbox from its own store shots (apps/mobile/store-shots), the same world.
+    raw: "apps/mobile/store-shots/raw/docs/phone-inbox.png",
     frame: "phone",
     out: "public/docs/app/mobile.webp",
   },

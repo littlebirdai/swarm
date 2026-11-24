@@ -85,7 +85,7 @@ export const sendPushNotification = internalAction({
       to: args.push_token,
       // 'default' until a native build ships the bundled chat sound; then the
       // chat channel flips to 'chat.caf' (asset + plugin config already in the
-      // mobile app — see packages/mobile/app.json).
+      // mobile app — see apps/mobile/app.json).
       sound: args.sound ?? 'default',
       ...(args.category_id ? { categoryId: args.category_id } : {}),
       ...(args.ttl !== undefined ? { ttl: args.ttl } : {}),

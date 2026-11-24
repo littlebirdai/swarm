@@ -368,7 +368,7 @@ async function setup() {
     });
     await commit(`d1-${date}`, "docs: refresh the guide", at("11:00", date), ["docs/guide.md"]);
     await commit(`e1-${date}`, LONG_FEAT, at("12:00", date), ["packages/shared/retry.ts"]);
-    await commit(`f1-${date}`, "wip: branch work", at("13:00", date), ["packages/mobile/app.tsx"], { branch: "ana/mobile" });
+    await commit(`f1-${date}`, "wip: branch work", at("13:00", date), ["apps/mobile/app.tsx"], { branch: "ana/mobile" });
   };
 
   const rebuild = (date = PAST) => t.action(internal.changesSchedule.rebuildDay, { team_id: ids.team, repository: REPO, date });

@@ -7,7 +7,7 @@
 // silently unnotarized.
 //
 // The API key is the team's "Agent" key, the one mobile's EAS submit reads
-// (packages/mobile/eas.json). A key file needs no keychain, so a release works
+// (apps/mobile/eas.json). A key file needs no keychain, so a release works
 // from an agent shell, where a keychain write fails with "User interaction is
 // not allowed", and it survives Apple ID password changes, which revoke app
 // specific passwords. It goes to the hook's env, not process.env: electron-

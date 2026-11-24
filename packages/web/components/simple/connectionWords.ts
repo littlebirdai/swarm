@@ -1,5 +1,5 @@
 // What the mail and calendar connection says, worded once for the phone's
-// Settings page (packages/mobile components/hosted/MailPage.tsx): what the
+// Settings page (apps/mobile components/hosted/MailPage.tsx): what the
 // connection lets the assistant do, which mailboxes
 // it reaches, and what a disconnect will change. Mail comes through Whisk, so
 // one connection reaches every mailbox the person keeps there.

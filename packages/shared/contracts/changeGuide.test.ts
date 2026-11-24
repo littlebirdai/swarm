@@ -30,9 +30,9 @@ describe("parseStepHeading", () => {
     expect(parseStepHeading("Wire it (src/a.ts:L3-L9)")).toEqual({ title: "Wire it", file: "src/a.ts", start: 3, end: 9 });
   });
   test("route files keep their brackets", () => {
-    expect(parseStepHeading("Rows `packages/mobile/app/task/[id].tsx:81-88`")).toEqual({ title: "Rows", file: "packages/mobile/app/task/[id].tsx", start: 81, end: 88 });
+    expect(parseStepHeading("Rows `apps/mobile/app/task/[id].tsx:81-88`")).toEqual({ title: "Rows", file: "apps/mobile/app/task/[id].tsx", start: 81, end: 88 });
     expect(parseStepHeading("Page — app/tasks/[id]/page.tsx:12")).toEqual({ title: "Page", file: "app/tasks/[id]/page.tsx", start: 12, end: 12 });
-    expect(parseStepHeading("Tabs `packages/mobile/app/(tabs)/index.tsx:3-9`")).toEqual({ title: "Tabs", file: "packages/mobile/app/(tabs)/index.tsx", start: 3, end: 9 });
+    expect(parseStepHeading("Tabs `apps/mobile/app/(tabs)/index.tsx:3-9`")).toEqual({ title: "Tabs", file: "apps/mobile/app/(tabs)/index.tsx", start: 3, end: 9 });
     expect(parseStepHeading("Tabs app/(tabs)/index.tsx:3")).toEqual({ title: "Tabs", file: "app/(tabs)/index.tsx", start: 3, end: 3 });
     expect(parseStepHeading("Catch-all `app/[[...slug]]/page.tsx`")).toEqual({ title: "Catch-all", file: "app/[[...slug]]/page.tsx" });
     expect(parseStepHeading("Wire it (src/a.ts)")).toEqual({ title: "Wire it", file: "src/a.ts" });

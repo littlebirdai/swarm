@@ -15,7 +15,7 @@ import { formatModel } from "../lib/conversationProcessor";
 import { FaArrowUp, FaChevronLeft, FaCodeFork, FaLevelUp, FaPlus, FaServer, IonHeadsetOutline } from "./PhoneGlyphs";
 
 /**
- * The mobile app's session screen (packages/mobile/app/session/[id].tsx)
+ * The mobile app's session screen (apps/mobile/app/session/[id].tsx)
  * drawn with DOM elements from the screen's own spec
  * (@codecast/shared/render/mobileSessionStyle), for the marketing hero's
  * phone, in the app's default light theme. Colours are the theme's tokens;

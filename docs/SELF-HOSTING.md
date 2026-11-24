@@ -398,7 +398,7 @@ The mobile app is built with Expo (React Native) and distributed via EAS Build.
 ### Configure
 
 ```bash
-cd packages/mobile
+cd apps/mobile
 cp .env.example .env.local
 ```
 
@@ -428,7 +428,7 @@ bun run build:prod
 
 ### Submit to App Store
 
-1. Create an App Store Connect API key and point `submit.production.ios` in `packages/mobile/eas.json` at it (`ascApiKeyPath`, `ascApiKeyId`, `ascApiKeyIssuerId`). [RELEASING-MOBILE.md](RELEASING-MOBILE.md) has the steps.
+1. Create an App Store Connect API key and point `submit.production.ios` in `apps/mobile/eas.json` at it (`ascApiKeyPath`, `ascApiKeyId`, `ascApiKeyIssuerId`). [RELEASING-MOBILE.md](RELEASING-MOBILE.md) has the steps.
 
 2. Submit:
    ```bash
@@ -652,7 +652,7 @@ The Caddy service needs `CONVEX_SITE_UPSTREAM` and `CONVEX_BACKEND_UPSTREAM` (St
 | `AWS_SECRET_ACCESS_KEY` | S3-compatible storage secret |
 | `R2_ENDPOINT` | S3-compatible endpoint URL |
 
-### Mobile (`packages/mobile/.env`)
+### Mobile (`apps/mobile/.env`)
 
 | Variable | Purpose |
 |----------|---------|

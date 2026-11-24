@@ -2,7 +2,7 @@
 // Defined ONCE here and consumed by every client renderer:
 //   - the web ConversationView (packages/web/components/ConversationView.tsx),
 //   - the public share view (packages/web/app/share/message/[token]),
-//   - the mobile session screen (Wave 2 — packages/mobile/app/session/[id].tsx).
+//   - the mobile session screen (Wave 2 — apps/mobile/app/session/[id].tsx).
 //
 // These three previously hand-forked their own copies and drifted: the share
 // view dropped the MCP/codex name tables entirely, so a `Bash` call showed

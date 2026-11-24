@@ -7,7 +7,7 @@
 //   bun packages/web/scripts/store-shots.ts inbox huddle    # just these
 //   DEVICES=iphone bun packages/web/scripts/store-shots.ts  # one device
 //
-// Output: packages/mobile/store-shots/out/<device>-<n>-<shot>.png, at the
+// Output: apps/mobile/store-shots/out/<device>-<n>-<shot>.png, at the
 // store's exact sizes (iPhone 6.9" 1320x2868, iPad 13" 2064x2752).
 
 import { execFileSync } from "node:child_process";
@@ -17,11 +17,11 @@ import { CdpConnection, listTargetsVia } from "../../cli/src/browser/cdp";
 import { readBridgeState } from "../../cli/src/browser/bridge/host";
 import { bridgeEndpointIfConfigured } from "../../cli/src/browser/bridge/real";
 // @ts-expect-error plain JS module shared with frame.html
-import { SHOTS } from "../../mobile/store-shots/shots.js";
+import { SHOTS } from "../../../apps/mobile/store-shots/shots.js";
 
-// Served from packages/: the frame shares web/docs-shots/frame.css (and its fonts) with the docs shots.
-const ROOT = join(import.meta.dir, "..", "..");
-const OUT = join(ROOT, "mobile", "store-shots", "out");
+// The store and docs frames share CSS and fonts from both workspaces.
+const ROOT = join(import.meta.dir, "..", "..", "..");
+const OUT = join(ROOT, "apps", "mobile", "store-shots", "out");
 const PORT = 8731;
 const SIZES = { iphone: { w: 660, h: 1434 }, ipad: { w: 1032, h: 1376 } } as const;
 type Device = keyof typeof SIZES;
@@ -36,11 +36,12 @@ const server = Bun.serve({
   fetch(req) {
     const path = decodeURIComponent(new URL(req.url).pathname);
     if (path.includes("..")) return new Response("no", { status: 400 });
+    if (!path.startsWith("/apps/mobile/") && !path.startsWith("/packages/web/")) return new Response("missing", { status: 404 });
     const file = Bun.file(join(ROOT, path));
     return file.exists().then((ok) => (ok ? new Response(file, { headers: { "cache-control": "no-store" } }) : new Response("missing", { status: 404 })));
   },
 });
-const base = `http://localhost:${PORT}/mobile/store-shots/frame.html`;
+const base = `http://localhost:${PORT}/apps/mobile/store-shots/frame.html`;
 
 try {
   // Async: a sync spawn would block this process's event loop, and with it

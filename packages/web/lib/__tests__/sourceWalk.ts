@@ -6,7 +6,7 @@ import { join } from "node:path";
 // here once so no guard carries its own copy of the skip list.
 
 export const WEB_ROOT = join(import.meta.dir, "..", "..");
-export const MOBILE_ROOT = join(WEB_ROOT, "..", "mobile");
+export const MOBILE_ROOT = join(WEB_ROOT, "..", "..", "apps", "mobile");
 
 const SKIP_DIRS = new Set(["node_modules", "__tests__", ".next", ".expo", "dist", "ios", "android"]);
 

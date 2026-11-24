@@ -88,7 +88,7 @@ describe("targets in .codecast/deploy.toml", () => {
     const m = parseManifest(path.join(REPO, ".codecast/workspace.toml"))!;
     const targets = readDeployTargets(REPO, m.ship!.deploy);
     expect(targets.map((t) => t.name)).toEqual(["backend", "web", "cli", "mobile", "desktop"]);
-    expect(deploysFor(shipSpec(REPO).deploy, ["packages/cli/src/index.ts", "packages/mobile/app.tsx", "packages/convex/convex/x.ts"]).map((s) => [s.name, s.target ?? null])).toEqual([]);
+    expect(deploysFor(shipSpec(REPO).deploy, ["packages/cli/src/index.ts", "apps/mobile/app.tsx", "packages/convex/convex/x.ts"]).map((s) => [s.name, s.target ?? null])).toEqual([]);
   });
 });
 

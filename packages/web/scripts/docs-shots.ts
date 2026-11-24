@@ -223,17 +223,18 @@ async function captureWithRetry(tab: CastTab, shot: Shot): Promise<string> {
   }
 }
 
-/** Serves packages/ (frame.html loads ../../mobile/assets fonts) and the raw captures under /__raw/. */
+/** Serves the docs frame, its mobile fonts, and raw captures under /__raw/. */
 function frameServer(raws: Map<string, string>) {
-  const root = resolve(WEB, "..");
   return Bun.serve({
     port: 0,
     hostname: "127.0.0.1",
     fetch(req) {
       const path = decodeURIComponent(new URL(req.url).pathname);
       const raw = path.startsWith("/__raw/") ? raws.get(path.slice(7).replace(/\.png$/, "")) : undefined;
-      const file = raw ?? resolve(root, `.${path}`);
-      if (!file.startsWith(root) && !raw) return new Response("outside packages/", { status: 403 });
+      const file = raw ?? resolve(REPO, `.${path}`);
+      if (!raw && !file.startsWith(`${WEB}/`) && !file.startsWith(resolve(REPO, "apps/mobile/assets/fonts") + "/")) {
+        return new Response("outside frame assets", { status: 403 });
+      }
       return existsSync(file) ? new Response(Bun.file(file)) : new Response("not found", { status: 404 });
     },
   });
@@ -242,7 +243,7 @@ function frameServer(raws: Map<string, string>) {
 async function frame(tab: CastTab, base: string, shot: Shot): Promise<Buffer> {
   const q = new URLSearchParams({ src: `${base}/__raw/${stem(shot)}.png`, kind: shot.frame, theme: shot.theme ?? "light" });
   if (shot.title) q.set("title", shot.title);
-  const url = `${base}/web/docs-shots/frame.html?${q}`;
+  const url = `${base}/packages/web/docs-shots/frame.html?${q}`;
   await tab.send("Page.navigate", { url });
   // The last frame page also says ready until this one replaces it.
   await until(tab, `location.href === ${JSON.stringify(url)} && (document.body?.dataset.ready === "1" || document.body?.dataset.ready === "error")`, `${shot.name}: the frame page`, 30_000);

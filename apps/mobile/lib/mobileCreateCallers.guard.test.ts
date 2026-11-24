@@ -278,7 +278,7 @@ describe("mobile send button is a real tap target", () => {
 
   test("session send is 44pt and lives outside the jump overlay", () => {
     // The send button's size lives in the shared session style.
-    const sharedStyle = readFileSync(`${import.meta.dir}/../../shared/render/mobileSessionStyle.ts`, "utf8");
+    const sharedStyle = readFileSync(`${import.meta.dir}/../../../packages/shared/render/mobileSessionStyle.ts`, "utf8");
     expect(sharedStyle).toMatch(/sendButton: \{[^}]*minWidth: 44[^}]*height: 44/);
     // A tap the transcript's children take acts with the keyboard up; the
     // full tap rules are in keyboardTaps.guard.test.ts.

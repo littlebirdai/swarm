@@ -13,7 +13,7 @@ export const SURFACE_PATHS: Record<string, readonly string[]> = {
   backend: ["packages/convex/"],
   web: ["packages/web/", "packages/shared/"],
   extension: ["apps/browser-extension/", "packages/chrome-extension/"],
-  mobile: ["packages/mobile/"],
+  mobile: ["apps/mobile/"],
 };
 
 /** The catch-all surface for a team whose releases name no mapped surface; it covers every area. */

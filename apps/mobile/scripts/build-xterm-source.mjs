@@ -1,11 +1,11 @@
 // Vendors web's @xterm/xterm build into lib/vendor/xtermSource.ts, which the
 // phone terminal's WebView document inlines (lib/terminal/terminalHtml.ts).
-// Run from packages/mobile: bun scripts/build-xterm-source.mjs
+// Run from apps/mobile: bun scripts/build-xterm-source.mjs
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-const require = createRequire(new URL("../../web/package.json", import.meta.url));
+const require = createRequire(new URL("../../../packages/web/package.json", import.meta.url));
 const root = dirname(require.resolve("@xterm/xterm/package.json"));
 const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const js = readFileSync(join(root, "lib/xterm.js"), "utf8").replace(/\n\/\/# sourceMappingURL=.*$/m, "");

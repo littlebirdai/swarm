@@ -147,14 +147,14 @@ await_fleet() {
 
 # 4. Mobile OTA update
 echo "4. Pushing mobile OTA update..."
-LAST_MOBILE_UPDATE=$(git log -1 --format=%H -- packages/mobile/)
+LAST_MOBILE_UPDATE=$(git log -1 --format=%H -- apps/mobile/)
 LAST_MOBILE_OTA_MARKER=".last-mobile-ota"
 
 if [[ -f "$LAST_MOBILE_OTA_MARKER" ]] && [[ "$(cat "$LAST_MOBILE_OTA_MARKER")" == "$LAST_MOBILE_UPDATE" ]]; then
   echo "   No mobile changes since last OTA - skipping"
 else
-  COMMIT_MSG=$(git log -1 --format=%s -- packages/mobile/)
-  cd packages/mobile
+  COMMIT_MSG=$(git log -1 --format=%s -- apps/mobile/)
+  cd apps/mobile
   # Watchman wedges silently on macOS when its launchd agent is loaded-but-not-started
   # (e.g. after a `watchman shutdown-server`), making Metro/eas hang forever on
   # "Waiting for Watchman watch-project". Kickstart the agent first so the OTA bundles

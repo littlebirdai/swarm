@@ -6,7 +6,7 @@ import { useInboxStore } from "../../store/inboxStore";
 import { isRefusedDispatchError } from "../../store/mutativeMiddleware";
 
 // The room's gestures on a guest (components/calls/GuestDoor draws them on
-// the web, packages/mobile/components/calls/GuestDoor on a phone).
+// the web, apps/mobile/components/calls/GuestDoor on a phone).
 //
 // Answering one (admit, deny, remove) is a store action: it paints in the
 // frame it is pressed, on every surface of the window (the door, the knock's

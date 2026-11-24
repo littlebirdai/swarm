@@ -1,5 +1,5 @@
 // What the plan screen shows, read once for Settings > Plan on the web
-// (app/settings/plan) and on the phone (packages/mobile components/hosted/
+// (app/settings/plan) and on the phone (apps/mobile components/hosted/
 // PlanPage.tsx): the month's figures from the wallet, the plan they belong
 // to, which plans are upgrades, where the month's usage went and the
 // account's history in plain words. Every number comes from the wallet

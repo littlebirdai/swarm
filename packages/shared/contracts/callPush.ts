@@ -14,7 +14,7 @@ export const CALL_PUSH_ACTION_JOIN = "join" as const;
 export const CALL_PUSH_ACTION_DECLINE = "decline" as const;
 /**
  * The bundled ring sound. Must match a file the app binary ships in its
- * Resources — packages/mobile/assets/sounds/<name>, listed in app.json's
+ * Resources — apps/mobile/assets/sounds/<name>, listed in app.json's
  * expo-notifications `sounds` — or iOS silently plays the default ding.
  */
 export const CALL_PUSH_SOUND = "huddle-ring.caf" as const;

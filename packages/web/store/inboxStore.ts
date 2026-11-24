@@ -1932,9 +1932,9 @@ export type ClientUI = {
    *  spawner, one strip above the page, and no rail beside the board. Stamped,
    *  so it follows the person; it acts only where Modern is on. */
   modern_focused?: boolean;
-  /** The phone's own Modern choice (packages/mobile/lib/mobileLook.ts). Absent or null: the phone follows modern_style. */
+  /** The phone's own Modern choice (apps/mobile/lib/mobileLook.ts). Absent or null: the phone follows modern_style. */
   mobile_modern_style?: boolean | null;
-  /** The phone's text size for conversations and composers (packages/mobile/lib/textSize.ts). Absent: medium. */
+  /** The phone's text size for conversations and composers (apps/mobile/lib/textSize.ts). Absent: medium. */
   mobile_text_size?: "small" | "medium" | "large";
   sidebar_collapsed?: boolean;
   // The sidebar sections the chevrons pin open (true) or closed (false), by
@@ -7984,7 +7984,7 @@ export type SyncOpts = {
 // local-wins once a client holds it, so a client that only follows another
 // device's choice would keep the first value it saw forever; for a key named
 // here the server's value wins instead. The phone follows the web's Modern
-// switch this way (packages/mobile/lib/mobileLook.ts). A browser names none.
+// switch this way (apps/mobile/lib/mobileLook.ts). A browser names none.
 const FOLLOWED_UI_KEYS = new Set<string>();
 export function followServerUiKey(key: string): void {
   FOLLOWED_UI_KEYS.add(key);

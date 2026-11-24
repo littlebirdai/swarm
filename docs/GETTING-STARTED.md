@@ -13,7 +13,7 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 | `packages/web` | React + Vite web app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff) |
 | `apps/desktop` | Desktop app (Electron wrapper around the web app) |
-| `packages/mobile` | iOS app (Expo / React Native) |
+| `apps/mobile` | iOS app (Expo / React Native) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |
 | `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
 | `apps/evals` | Prompt evals against frozen moments (`./evals`) |
@@ -78,12 +78,12 @@ CODE_CHAT_SYNC_WEB_URL=https://codecast.sh
 EOF
 ```
 
-### Optional: `packages/mobile/.env.local`
+### Optional: `apps/mobile/.env.local`
 
 Only if working on the iOS app:
 
 ```bash
-cat > packages/mobile/.env.local << 'EOF'
+cat > apps/mobile/.env.local << 'EOF'
 EXPO_PUBLIC_CONVEX_URL=https://convex.codecast.sh
 EXPO_PUBLIC_POSTHOG_KEY=<get-from-team-lead>
 EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
