@@ -83,8 +83,8 @@ flow = "change"        # run each pass through this flow, always by name
 
 [[ship.deploy]]
 name = "convex"
-when = ["packages/convex/**"]
-run = "packages/convex/deploy.sh --typecheck=disable"
+when = ["apps/server/**"]
+run = "apps/server/deploy.sh --typecheck=disable"
 stage = "before_push"
 ```
 

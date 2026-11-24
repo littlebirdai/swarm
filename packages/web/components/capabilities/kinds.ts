@@ -175,7 +175,7 @@ export function confidenceFromKind(kind: CapabilityKind | string): ExecutionConf
  * A `surfaces` value this build can actually read, or undefined for "no scan".
  *
  * The type says `ExecutionSurface[]`, but the bytes do not have to agree:
- * `webCatalogList` (`packages/convex/convex/capabilities.ts`) copies every
+ * `webCatalogList` (`apps/server/convex/capabilities.ts`) copies every
  * non-reserved key of a catalog row's `entry_json` onto the card verbatim, and
  * that blob is publisher-supplied and unvalidated by its own comment. So the
  * field is re-checked here rather than trusted.

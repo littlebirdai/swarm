@@ -4,7 +4,7 @@ import * as os from "node:os";
 import { runDeployStep } from "./shipCheckout";
 
 // A deploy step can say what its push did to its target; the ship carries
-// that onto the deploy it records (packages/convex/deploy.sh writes it).
+// that onto the deploy it records (apps/server/deploy.sh writes it).
 
 describe("a ship's deploy step", () => {
   test("a step that writes its changes reports them with this machine", async () => {

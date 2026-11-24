@@ -1,6 +1,6 @@
 import type { ConvoMessage } from '@platform/evals';
 
-import { insightRequest, parseInsightReply, selectInsightContext, type InsightMessageRow, type InsightRequestContext } from '../../../../../packages/convex/convex/sessionInsights';
+import { insightRequest, parseInsightReply, selectInsightContext, type InsightMessageRow, type InsightRequestContext } from '../../../../../apps/server/convex/sessionInsights';
 import { toConvoMessages } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
 import { gate, type SurfaceImpl } from '../../surface';

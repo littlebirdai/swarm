@@ -1,10 +1,10 @@
 // The model pins. Call surfaces run on the model prod calls with, imported
 // from its one home, so a prod model change moves the evals with it.
-export { CHEAP_MODEL as CALL_MODEL } from '../../../packages/convex/convex/lib/anthropic';
+export { CHEAP_MODEL as CALL_MODEL } from '../../../apps/server/convex/lib/anthropic';
 /** The Changes page's prose calls, from their one home (changesProse.ts reads it from the same leaf). */
-export { PROSE_MODEL } from '../../../packages/convex/convex/lib/changesProseModel';
+export { PROSE_MODEL } from '../../../apps/server/convex/lib/changesProseModel';
 /** The line's server ground step (convex/lineGround.ts), from its one home. */
-export { STRONG_MODEL, sendsThinkingOff } from '../../../packages/convex/convex/lib/anthropic';
+export { STRONG_MODEL, sendsThinkingOff } from '../../../apps/server/convex/lib/anthropic';
 
 /** Grades a reply against a freeze's criteria. Never changes with --model. */
 export const JUDGE_MODEL = 'claude-sonnet-5-5';

@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import { castPlayerScript } from "../../convex/convex/lib/castPlayer";
+import { castPlayerScript } from "../../../apps/server/convex/lib/castPlayer";
 
 /**
  * Serves /cast-player.js, the <cast-player> element published pages use, from

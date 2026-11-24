@@ -1,8 +1,8 @@
 import type { ConvoMessage } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { COMMENTS_SHOWN, GROUND_AUTHOR, groundRequest, SIGNALS_SHOWN } from '../../../../../packages/convex/convex/lineGround';
-import { parseJsonBlock } from '../../../../../packages/convex/convex/lib/anthropic';
+import { COMMENTS_SHOWN, GROUND_AUTHOR, groundRequest, SIGNALS_SHOWN } from '../../../../../apps/server/convex/lineGround';
+import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import { briefGoalRefs, briefReadTargets, groundPlacingProjects, parseGroundReply, type GoalsBrief, type GroundCauseInput, type GroundFields } from '../../../../../packages/shared/contracts/goalsBrief';
 import { castJson } from '../../adapters/cast';
 import { toConvoMessages } from '../../adapters/convo';

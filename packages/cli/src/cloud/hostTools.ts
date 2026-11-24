@@ -122,13 +122,13 @@ function readText(file: string): string | undefined {
 
 /**
  * Where the node requirement comes from, in order: the installed convex
- * package's engines (packages/convex first, then the repo root), the repo's
+ * package's engines (apps/server first, then the repo root), the repo's
  * .nvmrc / .node-version / package.json engines, the laptop's node major.
  */
 export function nodeRequirement(repoRoot: string | undefined, laptopNodeMajor: number | undefined): RequiredHostTools["node"] {
   const candidates: Array<{ major: number | undefined; source: string }> = [];
   if (repoRoot) {
-    for (const rel of ["packages/convex/node_modules/convex/package.json", "node_modules/convex/package.json"]) {
+    for (const rel of ["apps/server/node_modules/convex/package.json", "node_modules/convex/package.json"]) {
       const pkg = readJson(path.join(repoRoot, rel));
       if (pkg) { candidates.push({ major: minMajorOfRange(pkg?.engines?.node), source: `convex ${pkg.version ?? ""} engines`.trim() }); break; }
     }

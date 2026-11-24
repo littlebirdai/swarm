@@ -8,7 +8,7 @@ import { useEventListener } from "./useEventListener";
 import { useWatchEffect } from "./useWatchEffect";
 
 // The page's side of this exchange is the notes layer in
-// packages/convex/convex/artifactPages.ts. The batch is the one home of every
+// apps/server/convex/artifactPages.ts. The batch is the one home of every
 // note: the frame draws what it is sent and reports gestures, never keeping
 // notes of its own, so a note removed from the composer's tray leaves the page
 // too.

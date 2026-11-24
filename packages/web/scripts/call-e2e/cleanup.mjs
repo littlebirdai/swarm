@@ -4,7 +4,7 @@
 // otherwise knock on the room (often a real session's huddle) until it
 // expired, days later. It is the same revoke the invite panel's "turn off"
 // does (callGuests.revokeRoomGuestLinks, run against prod through
-// packages/convex/run.sh), so a guest still waiting on such a link is told
+// apps/server/run.sh), so a guest still waiting on such a link is told
 // the link closed.
 //
 //   node cleanup.mjs <room>                every open link into the room

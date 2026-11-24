@@ -520,7 +520,7 @@ function projectAliasDestination(home: string, rel: string, project: string, exp
   const entry = fs.lstatSync(file, { throwIfNoEntry: false });
   let target: string;
   if (!entry) {
-    // Missing behind a symlinked directory (`convex -> packages/convex/convex`): the same file, at the link's real path.
+    // Missing behind a symlinked directory (`convex -> apps/server/convex`): the same file, at the link's real path.
     const parent = fs.realpathSync(path.dirname(file));
     if (parent === path.dirname(file)) throw new Error("project alias is missing or replaced");
     target = path.relative(home, path.join(parent, path.basename(file)));
@@ -1033,7 +1033,7 @@ export async function applyMirrorBundle(bundle: ParsedBundle, opts: ApplyOptions
           continue;
         }
         // An entry reached through a symlinked folder (a repo's `convex ->
-        // packages/convex/convex`) names a file the receiver never writes
+        // apps/server/convex`) names a file the receiver never writes
         // through; it is forgotten rather than failing every later push.
         if (throughSymlink(home, project, rel)) continue;
         // Not carried any more and not the mirror's bytes (an edit, or the

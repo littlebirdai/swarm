@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parseCodexSessionFile, parseGeminiSessionFile, parseOpencodeSessionFile, parsePiSessionFile, parseGrokSessionFile, type ParsedMessage } from "./parser";
 import { threadItemToMessage } from "./codexAppServer";
-import { extractFileChanges, hasFileChangeToolCall, type ExtractableMessage } from "../../convex/convex/fileChanges/extractor";
+import { extractFileChanges, hasFileChangeToolCall, type ExtractableMessage } from "../../../apps/server/convex/fileChanges/extractor";
 
 function synced(messages: ParsedMessage[]): ExtractableMessage[] {
   return messages.map((message, i) => ({

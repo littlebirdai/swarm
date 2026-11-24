@@ -3,7 +3,7 @@
 #
 # Swarm runs on its own Convex cloud deployment, separate from the codecast
 # project it was forked from. This is its deploy path. It does not use
-# packages/convex/deploy.sh, which belongs to codecast's self-hosted server.
+# apps/server/deploy.sh, which belongs to codecast's self-hosted server.
 #
 # Before pushing, the script checks that:
 #   - this is a clean `main` that contains origin/main (fast-forwarded when
@@ -16,11 +16,11 @@
 #     repo's own Convex CLI is installed.
 #
 # What it does while deploying:
-#   - shares the deploy lock with packages/convex/deploy.sh;
+#   - shares the deploy lock with apps/server/deploy.sh;
 #   - moves aside any .env.local that names a deployment;
 #   - lists the target's functions before and after the push and prints
 #     anything the push removed;
-#   - restores the generated code under packages/convex/convex/_generated,
+#   - restores the generated code under apps/server/convex/_generated,
 #     which the push rewrites.
 #
 # Usage:
@@ -93,11 +93,11 @@ while ! mkdir "$LOCK" 2>/dev/null; do
 done
 echo $$ > "$LOCK/pid"
 HELD=()
-for f in "$ROOT/.env.local" "$ROOT/packages/convex/.env.local"; do
+for f in "$ROOT/.env.local" "$ROOT/apps/server/.env.local"; do
     if [ -f "$f" ] && grep -q '^CONVEX_DEPLOYMENT=' "$f"; then mv "$f" "$f.deployhold"; HELD+=("$f"); fi
 done
 SPEC_DIR="$(mktemp -d "${TMPDIR:-/tmp}/convex-spec.XXXXXX")"
-GENERATED="packages/convex/convex/_generated"
+GENERATED="apps/server/convex/_generated"
 cleanup() {
     for f in ${HELD[@]+"${HELD[@]}"}; do [ -f "$f.deployhold" ] && mv "$f.deployhold" "$f"; done
     git -C "$ROOT" checkout -- "$GENERATED" 2>/dev/null || true
@@ -106,7 +106,7 @@ cleanup() {
 trap cleanup EXIT
 
 convex() {
-    (cd "$ROOT/packages/convex" && env -u CONVEX_DEPLOYMENT -u CONVEX_SELF_HOSTED_ADMIN_KEY \
+    (cd "$ROOT/apps/server" && env -u CONVEX_DEPLOYMENT -u CONVEX_SELF_HOSTED_ADMIN_KEY \
         CONVEX_DEPLOY_KEY="$DEPLOY_KEY" "$CONVEX_BIN" "$@")
 }
 functions() { bun -e 'const s = JSON.parse(await Bun.stdin.text()); for (const f of s.functions ?? []) if (f.identifier) console.log(f.identifier)' | sort -u; }

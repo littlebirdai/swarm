@@ -4,7 +4,7 @@ import * as path from "path";
 import { resolveCapabilities } from "@codecast/shared/contracts";
 
 // The daemon's leg of the resolver parity triangle. Same fixtures as
-// packages/shared and packages/convex; see capabilityResolver.golden.test.ts
+// packages/shared and apps/server; see capabilityResolver.golden.test.ts
 // for the argument. This suite runs under the CLI's runtime and module
 // resolution — the point is that THIS environment agrees byte for byte.
 

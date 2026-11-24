@@ -6,7 +6,7 @@ import { UsageError } from '@platform/evals/cli';
 
 import { parseWorkflowFile } from '../../../../../packages/cli/src/workflow/parser';
 import { splitReviewNote } from '../../../../../packages/cli/src/workflow/reviewNote';
-import { parseJsonBlock } from '../../../../../packages/convex/convex/lib/anthropic';
+import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import type { MessageRow } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
 import { JUDGE_MODEL } from '../../models';

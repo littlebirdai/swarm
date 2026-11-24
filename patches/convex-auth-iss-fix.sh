@@ -40,7 +40,9 @@ set -euo pipefail
 AUTH_ROOTS=()
 for root in node_modules/@convex-dev/auth \
             node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth \
+            apps/*/node_modules/@convex-dev/auth \
             packages/*/node_modules/@convex-dev/auth \
+            apps/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth \
             packages/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth; do
   if [ -d "$root" ]; then AUTH_ROOTS+=("$root"); fi
 done

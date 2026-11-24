@@ -16,7 +16,7 @@ const ROOTS = [
   join(MOBILE_ROOT, "app"), join(MOBILE_ROOT, "components"), join(MOBILE_ROOT, "lib"),
   join(REPO, "packages", "cli", "src"),
   join(REPO, "packages", "shared", "contracts"),
-  join(REPO, "packages", "convex", "convex"),
+  join(REPO, "apps", "server", "convex"),
 ];
 
 // The word on its own: not a path (/anchor), a handle (@anchor), a field
@@ -53,8 +53,8 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   ["packages/cli/src/prCommand.ts", "anchors nothing"],
   ["packages/web/app/(marketing)/compare/comparisons.ts", "anchor to"],
   ["packages/web/app/(marketing)/compare/comparisons.ts", "anchors a comment"],
-  ["packages/convex/convex/githubWebhooks.ts", "const where = comment.path"],
-  ["packages/convex/convex/artifactMarkdown.ts", 'class="anchor"'],
+  ["apps/server/convex/githubWebhooks.ts", "const where = comment.path"],
+  ["apps/server/convex/artifactMarkdown.ts", 'class="anchor"'],
   // The analyzer's vocabulary rule names the word so the page never carries it.
   ["packages/cli/src/orgInit.ts", "invented_words"],
   // The team icon set has a boat anchor.
@@ -63,7 +63,7 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   ["apps/mobile/app/(tabs)/tasks.tsx", "anchor: '⚓'"],
   // Apple's code requirement language (a certificate trust anchor), copied
   // verbatim from codesign into the MDM profile; no person reads it.
-  ["packages/convex/convex/managedDevices.ts", "and anchor apple generic and"],
+  ["apps/server/convex/managedDevices.ts", "and anchor apple generic and"],
 ];
 
 describe("the word anchor is retired from what a person reads (S22)", () => {

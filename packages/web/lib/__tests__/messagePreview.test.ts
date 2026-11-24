@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { messagePreview } from "../messagePreview";
 import { buildNavigatorRows } from "../messageNavigator";
-import { filterUserMessages } from "../../../convex/convex/userMessagesFilter";
+import { filterUserMessages } from "../../../../apps/server/convex/userMessagesFilter";
 
 const image = { media_type: "image/png", storage_id: "stored-image" };
 const trusted = (src: string) => src.startsWith("/images/");

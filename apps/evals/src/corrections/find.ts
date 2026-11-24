@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { mapLimit } from '@codecast/shared/async';
 
 import { cliFetchRead, cliSearchRequest } from '../../../../packages/cli/src/cliHttp';
-import { parseJsonBlock } from '../../../../packages/convex/convex/lib/anthropic';
-import { typedWords } from '../../../../packages/convex/convex/lib/userSend';
+import { parseJsonBlock } from '../../../../apps/server/convex/lib/anthropic';
+import { typedWords } from '../../../../apps/server/convex/lib/userSend';
 import { REDIRECT_WORDS } from '../../../../packages/shared/contracts/redirectWords';
 import { renderGuidanceFile } from '../../../../packages/shared/contracts/snippets';
 import { apiConfig, readConversation, toRows, type MessageRow } from '../adapters/convo';

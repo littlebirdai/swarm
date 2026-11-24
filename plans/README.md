@@ -4,7 +4,7 @@ Generated reports and working notes that code in this repo reads or writes. Day-
 
 | File | Written by | Read by |
 |---|---|---|
-| `security-entrypoint-inventory.json`, `.md` | `packages/convex/scripts/security-inventory.ts` | `packages/convex/convex/securityEntrypoints.test.ts` |
+| `security-entrypoint-inventory.json`, `.md` | `apps/server/scripts/security-inventory.ts` | `apps/server/convex/securityEntrypoints.test.ts` |
 | `security-dependency-triage.json`, `.md`, `security-dependency-audit.json` | `scripts/security/dependency-triage.ts` (from `bun audit --json`) | the same script's gate mode |
 | `security-csp-draft.md` | hand-written | cited by `packages/web/server/responsePolicy.ts` (why each CSP source is needed) |
 | `security-closure-ledger.json` | hand-written | cited by `packages/web/server/responsePolicy.ts` (review that raises the report sample rate) |

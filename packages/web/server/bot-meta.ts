@@ -1,8 +1,8 @@
 import type { Context, Next } from "hono";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import { api } from "../../convex/convex/_generated/api.js";
-import type { Id } from "../../convex/convex/_generated/dataModel";
+import { api } from "../../../apps/server/convex/_generated/api.js";
+import type { Id } from "../../../apps/server/convex/_generated/dataModel";
 import { parseSharePath } from "@codecast/shared/entities";
 import { convex, fetchGuestLink, fetchShared, guestMeetMeta, shareMeta } from "./shareData";
 import { seoFor, SITE_URL } from "../lib/seoRoutes";

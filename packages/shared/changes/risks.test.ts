@@ -43,7 +43,7 @@ describe("isGeneratedPath", () => {
   test("lockfiles, snapshots, generated code, fixtures, fonts and images", () => {
     for (const p of [
       "bun.lock", "packages/web/package-lock.json", "yarn.lock", "pnpm-lock.yaml", "go.sum",
-      "drizzle/meta/0007_snapshot.json", "packages/convex/convex/_generated/api.d.ts",
+      "drizzle/meta/0007_snapshot.json", "apps/server/convex/_generated/api.d.ts",
       "packages/cli/src/__fixtures__/x/calls.md", "src/__snapshots__/a.test.ts.snap", "x.snap",
       "public/fonts/Inter.woff2", "a/b.ttf", "public/og.PNG", "icon.svg",
     ]) expect([p, isGeneratedPath(p)]).toEqual([p, true]);

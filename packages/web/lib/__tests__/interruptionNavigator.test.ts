@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { filterUserMessages } from "../../../convex/convex/userMessagesFilter";
+import { filterUserMessages } from "../../../../apps/server/convex/userMessagesFilter";
 import { buildNavigatorRows, filterNavigatorRows, navigatorHeaderLabels } from "../messageNavigator";
 
 const notice = "The user interrupted the previous turn on purpose. Any running unified exec processes may still be running in the background. If any tools/commands were aborted, they may have partially executed.";

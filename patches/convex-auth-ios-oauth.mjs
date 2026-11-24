@@ -30,7 +30,9 @@ function copies(rel) {
   const roots = [
     "node_modules/@convex-dev/auth",
     ...globSync("node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
+    ...globSync("apps/*/node_modules/@convex-dev/auth"),
     ...globSync("packages/*/node_modules/@convex-dev/auth"),
+    ...globSync("apps/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
     ...globSync("packages/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
   ];
   const seen = new Set();

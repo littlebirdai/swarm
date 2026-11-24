@@ -18,7 +18,7 @@ import { replaceGlobals } from "../../test-helpers/globals";
 //       with no seat) arrives and leaves in silence.
 //
 // The convex half of (a), the heartbeat sweep, is pinned in
-// packages/convex/convex/calls.test.ts.
+// apps/server/convex/calls.test.ts.
 
 import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { getFunctionName } from "convex/server";

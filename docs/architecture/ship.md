@@ -3,7 +3,7 @@
 One standard way to land a change, pressed from three places: a task in review,
 a pull request page, and a line run's
 change card. `cast ship run` is the same press from a terminal. Every press
-reaches one server action, `startShipCore` in `packages/convex/convex/ship.ts`.
+reaches one server action, `startShipCore` in `apps/server/convex/ship.ts`.
 
 ## What a press does
 

@@ -8,12 +8,12 @@ export const meta: SurfaceMeta = {
   model: CALL_MODEL,
   sources: surfaceSources(
     'ask',
-    'packages/convex/convex/lib/sessionAsk.ts',
-    'packages/convex/convex/lib/sessionAskCitations.ts',
-    'packages/convex/convex/userMessagesFilter.ts',
+    'apps/server/convex/lib/sessionAsk.ts',
+    'apps/server/convex/lib/sessionAskCitations.ts',
+    'apps/server/convex/userMessagesFilter.ts',
     'packages/shared/render/toolCall.ts',
     'packages/shared/render/toolNames.ts',
-    'packages/convex/convex/lib/anthropic.ts',
+    'apps/server/convex/lib/anthropic.ts',
   ),
   reps: { check: 5 },
   // Two cheap calls (the answer can read about 50k tokens) plus the judge.

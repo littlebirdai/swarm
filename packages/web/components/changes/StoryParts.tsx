@@ -110,7 +110,7 @@ function riskLines(story: Pick<StoryRow, "risks" | "risk_lines">): RiskLineItem[
   return worded.length ? worded : [{ code: "flagged", text: `Flagged: ${ordered.map((r) => r.code).join(", ")}`, tip: riskText({ risks: ordered, risk_lines: story.risk_lines }) }];
 }
 
-/** A file path two folders deep or more (`packages/convex/convex/migrations/x.sql`): the line shows its file name. */
+/** A file path two folders deep or more (`apps/server/convex/migrations/x.sql`): the line shows its file name. */
 const LONG_PATH = /(?:[\w.@-]+\/){2,}([\w.@-]+)/g;
 
 /** Risk text with every long file path cut to its last segment; the full text is the line's tip. */

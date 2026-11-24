@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONVEX_DIR="$ROOT_DIR/packages/convex"
+CONVEX_DIR="$ROOT_DIR/apps/server"
 
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
@@ -103,8 +103,8 @@ fi
 
 if $CONVEX; then
   # The repo-root .env.local sets CONVEX_DEPLOYMENT for the local dev backend,
-  # and the convex CLI reads it even from packages/convex, then refuses to run
-  # beside the self-hosted vars. --env-file makes packages/convex/.env.local
+  # and the convex CLI reads it even from apps/server, then refuses to run
+  # beside the self-hosted vars. --env-file makes apps/server/.env.local
   # (the prod self-hosted URL and admin key) win.
   (cd "$CONVEX_DIR" && npx convex logs --env-file .env.local 2>&1) | prefix_lines "convex" "$CYAN" &
   PIDS+=($!)

@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { pickSpineRows, selectTitleInput, titleRequest } from '../../../../packages/convex/convex/titleGeneration';
-import { insightRequest, selectInsightContext } from '../../../../packages/convex/convex/sessionInsights';
-import { callSummaryRequest, callSummarySource } from '../../../../packages/convex/convex/transcripts';
+import { pickSpineRows, selectTitleInput, titleRequest } from '../../../../apps/server/convex/titleGeneration';
+import { insightRequest, selectInsightContext } from '../../../../apps/server/convex/sessionInsights';
+import { callSummaryRequest, callSummarySource } from '../../../../apps/server/convex/transcripts';
 import { routeGates } from '../adapters/replay';
 import { defaultJudgeFor } from '../adapters/resolver';
 import type { CallResult, ReplayResult, SurfaceRequest } from '../surface';

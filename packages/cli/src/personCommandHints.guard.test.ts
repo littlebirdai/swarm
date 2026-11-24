@@ -9,7 +9,7 @@ import * as path from "node:path";
 // fails on that wording in agent-facing source.
 
 const ROOT = path.resolve(import.meta.dir, "../../..");
-const SCANNED = ["packages/cli/src", "packages/shared/contracts", "packages/convex/convex"];
+const SCANNED = ["packages/cli/src", "packages/shared/contracts", "apps/server/convex"];
 
 const TERMINAL_HANDOFF =
   /\b(in|from) (a|your|their) (own )?terminal\b|\b(your|their) own terminal\b|\bin a terminal there\b|\btype (this|it) in\b|\b(have (them|the human|your person) run|ask (the human|your person|them) to run) [`'\"]|\bpaste (this|it) into (a|your|their) terminal\b/i;

@@ -132,8 +132,8 @@ refs from a peer, a confirm for folders over 2 GB.
 - `packages/cli/src/cloud/tailnet.ts` — `localTailnet` gains an async variant
   so hot paths never `spawnSync`; `selfTailnet(status)`, `peerOnline(status, record)`.
 - `packages/cli/src/folderSync.ts` — direct-first, relay fallback.
-- `packages/convex/convex/folderSync.ts` — passes requester tailnet through.
+- `apps/server/convex/folderSync.ts` — passes requester tailnet through.
 - `packages/cli/src/sessionTransfer.ts` — `export_session` on both sides, on
   the folder machinery (`servePlan`, `syncFolderFromPeer` with `receive`).
-- `packages/convex/convex/sessionTransfer.ts` — the request, outcomes and
+- `apps/server/convex/sessionTransfer.ts` — the request, outcomes and
   discard for it, sharing `requestPeerExport` and the folder rate limit.

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { anthropicBody } from '../../../../packages/convex/convex/lib/anthropic';
+import { anthropicBody } from '../../../../apps/server/convex/lib/anthropic';
 import { CALL_MODEL } from '../models';
 import type { SurfaceRequest } from '../surface';
 import { postCall } from './apiCall';

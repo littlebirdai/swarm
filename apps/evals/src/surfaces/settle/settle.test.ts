@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { buildSettlePrompt, settleRequest, shapeSettleTail } from '../../../../../packages/convex/convex/idleSummary';
+import { buildSettlePrompt, settleRequest, shapeSettleTail } from '../../../../../apps/server/convex/idleSummary';
 import { toRows, type CliReadMessage } from '../../adapters/convo';
 import type { Fixture } from '../../adapters/resolver';
 import { CALL_MODEL } from '../../models';
@@ -12,7 +12,7 @@ import type { CallResult, ReplayCtx, ReplayResult, SurfaceRequest } from '../../
 import settle, { settleCapture, type SettleLabel, type SettleSnap } from './index';
 import { meta } from './meta';
 
-// The 17 cases came out of packages/convex/scripts/settle-eval.ts (deleted
+// The 17 cases came out of apps/server/scripts/settle-eval.ts (deleted
 // once they moved here). Each fingerprint below was taken from that script's
 // inline case, rows and label, before the move, so a fixture that drifts from
 // what the old suite graded fails here. Change a fixture on purpose and its
