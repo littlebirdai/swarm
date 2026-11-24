@@ -14,11 +14,11 @@
 
 import {
   WAKE_PHASES,
-  deviceWakesOnUse,
   isWakePhase,
   type CloudHostReport,
   type WakePhase,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
+import { deviceWakesOnUse } from "@codecast/cloud-hosts/cloudPlacement";
 import type { DaemonHealth } from "../hooks/useDaemonHealth";
 
 export type HostWakeStage =

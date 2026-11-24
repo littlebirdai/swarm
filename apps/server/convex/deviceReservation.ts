@@ -1,7 +1,7 @@
 import { mutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { cleanReservationPurpose } from "@codecast/shared/contracts";
+import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
 import { ownDevice } from "./devices";
 import { getAuthenticatedUserId } from "./permissions";
 

@@ -51,7 +51,7 @@ import {
   tailnetDialAddress,
   type TailnetRecord,
 } from "../cloud/tailnet.js";
-import type { WakePhase } from "@codecast/shared/contracts";
+import type { WakePhase } from "@codecast/cloud-hosts/cloudHostReport";
 import type { HostLogins } from "../remote/agentAuth.js";
 import type { HostFacts, HostInspection } from "../hosts/providers/types.js";
 

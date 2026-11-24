@@ -28768,6 +28768,24 @@
   "packages/chat/test/timeline.test.ts": {
     "swarm/no-comments": 21
   },
+  "packages/cloud-hosts/src/cloudHostReport.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/cloud-hosts/src/cloudPlacement.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/cloud-hosts/src/cloudPlacementProgress.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/cloud-hosts/src/cloudWorkspace.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/cloud-hosts/src/localMirror.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/cloud-hosts/test/cloudWorkspace.test.ts": {
+    "swarm/no-comments": 3
+  },
   "packages/comments/src/anchorKey.ts": {
     "swarm/no-comments": 19
   },
@@ -29224,23 +29242,8 @@
   "packages/shared/contracts/cloudAgents.ts": {
     "swarm/no-comments": 97
   },
-  "packages/shared/contracts/cloudHostReport.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/contracts/cloudPlacement.ts": {
-    "swarm/no-comments": 22
-  },
-  "packages/shared/contracts/cloudPlacementProgress.ts": {
-    "swarm/no-comments": 11
-  },
   "packages/shared/contracts/cloudSessionSync.ts": {
     "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/cloudWorkspace.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/cloudWorkspace.ts": {
-    "swarm/no-comments": 18
   },
   "packages/shared/contracts/codecastConfig.ts": {
     "swarm/no-comments": 32
@@ -29520,9 +29523,6 @@
   },
   "packages/shared/contracts/lineWords.ts": {
     "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/localMirror.ts": {
-    "swarm/no-comments": 17
   },
   "packages/shared/contracts/machineMessages.bootstrap.test.ts": {
     "swarm/no-comments": 3

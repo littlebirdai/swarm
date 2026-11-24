@@ -8,14 +8,16 @@
 import type { Command } from "commander";
 import {
   CLOUD_AGENT_PROVIDERS,
-  STALE_MACHINE_MS,
   cloudAgentSetupSentence,
   deviceDisplayName,
   distinctDeviceNames,
   isMachineSetting,
-  machineOutOfService,
   snippetBySlug,
 } from "@codecast/shared/contracts";
+import {
+  STALE_MACHINE_MS,
+  machineOutOfService,
+} from "@codecast/cloud-hosts/cloudPlacement";
 import type { AgentToolSetupStatus } from "@codecast/capabilities/agentToolSetup";
 import { cliErrorMessage } from "@codecast/convex-errors/convexErrors";
 import {
@@ -170,7 +172,6 @@ async function reportOutcome(
   if (out.state === "failed") die(`${deviceDisplayName(d)}: ${out.error}`);
   render(out);
 }
-
 function printSetup(s: AgentToolSetupStatus): void {
   const mark = (ok: boolean, label: string) =>
     `${ok ? fmt.success(icons.check) : fmt.error(icons.cross)} ${label}`;
@@ -188,7 +189,6 @@ function printSetup(s: AgentToolSetupStatus): void {
   }
   if (s.detail) console.log(`  ${fmt.muted(s.detail)}`);
 }
-
 function sharedNames(d: any, teams: Team[]): string {
   return (d.shared_team_ids ?? [])
     .map(

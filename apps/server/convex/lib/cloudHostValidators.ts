@@ -8,11 +8,13 @@ import { v } from "convex/values";
 import {
   CLOUD_HOST_ACTIONS,
   CLOUD_HOST_SIZES,
-  CLOUD_PLACEMENT_STEPS,
+} from "@codecast/cloud-hosts/cloudHostReport";
+import { CLOUD_PLACEMENT_STEPS } from "@codecast/cloud-hosts/cloudPlacementProgress";
+import {
   LOCAL_MIRROR_MODES,
   LOCAL_MIRROR_STATUSES,
   SYNC_SKIP_REASONS,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/localMirror";
 
 // A cloud host's own readiness (its heartbeat) and its managing laptop's report
 // (AWS state, cost, images, held logins, last action): contracts/cloudHostReport.ts.

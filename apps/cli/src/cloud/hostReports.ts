@@ -22,7 +22,7 @@ import {
   parseWakePhaseLine,
   type CloudHostAction,
   type CloudHostReport,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 
 export function buildCloudHostReport(
   host: CloudHost,

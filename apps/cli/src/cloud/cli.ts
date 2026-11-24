@@ -14,12 +14,12 @@ import { findContextTooLarge } from "./mirror/discovery.js";
 import type { Command } from "commander";
 import { hostForDevice, readHosts } from "../browser/cloudHost.js";
 import { convexClient } from "../remote/cli.js";
+import { CLOUD_LEAVE_OUT_MAX } from "@codecast/cloud-hosts/cloudPlacement";
 import {
-  CLOUD_LEAVE_OUT_MAX,
   normalizeCloudWorkspace,
   type CloudStartFrom,
   type CloudWorkspaceMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudWorkspace";
 import {
   acquireRemoteRootCheckout,
   acquireRemoteWorkspace,
@@ -312,7 +312,8 @@ export function registerCloudCommand(program: Command): void {
       // is async, and the blocking ssh probes that follow a phase would hold
       // its line back until they finish.
       const { writeSync } = await import("node:fs");
-      const { wakePhaseLine } = await import("@codecast/shared/contracts");
+      const { wakePhaseLine } =
+        await import("@codecast/cloud-hosts/cloudHostReport");
       const phase = (p: Parameters<typeof wakePhaseLine>[0]) => {
         try {
           writeSync(1, `${wakePhaseLine(p)}\n`);

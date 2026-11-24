@@ -43,7 +43,7 @@ import type {
   LocalMirrorStatus,
   MirrorResolve,
   SyncSkipped,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/localMirror";
 
 const execFileAsync = promisify(execFile);
 

@@ -50,7 +50,7 @@ import {
 import {
   describeSyncSkipped,
   type SyncSkipReason,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/localMirror";
 import {
   AGENT_CONTEXT_ROOTS,
   INSTRUCTION_FILE_RE,

@@ -43,13 +43,12 @@ import {
   cloudWorkspaceValidator,
   findSharedCheckoutOccupant,
 } from "./cloudPlacement";
+import { agentTypeChangeRefusal, titleLine } from "@codecast/shared/contracts";
+import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
 import {
-  cloudPlacementFor,
   checkoutInUseMessage,
   posixRepoBasename,
-  agentTypeChangeRefusal,
-  titleLine,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudWorkspace";
 import { enqueueCloudSpawn } from "./cloudPlacement";
 import {
   isConversationSafetyBlocked,

@@ -20,7 +20,7 @@ import {
   cloudHostBootable,
   deviceWakesOnUse,
   isReservedDevice,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacement";
 import { chainHeadOf } from "@codecast/shared/contracts/orgAssignee";
 import {
   ROLE_FAILOVER_QUIET_MS,

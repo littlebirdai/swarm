@@ -26,7 +26,7 @@
  * agent config there, stamp-gated so an in-step host costs no ssh.
  */
 
-import type { CloudPlacementStep } from "@codecast/shared/contracts";
+import type { CloudPlacementStep } from "@codecast/cloud-hosts/cloudPlacementProgress";
 import { lastErrorLine, spawnSync } from "../proc.js";
 import { HOST_PATH_EXPORT } from "./syncSide.js";
 import * as path from "node:path";
@@ -108,11 +108,11 @@ import {
   type CheckoutOccupantRow,
   type CloudStartFrom,
   type CloudWorkspaceMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudWorkspace";
 export { refreshRemoteCheckout, type CloudSeed } from "./transfer.js";
 export type { HostGitState } from "./hostGit.js";
-export type { CloudStartFrom } from "@codecast/shared/contracts";
-export type { CloudWorkspaceMode } from "@codecast/shared/contracts";
+export type { CloudStartFrom } from "@codecast/cloud-hosts/cloudWorkspace";
+export type { CloudWorkspaceMode } from "@codecast/cloud-hosts/cloudWorkspace";
 export { ROOT_WORKSPACE_NAME } from "../workspace/lifecycle.js";
 
 /** The alive session holding the host's main checkout (cloud.hostSessions row). */

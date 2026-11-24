@@ -6,7 +6,7 @@ import {
   otherSessionInCheckout,
   sharedCheckoutOccupant,
   type CheckoutOccupantRow,
-} from "./cloudWorkspace";
+} from "../src/cloudWorkspace";
 
 const ROOT = "/home/ubuntu/work/app";
 const row = (over: Partial<CheckoutOccupantRow> = {}): CheckoutOccupantRow => ({

@@ -10,7 +10,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { ClipboardPaste, RotateCw } from "lucide-react";
-import { HOST_NOVNC_PORT } from "@codecast/shared/contracts";
+import { HOST_NOVNC_PORT } from "@codecast/cloud-hosts/cloudHostReport";
 import { forwardHostPort } from "../../../lib/terminal/endpoint";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import type { BackendProps, PaneStripAction } from "./types";

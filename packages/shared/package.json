@@ -158,6 +158,7 @@
     "@codecast/browser": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
+    "@codecast/cloud-hosts": "workspace:*",
     "@codecast/daemon": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/hash": "workspace:*",

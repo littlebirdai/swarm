@@ -7,7 +7,7 @@
 
 import * as path from "node:path";
 import { spawn } from "../proc.js";
-import { CLOUD_START_RUN_MS } from "@codecast/shared/contracts";
+import { CLOUD_START_RUN_MS } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   readHosts,
   toRemoteHost,

@@ -32,7 +32,7 @@ import {
 import { SHOT_TEMP_KIND } from "./shotFile.js";
 import { freePort } from "./instance.js";
 import { agentTempPath } from "../tempFiles.js";
-import { hostScreenUrl } from "@codecast/shared/contracts";
+import { hostScreenUrl } from "@codecast/cloud-hosts/cloudHostReport";
 
 /**
  * How long a VNC or view tunnel outlives its last viewer. The tunnel is an

@@ -15,7 +15,7 @@ import {
   CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES,
   CLOUD_HOST_SIZES,
   type CloudHostSize,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudHostReport";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   ConsequentialSwitch,

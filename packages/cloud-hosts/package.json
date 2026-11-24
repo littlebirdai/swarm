@@ -1,0 +1,21 @@
+{
+  "name": "@codecast/cloud-hosts",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./cloudHostReport": "./src/cloudHostReport.ts",
+    "./cloudPlacement": "./src/cloudPlacement.ts",
+    "./cloudPlacementProgress": "./src/cloudPlacementProgress.ts",
+    "./cloudWorkspace": "./src/cloudWorkspace.ts",
+    "./localMirror": "./src/localMirror.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  }
+}

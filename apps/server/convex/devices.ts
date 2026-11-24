@@ -11,7 +11,6 @@ import type {
 } from "@codecast/shared/contracts";
 import {
   isClosedSession,
-  isReservedDevice,
   settingsAfterSnippet,
   stableModeOf,
   type DeviceSnippetChange,
@@ -20,6 +19,7 @@ import {
   isCloudAgentLoginState,
   type CloudAgentLoginStateName,
 } from "@codecast/shared/contracts";
+import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   managedIdsAfter,
   type ProviderKeyCommand,
@@ -62,10 +62,12 @@ import {
   deviceDisplayName,
   formatMachineSwitchNotice,
   type DeviceNameSource,
-  checkoutInUseMessage,
-  deviceWakesOnUse,
-  posixRepoBasename,
 } from "@codecast/shared/contracts";
+import {
+  checkoutInUseMessage,
+  posixRepoBasename,
+} from "@codecast/cloud-hosts/cloudWorkspace";
+import { deviceWakesOnUse } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   isTeamMachineFor,
   listTeamMachines,

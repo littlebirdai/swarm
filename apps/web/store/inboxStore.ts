@@ -15,10 +15,8 @@ import {
   sessionGoalOf,
 } from "@codecast/shared/contracts/sessionGoal";
 import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
-import {
-  cleanReservationPurpose,
-  pinnableAgentIds,
-} from "@codecast/shared/contracts";
+import { pinnableAgentIds } from "@codecast/shared/contracts";
+import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
 import {
   parseStagePinRef,
   stagePinRowId,
@@ -26,7 +24,7 @@ import {
 import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
 import { captureError } from "../lib/analytics";
 import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
-import type { CloudPlacementProgress } from "@codecast/shared/contracts";
+import type { CloudPlacementProgress } from "@codecast/cloud-hosts/cloudPlacementProgress";
 import type {
   RewindFilesOp,
   RewindStagedMark,
@@ -359,12 +357,12 @@ import {
   type QuestionResolutions,
 } from "../lib/decisionQueue";
 import type {
-  LocalMirror,
   MergeBackStatus,
   SessionActivity,
   SubagentCaps,
   SubagentSlot,
 } from "@codecast/shared/contracts";
+import type { LocalMirror } from "@codecast/cloud-hosts/localMirror";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import {
   cascadeFromAnswer,
@@ -474,11 +472,11 @@ import {
 import { pendingJoinRow } from "../lib/teamMachines";
 import { projectRootOf } from "../lib/recentProjectPaths";
 import {
-  cloudPlacementFor,
   CLOUD_SESSION_SOURCES,
   isHostedAgentType,
   type CloudSessionSource,
 } from "@codecast/shared/contracts";
+import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
 import { promptTitle } from "@codecast/shared/contracts/assistant";
 
 /** What a conversation being started is called until its row syncs: a
@@ -9196,14 +9194,14 @@ interface InboxStoreState
     deviceId?: string,
     opts?: {
       overwrite?: boolean;
-      mode?: import("@codecast/shared/contracts").LocalMirrorMode;
-      resolve?: import("@codecast/shared/contracts").MirrorResolve;
+      mode?: import("@codecast/cloud-hosts/localMirror").LocalMirrorMode;
+      resolve?: import("@codecast/cloud-hosts/localMirror").MirrorResolve;
     },
   ) => void;
   /** Wake, sleep, apply setup, save or delete an image on a cloud host, or launch another like it (dispatch cloudHostAction → cloud_host_action on the laptop that manages it). `arg`: the image to delete, or the new host's size. */
   cloudHostAction: (
     hostDeviceId: string,
-    action: import("@codecast/shared/contracts").CloudHostAction,
+    action: import("@codecast/cloud-hosts/cloudHostReport").CloudHostAction,
     arg?: string,
   ) => void;
   /** Autoscale on or off with this Linux host as the template (dispatch setCloudAutoscale; the preparing laptop reads it). */
@@ -9212,7 +9210,7 @@ interface InboxStoreState
     policy: {
       enabled: boolean;
       max_extra: number;
-      size: import("@codecast/shared/contracts").CloudHostSize;
+      size: import("@codecast/cloud-hosts/cloudHostReport").CloudHostSize;
     },
   ) => void;
 
@@ -13947,8 +13945,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
     deviceId?: string,
     opts?: {
       overwrite?: boolean;
-      mode?: import("@codecast/shared/contracts").LocalMirrorMode;
-      resolve?: import("@codecast/shared/contracts").MirrorResolve;
+      mode?: import("@codecast/cloud-hosts/localMirror").LocalMirrorMode;
+      resolve?: import("@codecast/cloud-hosts/localMirror").MirrorResolve;
     },
   ) {
     const now = Date.now();
@@ -14003,7 +14001,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   cloudHostAction: action(function (
     this: Draft,
     hostDeviceId: string,
-    act: import("@codecast/shared/contracts").CloudHostAction,
+    act: import("@codecast/cloud-hosts/cloudHostReport").CloudHostAction,
     arg?: string,
   ) {
     const row = this.machineRoster.find(
@@ -14026,7 +14024,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     policy: {
       enabled: boolean;
       max_extra: number;
-      size: import("@codecast/shared/contracts").CloudHostSize;
+      size: import("@codecast/cloud-hosts/cloudHostReport").CloudHostSize;
     },
   ) {
     const row = this.machineRoster.find(

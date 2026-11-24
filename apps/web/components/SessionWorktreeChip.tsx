@@ -1,5 +1,5 @@
 import React, { type ReactNode } from "react";
-import { cloudSeedTitle } from "@codecast/shared/contracts";
+import { cloudSeedTitle } from "@codecast/cloud-hosts/cloudWorkspace";
 
 /**
  * Where a session runs beyond its device: its worktree, the host's shared

@@ -6,7 +6,7 @@
  */
 
 import type { Command } from "commander";
-import { CLOUD_HOST_SIZES } from "@codecast/shared/contracts";
+import { CLOUD_HOST_SIZES } from "@codecast/cloud-hosts/cloudHostReport";
 import {
   describeInstance,
   ensureUp,

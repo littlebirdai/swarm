@@ -15,7 +15,7 @@ import {
   CLOUD_PLACEMENT_LINES_MAX,
   type CloudPlacementProgress,
   type CloudPlacementStep,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacementProgress";
 
 const LINE_FLUSH_MS = 5_000;
 

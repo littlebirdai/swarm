@@ -21,6 +21,7 @@
     "@codecast/browser": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
+    "@codecast/cloud-hosts": "workspace:*",
     "@codecast/comments": "workspace:*",
     "@codecast/convex": "workspace:*",
     "@codecast/convex-errors": "workspace:*",

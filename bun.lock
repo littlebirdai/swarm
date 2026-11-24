@@ -32,6 +32,7 @@
         "@codecast/blame": "workspace:*",
         "@codecast/browser": "workspace:*",
         "@codecast/capabilities": "workspace:*",
+        "@codecast/cloud-hosts": "workspace:*",
         "@codecast/comments": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
@@ -234,6 +235,7 @@
         "@codecast/browser": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/chat": "workspace:*",
+        "@codecast/cloud-hosts": "workspace:*",
         "@codecast/comments": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
@@ -299,6 +301,7 @@
         "@codecast/browser": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/chat": "workspace:*",
+        "@codecast/cloud-hosts": "workspace:*",
         "@codecast/comments": "workspace:*",
         "@codecast/convex": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
@@ -528,6 +531,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/cloud-hosts": {
+      "name": "@codecast/cloud-hosts",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/comments": {
       "name": "@codecast/comments",
       "version": "0.0.1",
@@ -681,6 +691,7 @@
         "@codecast/browser": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/chat": "workspace:*",
+        "@codecast/cloud-hosts": "workspace:*",
         "@codecast/daemon": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/hash": "workspace:*",
@@ -1105,6 +1116,8 @@
     "@codecast/chat": ["@codecast/chat@workspace:packages/chat"],
 
     "@codecast/cli": ["@codecast/cli@workspace:apps/cli"],
+
+    "@codecast/cloud-hosts": ["@codecast/cloud-hosts@workspace:packages/cloud-hosts"],
 
     "@codecast/comments": ["@codecast/comments@workspace:packages/comments"],
 

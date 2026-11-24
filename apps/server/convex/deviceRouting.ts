@@ -20,14 +20,14 @@
 export const DEVICE_ONLINE_MS = 2 * 60 * 1000;
 
 // pathUnderRoot and platformCanOpenPath live in the shared contract now
-// (@codecast/shared/contracts/cloudPlacement) so the web composer and this
+// (@codecast/cloud-hosts/cloudPlacement) so the web composer and this
 // ladder answer "can this machine open that folder" identically. Re-exported
 // so every existing importer keeps its path.
 export {
   pathUnderRoot,
   platformCanOpenPath,
   pathHome,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacement";
 import {
   pathUnderRoot,
   platformCanOpenPath,
@@ -35,7 +35,7 @@ import {
   machineGoneQuiet,
   cloudHostBootable,
   isReservedDevice,
-} from "@codecast/shared/contracts";
+} from "@codecast/cloud-hosts/cloudPlacement";
 
 /** Minimal device shape the routing decision needs (a subset of the `devices` row). */
 export type RoutableDevice = {

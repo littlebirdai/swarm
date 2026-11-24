@@ -5,7 +5,7 @@
  * Show a machine's chosen name without the OS prefix and .local suffix.
  * Provisioned hosts with generated IP or UUID names read by kind instead.
  */
-import { deviceWakesOnUse } from "./cloudPlacement";
+import { deviceWakesOnUse } from "@codecast/cloud-hosts/cloudPlacement";
 
 export type DeviceNameSource = {
   label: string;

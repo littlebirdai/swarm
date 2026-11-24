@@ -15,18 +15,20 @@ import {
   type QueuedStart,
 } from "./subagentFleet";
 import {
-  checkoutInUseMessage,
   deviceDisplayName,
   fromConvexAgentType,
   isHostedAgentType,
-  isReservedDevice,
   normalizeSubagentCaps,
   resolveAgentLaunch,
   toConvexAgentType,
   type AgentDefinitionSpec,
-  type CloudWorkspaceMode,
   type SubagentCaps,
 } from "@codecast/shared/contracts";
+import {
+  checkoutInUseMessage,
+  type CloudWorkspaceMode,
+} from "@codecast/cloud-hosts/cloudWorkspace";
+import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { resolveDefinitionFor } from "./agentDefinitions";
 import {
   cloudSeedArg,
