@@ -31,7 +31,7 @@
 
 import type { EditorState } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { ENTITY_REF_ACCENT, parseEntityRefHref } from "@codecast/shared/vault";
+import { ENTITY_REF_ACCENT, parseEntityRefHref } from "@codecast/vault";
 import {
   blockIdPattern,
   inlineTagPattern,

@@ -15,7 +15,7 @@
 // The incremental maps are contractually identical to a from-scratch rebuild;
 // __tests__/vaultIndex.test.ts asserts that against random operation streams.
 
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import { isVaultMarkdownPath } from "@codecast/shared/contracts/vaultProtocol";
 import {
   basenameOf,
   parseNote,

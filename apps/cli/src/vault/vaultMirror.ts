@@ -30,7 +30,7 @@ import { CachedJsonStore } from "../cachedJsonStore.js";
 import { chunkMessagesBySize } from "../syncService.js";
 import { cliFetch } from "../cliHttp.js";
 import { mapLimit } from "@codecast/async";
-import { parseNote } from "@codecast/shared/vault";
+import { parseNote } from "@codecast/vault/parseNote";
 import { registeredVaults } from "./vaultRegistry.js";
 import {
   VAULT_MIRROR_MAX_BODY_BYTES,
@@ -174,7 +174,7 @@ export function httpMirrorTransport(
  * I/O so the metadata mapping is testable on a string, and so there is exactly
  * one place that decides what a mirrored note looks like.
  *
- * The parser is @codecast/shared/vault's — the SAME one the browser's index
+ * The parser is @codecast/vault's — the SAME one the browser's index
  * worker runs. Two parsers would mean the remote reader's link graph silently
  * disagreeing with the local one.
  */

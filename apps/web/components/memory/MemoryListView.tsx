@@ -1,7 +1,7 @@
 // Every memory in a sortable table.
 
 import { useMemo, useState } from "react";
-import { MEMORY_REACH, type MemoryNote } from "@codecast/shared/memory";
+import { MEMORY_REACH, type MemoryNote } from "@codecast/memory";
 import { formatRelative } from "@codecast/time";
 import { formatBytes } from "./memoryView";
 import { ReachBadge, TypeBadge } from "./parts";

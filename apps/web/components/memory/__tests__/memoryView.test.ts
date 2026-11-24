@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildMemoryAtlas } from "@codecast/shared/memory";
+import { buildMemoryAtlas } from "@codecast/memory";
 import {
   healthAlarm,
   memoryHealth,

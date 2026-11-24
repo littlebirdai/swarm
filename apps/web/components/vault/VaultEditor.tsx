@@ -62,7 +62,7 @@ import {
 } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { isVaultMarkdownPath } from "@codecast/shared/contracts";
-import { entityRefRoute, parseEntityRefHref } from "@codecast/shared/vault";
+import { entityRefRoute, parseEntityRefHref } from "@codecast/vault";
 import { useRouter } from "next/navigation";
 import {
   useMentionQuery,

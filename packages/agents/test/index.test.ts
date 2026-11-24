@@ -5,7 +5,7 @@ import {
   parseAgentDefinitionFile,
   serializeAgentChainFile,
   serializeAgentDefinitionFile,
-} from "./index";
+} from "../src/index";
 
 const CLAUDE_CODE_FILE = `---
 name: reviewer

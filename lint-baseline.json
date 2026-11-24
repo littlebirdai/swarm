@@ -28516,6 +28516,9 @@
   "infra/replay-player/src/worker.ts": {
     "swarm/no-comments": 51
   },
+  "packages/agents/src/index.ts": {
+    "swarm/no-comments": 41
+  },
   "packages/analytics/src/events.ts": {
     "swarm/no-comments": 47
   },
@@ -28606,6 +28609,9 @@
   "packages/files/test/index.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/memory/src/index.ts": {
+    "swarm/no-comments": 36
+  },
   "packages/mods/src/authoring.d.ts": {
     "swarm/no-comments": 86
   },
@@ -28623,9 +28629,6 @@
   },
   "packages/network/src/index.ts": {
     "swarm/no-comments": 1
-  },
-  "packages/shared/agents/index.ts": {
-    "swarm/no-comments": 41
   },
   "packages/shared/artifacts/ask.ts": {
     "swarm/no-comments": 8
@@ -29980,9 +29983,6 @@
   "packages/shared/entities/orgObjects.test.ts": {
     "swarm/no-comments": 2
   },
-  "packages/shared/memory/index.ts": {
-    "swarm/no-comments": 36
-  },
   "packages/shared/ratchet/docRefs.guard.test.ts": {
     "swarm/no-comments": 35
   },
@@ -30196,27 +30196,6 @@
   "packages/shared/tasks/tasks.test.ts": {
     "swarm/no-comments": 26
   },
-  "packages/shared/vault/entityRef.ts": {
-    "swarm/no-comments": 79
-  },
-  "packages/shared/vault/frontmatter.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/vault/index.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/vault/linkRewrite.ts": {
-    "swarm/no-comments": 46
-  },
-  "packages/shared/vault/parseNote.ts": {
-    "swarm/no-comments": 94
-  },
-  "packages/shared/vault/searchQuery.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/vault/vaultIndex.ts": {
-    "swarm/no-comments": 82
-  },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4
   },
@@ -30243,6 +30222,27 @@
   },
   "packages/time/test/time.test.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/vault/src/entityRef.ts": {
+    "swarm/no-comments": 79
+  },
+  "packages/vault/src/frontmatter.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/vault/src/index.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/vault/src/linkRewrite.ts": {
+    "swarm/no-comments": 46
+  },
+  "packages/vault/src/parseNote.ts": {
+    "swarm/no-comments": 94
+  },
+  "packages/vault/src/searchQuery.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/vault/src/vaultIndex.ts": {
+    "swarm/no-comments": 82
   },
   "patches/convex-auth-ios-oauth.mjs": {
     "swarm/no-comments": 21

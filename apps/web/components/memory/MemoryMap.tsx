@@ -4,8 +4,8 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
-import type { MemoryAtlas } from "@codecast/shared/memory";
-import { MEMORY_REACH } from "@codecast/shared/memory";
+import type { MemoryAtlas } from "@codecast/memory";
+import { MEMORY_REACH } from "@codecast/memory";
 import {
   LinkGraphCanvas,
   matchWithNeighbors,

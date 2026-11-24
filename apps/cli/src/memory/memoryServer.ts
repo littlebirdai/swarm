@@ -21,7 +21,7 @@ import {
   type MemoryFile,
   type MemoryProject,
   type MemoryProjectSummary,
-} from "@codecast/shared/memory";
+} from "@codecast/memory";
 import {
   authorizeLocalRequest,
   corsHeaders,

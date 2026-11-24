@@ -6,10 +6,7 @@
 
 import { create } from "zustand";
 import type { ConvexReactClient } from "convex/react";
-import type {
-  MemoryProject,
-  MemoryProjectSummary,
-} from "@codecast/shared/memory";
+import type { MemoryProject, MemoryProjectSummary } from "@codecast/memory";
 import {
   MEMORY_INDEX_FILE,
   appendIndexLine,
@@ -17,7 +14,7 @@ import {
   memoryIndexLine,
   readMemoryFields,
   removeIndexLinesFor,
-} from "@codecast/shared/memory";
+} from "@codecast/memory";
 import {
   lastDiscoveryFailure,
   loopbackFailureReason,
