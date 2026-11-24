@@ -31,6 +31,8 @@ Code comments are forbidden except for semantic tool directives. The baseline co
 
 ## Tests
 
+Run `bun run format` to format the repo with oxfmt. CI checks formatting, and `.git-blame-ignore-revs` lists the initial formatting commit.
+
 Each package's test guidance is in its own `AGENTS.md` (`apps/web`, `apps/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
 
 ## Git history
