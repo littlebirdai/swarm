@@ -71,10 +71,7 @@ import {
 } from "./lib/orgCoverage";
 import { planDriverRefs, readUnplaced } from "./orgUnplaced";
 import { isActiveTask } from "@codecast/shared/tasks";
-import {
-  DAILY_CAP_KEYS,
-  type LandedCommit,
-} from "@codecast/shared/contracts/orgCapacity";
+import { DAILY_CAP_KEYS, type LandedCommit } from "@codecast/org/orgCapacity";
 import {
   overlapsAmong,
   performCreateRole,
@@ -103,7 +100,7 @@ import {
   roleStartsOnItsOwn,
   trustOf,
 } from "./lib/orgCaps";
-import { autonomyChangeWords } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyChangeWords } from "@codecast/org/roleAutonomy";
 import { findDecision } from "./sessionDecisions";
 import { threadStateHeadline } from "@codecast/shared/contracts";
 import { extractRepoFromRemoteUrl } from "@codecast/pull-requests/prRefs";

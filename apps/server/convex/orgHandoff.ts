@@ -28,7 +28,7 @@ import {
   standingLineFrom,
   withStandingLines,
   type StandingLine,
-} from "@codecast/shared/contracts/briefStanding";
+} from "@codecast/org/briefStanding";
 import { insertTask, applyRunNow } from "./agentTasks";
 import {
   ROLE_HANDOFF_TITLE_PREFIX,

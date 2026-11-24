@@ -366,7 +366,7 @@ describe("command groups stay off the boot graph", () => {
       // reads for every standing (and pure: no imports). 369 on 2026-11-18:
       // orgUnplacedLines.ts, the unplaced-work lines a role brief prints, which
       // briefLines.ts reads synchronously (planPlacement.ts loads on demand).
-      // 370 the same day: contracts/roleCard.ts, out of contracts/machineMessages.ts
+      // 370 the same day: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts
       // for max-lines, no new code. 371 the same day: contracts/messagingPolicy.ts,
       // the messaging policy registry orgWhere.ts builds its guidance from (no imports).
       // 372 the same day: ccRateLimitHeaders.ts, the rate-limit header parsers
@@ -785,7 +785,7 @@ describe("command groups stay off the boot graph", () => {
       // the same day: contracts/screenRecording.ts, for the screen recording brief.
       // 608 on 2026-11-17: hosts/providers/registry.ts, aws.ts and scalewayMac.ts, the HostProvider registry and the per-provider describe/inspect/stop modules (GitHub #93).
       // 609 the same day: hosts/providers/namespace.ts, the Namespace provider's describe/inspect/stop module (GitHub #93).
-      // 610 on 2026-11-18: contracts/roleCard.ts, out of contracts/machineMessages.ts
+      // 610 on 2026-11-18: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts
       // for max-lines, no new code.
       // 611 the same day: contracts/messagingPolicy.ts, through orgWhere.ts (no imports).
       // 612 the same day: ccRateLimitHeaders.ts, out of ccAccounts.ts, the same split.

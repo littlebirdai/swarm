@@ -5,11 +5,8 @@
 import {
   DEFAULT_LINE_CARDS_CAP,
   type RoleDailyCaps,
-} from "@codecast/shared/contracts/orgCapacity";
-import {
-  autonomyOn,
-  defaultTrustFor,
-} from "@codecast/shared/contracts/roleAutonomy";
+} from "@codecast/org/orgCapacity";
+import { autonomyOn, defaultTrustFor } from "@codecast/org/roleAutonomy";
 import { utcDayKey } from "@codecast/shared/contracts/flowMap";
 
 /** The UTC day (yyyy-mm-dd) today's counters count: the shared utcDayKey. */

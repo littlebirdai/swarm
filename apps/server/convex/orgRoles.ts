@@ -209,7 +209,7 @@ import {
   defaultTrustFor,
   switchFromStageWord,
   trustForSwitch,
-} from "@codecast/shared/contracts/roleAutonomy";
+} from "@codecast/org/roleAutonomy";
 
 // Org roles: named seats in the reporting structure (docs/architecture/
 // org-roles.md S1, S2, S5). A role has no standing session in this slice; it is

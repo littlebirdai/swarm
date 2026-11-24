@@ -29071,6 +29071,9 @@
   "packages/network/src/internalHost.ts": {
     "swarm/no-comments": 22
   },
+  "packages/org/src/briefStanding.ts": {
+    "swarm/no-comments": 37
+  },
   "packages/org/src/executiveAssistantPrompt.ts": {
     "swarm/no-comments": 8
   },
@@ -29080,14 +29083,32 @@
   "packages/org/src/orgAvatars.ts": {
     "swarm/no-comments": 12
   },
+  "packages/org/src/orgCapacity.ts": {
+    "swarm/no-comments": 87
+  },
   "packages/org/src/orgIdentity.ts": {
     "swarm/no-comments": 20
   },
   "packages/org/src/orgLead.ts": {
     "swarm/no-comments": 50
   },
+  "packages/org/src/orgReview.ts": {
+    "swarm/no-comments": 7
+  },
   "packages/org/src/orgRoute.ts": {
     "swarm/no-comments": 19
+  },
+  "packages/org/src/roleAutonomy.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/org/src/roleCard.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/org/src/roleFailover.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/org/src/roleGoals.ts": {
+    "swarm/no-comments": 26
   },
   "packages/org/src/roleIcon.ts": {
     "swarm/no-comments": 35
@@ -29095,14 +29116,23 @@
   "packages/org/src/roleIconExamples.ts": {
     "swarm/no-comments": 4
   },
+  "packages/org/src/roleLevel.ts": {
+    "swarm/no-comments": 5
+  },
   "packages/org/src/sessionCharacter.ts": {
     "swarm/no-comments": 17
+  },
+  "packages/org/test/briefStanding.test.ts": {
+    "swarm/no-comments": 2
   },
   "packages/org/test/executiveAssistantPrompt.test.ts": {
     "swarm/no-comments": 2
   },
   "packages/org/test/orgAssignee.test.ts": {
     "swarm/no-comments": 2
+  },
+  "packages/org/test/orgCapacity.test.ts": {
+    "swarm/no-comments": 5
   },
   "packages/org/test/orgIdentity.test.ts": {
     "swarm/no-comments": 2
@@ -29112,6 +29142,9 @@
   },
   "packages/org/test/orgRoute.test.ts": {
     "swarm/no-comments": 3
+  },
+  "packages/org/test/roleGoals.test.ts": {
+    "swarm/no-comments": 2
   },
   "packages/org/test/roleIcon.test.ts": {
     "swarm/no-comments": 6
@@ -29340,12 +29373,6 @@
   },
   "packages/shared/contracts/assistant.ts": {
     "swarm/no-comments": 50
-  },
-  "packages/shared/contracts/briefStanding.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/briefStanding.ts": {
-    "swarm/no-comments": 37
   },
   "packages/shared/contracts/callLinks.test.ts": {
     "swarm/no-comments": 1
@@ -29707,12 +29734,6 @@
   "packages/shared/contracts/orgAreas.ts": {
     "swarm/no-comments": 62
   },
-  "packages/shared/contracts/orgCapacity.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/orgCapacity.ts": {
-    "swarm/no-comments": 87
-  },
   "packages/shared/contracts/orgChange.test.ts": {
     "swarm/no-comments": 28
   },
@@ -29736,9 +29757,6 @@
   },
   "packages/shared/contracts/orgProposalReply.ts": {
     "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/orgReview.ts": {
-    "swarm/no-comments": 7
   },
   "packages/shared/contracts/orgSessionFiling.test.ts": {
     "swarm/no-comments": 4
@@ -29835,24 +29853,6 @@
   },
   "packages/shared/contracts/resourceOffloadPolicy.ts": {
     "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/roleAutonomy.ts": {
-    "swarm/no-comments": 17
-  },
-  "packages/shared/contracts/roleCard.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/contracts/roleFailover.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/roleGoals.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/roleGoals.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/contracts/roleLevel.ts": {
-    "swarm/no-comments": 5
   },
   "packages/shared/contracts/rolePlaybook.test.ts": {
     "swarm/no-comments": 2

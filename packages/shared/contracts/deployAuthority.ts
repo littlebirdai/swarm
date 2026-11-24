@@ -2,7 +2,7 @@
 // role holds to ask for deploys, and whether it may ask for one right now.
 // Kept out of lineDeploy.ts, the profile leaf the CLI and daemon read.
 
-import { autonomyOn, defaultTrustFor } from "./roleAutonomy";
+import { autonomyOn, defaultTrustFor } from "@codecast/org/roleAutonomy";
 
 export const DEPLOY_AUTHORITY_ID = "deploy";
 export const DEPLOY_AUTHORITY_KIND = "publish";

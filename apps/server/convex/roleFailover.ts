@@ -30,7 +30,7 @@ import {
   roleMoveBackState,
   type RoleFailover,
   type RoleFailoverReason,
-} from "@codecast/shared/contracts/roleFailover";
+} from "@codecast/org/roleFailover";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { LOOP_FREEZE_ALERT_MS } from "./daemonLogs";
 import { getSystemConfig } from "./systemConfig";

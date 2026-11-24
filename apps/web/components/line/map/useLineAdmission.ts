@@ -11,12 +11,12 @@
 import { useCallback, useMemo } from "react";
 import { useSharedMemos } from "../../../hooks/useSharedMemos";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { DEFAULT_LINE_CARDS_CAP } from "@codecast/shared/contracts/orgCapacity";
+import { DEFAULT_LINE_CARDS_CAP } from "@codecast/org/orgCapacity";
 import {
   autonomyOn,
   lineStartsOn,
   trustForSwitch,
-} from "@codecast/shared/contracts/roleAutonomy";
+} from "@codecast/org/roleAutonomy";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useSyncOrgTreeFeeder } from "../../../hooks/useSyncOrgTree";

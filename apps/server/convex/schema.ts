@@ -2152,7 +2152,7 @@ export default defineSchema(
           cards: v.optional(v.number()),
           // The line's start switch (learning-loop.md LL5): true while the line of
           // the project this role leads starts problems on its own, up to `cards`
-          // at a time. Unset reads as off (shared/contracts/roleAutonomy.lineStartsOn).
+          // at a time. Unset reads as off (@codecast/org/roleAutonomy.lineStartsOn).
           line_on: v.optional(v.boolean()),
         }),
       ),

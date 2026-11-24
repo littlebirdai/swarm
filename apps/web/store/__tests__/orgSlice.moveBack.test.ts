@@ -14,7 +14,7 @@ import {
 } from "../orgSlice";
 import { ORG_FIXTURE } from "../../components/org/orgFixture";
 import type { OrgTree } from "../../components/org/orgTypes";
-import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";
+import type { RoleFailover } from "@codecast/org/roleFailover";
 
 const ROLE = "fixture-role-growth";
 const FAILOVER: RoleFailover = {

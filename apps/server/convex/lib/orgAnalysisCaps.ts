@@ -1,6 +1,6 @@
 // The analyzer's window and read caps (orgInit), apart so its readers can share
 // them without importing the analyzer.
-import { capacity } from "@codecast/shared/contracts/orgCapacity";
+import { capacity } from "@codecast/org/orgCapacity";
 
 export const ANALYSIS_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 export const IDLE_ROLE_DAYS = capacity("idle_days");

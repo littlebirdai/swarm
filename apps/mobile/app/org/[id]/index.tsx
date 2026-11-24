@@ -28,7 +28,7 @@ import {
   ledgerLines,
   roleOnlineLedger,
 } from "@codecast/web/components/consequential/roleOnline";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { appAlert } from "@/lib/popups";
 
 export default function RoleScreen() {

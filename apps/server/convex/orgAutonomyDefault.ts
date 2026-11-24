@@ -2,11 +2,8 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./functions";
 import type { Id } from "./_generated/dataModel";
 import { roleStartsOnItsOwn } from "./lib/orgCaps";
-import { trustForSwitch } from "@codecast/shared/contracts/roleAutonomy";
-import {
-  DAILY_CAP_KEYS,
-  type RoleDailyCaps,
-} from "@codecast/shared/contracts/orgCapacity";
+import { trustForSwitch } from "@codecast/org/roleAutonomy";
+import { DAILY_CAP_KEYS, type RoleDailyCaps } from "@codecast/org/orgCapacity";
 
 // One switch instead of trust stages (docs/architecture/org-staffing.md
 // S23.1). A role a person hires from now on starts with the switch on; the

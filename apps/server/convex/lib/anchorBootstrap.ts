@@ -5,7 +5,7 @@ import { isHeadOfPeopleRole } from "./orgAccess";
 import { assistantOpeningFor } from "./orgAssistant";
 import { roleStartsOnItsOwn } from "./orgCaps";
 import { headOfPeopleOpening } from "@codecast/shared/contracts/headOfPeoplePrompt";
-import { roleLevelGuidance } from "@codecast/shared/contracts/roleLevel";
+import { roleLevelGuidance } from "@codecast/org/roleLevel";
 
 // The first turn a role's standing session reads (org-roles-standing.md T1):
 // who it is and whom it reports to, what it looks after, how it wakes, that its

@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-  formatScheduledTask,
-  parseScheduledTask,
-  roleCardInitiativeLine,
-  type RoleCard,
-} from "./machineMessages";
+import { formatScheduledTask, parseScheduledTask } from "./machineMessages";
+import { roleCardInitiativeLine, type RoleCard } from "@codecast/org/roleCard";
 
 describe("the role card carries what the area serves", () => {
   test("the frame writes and reads the initiatives with their chain and metric lines", () => {

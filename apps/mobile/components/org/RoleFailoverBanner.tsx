@@ -20,7 +20,7 @@ import {
   moveBackRefusal,
   roleFailoverBillsUnder,
   roleFailoverReasonWords,
-} from "@codecast/shared/contracts/roleFailover";
+} from "@codecast/org/roleFailover";
 import { useRoleMoveBack } from "@codecast/web/hooks/useRoleMoveBack";
 import { appAlert } from "@/lib/popups";
 

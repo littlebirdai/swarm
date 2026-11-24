@@ -2,7 +2,7 @@
 // org-roles-standing.md T2). `org.scopeFeed`, `org.scopeSummary` and
 // `org.brief` return these shapes; the page paints from them. Types live here
 // so the fixture, the hooks and the tabs agree on one definition.
-import type { GoalProgress } from "@codecast/shared/contracts/roleGoals";
+import type { GoalProgress } from "@codecast/org/roleGoals";
 import type { WorkState } from "@codecast/sessions/workState";
 import type { RoleWake } from "@codecast/shared/contracts/rolePlaybook";
 import type { OrgReportsTo, StateCounts } from "../orgTypes";

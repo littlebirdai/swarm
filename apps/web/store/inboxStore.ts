@@ -9235,7 +9235,7 @@ interface InboxStoreState
   triggerAction: (
     taskId: string,
     verb: "pause" | "resume" | "runNow" | "cancel" | "reactivate",
-    /** runNow only: a focus for that one run (orgReview.ts ORG_REVIEW_FOCUSES). */
+    /** runNow only: a focus for that one run (@codecast/org/orgReview ORG_REVIEW_FOCUSES). */
     focus?: string,
   ) => void;
   deleteTrigger: (taskId: string) => void;
@@ -14197,7 +14197,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     this: Draft,
     taskId: string,
     verb: "pause" | "resume" | "runNow" | "cancel" | "reactivate",
-    /** runNow only: a focus for that one run (orgReview.ts ORG_REVIEW_FOCUSES). */
+    /** runNow only: a focus for that one run (@codecast/org/orgReview ORG_REVIEW_FOCUSES). */
     focus?: string,
   ) {
     // A trigger the viewer can manage but does not OWN lives in

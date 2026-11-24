@@ -52,10 +52,10 @@ import {
   runResultThreadOf,
   triggerRunFrame,
   formatScheduledTask,
-  type RoleCard,
   type RunOutcome,
   type WaitingSession,
 } from "@codecast/shared/contracts";
+import { type RoleCard } from "@codecast/org/roleCard";
 import {
   triggerFiringSource,
   triggerFiringContinues,
@@ -70,7 +70,7 @@ import type { AreaChange } from "@codecast/shared/contracts/orgAreas";
 import {
   isOrgReviewFocusKey,
   type OrgReviewFocusKey,
-} from "@codecast/shared/contracts/orgReview";
+} from "@codecast/org/orgReview";
 import {
   findRoleEventTrigger,
   ROLE_NEEDS_INPUT_SPEC,

@@ -315,7 +315,7 @@ reported on whether the role or the person holds it.
 role's Settings tab or `cast role reports @handle --add me`; a person adds or
 removes themself, an admin of the role anyone in the workspace, and a new
 report wakes the role at once so it asks for goals. Goals are text under
-`## Goals: <name>` in the brief (parser: `contracts/roleGoals.ts`); the short
+`## Goals: <name>` in the brief (parser: `packages/org/src/roleGoals.ts`); the short
 ids on a goal's line are its matches. `convex/orgGoals.ts` reads those rows
 with the viewer's grants and gives the frame, `org.brief`, the Scope tab, the
 Brief tab and the health query one answer. A goal stalls after

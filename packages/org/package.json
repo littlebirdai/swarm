@@ -17,7 +17,15 @@
     "./orgLead": "./src/orgLead.ts",
     "./orgIdentity": "./src/orgIdentity.ts",
     "./orgRoute": "./src/orgRoute.ts",
-    "./executiveAssistantPrompt": "./src/executiveAssistantPrompt.ts"
+    "./executiveAssistantPrompt": "./src/executiveAssistantPrompt.ts",
+    "./orgCapacity": "./src/orgCapacity.ts",
+    "./orgReview": "./src/orgReview.ts",
+    "./roleAutonomy": "./src/roleAutonomy.ts",
+    "./roleCard": "./src/roleCard.ts",
+    "./roleFailover": "./src/roleFailover.ts",
+    "./roleGoals": "./src/roleGoals.ts",
+    "./roleLevel": "./src/roleLevel.ts",
+    "./briefStanding": "./src/briefStanding.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

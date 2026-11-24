@@ -18,7 +18,7 @@ import type {
   StaleProject,
   StaleTask,
   StaleWork,
-} from "@codecast/shared/contracts/orgCapacity";
+} from "@codecast/org/orgCapacity";
 
 const D = 86_400_000;
 export const STALE_PLAN_DAYS = 21;

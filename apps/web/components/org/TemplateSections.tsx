@@ -1,4 +1,4 @@
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { routineState } from "@codecast/shared/contracts/orgTemplateReadiness";
 import type { SetupNeed } from "@codecast/shared/contracts/orgTemplateState";
 import { answerProblem } from "@codecast/shared/contracts/orgTemplateManifest";

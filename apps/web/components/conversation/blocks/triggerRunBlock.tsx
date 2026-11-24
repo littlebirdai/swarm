@@ -7,11 +7,11 @@ import { ChevronDown, ChevronRight, CornerDownLeft, Zap } from "lucide-react";
 import {
   WORKER_SETTLE_WORDS,
   parseScheduledTask,
-  roleCardInitiativeLine,
   withoutStashedRunNote,
   type ScheduledTaskFrame,
   type WaitingSession,
 } from "@codecast/shared/contracts";
+import { roleCardInitiativeLine } from "@codecast/org/roleCard";
 import { AREA_STATUS_WORDS } from "@codecast/shared/contracts/orgAreas";
 import { ShortcutTooltip } from "../../KeyboardShortcutsHelp";
 import { fmtDuration } from "../../triggerCadence";
@@ -187,7 +187,7 @@ function RoleWakeBlock({
             {frame.title}
           </span>
         )}
-        {/* What the person focused this run on (orgReview.ts), on the closed line. */}
+        {/* What the person focused this run on (@codecast/org/orgReview), on the closed line. */}
         {frame.focus && (
           <span
             className="min-w-0 shrink truncate text-sol-text-dim"

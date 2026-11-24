@@ -3,7 +3,7 @@
 // limit or a share of load would have done to the same week. Pure: it reads
 // org.tree and org.health and nothing else, so the map, the volume table and
 // the what-if read one set of numbers.
-import { atCap } from "@codecast/shared/contracts/orgCapacity";
+import { atCap } from "@codecast/org/orgCapacity";
 import { areaRows, type AreaRow } from "./staffingModel";
 import type { OrgHealth, OrgRoleHealth } from "./orgStaffingTypes";
 import type { OrgTree } from "./orgTypes";

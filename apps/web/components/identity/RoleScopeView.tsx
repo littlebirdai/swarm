@@ -7,7 +7,7 @@
 // caller's face and name stand alone. Nothing here reads the store but the
 // summary, so the card can never say something the sheet does not.
 import type { ReactNode } from "react";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { RoleSummary, SummaryFrame } from "../org/lines/ObjectSummary";
 import { RoleFace } from "../org/RoleFace";
 import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";

@@ -24,7 +24,7 @@ import {
 } from "../../lib/reviewActions";
 import { useInboxStore } from "../../store/inboxStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import type { OrgProposalChange, OrgProposalListRow } from "./orgStaffingTypes";
 import { useSubjectLive } from "./proposalHooks";
 import {

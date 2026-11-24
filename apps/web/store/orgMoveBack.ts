@@ -3,7 +3,7 @@
 // (orgSlice.ts header), so the owner's line leaves the role in the same tick as
 // the press, a stale org.tree push replays the removal, the echo is a tree
 // with no failover (or a newer one), and a refusal puts the line back.
-import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";
+import type { RoleFailover } from "@codecast/org/roleFailover";
 
 export type MoveBackIntent = {
   kind: "moveBack";

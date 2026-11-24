@@ -23,7 +23,7 @@ import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useWorkflows } from "../../../hooks/useSyncWorkflows";
 import { lineOptions } from "./lineBoard";
 import { lineSlugOf } from "@codecast/flows/lineSlug";
-import { DAILY_CAP_KEYS } from "@codecast/shared/contracts/orgCapacity";
+import { DAILY_CAP_KEYS } from "@codecast/org/orgCapacity";
 import { useLineForks } from "../../../hooks/useLineForks";
 import { lineSettingsHref } from "../../../lib/lineSettings";
 import { flowHref } from "../../../lib/line/lineWorkspaceUrl";
@@ -52,7 +52,7 @@ import {
   autonomyOn,
   autonomySentence,
   trustForSwitch,
-} from "@codecast/shared/contracts/roleAutonomy";
+} from "@codecast/org/roleAutonomy";
 import { isHeadOfPeopleRole } from "../orgStaffingTypes";
 import { useRootAgent } from "../../../hooks/useSyncAnchors";
 import { SlackConnect } from "../../anchor/SlackConnect";

@@ -13,7 +13,7 @@ import {
   autonomyOn,
   autonomySentence,
   defaultTrustFor,
-} from "@codecast/shared/contracts/roleAutonomy";
+} from "@codecast/org/roleAutonomy";
 import { keepsReportsInside } from "@codecast/org/orgLead";
 import type { OrgInitDeps } from "./orgInit.js";
 import { acquireFileLock } from "./lockFile.js";

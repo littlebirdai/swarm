@@ -5,7 +5,7 @@ import {
   standingLineAgeDays,
   standingLineFor,
   standingLineStale,
-} from "./briefStanding";
+} from "../src/briefStanding";
 
 // Where it stands (scopes-and-feed.md F5.2): one section in the brief, one
 // line per project, the date the role wrote it at the end of the line.

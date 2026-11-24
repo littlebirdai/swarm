@@ -120,7 +120,7 @@ test("precheck skip records the claimed source and preserves lease ownership", a
   });
 });
 
-// A focus a person gave one run (orgReview.ts): it rides the row through the
+// A focus a person gave one run (@codecast/org/orgReview): it rides the row through the
 // claim, so the frame the daemon asks for after claiming still names it, and
 // the completed run clears it so the next firing is the routine's own.
 test("a focused run keeps its focus through the claim and drops it when the run completes", async () => {

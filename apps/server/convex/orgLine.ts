@@ -8,14 +8,14 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
-import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
+import { lineStartsOn } from "@codecast/org/roleAutonomy";
 import { isTerminalTaskStatus, isUnblocked } from "@codecast/shared/tasks";
 import { readinessLookups } from "./lib/taskGraph";
 import type { Id } from "./_generated/dataModel";
 import { resolveScope } from "./org";
 import { capsFor, countersFor, utcDay } from "./lib/orgCaps";
 import { flowAdmits, flowHands, liveFlowFor, planLiveFlow } from "./liveFlows";
-import { atCap } from "@codecast/shared/contracts/orgCapacity";
+import { atCap } from "@codecast/org/orgCapacity";
 import { recordHandStart } from "./spawn";
 import { retainSessionCreator } from "./sessionLaunch";
 import { insertTaskComment, moveTaskStatus } from "./tasks";

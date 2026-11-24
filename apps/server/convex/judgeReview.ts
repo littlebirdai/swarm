@@ -56,7 +56,7 @@ import {
   startRoleRun,
   type LineLoads,
 } from "./orgLine";
-import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
+import { lineStartsOn } from "@codecast/org/roleAutonomy";
 import { isLiveRunStatus } from "./workflow_runs";
 import {
   caseDetail,
