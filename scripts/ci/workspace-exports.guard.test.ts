@@ -24,14 +24,49 @@ function exportTargets(exports: unknown): Array<[string, string]> {
   );
 }
 
+export function duplicateKeys(text: string): string[] {
+  const found: string[] = [];
+  const scopes: Array<Set<string> | null> = [];
+  let expectKey = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      const value = text.slice(i + 1, j);
+      const scope = scopes.at(-1);
+      if (expectKey && scope) {
+        if (scope.has(value)) found.push(value);
+        scope.add(value);
+        expectKey = false;
+      }
+      i = j;
+    } else if (ch === "{") {
+      scopes.push(new Set());
+      expectKey = true;
+    } else if (ch === "[") {
+      scopes.push(null);
+    } else if (ch === "}" || ch === "]") {
+      scopes.pop();
+    } else if (ch === ",") {
+      expectKey = scopes.at(-1) instanceof Set;
+    }
+  }
+  return found;
+}
+
+function manifests(): string[] {
+  return ["apps", "packages", "tests"]
+    .flatMap((group) => workspaceDirectories(ROOT, group))
+    .map((dir) => join(dir, "package.json"))
+    .filter((manifest) => existsSync(join(ROOT, manifest)));
+}
+
 function deadExports(): string[] {
   const dead: string[] = [];
-  for (const dir of ["apps", "packages", "tests"].flatMap((group) =>
-    workspaceDirectories(ROOT, group),
-  )) {
-    const manifest = join(ROOT, dir, "package.json");
-    if (!existsSync(manifest)) continue;
-    const { exports } = JSON.parse(readFileSync(manifest, "utf8"));
+  for (const manifest of manifests()) {
+    const dir = join(manifest, "..");
+    const { exports } = JSON.parse(readFileSync(join(ROOT, manifest), "utf8"));
     for (const [key, target] of exportTargets(exports)) {
       if (target.includes("*")) continue;
       if (!existsSync(join(ROOT, dir, target)))
@@ -43,6 +78,24 @@ function deadExports(): string[] {
 
 test("every workspace export names a file that exists", () => {
   expect(deadExports()).toEqual([]);
+});
+
+test("no workspace manifest repeats a key", () => {
+  const repeated = manifests().flatMap((manifest) =>
+    duplicateKeys(readFileSync(join(ROOT, manifest), "utf8")).map(
+      (key) => `${manifest}: ${key}`,
+    ),
+  );
+  expect(repeated).toEqual([]);
+});
+
+test("a repeated key is found in any object, and string contents are not keys", () => {
+  expect(
+    duplicateKeys(
+      '{"a": 1, "deps": {"x": "1", "y": "{\\"x\\": 2}", "x": "2"}, "list": ["a", "a"], "a": 3}',
+    ),
+  ).toEqual(["x", "a"]);
+  expect(duplicateKeys('{"a": {"b": 1}, "b": 2}')).toEqual([]);
 });
 
 test("export targets are read from strings and condition objects", () => {
