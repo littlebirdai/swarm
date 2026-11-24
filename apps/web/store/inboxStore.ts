@@ -260,9 +260,9 @@ import {
   type DeviceSnippetChange,
   managedIdsAfter,
   type ProviderKeyCommand,
-  formatCapabilitySlug,
-  DEFAULT_TEAM_FEATURES,
 } from "@codecast/shared/contracts";
+import { DEFAULT_TEAM_FEATURES } from "@codecast/policy/teamFeatures";
+import { formatCapabilitySlug } from "@codecast/capabilities/capabilities";
 import { agentStatusAt, liveFactsOf } from "../lib/liveness";
 import {
   closeFactsOf,
@@ -364,7 +364,7 @@ import type {
 import {
   cascadeFromAnswer,
   permissionRuleKey,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import type { BrowserPaneOffer } from "@codecast/shared/contracts/browserPaneOffer";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
 import { escalationTargetIds } from "@codecast/shared/contracts/decisionEscalation";

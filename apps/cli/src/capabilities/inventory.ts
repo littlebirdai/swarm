@@ -59,9 +59,9 @@ import { visitScan, scanCanFallback } from "../workers/scanClient.js";
 import {
   AGENT_CLIENTS,
   LOCAL_AGENT_CLIENTS,
-  observedScopeRank,
   SNIPPET_CATALOG,
 } from "@codecast/shared/contracts";
+import { observedScopeRank } from "@codecast/capabilities/capabilities";
 import type { AgentClientId } from "@codecast/shared/contracts";
 
 // Both of these are the shared contract's, re-exported so this module's existing
@@ -74,7 +74,7 @@ import type {
   InstalledEntry,
   ObservedScope,
   CapabilityKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/capabilities";
 export type { CapabilityKind };
 export type CapabilityScope = ObservedScope;
 

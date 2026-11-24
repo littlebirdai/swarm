@@ -14,7 +14,7 @@ import {
   MCP_SERVER_NAME,
   MCP_TOOLS,
   verifyCallerAddress,
-} from "@codecast/shared/contracts/agentAccess";
+} from "@codecast/capabilities/agentAccess";
 import { oauthEnabled, type McpCaller, type TokenReply } from "./mcpAuth";
 import { clientIp } from "./lib/httpRateLimit";
 import { htmlToText } from "./lib/htmlText";

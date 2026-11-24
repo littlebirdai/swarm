@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type CSSProperties } from "react";
-import { agentSetupPagePath } from "@codecast/shared/contracts";
+import { agentSetupPagePath } from "@codecast/capabilities/agentToolSetup";
 import { InstallTabs } from "@/components/install-tabs";
 import { SOL } from "../../blog/blogChrome";
 import { featureHref, featureDeepDives } from "../catalog";

@@ -18,10 +18,12 @@ import {
 } from "lucide-react";
 import {
   APP_DESCRIPTORS,
-  teamFeatureEnabled,
   type AppConnectionsResult,
-  type TeamFeatureKey,
 } from "@codecast/shared/contracts";
+import {
+  teamFeatureEnabled,
+  type TeamFeatureKey,
+} from "@codecast/policy/teamFeatures";
 import type { CSSProperties, ReactNode } from "react";
 import { Switch } from "../ui/switch";
 import { useInboxStore } from "../../store/inboxStore";

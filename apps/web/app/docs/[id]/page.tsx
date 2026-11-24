@@ -28,7 +28,7 @@ import {
   type TimelineEntry,
 } from "../../../components/EntryTimeline";
 import { ShareControl } from "../../../components/ShareControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { ErrorBoundary } from "../../../components/ErrorBoundary";
 import { FeedCard } from "../../../components/ActivityFeed";
 import { WatchButton } from "../../../components/WatchButton";

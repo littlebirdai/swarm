@@ -2,7 +2,7 @@
 // regulated_data; convex regulatedDeletion.ts): one session, one page, one
 // call, or the whole team. Each goes through the shared review, which says in
 // structure what goes, that it cannot be undone, and that it is logged.
-import { parseTeamPolicy } from "@codecast/shared/contracts";
+import { parseTeamPolicy } from "@codecast/policy/managedPolicy";
 import type {
   SwitchFigure,
   SwitchLedger,

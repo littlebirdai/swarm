@@ -3,7 +3,7 @@
 // another repository's PR is never mistaken for this one's (task-graph.md TG12).
 
 import { execFileSync } from "./proc.js";
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { prWords, type WaitLabelOptions } from "@codecast/shared/tasks";
 
 /** This checkout's repository (`owner/name`), or null outside one. */

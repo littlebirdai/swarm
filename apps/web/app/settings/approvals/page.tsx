@@ -5,7 +5,7 @@
 // project and workspace, the two things a rule is scoped to; Remove makes the
 // next matching call ask again.
 import { useMemo, useState } from "react";
-import { permissionRuleLabel } from "@codecast/shared/contracts/permissionRules";
+import { permissionRuleLabel } from "@codecast/policy/permissionRules";
 import { BadgeCheck, X } from "lucide-react";
 import { useInboxStore } from "../../../store/inboxStore";
 import {

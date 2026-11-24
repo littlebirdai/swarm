@@ -7,10 +7,10 @@ import { useConvexAuth } from "convex/react";
 import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import {
   agentSetupPagePath,
-  deviceDisplayName,
   isAgentSetupTool,
   type AgentSetupTool,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/agentToolSetup";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { useDevices, type Device } from "@/components/DeviceBadge";
 import { useLocalDeviceId } from "@/hooks/useLocalDeviceId";

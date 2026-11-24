@@ -24,7 +24,7 @@ import {
   undecidedSetupFeatures,
   workspaceFeatureState,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { TeamCrest } from "../../components/team/TeamCrest";
 import { activeTeamIdOf } from "../../lib/activeTeam";
 import { RisingCard } from "../../components/RisingCard";

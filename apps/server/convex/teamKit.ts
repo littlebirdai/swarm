@@ -16,7 +16,7 @@ import {
   formatCapabilitySlug,
   type CapabilityManifest,
   type ExecutionSurface,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/capabilities";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./functions";
 import { verifyApiToken } from "./apiTokens";

@@ -1,8 +1,8 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { isTeamMember } from "../privacy";
+import { AGENT_SETUP_CONTINUE_MESSAGE } from "@codecast/capabilities/agentToolSetup";
 import {
-  AGENT_SETUP_CONTINUE_MESSAGE,
   huddleExcerptNote,
   isHuddleFeedNotice,
   isMachineDeliveredMessage,

@@ -31,7 +31,7 @@ import {
   scopePrecedence,
   slugMatchesSource,
   type ScopeKind,
-} from "./capabilities.js";
+} from "@codecast/capabilities/capabilities";
 
 describe("capability enums", () => {
   it("has no duplicate members in any enum", () => {

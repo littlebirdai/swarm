@@ -742,8 +742,12 @@ apps/web/store/undo/policies/work.ts 1500
 apps/web/store/vaultStore.ts 1650
 apps/web/tours/guides/flowsGuide.tsx 1300
 apps/web/tours/guides/orgGuide.tsx 1600
+packages/capabilities/src/capabilities.ts 950
+packages/capabilities/src/fleetDiff.ts 900
+packages/capabilities/test/fleetDiff.test.ts 1200
 packages/docs/src/drafting.ts 950
 packages/mods/src/authoring.d.ts 900
+packages/policy/src/permissionRules.ts 900
 packages/shared/artifacts/board.test.ts 1100
 packages/shared/artifacts/boardGeometry.ts 1250
 packages/shared/artifacts/boardLayout.ts 950
@@ -762,7 +766,6 @@ packages/shared/contracts/agentClients.ts 1650
 packages/shared/contracts/appConnector.ts 1000
 packages/shared/contracts/callRecordings.test.ts 850
 packages/shared/contracts/callRecordings.ts 850
-packages/shared/contracts/capabilities.ts 950
 packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350
@@ -770,8 +773,6 @@ packages/shared/contracts/cloudAgents.ts 900
 packages/shared/contracts/envs.ts 900
 packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900
-packages/shared/contracts/fleetDiff.test.ts 1200
-packages/shared/contracts/fleetDiff.ts 900
 packages/shared/contracts/inboxProjection.test.ts 1700
 packages/shared/contracts/inboxProjection.ts 1900
 packages/shared/contracts/ingest.ts 1100
@@ -788,7 +789,6 @@ packages/shared/contracts/orgChangeWords.test.ts 1300
 packages/shared/contracts/orgChangeWords.ts 1500
 packages/shared/contracts/orgProposal.test.ts 3700
 packages/shared/contracts/orgProposal.ts 3750
-packages/shared/contracts/permissionRules.ts 900
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
 packages/shared/contracts/shortcutCatalog.ts 1550

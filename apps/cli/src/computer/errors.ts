@@ -11,7 +11,7 @@
  * raises the same class, so a caller has one shape to catch.
  */
 
-import { agentSetupLines } from "@codecast/shared/contracts/agentToolSetup";
+import { agentSetupLines } from "@codecast/capabilities/agentToolSetup";
 import type { ComputerErrorCode } from "./types.js";
 
 export class ComputerError extends Error {

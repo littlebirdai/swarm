@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { FeatureLanding, GUIDE_FOR } from "../tours/guides";
-import { type TeamFeatureKey } from "@codecast/shared/contracts";
+import { type TeamFeatureKey } from "@codecast/policy/teamFeatures";
 import { featureOffCopy } from "@platform/flags";
 import { TEAM_FEATURE_CATALOG } from "../lib/teamFeatures";
 import { useInboxStore } from "../store/inboxStore";

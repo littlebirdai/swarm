@@ -19,7 +19,7 @@ import { goToTab } from "@/lib/tabNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { teamFeatureEnabled } from "@codecast/shared/contracts";
+import { teamFeatureEnabled } from "@codecast/policy/teamFeatures";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { ChatHomeList } from "@/components/chat/ChannelList";

@@ -180,7 +180,7 @@ export const readKey = (argv: string[]) =>
 export async function reconcileRecord(): Promise<void> {
   const { harnessDir } = ctx();
   const { splitShellCommand } =
-    await import("../../../packages/shared/contracts/permissionRules.ts");
+    await import("@codecast/policy/permissionRules");
   for (let turn = 1; turn <= turnNo; turn++) {
     const file = path.join(
       harnessDir,

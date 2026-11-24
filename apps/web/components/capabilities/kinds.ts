@@ -20,7 +20,7 @@ import {
   isExecutionSurface,
   requiresExplicitConsent,
   type ExecutionSurface,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/capabilities";
 
 /**
  * The view models for /capabilities, and the catalog card that renders one entry.

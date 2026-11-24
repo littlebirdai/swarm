@@ -1,13 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildProjectScopeKey,
-  compareScopeNarrowness,
   formatScopeString,
   normalizeGitOrigin,
   parseScopeString,
-  SCOPE_KINDS,
   scopeKeyValidForTeam,
-} from "./index";
+} from "@codecast/capabilities/capabilityScopes";
+import {
+  compareScopeNarrowness,
+  SCOPE_KINDS,
+} from "@codecast/capabilities/capabilities";
 
 describe("scope strings", () => {
   it("round-trips every kind, qualified and bare", () => {

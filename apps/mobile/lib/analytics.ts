@@ -21,7 +21,7 @@ import {
   POSTHOG_REPLAY_SAMPLE_RATE,
 } from "@codecast/analytics";
 import { MOBILE_EVENTS } from "./mobileEvents";
-import { teamsHoldRegulatedData } from "@codecast/shared/contracts";
+import { teamsHoldRegulatedData } from "@codecast/policy/managedPolicy";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { watchRegulatedData } from "@codecast/web/lib/regulatedData";
 

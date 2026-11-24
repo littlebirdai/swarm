@@ -2,7 +2,7 @@
 // checkouts set by hand, and a hold that keeps a device's checkouts in the pool with no room.
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
-import { normalizeGitOrigin } from "@codecast/shared/contracts";
+import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import { lineSlotsValidator } from "./lib/lineSlotsValidator";
 
 async function deviceRow(ctx: any, device_id: string) {

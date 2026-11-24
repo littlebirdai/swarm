@@ -50,7 +50,7 @@ import {
   type InstalledEntry,
   type ObservedScope,
   isWellFormedCapabilitySlug,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/capabilities";
 import { internalMutation, mutation, query } from "./functions";
 import { internal } from "./_generated/api";
 import { verifyApiToken } from "./apiTokens";

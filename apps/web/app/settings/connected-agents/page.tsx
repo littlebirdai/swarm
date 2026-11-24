@@ -11,7 +11,7 @@ import {
   MCP_CANNOT,
   MCP_CLIENT_SETUPS,
   MCP_PATH,
-} from "@codecast/shared/contracts/agentAccess";
+} from "@codecast/capabilities/agentAccess";
 import { useMcpConnections } from "../../../hooks/useMcpConnections";
 import { useSettingsData } from "../../../hooks/useSyncSettings";
 import { useInboxStore } from "../../../store/inboxStore";

@@ -17,7 +17,7 @@
 // later phases wire them up and fold the daemon's branch sites into registry
 // lookups.
 
-import type { CapabilityKind } from "./capabilities";
+import type { CapabilityKind } from "@codecast/capabilities/capabilities";
 import type { ModelOption } from "./modelOptions";
 import { ANTIGRAVITY_CLIENT } from "./antigravityClient";
 import {

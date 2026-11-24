@@ -9,7 +9,7 @@
 // same actor inside ACCESS_REPEAT_WINDOW_MS writes nothing, so a reload, a
 // re-mount or a paged CLI read is one entry.
 import type { Id } from "../_generated/dataModel";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { teamPolicyOf } from "./teamPolicyGuard";
 
 type DbCtx = { db: any };

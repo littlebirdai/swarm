@@ -20,7 +20,7 @@ import {
   writeOwnedSection,
 } from "../snippets.js";
 import * as fs from "fs";
-import type { DesiredState } from "@codecast/shared/contracts";
+import type { DesiredState } from "@codecast/capabilities/capabilities";
 
 export interface BuiltinApplyOutcome {
   installed: string[];

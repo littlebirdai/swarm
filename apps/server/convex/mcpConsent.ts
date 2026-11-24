@@ -7,7 +7,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./functions";
 import type { Doc } from "./_generated/dataModel";
-import { MCP_READ_SCOPE } from "@codecast/shared/contracts/agentAccess";
+import { MCP_READ_SCOPE } from "@codecast/capabilities/agentAccess";
 import { hashToken } from "./apiTokens";
 import {
   APPROVE_PER_HOUR,

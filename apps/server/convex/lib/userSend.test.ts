@@ -9,8 +9,8 @@ import {
   actingPersonOf,
   typedWords,
 } from "./userSend";
+import { AGENT_SETUP_CONTINUE_MESSAGE } from "@codecast/capabilities/agentToolSetup";
 import {
-  AGENT_SETUP_CONTINUE_MESSAGE,
   HUDDLE_FEED_DISREGARD,
   formatDecisionAnswer,
   formatScheduledTask,

@@ -2,7 +2,10 @@
 // The setup flow's Features step state (components/onboarding/FeatureStep),
 // shared with the footer that offers to turn every one of them on: the new
 // team flow, and an existing team's setup page.
-import { TEAM_FEATURES, teamFeatureEnabled } from "@codecast/shared/contracts";
+import {
+  TEAM_FEATURES,
+  teamFeatureEnabled,
+} from "@codecast/policy/teamFeatures";
 import { useInboxStore } from "../store/inboxStore";
 
 /** The team features the setup flow offers: the ones a new team starts with. */

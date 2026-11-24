@@ -65,7 +65,7 @@ import { makeCollectionSig, rowSigExcluding } from "./wakeSig";
 import type {
   Capability,
   InstalledEntry,
-} from "../../../packages/shared/contracts/capabilities";
+} from "@codecast/capabilities/capabilities";
 
 /* ---------------------------------------------------------------------------
  * Row shapes
@@ -903,7 +903,7 @@ function metaOf(entry: {
 import {
   capabilityIdentity,
   fleetRowKey as capabilityRowKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/fleetDiff";
 export { capabilityIdentity, capabilityRowKey };
 
 /**

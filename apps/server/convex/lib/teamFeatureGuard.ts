@@ -10,7 +10,7 @@ import {
   TEAM_FEATURES,
   workspaceFeatureEnabled,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import {
   attachedAvailability,
   createFeatureGuard,

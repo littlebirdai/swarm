@@ -6,7 +6,7 @@ import { useTeamShareActions } from "../hooks/useTeamShareActions";
 import { useInboxStore } from "../store/inboxStore";
 import { shareOrigin } from "../lib/utils";
 import { SharePopover } from "./SharePopover";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { usePolicyRefusal } from "../lib/managedPolicy";
 import { Switch } from "./ui/switch";
 

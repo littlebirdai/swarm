@@ -11,7 +11,7 @@
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { TeamPolicy } from "@codecast/shared/contracts";
+import type { TeamPolicy } from "@codecast/policy/managedPolicy";
 import { slackApi, type SlackResp } from "./slackApi";
 
 export type SlackContentMethod = "chat.postMessage" | "chat.update";

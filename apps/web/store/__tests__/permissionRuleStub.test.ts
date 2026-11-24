@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../inboxStore";
-import { permissionRuleKey } from "@codecast/shared/contracts/permissionRules";
+import { permissionRuleKey } from "@codecast/policy/permissionRules";
 
 // A rule added in Settings shows at once as a stub; the server row that answers
 // it must take the stub's place rather than draw beside it (registry altKey).

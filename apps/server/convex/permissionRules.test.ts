@@ -6,7 +6,7 @@ import { convexTest } from "convex-test";
 import {
   shellRequest,
   claudeToolRequest,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import schema from "./schema";
 
 setDefaultTimeout(60_000);

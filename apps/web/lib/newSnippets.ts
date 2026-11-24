@@ -9,11 +9,13 @@
 
 import {
   SNIPPET_CATALOG,
-  snippetAvailableForTeams,
-  type TeamFeatures,
   type SnippetDescriptor,
   type DeviceSnippetSettings,
 } from "@codecast/shared/contracts";
+import {
+  snippetAvailableForTeams,
+  type TeamFeatures,
+} from "@codecast/policy/teamFeatures";
 
 export const SNIPPET_INTRO_PREFIX = "snippet_intro_" as const;
 

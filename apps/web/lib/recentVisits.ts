@@ -12,10 +12,8 @@ import { channelDisplayName } from "./chatViews";
 import { dmOtherIds } from "@codecast/chat";
 import { cleanTitle } from "./conversationProcessor";
 import { sessionCardTitle } from "./sessionCard";
-import {
-  isHostedAgentType,
-  workspaceFeatureEnabled,
-} from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/shared/contracts";
+import { workspaceFeatureEnabled } from "@codecast/policy/teamFeatures";
 import {
   convBucketMap,
   filterInboxScopeFromState,

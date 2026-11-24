@@ -24,7 +24,7 @@ import { DocTypeMark } from "../../components/docs/DocTypeMark";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { ShareControl } from "../../components/ShareControl";
 import { KeyCap } from "../../components/KeyCap";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { GuestInvite } from "../../components/calls/GuestDoor";
 import { GuestTag, ParticipantTag } from "../../components/calls/GuestTag";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";

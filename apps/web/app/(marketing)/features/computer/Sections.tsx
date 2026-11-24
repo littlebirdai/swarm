@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { agentSetupPagePath } from "@codecast/shared/contracts";
+import { agentSetupPagePath } from "@codecast/capabilities/agentToolSetup";
 import { SOL } from "../../blog/blogChrome";
 import {
   BLOCKED_APPS,

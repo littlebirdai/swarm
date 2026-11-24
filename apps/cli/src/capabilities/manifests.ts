@@ -32,7 +32,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import type { CapabilityManifest } from "@codecast/shared/contracts";
+import type { CapabilityManifest } from "@codecast/capabilities/capabilities";
 import {
   parseMarketplaceJson,
   splitPluginId,

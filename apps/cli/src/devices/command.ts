@@ -18,8 +18,8 @@ import {
   isMachineSetting,
   machineOutOfService,
   snippetBySlug,
-  type AgentToolSetupStatus,
 } from "@codecast/shared/contracts";
+import { type AgentToolSetupStatus } from "@codecast/capabilities/agentToolSetup";
 import { commandGroup } from "../commandGroups.js";
 import { fmt, icons } from "../colors.js";
 import { formatAgeShort } from "../publishCommand.js";

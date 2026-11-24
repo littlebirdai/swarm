@@ -3,8 +3,8 @@ import {
   formatCapabilitySlug,
   parseAnyCapabilitySlug,
   parseCapabilitySlug,
-  SNIPPET_CATALOG,
-} from "./index";
+} from "@codecast/capabilities/capabilities";
+import { SNIPPET_CATALOG } from "./index";
 
 // The namespace's one structural promise: a third party can never render a slug
 // in `builtin/`, so nothing a marketplace publishes can claim a builtin's

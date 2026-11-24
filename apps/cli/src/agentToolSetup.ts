@@ -14,7 +14,7 @@ import {
   isAgentSetupTool,
   type AgentToolSetupArgs,
   type AgentToolSetupStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/agentToolSetup";
 import { agentSpawnPath } from "./agentSpawnPath.js";
 import { resolveCastInvocation } from "./castInvocation.js";
 

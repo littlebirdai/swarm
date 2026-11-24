@@ -22,10 +22,8 @@ import { execFile } from "./proc.js";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import * as path from "node:path";
-import {
-  extractRepoFromRemoteUrl,
-  repositoryKeyOfRemote,
-} from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { extractSessionTrailer } from "@codecast/shared/blame";
 
 const execFileAsync = promisify(execFile);

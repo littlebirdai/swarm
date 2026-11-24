@@ -11,8 +11,8 @@ import {
   isCodexTurnAbortedMessage,
   isInterruptNotice,
 } from "../../lib/conversationProcessor";
+import { hasAgentSetupMarker } from "@codecast/capabilities/agentToolSetup";
 import {
-  hasAgentSetupMarker,
   isBootstrapPrompt,
   isPollResponsePayload,
   parseScreenRecordingMessage,

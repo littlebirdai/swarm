@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { ShareControl } from "../../../../components/ShareControl";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { PlaceCrumbs } from "../../../../components/nav/PlaceCrumbs";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { RunGate } from "../../../../components/WorkflowContextPanel";

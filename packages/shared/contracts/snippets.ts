@@ -30,9 +30,9 @@ import {
   WORKFLOW_SNIPPET,
   WORKFLOW_SNIPPET_END,
 } from "./snippetsWorkflow";
-import { manifestHash } from "./capabilities";
+import { manifestHash } from "@codecast/capabilities/capabilities";
 import { ASSIGNEE_MEANS } from "./orgAssignee";
-import { agentSetupPageUrl } from "./agentToolSetup";
+import { agentSetupPageUrl } from "@codecast/capabilities/agentToolSetup";
 import { BROWSER_EXTENSION_STORE_URL } from "./browserExtension";
 import { MESSAGING_POLICIES } from "./messagingPolicy";
 

@@ -28531,6 +28531,33 @@
   "packages/async/src/index.ts": {
     "swarm/no-comments": 2
   },
+  "packages/capabilities/src/agentAccess.ts": {
+    "swarm/no-comments": 22
+  },
+  "packages/capabilities/src/agentToolSetup.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/capabilities/src/capabilities.ts": {
+    "swarm/no-comments": 152
+  },
+  "packages/capabilities/src/capabilityScopes.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/capabilities/src/fleetDiff.ts": {
+    "swarm/no-comments": 161
+  },
+  "packages/capabilities/src/mcpRegistry.ts": {
+    "swarm/no-comments": 91
+  },
+  "packages/capabilities/test/capabilities.test.ts": {
+    "swarm/no-comments": 77
+  },
+  "packages/capabilities/test/capabilityScopes.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/capabilities/test/fleetDiff.test.ts": {
+    "swarm/no-comments": 89
+  },
   "packages/chat/src/agent.ts": {
     "swarm/no-comments": 24
   },
@@ -28628,6 +28655,27 @@
     "swarm/no-comments": 1
   },
   "packages/network/src/index.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/policy/src/managedPolicy.ts": {
+    "swarm/no-comments": 68
+  },
+  "packages/policy/src/permissionRules.ts": {
+    "swarm/no-comments": 58
+  },
+  "packages/policy/src/teamFeatures.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/policy/src/vendorCoverage.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/policy/test/permissionRules.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/policy/test/teamFeatures.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/policy/test/vendorCoverage.test.ts": {
     "swarm/no-comments": 1
   },
   "packages/shared/artifacts/ask.ts": {
@@ -28891,9 +28939,6 @@
   "packages/shared/contracts/__fixtures__/teamWorldGen.ts": {
     "swarm/no-comments": 21
   },
-  "packages/shared/contracts/agentAccess.ts": {
-    "swarm/no-comments": 22
-  },
   "packages/shared/contracts/agentClients.test.ts": {
     "swarm/no-comments": 88
   },
@@ -28917,9 +28962,6 @@
   },
   "packages/shared/contracts/agentSwitch.ts": {
     "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/agentToolSetup.ts": {
-    "swarm/no-comments": 18
   },
   "packages/shared/contracts/antigravityClient.ts": {
     "swarm/no-comments": 42
@@ -29002,12 +29044,6 @@
   "packages/shared/contracts/callRoomKeys.ts": {
     "swarm/no-comments": 85
   },
-  "packages/shared/contracts/capabilities.test.ts": {
-    "swarm/no-comments": 77
-  },
-  "packages/shared/contracts/capabilities.ts": {
-    "swarm/no-comments": 152
-  },
   "packages/shared/contracts/capabilityResolver.golden.test.ts": {
     "swarm/no-comments": 10
   },
@@ -29016,12 +29052,6 @@
   },
   "packages/shared/contracts/capabilityResolver.ts": {
     "swarm/no-comments": 100
-  },
-  "packages/shared/contracts/capabilityScopes.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/capabilityScopes.ts": {
-    "swarm/no-comments": 31
   },
   "packages/shared/contracts/capabilitySlug.test.ts": {
     "swarm/no-comments": 7
@@ -29245,12 +29275,6 @@
   "packages/shared/contracts/fileAttachment.ts": {
     "swarm/no-comments": 7
   },
-  "packages/shared/contracts/fleetDiff.test.ts": {
-    "swarm/no-comments": 89
-  },
-  "packages/shared/contracts/fleetDiff.ts": {
-    "swarm/no-comments": 161
-  },
   "packages/shared/contracts/flowEdit.ts": {
     "swarm/no-comments": 29
   },
@@ -29464,12 +29488,6 @@
   "packages/shared/contracts/mainRed.ts": {
     "swarm/no-comments": 39
   },
-  "packages/shared/contracts/managedPolicy.ts": {
-    "swarm/no-comments": 68
-  },
-  "packages/shared/contracts/mcpRegistry.ts": {
-    "swarm/no-comments": 91
-  },
   "packages/shared/contracts/messagingPolicy.ts": {
     "swarm/no-comments": 13
   },
@@ -29634,12 +29652,6 @@
   },
   "packages/shared/contracts/pendingStatus.ts": {
     "swarm/no-comments": 10
-  },
-  "packages/shared/contracts/permissionRules.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/permissionRules.ts": {
-    "swarm/no-comments": 58
   },
   "packages/shared/contracts/personAsk.test.ts": {
     "swarm/no-comments": 1
@@ -29878,12 +29890,6 @@
   "packages/shared/contracts/taskStats.ts": {
     "swarm/no-comments": 7
   },
-  "packages/shared/contracts/teamFeatures.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/teamFeatures.ts": {
-    "swarm/no-comments": 26
-  },
   "packages/shared/contracts/teamHosts.ts": {
     "swarm/no-comments": 8
   },
@@ -29946,12 +29952,6 @@
   },
   "packages/shared/contracts/vaultProtocol.ts": {
     "swarm/no-comments": 58
-  },
-  "packages/shared/contracts/vendorCoverage.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/vendorCoverage.ts": {
-    "swarm/no-comments": 20
   },
   "packages/shared/contracts/volumeWatch.test.ts": {
     "swarm/no-comments": 3

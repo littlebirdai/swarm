@@ -7,7 +7,7 @@ import {
   upsertDirectoryMapping,
 } from "./users";
 import { makeFakeDb } from "./testDb";
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 
 // A repo share has a start. Two users shared whole repos to their team by
 // clicking through a setup step that pre checked repos and shared every past

@@ -20,8 +20,8 @@ import {
   vendorCovered,
   vendorUncoveredMessage,
   type ContentVendor,
-} from "@codecast/shared/contracts/vendorCoverage";
-import type { TeamFeatureKey } from "@codecast/shared/contracts";
+} from "@codecast/policy/vendorCoverage";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 import type { Id } from "../_generated/dataModel";
 import {
   policyWorkspaceOf,

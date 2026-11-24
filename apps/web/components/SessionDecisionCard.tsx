@@ -60,7 +60,7 @@ import { useHeldOption } from "../lib/agentTabGuard";
 import { NOT_CONFIRMED } from "@codecast/shared/contracts/secrets";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { ShareControl } from "./ShareControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import "./decisions/decisions.css";
 export { ThreadDecisionCard } from "./decisions/ThreadDecisionCard";
 import { useWatchEffect } from "../hooks/useWatchEffect";

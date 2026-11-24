@@ -10,7 +10,7 @@ import {
   policyBlockedMessage,
   type RestrictionKey,
   type TeamPolicy,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/managedPolicy";
 import { useInboxStore } from "../store/inboxStore";
 import type { Device } from "./deviceRow";
 

@@ -8,7 +8,7 @@
 // runner reads it, as `cast flow run` does on the asking machine for a local run.
 import * as fs from "node:fs";
 import { spawnSync } from "../proc.js";
-import { normalizeGitOrigin } from "@codecast/shared/contracts";
+import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import type { FrozenChange } from "./flowChangeFile.js";
 
 /** The words that keep a run on the asking machine, whatever default is set. */

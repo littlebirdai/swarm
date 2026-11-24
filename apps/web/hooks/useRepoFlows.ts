@@ -2,7 +2,7 @@
 // run` takes there ahead of the shipped ones of the same slug. The Ship picker mounts this while it is open.
 import { useMemo } from "react";
 import { makeFunctionReference } from "convex/server";
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import type { RepoFlow } from "@codecast/shared/contracts/repoFlows";
 import { useSyncCollection } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";

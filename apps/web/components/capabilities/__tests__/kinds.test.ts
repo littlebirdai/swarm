@@ -15,7 +15,7 @@ import {
   EXECUTION_SURFACES,
   requiresExplicitConsent,
   type ExecutionSurface,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/capabilities";
 import {
   confidenceFromSurfaces,
   confidenceFromKind,

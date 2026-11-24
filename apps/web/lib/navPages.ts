@@ -1,6 +1,6 @@
 // The palette's Pages rows, and which of them a viewer sees. Kept out of the
 // palette so the rule (team features) is testable without mounting it.
-import type { TeamFeatureKey } from "@codecast/shared/contracts";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 import { localDay } from "./changesDay";
 import type { ShortcutAction } from "../shortcuts/registry";
 import type { NavIconName } from "./navRegistry";

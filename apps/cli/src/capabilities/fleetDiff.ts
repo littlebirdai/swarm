@@ -32,10 +32,11 @@ export {
   type PinKind,
   type ReportedInventory,
   type RowStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/fleetDiff";
 
 import type { InventoryItem } from "./inventory.js";
-import type { FleetRowKind, ObservedScope } from "@codecast/shared/contracts";
+import type { FleetRowKind } from "@codecast/capabilities/fleetDiff";
+import type { ObservedScope } from "@codecast/capabilities/capabilities";
 
 /**
  * The seam, checked at build time.

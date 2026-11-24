@@ -15,7 +15,7 @@ import {
 } from "./staticAssets";
 import { createResponsePolicy } from "./responsePolicy";
 import { CONVEX_URL } from "./convexUrl";
-import { MCP_ROUTES } from "@codecast/shared/contracts/agentAccess";
+import { MCP_ROUTES } from "@codecast/capabilities/agentAccess";
 import { mcpForwardHeaders } from "./mcpForward";
 import { frameCheckResponse } from "./frameCheck";
 

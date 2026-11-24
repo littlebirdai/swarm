@@ -2,10 +2,7 @@
 // calls it through ctx.runQuery.
 import { v } from "convex/values";
 import { internalQuery } from "./_generated/server";
-import {
-  VENDORS,
-  type ContentVendor,
-} from "@codecast/shared/contracts/vendorCoverage";
+import { VENDORS, type ContentVendor } from "@codecast/policy/vendorCoverage";
 import { vendorRefusalFromDb } from "./lib/vendorGuard";
 
 export const refusalFor = internalQuery({

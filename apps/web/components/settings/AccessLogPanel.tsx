@@ -8,7 +8,7 @@ import { usePaginatedQuery } from "convex/react";
 import { ScrollText } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { parseTeamPolicy } from "@codecast/shared/contracts";
+import { parseTeamPolicy } from "@codecast/policy/managedPolicy";
 import { useInboxStore } from "../../store/inboxStore";
 import { EntityIdPill } from "../EntityIdPill";
 import { PublishedPagePill } from "../PublishedPageEmbed";

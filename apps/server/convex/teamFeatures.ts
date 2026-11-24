@@ -11,7 +11,7 @@ import {
   TEAM_FEATURES,
   teamFeatureEnabled,
   type TeamFeatures,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { isStaff } from "./lib/staff";
 import type { Id } from "./_generated/dataModel";
 import { applyFeatureChange } from "@platform/flags";

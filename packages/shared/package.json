@@ -12,11 +12,8 @@
     ".": "./index.ts",
     "./contracts": "./contracts/index.ts",
     "./contracts/vaultProtocol": "./contracts/vaultProtocol.ts",
-    "./contracts/agentAccess": "./contracts/agentAccess.ts",
     "./contracts/resourceOffloadIntent": "./contracts/resourceOffloadIntent.ts",
     "./contracts/moveRehearsal": "./contracts/moveRehearsal.ts",
-    "./contracts/managedPolicy": "./contracts/managedPolicy.ts",
-    "./contracts/vendorCoverage": "./contracts/vendorCoverage.ts",
     "./contracts/flowMap": "./contracts/flowMap.ts",
     "./contracts/lineFunnel": "./contracts/lineFunnel.ts",
     "./contracts/lineVolume": "./contracts/lineVolume.ts",
@@ -27,7 +24,6 @@
     "./contracts/__fixtures__/inboxProjectionGen": "./contracts/__fixtures__/inboxProjectionGen.ts",
     "./contracts/__fixtures__/teamWorldGen": "./contracts/__fixtures__/teamWorldGen.ts",
     "./contracts/levenshtein": "./contracts/levenshtein.ts",
-    "./contracts/agentToolSetup": "./contracts/agentToolSetup.ts",
     "./contracts/shortcutCatalog": "./contracts/shortcutCatalog.ts",
     "./contracts/keyBindings": "./contracts/keyBindings.ts",
     "./contracts/inboxSplit": "./contracts/inboxSplit.ts",
@@ -57,7 +53,6 @@
     "./contracts/moments": "./contracts/moments.ts",
     "./contracts/judges": "./contracts/judges.ts",
     "./contracts/peerTransport": "./contracts/peerTransport.ts",
-    "./contracts/permissionRules": "./contracts/permissionRules.ts",
     "./contracts/dataSync": "./contracts/dataSync.ts",
     "./contracts/weeklyCard": "./contracts/weeklyCard.ts",
     "./contracts/agentJudges": "./contracts/agentJudges.ts",
@@ -180,15 +175,17 @@
     "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {
+    "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/policy": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
-    "css-tree": "3.2.1",
     "@platform/agent": "file:../../platform/packages/agent",
     "@platform/assistant": "file:../../platform/packages/assistant",
     "@platform/evals": "file:../../platform/packages/evals",
-    "@platform/fence": "file:../../platform/packages/fence"
+    "@platform/fence": "file:../../platform/packages/fence",
+    "css-tree": "3.2.1"
   },
   "devDependencies": {
     "@types/css-tree": "^2.3.11"

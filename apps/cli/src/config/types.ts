@@ -18,9 +18,9 @@
 import type {
   AgentClientId,
   CloudSessionSyncField,
-  HeartbeatTeamPolicy,
   VaultInfo,
 } from "@codecast/shared/contracts";
+import type { HeartbeatTeamPolicy } from "@codecast/policy/managedPolicy";
 import { policyRefusal } from "./managedPolicy.js";
 
 /** How aggressively a client skips approval prompts. Codex is the only client

@@ -9,7 +9,7 @@ import {
   splitShellCommand,
   wildcardMatch,
   type PermissionRule,
-} from "./permissionRules";
+} from "@codecast/policy/permissionRules";
 
 const allow = (pattern: string, permission = "bash"): PermissionRule => ({
   permission,

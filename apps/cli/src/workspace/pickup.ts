@@ -15,7 +15,7 @@
  * has none, and then the session's last activity is the best we can say.
  */
 
-import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { cliFetchRead } from "../cliHttp.js";
 import {
   BRANCH_TRAILER,

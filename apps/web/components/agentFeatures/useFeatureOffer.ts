@@ -8,8 +8,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { snippetAvailableForTeams } from "@codecast/policy/teamFeatures";
 import {
-  snippetAvailableForTeams,
   snippetBySlug,
   type SnippetDescriptor,
 } from "@codecast/shared/contracts";

@@ -22,7 +22,7 @@
 // blob that claims to be a builtin, a client id nobody can address.
 
 import { describe, expect, test } from "bun:test";
-import { manifestHash } from "@codecast/shared/contracts";
+import { manifestHash } from "@codecast/capabilities/capabilities";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
 import {

@@ -3,11 +3,11 @@
  * so the store's own slices can ask it; lib/teamFeatures builds the hooks on
  * top of it.
  */
+import { featureVendorBlock } from "@codecast/policy/vendorCoverage";
 import {
-  featureVendorBlock,
   TEAM_FEATURES,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { defineFeatures, holderHasFeature } from "@platform/flags";
 
 /** codecast's catalog as a @platform/flags catalog. Shared with the off-feature

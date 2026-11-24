@@ -10,12 +10,11 @@ import { pushReceiptTables } from "./pushReceiptsSchema";
 import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { AGENT_STATUSES, DAEMON_COMMANDS } from "@codecast/shared/contracts";
 import {
-  AGENT_STATUSES,
-  DAEMON_COMMANDS,
   TEAM_FEATURE_KEYS,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { SECRET_EVENT_KINDS } from "@codecast/shared/contracts/secrets";
 import {
   cloudAutoscaleValidator,

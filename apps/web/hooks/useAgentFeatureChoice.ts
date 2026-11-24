@@ -4,9 +4,9 @@
 import { useMemo, useState } from "react";
 import {
   SNIPPET_CATALOG,
-  snippetAvailableForTeams,
   type SnippetDescriptor,
 } from "@codecast/shared/contracts";
+import { snippetAvailableForTeams } from "@codecast/policy/teamFeatures";
 import { useInboxStore } from "../store/inboxStore";
 import { useDevices } from "../components/DeviceBadge";
 import {

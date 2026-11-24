@@ -165,11 +165,11 @@ export function reconcileOnce(
 
 import {
   requiresExplicitConsent,
-  resolveCapabilities,
   type CapabilityBinding,
   type DesiredState,
   type ExecutionSurface,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/capabilities";
+import { resolveCapabilities } from "@codecast/shared/contracts";
 import { applyBuiltins } from "./builtinDriver.js";
 import { deviceId as localDeviceId } from "../remote/device.js";
 import { currentProjectScopeKey } from "./equip.js";

@@ -14,14 +14,14 @@ export {
   type McpRegistryPage,
   type McpRegistryServer,
   type McpServerSurface,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/mcpRegistry";
 import {
   MCP_REGISTRY_BASE_URL,
   parseRegistryPage,
   parseRegistryDetail,
   type McpRegistryPage,
   type McpRegistryServer,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/mcpRegistry";
 
 /* --------------------------------------------------------------------------
  * Fetching

@@ -23,7 +23,7 @@ import {
   type HeartbeatTeamPolicy,
   type RestrictionKey,
   type TeamPolicy,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/managedPolicy";
 import { parseWorkspaceKey } from "./accessKeys";
 
 type DbCtx = { db: any };

@@ -14,7 +14,7 @@ import {
   keepableFor,
   keptPatterns,
   permissionRuleLabel,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import {
   permissionProjectKey,
   ruleRequestValidator,

@@ -26,10 +26,8 @@ import { resolveTaskGitContext } from "./lib/taskLaunch";
 import { answerCore } from "./sessionDecisions";
 import { roleOfRun } from "./lib/actor";
 import { roleMergeAllowance } from "./lib/regretRead";
-import {
-  repositoryFromRemote,
-  normalizeSubagentCaps,
-} from "@codecast/shared/contracts";
+import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
+import { normalizeSubagentCaps } from "@codecast/shared/contracts";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
 import {
   SHIP_DEFAULT_MERGE,

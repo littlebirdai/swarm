@@ -22,7 +22,7 @@ import {
   workspaceFeatureState,
   type FeatureState,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { TEAM_FEATURE_CATALOG, teamHasFeature } from "./teamFeatureRule";
 
 export { TEAM_FEATURE_CATALOG, teamHasFeature };

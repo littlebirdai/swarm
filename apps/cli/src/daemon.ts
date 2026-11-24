@@ -783,7 +783,7 @@ import {
   codexApprovalRequest,
   keptPatterns,
   type PermissionRuleRequest,
-} from "@codecast/shared/contracts/permissionRules";
+} from "@codecast/policy/permissionRules";
 import {
   PermissionHookWaiters,
   glanceCommand,
@@ -1170,7 +1170,6 @@ import type {
   AgentClientId,
   AgentDefinitionSpec,
   CloudSessionSource,
-  HeartbeatTeamPolicy,
   AgentPaneReadiness,
   AgentStatus,
   DeviceSnippetSettings,
@@ -1181,6 +1180,7 @@ import type {
   ResourceProcess,
   StableLaunchPrefs,
 } from "@codecast/shared/contracts";
+import type { HeartbeatTeamPolicy } from "@codecast/policy/managedPolicy";
 import { planGatedSnippets } from "./gatedSnippets";
 import { readThreadStateStamp } from "./threadStateStamp.js";
 import { supervisedBySystemdUnit } from "./systemdDaemonUnit.js";

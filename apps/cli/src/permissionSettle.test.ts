@@ -1,7 +1,7 @@
 // Codecast's rules settle a call before any card: the daemon asks
 // permissionRules.check first and opens a card only when it says "ask".
 import { describe, expect, test } from "bun:test";
-import { shellRequest } from "@codecast/shared/contracts/permissionRules";
+import { shellRequest } from "@codecast/policy/permissionRules";
 import { handlePermissionRequest } from "./permissionHandler";
 import {
   parsePermissionHookInput,

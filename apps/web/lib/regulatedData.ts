@@ -4,7 +4,7 @@
 import {
   parseTeamPolicy,
   teamsHoldRegulatedData,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/managedPolicy";
 import { useInboxStore } from "../store/inboxStore";
 
 /** Calls `onChange` with the viewer's regulated-data state now and whenever the teams feed changes it. */

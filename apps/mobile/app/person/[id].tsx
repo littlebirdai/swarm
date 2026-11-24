@@ -15,7 +15,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { goToTab } from "@/lib/tabNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Ionicons } from "@expo/vector-icons";
-import { teamFeatureEnabled } from "@codecast/shared/contracts";
+import { teamFeatureEnabled } from "@codecast/policy/teamFeatures";
 import { personRefOf } from "@codecast/shared/entities";
 import { isActiveTask } from "@codecast/shared/tasks";
 import {

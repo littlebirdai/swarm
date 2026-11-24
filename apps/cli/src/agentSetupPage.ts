@@ -8,7 +8,7 @@
 import {
   agentSetupPageUrl,
   type AgentSetupTool,
-} from "@codecast/shared/contracts";
+} from "@codecast/capabilities/agentToolSetup";
 import { webBaseUrl } from "./config/readLocalConfig.js";
 import { deviceId } from "./remote/device.js";
 

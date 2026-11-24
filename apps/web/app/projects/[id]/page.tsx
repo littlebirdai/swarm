@@ -11,7 +11,7 @@
 // project by its `pj-` id; an older link by its Convex id moves to that form
 // once the store names it.
 import { ShareControl } from "../../../components/ShareControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import { ProjectAbout } from "./ProjectAbout";
 import { useMemo, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";

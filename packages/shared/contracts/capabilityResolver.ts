@@ -29,7 +29,7 @@ import {
   type ResolvedCapability,
   type ScopeKind,
   parseAnyCapabilitySlug,
-} from "./capabilities";
+} from "@codecast/capabilities/capabilities";
 import {
   AGENT_CLIENTS,
   capabilitySupport,

@@ -7,7 +7,7 @@ import {
   loadWorking,
   type LineLoads,
 } from "./orgLine";
-import { normalizeGitOrigin } from "@codecast/shared/contracts";
+import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import { HOST, NOW, ROLE, fixtures } from "./orgLine.testkit";
 
 // A pass reads each machine once, however many roles it serves. On Nov 22 Union's pool machines held ~2,500 runs

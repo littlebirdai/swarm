@@ -18,10 +18,8 @@ import { Doc, Id } from "./_generated/dataModel";
 import { requireUser } from "./lib/auth";
 import { canAccessConversation } from "./lib/access";
 import { normalizeRepository } from "./lib/gitRefs";
-import {
-  repositoryFromRemote,
-  SESSION_ACTIVITY_FRESH_MS,
-} from "@codecast/shared/contracts";
+import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
+import { SESSION_ACTIVITY_FRESH_MS } from "@codecast/shared/contracts";
 import { pathInRepository } from "@codecast/shared/search";
 import { profilePublicSessionVisible } from "./privacy";
 import {

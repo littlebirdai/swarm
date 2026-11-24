@@ -1,4 +1,4 @@
-import { parseTeamPolicy } from "@codecast/shared/contracts";
+import { parseTeamPolicy } from "@codecast/policy/managedPolicy";
 import { useInboxStore } from "../store/inboxStore";
 
 /** Whether the active team is one the viewer administers with regulated mode on. */

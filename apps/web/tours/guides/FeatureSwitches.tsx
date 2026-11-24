@@ -8,7 +8,7 @@
 import {
   teamFeatureEnabled,
   type TeamFeatureKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/policy/teamFeatures";
 import { Switch } from "../../components/ui/switch";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { activeTeamIdOf, teamMembersOf } from "../../lib/activeTeam";

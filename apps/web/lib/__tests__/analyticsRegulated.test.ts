@@ -11,7 +11,7 @@ const store = new Map<string, string>();
 };
 
 const { teamsHoldRegulatedData: regulatedDataOf } =
-  await import("@codecast/shared/contracts");
+  await import("@codecast/policy/managedPolicy");
 const analytics = await import("../analytics");
 
 describe("regulated health data", () => {

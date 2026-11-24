@@ -3,7 +3,7 @@
 // well-known documents) to its Convex site path, as codecast.sh does in prod
 // (server/index.ts), so an agent can connect to a local `cast dev`.
 import { loadEnv, type Plugin } from "vite";
-import { MCP_ROUTES } from "../../../packages/shared/contracts/agentAccess";
+import { MCP_ROUTES } from "@codecast/capabilities/agentAccess";
 
 const DEFAULT_CONVEX_URL = "https://convex.codecast.sh";
 

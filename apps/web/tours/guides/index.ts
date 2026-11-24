@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import type { TeamFeatureKey } from "@codecast/shared/contracts";
+import type { TeamFeatureKey } from "@codecast/policy/teamFeatures";
 
 export { GuideLayer } from "./GuideLayer";
 export { FeatureOfferAnywhere } from "./FeatureOfferAnywhere";

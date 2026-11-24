@@ -12,7 +12,7 @@ import { AppLoader } from "../../../components/AppLoader";
 import { DashboardLayout } from "../../../components/DashboardLayout";
 import { DocumentDetailLayout } from "../../../components/DocumentDetailLayout";
 import { ShareControl } from "../../../components/ShareControl";
-import { policyTeamOf } from "@codecast/shared/contracts";
+import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import "../../../components/editor/editor.css";
 import {
   PlanProgressBar,

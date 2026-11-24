@@ -11,7 +11,7 @@ import {
   sweepCore,
 } from "./orgLine";
 import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
-import { normalizeGitOrigin } from "@codecast/shared/contracts";
+import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import {
   HOST,
   MATE,
