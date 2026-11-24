@@ -18,7 +18,7 @@ import {
   WORKING_SET_RECENCY_MS,
   inboxEpoch,
 } from "@codecast/inbox/inboxProjection";
-import { addressesAgent } from "@codecast/shared/contracts";
+import { addressesAgent } from "@codecast/calls/transcriptChunk";
 import {
   parseThreadStateStatus,
   threadStateHeadline,

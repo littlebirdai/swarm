@@ -53,7 +53,7 @@ import {
   agentSpokenNames,
   huddleVoiceAskHeader,
   huddleVoiceInstructions,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import { characterOf } from "@codecast/org/sessionCharacter";
 import { spokenAgentLine } from "@codecast/messages/plainText";

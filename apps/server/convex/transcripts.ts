@@ -53,7 +53,7 @@ import {
   liveFeedChunkHeader,
   needsFullBrief,
   ownRoomChunkHeader,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 import {
   formatHuddleDigest,
   formatHuddleSummaryTag,
