@@ -1,4 +1,4 @@
-import ts from "/Users/rentamac/swarm/node_modules/typescript/lib/typescript.js";
+import ts from "typescript";
 import { readFileSync, existsSync, statSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { dirname, join, relative, resolve } from "node:path";

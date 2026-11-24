@@ -8,14 +8,25 @@ for (const l of readFileSync("assign.txt", "utf8").trim().split("\n")) {
   const [p, r] = l.split(": ");
   for (const m of r.split(" ")) A[m] = p;
 }
-type PR = { wave: number; id: string; pkg: string; mods: string[] };
+type PR = { stage: number; id: string; pkg: string; mods: string[] };
+const STAGE_NAMES: Record<number, string> = {
+  1: "preparation",
+  2: "packages that depend only on existing packages",
+  3: "agent clients, session state, replay and search",
+  4: "entities, tasks, ingest and the web side of agent clients",
+  5: "goals, connectors, judges, vault and the first part of line",
+  6: "org proposals and the org log",
+  7: "messages and org templates",
+  8: "inbox, secrets, snippets and the rest of line and triggers",
+  9: "the last decision modules and the end of the barrel",
+};
 const prs: PR[] = [];
 const prOf: Record<string, PR> = {};
-for (const l of readFileSync("waves.txt", "utf8").trim().split("\n")) {
-  if (!l.trim() || l.startsWith("#")) continue;
-  const m = l.match(/^W(\d+)\s+(\S+)\s+(\S+):\s*(.*)$/)!;
+for (const l of readFileSync("stages.txt", "utf8").trim().split("\n")) {
+  if (!l.trim()) continue;
+  const m = l.match(/^(\d+)\s+(\S+)\s+(\S+):\s*(.*)$/)!;
   const pr = {
-    wave: +m[1],
+    stage: +m[1],
     id: m[2],
     pkg: m[3],
     mods: m[4].split(/\s+/).filter(Boolean),
@@ -110,13 +121,13 @@ for (const [t, d] of R.testEdges as [string, string][]) {
 if (unowned.size) console.log("UNOWNED TESTS", [...unowned]);
 const rows: any[] = [];
 for (const pr of prs.sort(
-  (a, b) => a.wave - b.wave || a.id.localeCompare(b.id),
+  (a, b) => a.stage - b.stage || a.id.localeCompare(b.id),
 )) {
   const problems: string[] = [];
   for (const m of pr.mods)
     for (const d of deps.get(m) ?? []) {
       if (d === "hash/fnv1a32") {
-        if (pr.wave < 1) problems.push(`${m}->${d}`);
+        if (pr.stage < 2) problems.push(`${m}->${d}`);
         continue;
       }
       const q = prOf[d];
@@ -125,7 +136,8 @@ for (const pr of prs.sort(
         continue;
       }
       if (q === pr) continue;
-      if (q.wave >= pr.wave) problems.push(`${m}->${d} (${q.id} W${q.wave})`);
+      if (q.stage >= pr.stage)
+        problems.push(`${m}->${d} (${q.id}, stage ${q.stage})`);
     }
   const files = new Set<string>();
   const byArea: Record<string, number> = {};
@@ -149,10 +161,10 @@ for (const pr of prs.sort(
         ).replace("apps/", "");
     byArea[a] = (byArea[a] ?? 0) + 1;
   }
-  const breaks: string[] = [];
   rows.push({ ...pr, importers: files.size, byArea, problems });
   console.log(
-    `W${pr.wave} ${pr.id} [${pr.pkg}] mods=${pr.mods.length} importers=${files.size} ${JSON.stringify(byArea)}${problems.length ? " PROBLEMS: " + problems.join("; ") : ""}`,
+    `stage ${pr.stage} (${STAGE_NAMES[pr.stage]}) ${pr.id} [${pr.pkg}] mods=${pr.mods.length} importers=${files.size} ${JSON.stringify(byArea)}${problems.length ? " PROBLEMS: " + problems.join("; ") : ""}`,
   );
 }
-writeFileSync("waves.json", JSON.stringify(rows, null, 1));
+writeFileSync("stages.json", JSON.stringify(rows, null, 1));
+console.log(`problems: ${rows.reduce((n, r) => n + r.problems.length, 0)}`);

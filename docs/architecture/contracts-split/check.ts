@@ -144,7 +144,10 @@ function sc(v: string, wt: boolean) {
   }
 }
 for (const n of nodes) if (!ix.has(n)) sc(n, process.argv[3] !== "notests");
-console.log("PACKAGE SCCs (incl tests):", JSON.stringify(sccs));
+console.log(
+  `PACKAGE SCCs (${process.argv[3] === "notests" ? "without" : "with"} test edges):`,
+  JSON.stringify(sccs),
+);
 for (const c of sccs)
   for (const a of c)
     for (const [b, w] of pe.get(a) ?? [])

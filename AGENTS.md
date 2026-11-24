@@ -6,20 +6,31 @@ Work directly in the main checkout. Other sessions may have uncommitted work in 
 
 ## Repository layout
 
-`apps/` holds applications that run or ship. Keep each app's `*.test.ts` files beside its source.
-`packages/` holds small, single-purpose libraries. To add a library, create a
-directory under `packages/` with a `package.json`. Set `name` to `@codecast/<name>`
-and set `exports` or `main` to its entry point. Put source in `src/` and tests in
-`test/`. Add the library as a `workspace:*` dependency of each importer. Run
-`bun install` to update the lockfile. Typecheck with `cast check packages`.
-CI and the source walkers discover the library automatically.
+`apps/` contains the applications that run or ship. Put the `*.test.ts` files of an app next to their source files.
 
-`tests/` holds cross-package test suites; one with its own `package.json` is a workspace member.
-`platform/` is a generated mirror. Never restructure it by hand.
+`packages/` contains small libraries, each with one purpose. To add a library:
+
+1. Make a directory under `packages/` with a `package.json`.
+2. Set `name` to `@codecast/<name>`, and set `exports` or `main` to the entry point.
+3. Put the source in `src/` and the tests in `test/`. `cast check packages` examines only these two folders of each library, and it does not examine `packages/shared`.
+4. Add the library as a `workspace:*` dependency of each workspace that imports it.
+5. Run `bun install` to update the lockfile.
+6. Typecheck with `cast check packages`.
+
+CI and the source walkers find the new library automatically.
+
+`tests/` contains test suites that cross packages. A suite with its own `package.json` is a workspace member.
+`platform/` is a generated mirror. Do not change its structure by hand.
 
 ## Vendored platform packages
 
-In Swarm, there is no canonical `~/src/platform` to vendor from, so Swarm owns its copy: change `platform/packages/<name>` here, run that package's tests (`scripts/vendor-platform.sh --test`), then `scripts/vendor-platform.sh --write-manifest` and commit the manifest with the change. A re-vendor from the canonical repo would overwrite Swarm's changes; today that is `@platform/evals` attribution taking its freeze paths from the caller (`freezePointerPath`, `freezeDirs`). The rest of this section describes Codecast's setup.
+In Swarm, there is no canonical `~/src/platform` to copy from. Thus, Swarm owns its copy of `platform/packages/`. To change a platform package:
+
+1. Change `platform/packages/<name>` in this repository.
+2. Run the tests of the mirrored packages: `scripts/vendor-platform.sh --test`.
+3. Run `scripts/vendor-platform.sh --write-manifest`, and commit the manifest with the change.
+
+A new copy from the canonical repository will overwrite the changes that Swarm made. Today, Swarm has one such change: the attribution in `@platform/evals` gets its freeze paths from the caller (`freezePointerPath`, `freezeDirs`). The rest of this section describes the setup of Codecast.
 
 `platform/packages/` is a GENERATED mirror of the shared `@platform/*` packages whose canonical home is `~/src/platform`. Never edit it by hand: change the canonical copy, then run `scripts/vendor-platform.sh` to refresh the mirror (`--check` reports drift). The script also purges bun's `node_modules/.bun/@platform+*` copies and `apps/web/node_modules/.vite` and reinstalls, because bun keeps serving the stale copy and vite the stale module graph otherwise. A running dev server restarts itself when that cache disappears (`plugins/depsCacheGuard.ts`); never delete the cache under a live server without that plugin, or every dep it has not served yet answers 504 "Outdated Optimize Dep". The mirror exists because Railway, the CLI release workflow and the desktop build all run from a fresh clone, so every `@platform` dep must point inside the checkout (`file:../../platform/packages/<name>`), never at `~/src/platform`. The package set is derived from the workspace `package.json` files, so adopting a new platform package is one dep line plus a rerun. A real vendor run also rewrites `platform/package.json`, the mirror's own workspace root generated from the canonical repo's root, `platform/tsconfig.base.json`, the base every mirrored tsconfig extends, and `platform/vendor-manifest.txt`, a content hash per mirrored package and of those root files; commit them with the mirror. CI cannot run `--check`, because a runner has no `~/src/platform`, so the `test-platform` job runs `--check-manifest` instead: it re-hashes the mirror against that manifest and re-reads the dep lines the mirror was generated from, which catches a hand-edited mirror, a package adopted without a rerun, and a dep pointing outside the checkout. The same job runs `scripts/vendor-platform.sh --test`: it installs the mirror once as that workspace, the way the canonical repo installs, so a package's `@platform` peer resolves to its mirrored sibling rather than npm and the shared test tooling sits at the root; then it runs every mirrored package's own `bun test` and names each red one. The repo's own lockfile never sees the mirror's workspace.
 
@@ -31,9 +42,11 @@ A watcher built while other sessions were editing several packages keeps checkin
 
 ## Lint
 
-Run `bun run lint` from the repository root. Oxlint checks the whole repository except `platform/`, the vendored mirror. The baseline (`lint-baseline.json`) tracks existing violations by file and rule, and a renamed file keeps its counts. Baseline counts can only decrease. After you remove violations, or move or delete a file the baseline names, run `bun run lint:prune` and commit the baseline update; lint fails while the baseline names a file that no longer exists.
+Run `bun run lint` from the root of the repository. Oxlint examines the full repository, except `platform/` (the vendored mirror), generated files and build output. The list is `ignorePatterns` in `.oxlintrc.json`.
 
-Code comments are forbidden except for semantic tool directives. The baseline covers existing code comments. Keep new code free of explanatory comments. Use clear names or record the rationale in the relevant documentation. A lint disable comment (`oxlint-disable`, `eslint-disable`) is not a way around a rule: new code adds none.
+The baseline file `lint-baseline.json` records the current violations by file and rule. A renamed file keeps its counts. The counts in the baseline can only decrease. Lint fails while the baseline names a file that does not exist. Thus, after you remove violations, or move or delete a file that the baseline names, run `bun run lint:prune`. Then commit the changed baseline.
+
+Code comments are not permitted, except semantic tool directives. The baseline includes the code comments that exist today. Do not add explanatory comments to new code. Use clear names, or write the reason in the applicable documentation. A lint disable comment (`oxlint-disable`, `eslint-disable`) is not a way around a rule. Do not add one in new code.
 
 ## Tests
 

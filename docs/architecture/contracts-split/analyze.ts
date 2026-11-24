@@ -1,4 +1,4 @@
-import ts from "/Users/rentamac/swarm/node_modules/typescript/lib/typescript.js";
+import ts from "typescript";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
