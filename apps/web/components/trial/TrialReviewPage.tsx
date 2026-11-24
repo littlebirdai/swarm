@@ -19,7 +19,7 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
   formatCountdown,
   USAGE_WARN_PERCENT,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, RotateCcw } from "lucide-react";
 import { PageHeader } from "../ui/page-header";

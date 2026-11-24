@@ -14,7 +14,7 @@ import {
   fallbackProfiles,
   nextPressuredReset,
   switchUsagePercent,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { Avatar } from "../../tasks/TaskCommentStream";
 import { api as _api } from "@codecast/convex/convex/_generated/api";

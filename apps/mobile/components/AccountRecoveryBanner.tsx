@@ -8,7 +8,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { isBlockedConversation } from "@codecast/convex/convex/ccAccountsShared";
-import { standingLabel } from "@codecast/shared/contracts";
+import { standingLabel } from "@codecast/usage/usageLimits";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import {

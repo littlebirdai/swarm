@@ -29,7 +29,7 @@ import {
 } from "./ccAccounts.js";
 import { removePoolProfile } from "./ccPool.js";
 import { refreshUsageSnapshots } from "./ccUsagePoll.js";
-import { fallbackProfiles } from "@codecast/shared/contracts";
+import { fallbackProfiles } from "@codecast/usage/usageLimits";
 
 // The fleet store (see "Fleet store" in ccAccounts.ts) against a sandboxed
 // $HOME with the file-backed store, so nothing touches the real keychain.

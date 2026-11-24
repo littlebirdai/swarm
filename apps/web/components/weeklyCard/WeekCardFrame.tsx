@@ -3,13 +3,10 @@
 // (1200x630) and scaled to the column, so the preview, the public page and
 // the unfurl image are the same picture.
 import { useRef, useState } from "react";
-import type { WeekCardStats } from "@codecast/shared/contracts/weeklyCard";
+import type { WeekCardStats } from "@codecast/usage/weeklyCard";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { WeekCardView } from "./WeekCardView";
-import {
-  WEEK_CARD_H,
-  WEEK_CARD_W,
-} from "@codecast/shared/contracts/weeklyCard";
+import { WEEK_CARD_H, WEEK_CARD_W } from "@codecast/usage/weeklyCard";
 
 export function WeekCardFrame({
   stats,

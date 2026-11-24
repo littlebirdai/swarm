@@ -50,7 +50,7 @@ import {
   nextPressuredReset,
   USAGE_WARN_PERCENT,
   worstUsagePercent,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import {
   BASE_CHECK,
   CARD_GATE_NODE_ID,

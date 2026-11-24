@@ -36,7 +36,6 @@
     "./contracts/judges": "./contracts/judges.ts",
     "./contracts/peerTransport": "./contracts/peerTransport.ts",
     "./contracts/dataSync": "./contracts/dataSync.ts",
-    "./contracts/weeklyCard": "./contracts/weeklyCard.ts",
     "./contracts/agentJudges": "./contracts/agentJudges.ts",
     "./contracts/judgeReview": "./contracts/judgeReview.ts",
     "./contracts/judgeFix": "./contracts/judgeFix.ts",

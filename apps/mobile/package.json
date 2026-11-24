@@ -43,6 +43,7 @@
     "@codecast/signals": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
+    "@codecast/usage": "workspace:*",
     "@codecast/web": "workspace:*",
     "@convex-dev/auth": "0.0.79",
     "@expo/vector-icons": "^15.0.3",

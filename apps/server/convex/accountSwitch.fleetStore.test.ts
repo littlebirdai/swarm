@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { insertSwitchCommands } from "./accountSwitch";
 import { makeFakeDb } from "./testDb";
-import { fleetModels } from "@codecast/shared/contracts";
+import { fleetModels } from "@codecast/usage/usageLimits";
 import {
   activeTokenProfile,
   continueNeedsRestart,

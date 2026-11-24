@@ -1,9 +1,6 @@
 // The publish review for a weekly card (components/consequential): what goes
 // on the open web and what stays out. Pure, so it is tested without a browser.
-import {
-  weekRangeLabel,
-  type WeekCardStats,
-} from "@codecast/shared/contracts/weeklyCard";
+import { weekRangeLabel, type WeekCardStats } from "@codecast/usage/weeklyCard";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";
 
 export function weekCardLedger(

@@ -2,7 +2,7 @@
 // different messaging policies (convex/planLog.ts `telemetry`). Run the same
 // work as two plans, one per policy, then `cast plan eval <a> --compare <b>`.
 
-import { formatCount } from "@codecast/shared/contracts/weeklyCard";
+import { formatCount } from "@codecast/usage/weeklyCard";
 
 export type PlanTelemetry = {
   plan: string;

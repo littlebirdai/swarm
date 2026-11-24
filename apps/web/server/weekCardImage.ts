@@ -9,12 +9,9 @@ import { readFile } from "fs/promises";
 import { createRequire } from "module";
 import { join } from "path";
 import type { Hono } from "hono";
-import type { WeekCardStats } from "@codecast/shared/contracts/weeklyCard";
+import type { WeekCardStats } from "@codecast/usage/weeklyCard";
 import { WeekCardView } from "../components/weeklyCard/WeekCardView";
-import {
-  WEEK_CARD_H,
-  WEEK_CARD_W,
-} from "@codecast/shared/contracts/weeklyCard";
+import { WEEK_CARD_H, WEEK_CARD_W } from "@codecast/usage/weeklyCard";
 import { fetchShared } from "./shareData";
 
 const require = createRequire(import.meta.url);

@@ -7,7 +7,7 @@ import {
   isWindowRolled,
   livePercent,
   type CcUsage,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 
 /** What a model-room pin records on the conversation (`cc_account_model_pin`). */
 export type ModelPin = {

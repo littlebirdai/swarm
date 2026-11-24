@@ -41,7 +41,7 @@ import {
   isUsageExhausted,
   livePercent,
   worstUsagePercent,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import {
   transcriptFromStream,
   type ReviewTranscript,

@@ -8,7 +8,7 @@
 // writes. Opening an account to the line hosts goes through the review,
 // because line work then spends it.
 import { Network } from "lucide-react";
-import { worstUsagePercent } from "@codecast/shared/contracts";
+import { worstUsagePercent } from "@codecast/usage/usageLimits";
 import { SettingsSection } from "./ui";
 import { useDevices } from "../DeviceBadge";
 import { useInboxStore } from "../../store/inboxStore";

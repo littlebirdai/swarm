@@ -14,7 +14,7 @@ import {
   describeDecision,
   formatAgo,
   type RecoveryDecision,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import type { RecoveryMode } from "@codecast/convex/convex/ccAccountsShared";
 import {
   RECOVERY_MODE_COPY,

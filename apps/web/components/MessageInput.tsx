@@ -45,7 +45,7 @@ import { useRunnerSilence } from "../hooks/useRunnerSilence";
 import { HOSTED_IMAGE_REFUSAL } from "@codecast/hosted-assistant/assistant";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useCoarseNow, useNowWhen } from "../hooks/useCoarseNow";
-import { formatCountdown } from "@codecast/shared/contracts";
+import { formatCountdown } from "@codecast/usage/usageLimits";
 import { HIBERNATED_COPY } from "@codecast/sessions/hibernation";
 import { parseLimitResetAt } from "../lib/limitReset";
 import {

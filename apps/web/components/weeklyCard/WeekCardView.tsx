@@ -12,7 +12,7 @@ import {
   weekCardFigures,
   weekRangeLabel,
   type WeekCardStats,
-} from "@codecast/shared/contracts/weeklyCard";
+} from "@codecast/usage/weeklyCard";
 
 // Solarized dark, the product's own palette.
 const C = {

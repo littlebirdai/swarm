@@ -7,7 +7,7 @@
 // one fleet that moves together. Pure, so the grid and its toggles are tested
 // without a browser.
 import { lineHostsRefuse } from "@codecast/convex/convex/ccSwitchAhead";
-import { rankByHeadroom, type CcUsage } from "@codecast/shared/contracts";
+import { rankByHeadroom, type CcUsage } from "@codecast/usage/usageLimits";
 
 export type GridMachine = {
   device_id: string;

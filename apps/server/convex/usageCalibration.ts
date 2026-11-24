@@ -32,7 +32,7 @@ import { Id } from "./_generated/dataModel";
 import {
   weightedTokens,
   type UsageCalibration,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 
 /** One slot of traffic. Long enough that an integer percent moves by more than
  *  its own rounding error, short enough that a 5h window holds several. */

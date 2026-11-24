@@ -27,7 +27,7 @@ import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentRootId,
 } from "@codecast/agent-clients/cloudAgents";
-import { peggedWindow, planTypeLabel } from "@codecast/shared/contracts";
+import { peggedWindow, planTypeLabel } from "@codecast/usage/usageLimits";
 import { readActiveCodexAuth } from "../codexAccounts.js";
 import {
   codexAccessExpired,
