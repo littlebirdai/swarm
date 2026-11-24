@@ -153,7 +153,7 @@ export function shapeFinalMessage(text: string): string {
 }
 
 // Pure shaping over the newest-first raw rows, shared by the query below and
-// the settle eval (packages/evals/src/surfaces/settle) so what the model is
+// the settle eval (apps/evals/src/surfaces/settle) so what the model is
 // graded on is what it sees in prod.
 export function shapeSettleTail(
   newestFirst: Array<{ role?: string; content?: string | null; tool_results?: unknown[] | null; tool_calls?: unknown[] | null }>,

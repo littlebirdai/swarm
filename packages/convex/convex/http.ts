@@ -4765,7 +4765,7 @@ const emailUnsubscribe = httpAction(async (ctx, request) => {
 http.route({ path: "/cli/email/unsubscribe", method: "GET", handler: emailUnsubscribe });
 http.route({ path: "/cli/email/unsubscribe", method: "POST", handler: emailUnsubscribe });
 
-// The caller's own suggestion profile, read by the suggest eval (packages/evals).
+// The caller's own suggestion profile, read by the suggest eval (apps/evals).
 // Only api_token is forwarded: the token decides whose profile it is, and any
 // other field in the body, a user id included, never reaches the query.
 cliRoute("/cli/suggestion-profile", async (ctx, body) =>

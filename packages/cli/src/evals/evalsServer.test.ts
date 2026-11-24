@@ -1,6 +1,6 @@
 // The /evals bridge over a STANDALONE loopback server on port 0 with a fixed
 // token, against throwaway checkouts and EVALS_HOMEs in a temp dir. The
-// "checkout" is a scratch git repo whose packages/evals/src/index.ts is a fake
+// "checkout" is a scratch git repo whose apps/evals/src/index.ts is a fake
 // api child: it records each exec in a marker file and echoes requests back,
 // so the bridge's real argv (`bun <entry> api --stdio`) is what runs. Never
 // touches the daemon, the real EVALS_HOME or the real eval tool.
@@ -518,8 +518,8 @@ describe("agreement with the eval tool", () => {
     expect(script.split("\n").slice(0, 3)).toEqual([...EVALS_SCRIPT_HEADER]);
   });
 
-  test("the default EVALS_HOME is the one packages/evals/src/paths.ts resolves", async () => {
-    const pathsFile = path.join(import.meta.dir, "..", "..", "..", "evals", "src", "paths.ts");
+  test("the default EVALS_HOME is the one apps/evals/src/paths.ts resolves", async () => {
+    const pathsFile = path.join(import.meta.dir, "..", "..", "..", "..", "apps", "evals", "src", "paths.ts");
     const { evalsHome } = (await import(pathsFile)) as { evalsHome: () => string };
     const saved = process.env.CODECAST_EVALS_HOME;
     try {

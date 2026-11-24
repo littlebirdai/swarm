@@ -4,7 +4,7 @@
 // its history per session, and how many failures each invariant caught.
 //
 // A leaf with no runtime imports, like replay.ts, so the eval tool's api child
-// (packages/evals/src/api/simHistory.ts) and the web fixture world
+// (apps/evals/src/api/simHistory.ts) and the web fixture world
 // (components/evals/__fixtures__/world.ts) fold the same history the same way.
 // Reading a failure's result.json is the caller's job (`invariantOf`).
 import type { SimCatalogResponse, SimGridCell, SimMode, SimRunRow, SimScenario, SimSession } from "@codecast/shared/contracts/evalsApi";

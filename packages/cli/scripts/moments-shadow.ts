@@ -27,7 +27,7 @@ import { keepOnHost, runExtractor, fileVersion, JUDGES_DIR, MOMENTS_DIR, type Mo
 import { parseExtractorHeader, parseExtractorOutput, type MomentRecord } from "@codecast/shared/contracts/moments";
 import { judgeRequest, narrowBrief, parseJudgeReply, parseJudgeSpec, type ExpectationsBrief } from "@codecast/shared/contracts/judges";
 import { modelCost, postMessages, replyText } from "../../convex/convex/lib/anthropic";
-import { evalsApiKey } from "../../evals/src/adapters/apiCall";
+import { evalsApiKey } from "../../../apps/evals/src/adapters/apiCall";
 
 const { values: a } = parseArgs({
   options: {

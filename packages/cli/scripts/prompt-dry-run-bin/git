@@ -3,7 +3,7 @@
 # first on the run's PATH, beside the guard `cast`). Without a cut it is the
 # real git, untouched.
 #
-# A served dir with a `cut` file (packages/evals/src/served.ts writeCut) is a
+# A served dir with a `cut` file (apps/evals/src/served.ts writeCut) is a
 # world as it stood at its capture, and git history is part of that world.
 # The file holds `at <iso>`, `epoch <unix seconds>` and, per repository root
 # the capture pinned, `git<TAB><root><TAB><sha>`. Inside any repository, every

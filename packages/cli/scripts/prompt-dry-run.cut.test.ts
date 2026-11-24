@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { EVERY_READ, writeCut, writeFrozenVerbs } from "../../evals/src/served.ts";
+import { EVERY_READ, writeCut, writeFrozenVerbs } from "../../../apps/evals/src/served.ts";
 
 const BIN = path.join(import.meta.dir, "prompt-dry-run-bin");
 setDefaultTimeout(60_000);

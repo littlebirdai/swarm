@@ -115,7 +115,7 @@ export async function recordMark(body: Buffer): Promise<Response> {
   return new Response("ok\n");
 }
 
-/** The served-read key of an argv (packages/evals/src/served.ts servedReadKey). */
+/** The served-read key of an argv (apps/evals/src/served.ts servedReadKey). */
 export const readKey = (argv: string[]) => new Bun.CryptoHasher("sha256").update(argv.map((a) => `${a}\x1f`).join("")).digest("hex");
 
 /**

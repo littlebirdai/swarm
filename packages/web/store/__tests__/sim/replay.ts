@@ -3,7 +3,7 @@
 //
 // A leaf with no runtime imports, so every party builds the same lines from
 // one place: report.ts and scripts/sim.ts here, and the eval tool's api child
-// (packages/evals/src/api/simHistory.ts), which cannot load report.ts (it
+// (apps/evals/src/api/simHistory.ts), which cannot load report.ts (it
 // imports the convex payload denylist) or net.ts (it imports the store).
 import type { Channel } from "./net";
 

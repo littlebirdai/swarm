@@ -145,7 +145,7 @@ function toolInstalls(): { files: string[]; dirs: string[] } {
   return { files: [...files].filter(under), dirs: [...dirs] };
 }
 
-/** The evals data home (packages/evals paths.ts evalsHome): labels, every freeze, other reps' runs. */
+/** The evals data home (apps/evals paths.ts evalsHome): labels, every freeze, other reps' runs. */
 const evalsHome = (): string => process.env.CODECAST_EVALS_HOME || path.join(realHome(), ".local", "share", "codecast", "evals");
 
 /**

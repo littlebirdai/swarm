@@ -102,12 +102,12 @@ describe("reach", () => {
     const read = (path: string) => `import { readFileSync } from "node:fs";\nreadFileSync(${path});`;
     const areas = (file: string, text: string, own: string) => literalReach(file, text, own).map(([area]) => area);
     expect(areas("packages/web/lib/desktop.test.ts", read(`join(import.meta.dir, "..", "..", "cli", "src", "observe.ts")`), "web")).toEqual(["cli"]);
-    expect(areas("packages/evals/src/x.test.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual(["web"]);
+    expect(areas("apps/evals/src/x.test.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual(["web"]);
     // A relative path through a workspace root is still this repository, from product code too.
     expect(areas("packages/cli/src/browser/hostExtension.ts", read(`join(import.meta.dir, "../../../../apps/browser-extension")`), "cli")).toEqual(["extension"]);
     expect(areas("packages/cli/src/x.ts", read(`join(import.meta.dir, "..", "..", "..", "apps", "browser-extension")`), "cli")).toEqual(["extension"]);
     // From product code a rooted path is usually someone else's checkout.
-    expect(areas("packages/evals/src/x.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual([]);
+    expect(areas("apps/evals/src/x.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual([]);
   });
 
   test("every area a job's files reach is that job's or reached only by files that always run", () => {

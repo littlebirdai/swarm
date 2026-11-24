@@ -13,7 +13,7 @@
 
 export const AREAS = [
   "cli",
-  // packages/evals, the eval home. Its own area rather than part of "cli":
+  // apps/evals, the eval home. Its own area rather than part of "cli":
   // web tests read its token files, so folding it into "cli" would make every
   // cli change run the web suite.
   "evals",
@@ -113,7 +113,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   ["cli", ["packages/cli/"]],
   // The eval home (docs/architecture/evals-home.md). Its unit tests run as a
   // step of test-cli.
-  ["evals", ["packages/evals/"]],
+  ["evals", ["apps/evals/"]],
   ["web", ["packages/web/"]],
   ["convex", ["packages/convex/"]],
   ["shared", ["packages/shared/"]],

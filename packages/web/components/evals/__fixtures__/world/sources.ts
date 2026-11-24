@@ -1,6 +1,6 @@
 // Part of the fixture world (../world.ts), which every caller imports. The
 // world as the shared handler reads a product (@platform/evals/query
-// EvalsSources), field for field as packages/evals/src/api/sources.ts hands
+// EvalsSources), field for field as apps/evals/src/api/sources.ts hands
 // over codecast's real homes: the rows, the registry, the freezes, the run
 // folders, git, the bisects and the sim. Every verdict, flip, epoch, ledger
 // and attribution a page shows is then the engine's own. Nothing here is real data.

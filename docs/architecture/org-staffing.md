@@ -1395,7 +1395,7 @@ the caller, the target and the anchors and builds the roster; a landing is
 `routeCommand.ts`. The router is `lib/orgRouter.ts` (`routerRequest`,
 `parseRouterReply`, `routerDecision`, `ROUTER_CONFIDENT` 0.8 and
 `ROUTER_MARGIN` 0.3 over the runner-up's own confidence); its eval is the
-`route` surface (`packages/evals/src/surfaces/route`, refs
+`route` surface (`apps/evals/src/surfaces/route`, refs
 `route@<team>:<ct-N>` and `route@fixture:<case>`; gates `parse`, `no-misfile`,
 `owner-known`).
 
@@ -1761,7 +1761,7 @@ A person ends up managing dozens of raw top-level sessions when nothing places t
 
 **Who may file without asking.** A role whose "Starts work on its own" switch a person turned on: its filings apply as they are posted, each row marked as filed by it (`routeFilings`, `orgProposals.ts`). The Head of People's switch is off by default, so its filings wait on the card until the person turns it on. A role the Head of People hires for this work starts with the switch on, like every hire.
 
-**The prompt.** No routine and no steps: the review prompt's job line names where the person's sessions belong, and the reference lists the shape. The org-review eval's Fernhill worlds (`packages/evals/fixtures/org-review/fernhill.ts`) hold a messy inbox, a busy one and a control where every loose session is the person's own.
+**The prompt.** No routine and no steps: the review prompt's job line names where the person's sessions belong, and the reference lists the shape. The org-review eval's Fernhill worlds (`apps/evals/fixtures/org-review/fernhill.ts`) hold a messy inbox, a busy one and a control where every loose session is the person's own.
 
 ## S44. The chart's companion drawer
 

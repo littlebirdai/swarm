@@ -30,7 +30,7 @@ const ROOT = join(import.meta.dir, "..", "..");
 export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-convex": ["packages/convex/convex", "packages/convex/scripts"],
   "test-web": ["packages/web"],
-  "test-cli": ["packages/cli/src", "packages/evals/src"],
+  "test-cli": ["packages/cli/src", "apps/evals/src"],
   "test-shared": ["packages/shared"],
   "test-mobile": ["packages/mobile"],
   "test-electron": ["apps/desktop"],

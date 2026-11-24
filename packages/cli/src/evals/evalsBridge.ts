@@ -1,5 +1,5 @@
 // The daemon's side of the Evals UI (docs/architecture/evals-ui.md, 3.5): one
-// child process, `bun <checkout>/packages/evals/src/index.ts api --stdio`,
+// child process, `bun <checkout>/apps/evals/src/index.ts api --stdio`,
 // that answers the /evals/* routes over line-delimited JSON. The daemon
 // computes nothing itself and carries no eval code, so the release binary
 // keeps its promise (the repo-root `evals` script): every verdict comes from
@@ -30,17 +30,17 @@ import { execFileAsync, spawn, type ChildProcessWithoutNullStreams } from "../pr
  *  `evals` does not start with them is not a codecast checkout. */
 export const EVALS_SCRIPT_HEADER = [
   "#!/bin/sh",
-  "# ./evals: codecast's eval home (packages/evals). Never mounted under `cast`,",
+  "# ./evals: codecast's eval home (apps/evals). Never mounted under `cast`,",
   "# so the CLI's boot path and release binaries carry no eval code.",
 ] as const;
 
 /** The child's entry, relative to the checkout root. */
-export const EVALS_ENTRY = path.join("packages", "evals", "src", "index.ts");
+export const EVALS_ENTRY = path.join("apps", "evals", "src", "index.ts");
 
 /** The `api` command the child runs. A checkout at a commit from before it
  *  (a review or agent worktree that ran ./evals) has the entry but answers
  *  `api --stdio` with its help and exit 1, so it is refused up front. */
-export const EVALS_API_COMMAND = path.join("packages", "evals", "src", "commands", "api.ts");
+export const EVALS_API_COMMAND = path.join("apps", "evals", "src", "commands", "api.ts");
 
 const IDLE_MS = 10 * 60_000;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -59,7 +59,7 @@ const KILL_GRACE_MS = 5_000;
 export type EvalsReply = { status: number; body: unknown };
 
 export interface EvalsBridgeDeps {
-  /** EVALS_HOME, resolved the way packages/evals/src/paths.ts evalsHome() does. */
+  /** EVALS_HOME, resolved the way apps/evals/src/paths.ts evalsHome() does. */
   evalsHome: () => string;
   /** CODECAST_EVALS_REPO_ROOT: names the checkout directly, in place of checkout.json. */
   repoRootOverride: () => string | undefined;
@@ -78,7 +78,7 @@ export interface EvalsBridgeDeps {
   log: (msg: string) => void;
 }
 
-/** EVALS_HOME as packages/evals/src/paths.ts evalsHome() resolves it. The
+/** EVALS_HOME as apps/evals/src/paths.ts evalsHome() resolves it. The
  *  daemon cannot import the eval tool, so a test holds the two together. */
 export function evalsHomeDir(): string {
   return process.env.CODECAST_EVALS_HOME || path.join(homedir(), ".local", "share", "codecast", "evals");

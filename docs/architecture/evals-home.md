@@ -8,7 +8,7 @@ This spec was written read-only. It starts from the operator design (Design 2), 
 
 | Question | Decision |
 |---|---|
-| Where the home lives | A new workspace package `packages/evals` (`@codecast/evals`, private), run by a root launcher `./evals`. It is never mounted under `cast`. |
+| Where the home lives | A new workspace package `apps/evals` (`@codecast/evals`, private), run by a root launcher `./evals`. It is never mounted under `cast`. |
 | Replay route | Every model call goes through `packages/cli/scripts/prompt-dry-run.ts`, as pl-810's rule requires. It gains a `--call` mode for single-call surfaces. The shared request builders make the user prompt and the system prompt prod sends identical to prod's. `--max-output-tokens` plus the `prod-budget` and `model-as-pinned` gates recover most of the fidelity `claude -p` loses. Three gaps remain: temperature (claude cannot set it; `run.json` records what prod sends), a fixed preamble of about 175 input tokens that claude adds on a subscription login (an SDK identity line in the system prompt and reminders for the environment, the model and today's date, which matters to a date-sensitive prompt), and a neutral system line (`Follow the user's instructions.`) where prod sends no system prompt (title, settle, insight, call-summary, handoff, suggest). The API backend (founder decision 2) closes all three. No prod API key is ever needed. |
 | How a freeze picks its surface | A `<surface>@<ref>` prefix on the ref. `FreezeResolver.resolve` only ever sees `{messageRef, runRef}`, and tags are applied after it returns (`platform/.../cli/freeze.ts:56-57`). |
 | One concept for cases | Every case is a freeze. Settle's 17 synthetic cases, org snapshots and real moments are all freezes. The `sim` seam stays unset. |
@@ -38,12 +38,12 @@ It runs on a cadence (ct-55704) and never runs LLM calls in CI.
 
 **Done when:**
 
-1. `./evals` works from the main checkout and any worktree. `bun test packages/evals` is green in CI's `test-cli` job and makes no network or model calls.
+1. `./evals` works from the main checkout and any worktree. `bun test apps/evals` is green in CI's `test-cli` job and makes no network or model calls.
 2. Every Phase 1 surface has at least 3 freezes. Each call surface has a 5-rep baseline and org-review an 8-rep baseline, recorded under a pinned model with `model-as-pinned` passing. role-wake and anchor-brief have 3-rep smoke runs on their real freezes only (U15); their 5-rep baselines, at one tree, are still to record, and a comparison on them needs the 8 reps of 2.8.
 3. The TS org grader matches `grade.py` on three saved round-36 samples. It fails round-35's samples on `no-wrong-close` (ct-49328).
 4. `settle-eval.ts` and `suggest-eval.ts` are deleted. `~/.cache/org-eval` is an untouched archive.
 5. Both triggers are armed. Trigger A has shown a precheck skip when nothing changed, and a run that publishes when a committed source changed; that run needs the Phase 1 tree committed, because `check --stale` skips surfaces whose sources are dirty. Trigger B has no precheck, so it has no skip to show: it has run within its `--max-minutes` and published.
-6. No committed file under `packages/evals` carries real content. `freezes.guard.test.ts` enforces this.
+6. No committed file under `apps/evals` carries real content. `freezes.guard.test.ts` enforces this.
 
 ---
 
@@ -51,7 +51,7 @@ It runs on a cadence (ct-55704) and never runs LLM calls in CI.
 
 ### 2.1 Package and launcher
 
-- `packages/evals` sits inside the root `packages/*` glob. That makes it a workspace member, and `scripts/vendor-platform.sh` (`list_packages`, lines 31-35) finds its `@platform/*` dep lines.
+- `apps/evals` sits inside the root `apps/*` glob. That makes it a workspace member, and `scripts/vendor-platform.sh` finds its `@platform/*` dep lines.
 - The deps are:
   - `@platform/evals`, `@platform/cli-kit` and `@platform/snippets`, each as `file:../../platform/packages/<name>`
   - `commander ^12.1.0`
@@ -60,7 +60,7 @@ It runs on a cadence (ct-55704) and never runs LLM calls in CI.
   ```sh
   #!/bin/sh
   root="$(cd "$(dirname "$0")" && pwd)"
-  exec bun "$root/packages/evals/src/index.ts" "$@"
+  exec bun "$root/apps/evals/src/index.ts" "$@"
   ```
 - It is not mounted under `cast`. `cast` runs from source on every session's boot path, and the release binaries would ship eval code.
 - `index.ts` answers `stale` itself, before commander or the platform load, and otherwise loads `main.ts`. `main.ts` builds a commander program named `evals` and calls `registerEvals(program, sources)` and `runEvalsCli`, as eaiden does in `~/src/eaiden/tools/xrun/src/index.ts`.
@@ -137,7 +137,7 @@ export interface SurfaceImpl {
 
 ### 2.3 Data homes and privacy
 
-In git, under `packages/evals`:
+In git, under `apps/evals`:
 - `freezes/*.json`: synthetic freeze pointers only.
 - `fixtures/<surface>/<case>.json`: synthetic snapshot content, with `label` inline.
 - `src/**`: the code.
@@ -360,7 +360,7 @@ The table has one row per surface. The route, model and max_tokens (m_t) come fi
 - Only the frozen verbs answer from the snapshot. Other reads (`task show`, `plan show`, `feed`, `chat read` and the like; the org analyzer makes thousands) go to today's live workspace, so replays of one freeze on different days see different worlds. Each such read is kept under the rep's `live-reads/` and counted in `run.json.liveReads`. A closed world for a real freeze needs a capture of every read it makes, as the fixtures' worlds have.
 Findings that depend on the instructions, the history or a moving world are invisible to these replays; compare reps of one batch, not across days.
 
-The org-review harness note is `mkrun.ts`'s note. It tells the agent to write `proposals/op-<n>.json` and check it with `bun packages/evals/src/surfaces/orgReview/checkProposal.ts <file>`, the port of `check.ts`. `assemble.ts` merges the proposal files, as `assemble-proposals.py` did, and drops asks.
+The org-review harness note is `mkrun.ts`'s note. It tells the agent to write `proposals/op-<n>.json` and check it with `bun apps/evals/src/surfaces/orgReview/checkProposal.ts <file>`, the port of `check.ts`. `assemble.ts` merges the proposal files, as `assemble-proposals.py` did, and drops asks.
 
 ---
 
@@ -373,21 +373,21 @@ Units in the same wave touch disjoint files and can run in parallel in the share
 **U1: Vendor @platform/evals** (ct-55698)
 
 Files:
-- `packages/evals/package.json`, final: name, private, `type: module`, deps from 2.1, `scripts.test: "bun test src/"`, and cli's devDependencies (`@types/bun`, `@types/node`, `typescript`) so U4's typecheck has its types
+- `apps/evals/package.json`, final: name, private, `type: module`, deps from 2.1, `scripts.test: "bun test src/"`, and cli's devDependencies (`@types/bun`, `@types/node`, `typescript`) so U4's typecheck has its types
 - `bun.lock`
 - `platform/packages/evals/**`, generated
 - `platform/vendor-manifest.txt`
 
 Steps:
-1. `git -C ~/src/platform status --short packages/evals`, and record the result.
+1. `git -C ~/src/platform status --short ./packages/evals`, and record the result.
 2. Build an overlay source so only evals changes:
    ```
    rm -rf /tmp/plat-src && mkdir -p /tmp/plat-src/packages
    cp -Rp platform/packages/* /tmp/plat-src/packages/
-   git -C ~/src/platform archive HEAD packages/evals | tar -x -C /tmp/plat-src
+   git -C ~/src/platform archive HEAD ./packages/evals | tar -x -C /tmp/plat-src
    ```
    Use HEAD, not the working tree: it is reviewed code, and the mirror's other packages already differ from platform HEAD (auth and cli-kit hold files HEAD lacks), so vendoring everything from either source would break codecast.
-3. Write `packages/evals/package.json`.
+3. Write `apps/evals/package.json`.
 4. Run `PLATFORM_SRC=/tmp/plat-src/packages scripts/vendor-platform.sh`.
 
 Acceptance:
@@ -396,8 +396,8 @@ Acceptance:
 - `scripts/vendor-platform.sh --check-manifest` exits 0.
 - `(cd platform/packages/evals && bun install && bun test)` passes, 17 or more tests.
 - `cast --help` and `cast task ls -q x` still run.
-- `git diff bun.lock` adds only the `packages/evals` workspace block and its `@platform/*` resolution entries (`commander` and the devDependencies already resolve, so no new packages). bun also writes whatever the committed tree already owed the lock: on 2026-10-01 that was the cli and electron workspace versions from release commits that bumped `package.json` without the lock, and one `@platform/cli-kit` entry reduced to `{}`. Keep those lines, because they are what bun writes for this tree. The real check is that `bun install --frozen-lockfile` passes and leaves `bun.lock` unchanged.
-- The commit of `packages/evals/package.json` must include `bun.lock` (Railway frozen lockfile). Note this for whoever commits.
+- `git diff bun.lock` adds only the `apps/evals` workspace block and its `@platform/*` resolution entries (`commander` and the devDependencies already resolve, so no new packages). bun also writes whatever the committed tree already owed the lock: on 2026-10-01 that was the cli and electron workspace versions from release commits that bumped `package.json` without the lock, and one `@platform/cli-kit` entry reduced to `{}`. Keep those lines, because they are what bun writes for this tree. The real check is that `bun install --frozen-lockfile` passes and leaves `bun.lock` unchanged.
+- The commit of `apps/evals/package.json` must include `bun.lock` (Railway frozen lockfile). Note this for whoever commits.
 
 **U2: One home for the Anthropic request body**
 
@@ -444,7 +444,7 @@ Precondition: `pgrep -fl prompt-dry-run` is empty. Never edit the guard while a 
 
 Guard changes: as in 2.6.
 
-The test runs the guard as a subprocess with a temp `RUN_DIR` and `DRY_RUN_SERVE_DIR`, and a fake real `cast` earlier on PATH that echoes `LIVE $*`. It takes the key from U4's `servedReadKey` (`packages/evals/src/served.ts`), so the TS and bash keys are proven equal. It also runs the harness against a fake `claude` and a fake `--account` token in a temp `CODECAST_DIR`, with no keychain or network, to check the `--call` flags, stdin, env and the first-reply rewrite. It asserts:
+The test runs the guard as a subprocess with a temp `RUN_DIR` and `DRY_RUN_SERVE_DIR`, and a fake real `cast` earlier on PATH that echoes `LIVE $*`. It takes the key from U4's `servedReadKey` (`apps/evals/src/served.ts`), so the TS and bash keys are proven equal. It also runs the harness against a fake `claude` and a fake `--account` token in a temp `CODECAST_DIR`, with no keychain or network, to check the `--call` flags, stdin, env and the first-reply rewrite. It asserts:
 - the legacy org files are served
 - a `reads/<key>.out` hit is served with its exit code
 - a frozen verb miss prints the refusal and logs `UNSERVED`
@@ -467,9 +467,9 @@ Acceptance:
 
 Files, all new:
 - `evals` (root launcher)
-- `.codecast/check.toml` (add `evals = "packages/evals/tsconfig.json"`)
-- `packages/evals/tsconfig.json`: model it on `packages/cli/tsconfig.typecheck.json`, include `src/**` plus the convex, shared and cli source files the surfaces import (today `lib/anthropic.ts`, `cliHttp.ts`, `config/readAuthConfig.ts`, `secretRedaction.ts` and `ccKeychain.ts`, which doctor's login check reads), no `rootDir`, `noEmit`
-- `packages/evals/src/{index,main,paths,models,surface,registry,layout,stats,served,state,snippet}.ts` (`main.ts` is the program; `index.ts` keeps `stale` off its import graph)
+- `.codecast/check.toml` (add `evals = "apps/evals/tsconfig.json"`)
+- `apps/evals/tsconfig.json`: model it on `packages/cli/tsconfig.typecheck.json`, include `src/**` plus the convex, shared and cli source files the surfaces import (today `lib/anthropic.ts`, `cliHttp.ts`, `config/readAuthConfig.ts`, `secretRedaction.ts` and `ccKeychain.ts`, which doctor's login check reads), no `rootDir`, `noEmit`
+- `apps/evals/src/{index,main,paths,models,surface,registry,layout,stats,served,state,snippet}.ts` (`main.ts` is the program; `index.ts` keeps `stale` off its import graph)
 - `src/adapters/{convo,freezes,resolver,replay,judge,runs,dryRun}.ts`
 - `src/commands/{status,check,stale,snapshot,grade,capture,doctor,snippetCmd,publish}.ts`
 - `src/testSurface.ts`: an `echo` surface used only by tests
@@ -487,8 +487,8 @@ Files, all new:
 `paths.ts`:
 - `REPO_ROOT`
 - `EVALS_HOME` and its subdirs
-- `PUBLIC_FREEZES = packages/evals/freezes`
-- `FIXTURES = packages/evals/fixtures`
+- `PUBLIC_FREEZES = apps/evals/freezes`
+- `FIXTURES = apps/evals/fixtures`
 
 `snippet.ts` holds the `repoNotes`:
 - the prefix ref grammar
@@ -517,7 +517,7 @@ Acceptance, with no model calls:
 - `stats.test.ts` checks Mann-Whitney exact p on known vectors: 5 vs 5 all-greater gives p = 1/252.
 - `served.test.ts` checks the two key vectors.
 - `cast check evals` is green.
-- `bun test packages/evals` is green.
+- `bun test apps/evals` is green.
 
 **U5: Title, settle, trigger title, story on shared requests**
 
@@ -618,8 +618,8 @@ Files:
 Precondition: if a session is still mid-change on any of these files, send it the exact lines below with `cast send` and wait for them to land. On 2026-10-01 `ci.yml`, `changed-path-scope.ts` and the contract test held Phase 0's (ct-52537) finished but uncommitted edits, untouched for five hours, and the owning session was the dormant orchestrator of this plan, so U9 added its lines beside those edits and kept them byte for byte.
 
 Changes:
-- Add `"packages/evals/"` to the `cli` entry of `AREA_PREFIXES`, so `test-cli` runs.
-- In `ci.yml`'s `test-cli` job, add a step "Unit tests (evals package)" with `working-directory: packages/evals`, running `bun test src/`, right after the cli unit tests. The job's `setup-bun` composite action installs the root workspace, which includes `packages/evals`, so the step needs no install of its own.
+- Add `"apps/evals/"` to the `cli` entry of `AREA_PREFIXES`, so `test-cli` runs.
+- In `ci.yml`'s `test-cli` job, add a step "Unit tests (evals package)" with `working-directory: apps/evals`, running `bun test src/`, right after the cli unit tests. The job's `setup-bun` composite action installs the root workspace, which includes `apps/evals`, so the step needs no install of its own.
 - The contract test pins no test-cli step, so it is unchanged.
 
 Acceptance:
@@ -628,7 +628,7 @@ Acceptance:
 
 **After wave 2:** run `packages/convex/deploy.sh` once from a tree that is a superset of origin/main. This deploys U5-U7 and the new route. It must happen before any push that includes them.
 
-### Wave 3 (after wave 2, parallel; each unit owns only `packages/evals/src/surfaces/<its ids>/` and `packages/evals/fixtures/<its ids>/`, plus the files named)
+### Wave 3 (after wave 2, parallel; each unit owns only `apps/evals/src/surfaces/<its ids>/` and `apps/evals/fixtures/<its ids>/`, plus the files named)
 
 **U10: settle** (ct-55701). Also deletes `packages/convex/scripts/settle-eval.ts`.
 
@@ -860,7 +860,7 @@ As built (2026-10-01):
 
 These run as independent subagents, each read-only on the others' work:
 1. **Prod byte-identity.** Diff every convex request before and after, using the goldens and a re-derivation from `git show HEAD~:<file>`.
-2. **Privacy audit.** Check every committed file under `packages/evals` and the goldens for real ids, names or content, beyond what the guard test catches. In particular, the goldens must use synthetic fixtures.
+2. **Privacy audit.** Check every committed file under `apps/evals` and the goldens for real ids, names or content, beyond what the guard test catches. In particular, the goldens must use synthetic fixtures.
 3. **Harness adversarial pass.** Look for guard escapes (a write verb that passes as a read), key mismatches, and `--call` hidden context.
 4. **Operator walkthrough.** A fresh agent with only `AGENTS.md` creates a freeze, replays it, and reads the results. Any dead end becomes a fix.
 

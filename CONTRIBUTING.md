@@ -57,7 +57,7 @@ Codecast is a Bun monorepo with these packages:
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |
 | `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
-| `packages/evals` | Prompt evals against frozen moments |
+| `apps/evals` | Prompt evals against frozen moments |
 
 `platform/packages/` is a generated mirror of shared `@platform/*` packages. Never edit it by hand; see [AGENTS.md](AGENTS.md).
 

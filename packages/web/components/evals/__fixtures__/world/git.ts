@@ -9,7 +9,7 @@ import { BadRequest } from "@platform/evals/query";
 import { type FixtureState, surfaceDef } from "./model";
 
 /** What every surface's prompt rests on beside its own sources: an `evals:` commit touches it. */
-const JUDGE_PATH = "packages/evals/src/adapters/judge.ts";
+const JUDGE_PATH = "apps/evals/src/adapters/judge.ts";
 /** What a commit that names no surface touches. */
 const APP_PATH = "packages/web/components/Inbox.tsx";
 /** Every commit tidies this too, so a commit's whole view shows more than a surface declares. */

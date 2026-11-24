@@ -11,7 +11,7 @@ The spec starts from Design 1: one layered package, a single isomorphic query ha
 - **Naming.** The run-set result stays `BatchVerdict`. The platform judge grade `Verdict` (`model.ts:193`) is not renamed, because eaiden's `adapters/freeze.ts:5` imports it.
 - **Boot path.** On the cast boot path, type-only re-exports land first. The runtime switch is its own commit, followed by a boot smoke test and `cut-cli-release.yml -f dry_run=true`.
 - **Commit granularity.** Views move one group per commit, each with a screenshot diff. Union mounts on a parallel route first.
-- **`./html` stays.** `packages/evals/src/commands/publish.ts:8` and eaiden both use it. No guard bans it.
+- **`./html` stays.** `apps/evals/src/commands/publish.ts:8` and eaiden both use it. No guard bans it.
 
 Two design ideas are dropped:
 
@@ -78,7 +78,7 @@ Purity rules:
 | `evals.css`, `run.css`, `surface.css`, `wall.css`, `bisect.css` | `react/{shell,run,surface,freeze,bisect}/*.css`, composed by `react/styles.css` | |
 
 Stays in codecast for good:
-- All of `packages/evals/src/adapters`, `surfaces`, `registry.ts`, `surface.ts`, `paths.ts`, `models.ts`, `state.ts`, `provenance.ts`, `layout.ts`, `served.ts`, `labels.ts`, `signals.ts`, `snippet.ts`, `main.ts`, `index.ts`, `git.ts`, `history/runIndex.ts` and `commands/*`.
+- All of `apps/evals/src/adapters`, `surfaces`, `registry.ts`, `surface.ts`, `paths.ts`, `models.ts`, `state.ts`, `provenance.ts`, `layout.ts`, `served.ts`, `labels.ts`, `signals.ts`, `snippet.ts`, `main.ts`, `index.ts`, `git.ts`, `history/runIndex.ts` and `commands/*`.
 - The run-anatomy views `AgentTranscript`, `CallPane`, `GuardLog` and `RunFiles`, their helpers (`guardCounts`/`GUARD_WORDS` in GuardLog, `fileTree`/`fileLanguage` in RunFiles), `runPanels.tsx` and `runPanels.css`, which render through the `useRunPanels` slot.
 - All sim views: `SimCatalogView`, `SimRunView`, `DeliveryTimeline`, `OrderStrip`, `simLanes`, `simModel`, `simJobState`, `pages/Sim*` and `sim.css`.
 - `evalsApi/sim.ts`, `__fixtures__/*` and `shortcuts/registry.ts:473-500`.
@@ -389,7 +389,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 
 ### Codecast
 
-- **packages/evals**
+- **apps/evals**
   - `commands/verdict.ts` exports `codecastVerdict = makeVerdict({ passed: repPassed, ruler: defaultRuler })` and `export const { batchVerdict, ... } = codecastVerdict`, plus its CLI parts. In `adapters/replay.ts`, `repPassed` becomes `statusPassRule(PASS_AT)` and `passesAt` becomes `passMarkRule(PASS_AT)`. The seams in `history/` and `bisect/` pass `codecastVerdict` to the core functions that need the policy.
   - `api/handlers.ts` becomes: codecast extras first (file, patch, search, POST bisect, sim), then `createEvalsHandler(codecastSources, codecastPolicy)`.
   - `api/sources.ts` wraps `indexedRuns`/`refreshRunIndex`, the resolver/labels freezes, `folderPromptReader`, `repoGit` + `codecastAttributionMeta`, and `listBisects`. Its slow reads (the freeze homes, the staleness words) are platform's `keptRead` with `staleWhileRevalidate`, the timed read every product's sources share (`@platform/evals/query`, beside `stableRows` for a source that reads its rows afresh).
@@ -450,7 +450,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Every vendor run copies from a platform commit sha, never the live tree: `git -C ~/src/platform worktree add /tmp/pf-<sha> <sha>`, run with `PLATFORM_DIR=/tmp/pf-<sha>` (added by V1), then remove the worktree. This lets platform units and vendor units run in parallel safely.
 
 **Codecast**
-- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `packages/cli/package.json` and `packages/web/package.json`. `packages/evals` already has it.
+- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `packages/cli/package.json` and `packages/web/package.json`. `apps/evals` already has it.
 - Run `scripts/vendor-platform.sh` and commit `platform/packages/**`, `platform/vendor-manifest.txt` and `bun.lock` together. The vendor commit lands before any commit that imports a new subpath.
 - CI `test-platform` then installs inside the mirror and runs its React tests with no CI edit.
 - A running dev server needs `depsCacheGuard`, because vendoring purges `.vite`.
@@ -472,7 +472,7 @@ The rules for every unit:
 - Files are disjoint within a wave.
 - Each unit names its repo.
 - Codecast checks use `cast check` (all programs unless noted) and per-file `bun test`.
-- Platform checks are `cd ~/src/platform && bun run typecheck && cd packages/evals && bun test`.
+- Platform checks are `cd ~/src/platform && bun run typecheck && cd ./packages/evals && bun test`.
 
 ### Wave 0 (parallel)
 
@@ -480,13 +480,13 @@ The rules for every unit:
   - Files: `outreach/backend/src/lib/routePermissions.ts` and its existing test `outreach/backend/tests/unit/routePermissions.test.ts` (the `ADMIN_PREFIXES` snapshot, a stub route, and the admin-only matrix rows).
   - Accept: the test asserts that `/api/simulations/db` is admin-only; backend `bun run test`; `scripts/ci/typecheck.sh backend` (the root `type-check` script covers landing only) and union `type-check`.
 - **C0 (codecast): parity harness.**
-  - Files: new `packages/evals/scripts/parity.ts`; `packages/evals/tsconfig.json` includes `scripts/**/*` so `cast check evals` covers it.
+  - Files: new `apps/evals/scripts/parity.ts`; `apps/evals/tsconfig.json` includes `scripts/**/*` so `cast check evals` covers it.
   - `parity.ts dump <label>` dumps `./evals runs --json`, `./evals runs matrix --json`, check's verdicts, and every neutral route answered by a real `./evals api --stdio` child for ids sampled from the index (a seeded hash rank), to `/tmp/evals-parity/<label>/`. `--compare a b` diffs them and ignores `/health.capabilities`.
   - Check's verdicts are not `./evals check --dry --json`: `check` has no `--json`, and `--dry` replays every freeze and writes dry reps into EVALS_HOME, which moves the index it reads. The harness calls `setVerdict` (what `check` and `publish` print through) on each surface's newest three batches, plus the newest against the oldest of them (`--against`).
   - Inputs are pinned, because other sessions keep adding runs: `parity.ts pin` builds `/tmp/evals-parity/home` (run folders linked, index, state and bisects copied) and a copy of the sim home, and records a clock. Every child runs with the script preloaded, which pins `Date` to that clock. Each unit pins once, dumps before its change and after it, and compares. A dump records an index fingerprint, and compare warns when the inputs moved.
   - Accept: two runs on an unchanged tree compare identical; `cast check evals`.
 - **P0 (platform): scaffold.**
-  - Files: `packages/evals/package.json`; `src/{contract,analysis,query,client,react}/index.ts` (empty barrels); `src/layers.test.ts`; `src/react/guards.test.ts`; `src/guardKit.ts` (test-only parsing shared by both guards); root `bun.lock`.
+  - Files: `apps/evals/package.json`; `src/{contract,analysis,query,client,react}/index.ts` (empty barrels); `src/layers.test.ts`; `src/react/guards.test.ts`; `src/guardKit.ts` (test-only parsing shared by both guards); root `bun.lock`.
   - `layers.test.ts` follows imports transitively, so a pure layer cannot borrow node through a shared module such as `model.ts`, and it rejects free references to DOM and node globals. `guards.test.ts` also enforces section 4's token rules (views and CSS read only `--ev-*`, nothing declares `--sol-*`, components import no CSS) and requires `'use client'` at the top of `react/index.ts`. `@types/react-dom` is pinned `~19.2.0` to match platform's locked `@types/react` 19.2.
   - Accept: platform typecheck and tests; xrun `bun install` + `bun run test` still green.
 
@@ -663,7 +663,7 @@ C1 must merge before P1 copies from it. If needed, P1 starts once C1 lands.
     - The seismograph takes the surface's `passMark`: left out (codecast) it rules 0.7 as before, null (union) rules none.
     - Hidden by capabilities: the wall's Open bisects block (and the foot itself when the host adds no `wall.Foot`), the `b` attribute key on the wall and the surface, the surface's bisect probes toggle, and its `e` epoch key.
     - CSS: `surface.css` is C5's `surface.css` and `wall.css` minus what other groups own: the plate, drawer, sheet, icon button and pair-flip rules are in P4d's `freeze.css` (with `.ev-sf-ylabel--halo`, which only FreezeView draws), and `.ev-wall-simline*` stays with codecast's `wallSim.tsx`, so C10 keeps those rules in a codecast stylesheet. It carries the three `.ev-sf-cost*` rules, because only the surface page draws CostTrack and `run.css` has none. `has-compare` is now `ev-sf--compare` (the class guard).
-    - Two visible words changed for neutrality, both on states codecast rarely shows: the empty wall says "The wall fills in as the product's runs land." (was "Run ./evals check from the checkout..."), and an unknown surface says "The wall lists every surface this product knows." The public and private chips' tooltips no longer name `packages/evals` and EVALS_HOME.
+    - Two visible words changed for neutrality, both on states codecast rarely shows: the empty wall says "The wall fills in as the product's runs land." (was "Run ./evals check from the checkout..."), and an unknown surface says "The wall lists every surface this product knows." The public and private chips' tooltips no longer name `codecast/packages/evals` and EVALS_HOME.
     - Proof: `surface.mount.test.tsx` (6 cases, happy-dom, `localTransport(createEvalsHandler(...))`): a rows-only product with gates (worse first, nothing it cannot answer, keys through the host, What moved under the base path) and a full one (open bisects, the host's foot and own What moved kind, route and model, codecast's header chips, criteria, 0.7 mark, every key, `b` attributing the pinned pair). Evals typecheck and all 259 tests green; root typecheck red only in the known auth and engine test files. A static Bun rig in `/tmp` (synthetic data) rendered both products' wall and surface in Chrome, light and dark.
   - P4e as built (in `~/src/platform`'s working tree, uncommitted like P4a):
     - Files: `react/bisect/{AttributionView,CommitPanel,BisectRuler,BisectView,BisectListView,BisectPlanPanel}.tsx`, `react/bisect/pages/{CodePage,BisectListPage,BisectPage,BisectNewPage}.tsx`, `bisect.css`, `index.ts` (`bisectPages`: commit, patch, bisect-list, bisect-new, bisect) and `bisect.mount.test.tsx`; plus two slots in `react/host.ts` and a capability gate in `react/EvalsApp.tsx`. The views are codecast's C7 copies; every `evalsHref` link is the host's `useEvalsPaths().href`, so links follow the base path.

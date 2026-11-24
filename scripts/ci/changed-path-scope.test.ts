@@ -19,7 +19,7 @@ const flags = (files: string[]) => classifyChangedPaths(files).flags;
 describe("areaOf", () => {
   test("maps each package to its area", () => {
     expect(areaOf("packages/cli/src/daemon.ts")).toBe("cli");
-    expect(areaOf("packages/evals/src/x.ts")).toBe("evals");
+    expect(areaOf("apps/evals/src/x.ts")).toBe("evals");
     expect(areaOf("packages/web/components/DiffView.tsx")).toBe("web");
     expect(areaOf("packages/convex/convex/tasks.ts")).toBe("convex");
     expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
@@ -108,9 +108,9 @@ describe("classifyChangedPaths", () => {
 
   // The eval home's unit tests are a step of test-cli.
   test("an evals change runs typecheck and the cli tests without forcing every job", () => {
-    const scope = classifyChangedPaths(["packages/evals/src/x.ts"]);
+    const scope = classifyChangedPaths(["apps/evals/src/x.ts"]);
     expect(scope.forcedBy).toEqual([]);
-    expect(ran(["packages/evals/src/x.ts"])).toEqual(["test-cli", "typecheck"]);
+    expect(ran(["apps/evals/src/x.ts"])).toEqual(["test-cli", "typecheck"]);
   });
 
   test("a shared change runs every job that reads shared", () => {
