@@ -300,7 +300,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (cli package)
-        working-directory: packages/cli
+        working-directory: apps/cli
         # Exclude the e2e suite — it has its own step with --rerun-each for
         # resilience against tmux-resource flake under CI runner load.
         # DAEMON_BUILD_ID_CHECK turns on the daemon build id stamp check, which
@@ -327,7 +327,7 @@ jobs:
         run: bun test src/
 
       - name: E2E messaging pipeline (real tmux + fake-claude shim)
-        working-directory: packages/cli
+        working-directory: apps/cli
         # Up to 3 full-suite attempts to absorb tmux-resource flake from
         # running 10 fresh sessions back-to-back on a contended runner.
         # Real regressions fail all 3 attempts; transient flake is filtered.
@@ -369,7 +369,7 @@ jobs:
       # that gates the jobs (touchesInjection in scripts/ci/changed-path-scope.ts).
       - name: Injection suites (captured frames; real-client cells skip without agent binaries)
         if: needs.code_paths.outputs.run_test_injection == 'true'
-        working-directory: packages/cli
+        working-directory: apps/cli
         # Same three-attempt shape as the E2E step above, and for the same
         # reason: spawning agent TUIs back-to-back on a contended runner is
         # resource flake, a real injection regression fails all three.
@@ -552,12 +552,12 @@ jobs:
 
       - name: Swift unit tests (helper core)
         if: needs.code_paths.outputs.run_test_computer == 'true'
-        working-directory: packages/cli/native/computer-use-macos
+        working-directory: apps/cli/native/computer-use-macos
         run: swift test
 
       - name: Build and sign the computer helper
         if: needs.code_paths.outputs.run_test_computer == 'true'
-        working-directory: packages/cli
+        working-directory: apps/cli
         # No Developer ID certificate on a runner, so the helper signs ad hoc.
         # That is the from-source case the design already describes: it runs,
         # and its TCC grant would not survive a rebuild — which costs nothing
@@ -576,7 +576,7 @@ jobs:
 
       - name: Unit and e2e tests (cast computer, ungranted half)
         if: needs.code_paths.outputs.run_test_computer == 'true'
-        working-directory: packages/cli
+        working-directory: apps/cli
         # Both variables point at the same build: the e2e suites take a bundle,
         # the materialization tests take the payload it came from.
         env:
@@ -592,7 +592,7 @@ jobs:
       - name: Unit and e2e tests (cli files that only run on darwin)
         # Its own verdict whatever the cast computer steps above did.
         if: ${{ !cancelled() }}
-        working-directory: packages/cli
+        working-directory: apps/cli
         # Every cli test file with a case that skips anywhere but darwin, outside
         # src/computer/ (the step above). The ci contract test finds them by
         # their skip and fails until each is listed here. --timeout: the browser

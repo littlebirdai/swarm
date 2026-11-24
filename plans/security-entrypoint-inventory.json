@@ -13162,7 +13162,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/cloud/prepare.test.ts"
+        "apps/cli/src/cloud/prepare.test.ts"
       ],
       "routes": [],
       "line": 239
@@ -13190,7 +13190,7 @@
       "risk": "medium",
       "reason": "authenticated caller, takes ids for daemon_commands with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/browser/sync.test.ts"
+        "apps/cli/src/browser/sync.test.ts"
       ],
       "routes": [],
       "line": 560
@@ -13498,7 +13498,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/browser/sync.test.ts"
+        "apps/cli/src/browser/sync.test.ts"
       ],
       "routes": [],
       "line": 478
@@ -16519,7 +16519,7 @@
       "risk": "none",
       "reason": "judged by (inline ownership comparison)",
       "testedBy": [
-        "packages/cli/src/daemon.session-teardown.test.ts"
+        "apps/cli/src/daemon.session-teardown.test.ts"
       ],
       "routes": [],
       "line": 11351
@@ -21626,7 +21626,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/cli/src/daemon.session-teardown.test.ts"
+        "apps/cli/src/daemon.session-teardown.test.ts"
       ],
       "routes": [],
       "line": 467
@@ -23528,7 +23528,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/execution/convexControlPlane.test.ts"
+        "apps/cli/src/execution/convexControlPlane.test.ts"
       ],
       "routes": [],
       "line": 2788
@@ -35020,7 +35020,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/cli/src/daemon.heartbeat-status.test.ts"
+        "apps/cli/src/daemon.heartbeat-status.test.ts"
       ],
       "routes": [],
       "line": 503
@@ -35245,7 +35245,7 @@
       "risk": "low",
       "reason": "authenticated caller; no ids taken, scoped by the caller's own identity or workspace",
       "testedBy": [
-        "packages/cli/src/syncService.pendingMessages.test.ts"
+        "apps/cli/src/syncService.pendingMessages.test.ts"
       ],
       "routes": [],
       "line": 543
@@ -35389,8 +35389,8 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/syncService.deliveryEchoes.test.ts",
-        "packages/cli/src/workers/messagesSdkReceipt.test.ts",
+        "apps/cli/src/syncService.deliveryEchoes.test.ts",
+        "apps/cli/src/workers/messagesSdkReceipt.test.ts",
         "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],
@@ -44163,7 +44163,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for pending_messages,conversations with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/syncService.pendingMessages.test.ts"
+        "apps/cli/src/syncService.pendingMessages.test.ts"
       ],
       "routes": [],
       "line": 1711
@@ -44421,7 +44421,7 @@
       "risk": "high",
       "reason": "authenticated caller, takes ids for conversations with no visible resource judge",
       "testedBy": [
-        "packages/cli/src/syncService.pendingMessages.test.ts"
+        "apps/cli/src/syncService.pendingMessages.test.ts"
       ],
       "routes": [],
       "line": 2530
@@ -44451,7 +44451,7 @@
       "risk": "none",
       "reason": "judged by senderOrOwnerCanAct",
       "testedBy": [
-        "packages/cli/src/syncService.pendingMessages.test.ts"
+        "apps/cli/src/syncService.pendingMessages.test.ts"
       ],
       "routes": [],
       "line": 1363
@@ -44586,7 +44586,7 @@
       "risk": "none",
       "reason": "judged by senderOrOwnerCanAct",
       "testedBy": [
-        "packages/cli/src/syncService.pendingMessages.test.ts",
+        "apps/cli/src/syncService.pendingMessages.test.ts",
         "apps/server/convex/assistant.entry.test.ts"
       ],
       "routes": [],

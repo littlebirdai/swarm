@@ -58,7 +58,7 @@ describe("worktreesOfSession", () => {
   });
 
   test("a session in the main checkout names the worktrees it edited files in", () => {
-    const session = { _id: "c", project_path: ROOT, recent_files: [`${tips.path}/packages/web/app.ts`, `${ROOT}/packages/cli/x.ts`, `${tips.path}/b.ts`] };
+    const session = { _id: "c", project_path: ROOT, recent_files: [`${tips.path}/packages/web/app.ts`, `${ROOT}/apps/cli/x.ts`, `${tips.path}/b.ts`] };
     expect(worktreesOfSession(undefined, session)).toEqual([{ name: "tips-modes", path: tips.path }]);
   });
 

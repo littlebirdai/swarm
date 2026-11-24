@@ -6,7 +6,7 @@
 // Why: both checkers carry legacy debt that a whole-repo gate cannot hold.
 // `eslint .` in packages/web passes only because a 57-entry baseline
 // (packages/web/eslint-suppressions.json) forgives what already existed, and
-// packages/cli's typecheck has carried pre-existing errors, which is why
+// apps/cli's typecheck has carried pre-existing errors, which is why
 // ci.yml's typecheck job leaves it out of the strict filter. Neither fact should
 // let NEW debt through, and neither should turn a pull request red for code it
 // never touched (ct-49564).
@@ -272,9 +272,9 @@ export const CHECKS: Check[] = [
   },
   {
     id: "tsc-cli",
-    label: "tsc (packages/cli)",
-    scope: "packages/cli/",
-    run: runTsc("packages/cli", "tsconfig.typecheck.json"),
+    label: "tsc (apps/cli)",
+    scope: "apps/cli/",
+    run: runTsc("apps/cli", "tsconfig.typecheck.json"),
   },
   {
     id: "tsc-convex",

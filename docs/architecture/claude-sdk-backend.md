@@ -14,7 +14,7 @@ version, account and models.
 
 ## Choosing the backend
 
-`chooseClaudeBackend` (`packages/cli/src/claudeSdk/select.ts`), first match wins:
+`chooseClaudeBackend` (`apps/cli/src/claudeSdk/select.ts`), first match wins:
 
 1. `backend: "sdk" | "tmux"` on the start_session command.
 2. `CODECAST_CLAUDE_BACKEND=sdk` in the daemon's environment.
@@ -347,7 +347,7 @@ is on; the same predicate gates Convex's `switchBackend`.
 | Shell prefix | account pin and provider keys | grok's provider keys only |
 
 A fresh Grok start still opens a pane; the direct backend takes over an
-existing session through the switch. `packages/cli/scripts/grok-direct-e2e.ts`
+existing session through the switch. `apps/cli/scripts/grok-direct-e2e.ts`
 runs the backend against the real `grok` from a private `GROK_HOME` (auth.json
 linked, never copied, so a refresh cannot fork the grant): load, a turn, a
 mid-turn message, interrupt, reattach after a daemon restart, a killed host
@@ -382,7 +382,7 @@ reading the window's utilization before and after each; that has not been done.
 
 ## Tests
 
-`packages/cli/src/claudeSdk/*.test.ts`. The SDK is never mocked: a fake
+`apps/cli/src/claudeSdk/*.test.ts`. The SDK is never mocked: a fake
 `claude` (`testing/fakeClaude.ts`) replays recorded real sessions
 (`__fixtures__/recordings/`), so tests run the real SDK, and for the process
 tests the real host as its own process. Covered: startup, a plain turn,
@@ -390,14 +390,14 @@ permission allow and deny, AskUserQuestion, mid-turn steer, interrupt drain,
 a usage limit, the too-old fallback, `/clear`, a daemon that reconnects to a
 pending prompt and binds to its card, and resume after the host is killed.
 
-Recordings come from `packages/cli/scripts/record-claude-sdk.ts` (isolated config dir, the
+Recordings come from `apps/cli/scripts/record-claude-sdk.ts` (isolated config dir, the
 keychain login in the child's env only, haiku). Every line is scrubbed as it is
 written: no thinking, no account identity, no personal skill, agent, plugin or
 MCP names, home paths replaced. The privacy test re-applies the scrub to every
 checked-in line. `limit.jsonl` is derived from `text.jsonl` with the reply
 replaced by a limit error in the shape of a real `api_error` result.
 
-`packages/cli/scripts/claude-sdk-e2e.ts` runs the whole backend against the real `claude`
+`apps/cli/scripts/claude-sdk-e2e.ts` runs the whole backend against the real `claude`
 through launchd-started hosts from the checkout, isolated from the running
 daemon, and checks eighteen behaviors end to end.
 

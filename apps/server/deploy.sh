@@ -15,7 +15,7 @@ bash "$ROOT/scripts/lib/fork-guard.sh" "Use scripts/deploy-backend.sh to deploy 
 # on (2026-10-02, 2026-10-04). The job reruns this script with
 # CAST_LAUNCHD_LABEL set, which skips this step.
 if [ "$(uname)" = "Darwin" ] && [ -z "${CAST_LAUNCHD_LABEL:-}" ] && [ -z "${DEPLOY_NO_INTERACTIVE:-}" ]; then
-    exec bun "$ROOT/packages/cli/scripts/run-interactive.ts" -- "$PWD/deploy.sh" "$@"
+    exec bun "$ROOT/apps/cli/scripts/run-interactive.ts" -- "$PWD/deploy.sh" "$@"
 fi
 
 # One deploy at a time per checkout. A push ships the tree as it was bundled,

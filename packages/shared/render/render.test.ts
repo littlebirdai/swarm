@@ -122,7 +122,7 @@ describe("tool family classifiers", () => {
 
   it("reads grok's target_file / target_directory as the path", () => {
     expect(toolPathFromInput({ target_file: "/Users/ashot/src/codecast/a.ts" })).toBe("/Users/ashot/src/codecast/a.ts");
-    expect(toolPathFromInput({ target_directory: "packages/cli/src" })).toBe("packages/cli/src");
+    expect(toolPathFromInput({ target_directory: "apps/cli/src" })).toBe("apps/cli/src");
     expect(toolPathFromInput({ file_path: "/x/a.ts" })).toBe("/x/a.ts");
   });
 });
@@ -212,7 +212,7 @@ describe("toolSummary", () => {
     ["run_terminal_command", { command: "ls -la", description: "list files" }, "ls -la"],
     ["read_file", { target_file: "/Users/ashot/src/codecast/a.ts" }, "codecast/a.ts"],
     ["search_replace", { file_path: "/Users/ashot/src/codecast/a.ts" }, "codecast/a.ts"],
-    ["list_dir", { target_directory: "/Users/ashot/src/codecast/packages/cli/src" }, "codecast/packages/cli/src"],
+    ["list_dir", { target_directory: "/Users/ashot/src/codecast/apps/cli/src" }, "codecast/apps/cli/src"],
     ["todo_write", { todos: [1, 2] }, "2 tasks"],
     ["open_page", { url: "https://example.com/foo" }, "example.com/foo"],
     ["glob", { pattern: "**/*.ts" }, "**/*.ts"],
@@ -473,10 +473,10 @@ describe("describeSmallToolGroup", () => {
   });
 
   it("keeps a clipped path's filename, dropping leading directories", () => {
-    const deep = tc("Edit", { file_path: "/Users/me/src/codecast/packages/cli/src/stateCommand.ts" });
-    expect(describeSmallToolGroup([deep])).toBe("edited codecast/packages/cli/src/stateCommand.ts");
+    const deep = tc("Edit", { file_path: "/Users/me/src/codecast/apps/cli/src/stateCommand.ts" });
+    expect(describeSmallToolGroup([deep])).toBe("edited codecast/apps/cli/src/stateCommand.ts");
     expect(describeSmallToolGroup([deep, deep])).toBe(
-      "edited cli/src/stateCommand.ts · cli/src/stateCommand.ts",
+      "edited apps/cli/src/stateCommand.ts · apps/cli/src/stateCommand.ts",
     );
   });
 
@@ -583,7 +583,7 @@ describe("activityLine", () => {
     ["Grep", { pattern: "wakeSig" }, "searching for wakeSig"],
     ["grep", { pattern: "TODO" }, "searching for TODO"],
     ["Glob", { pattern: "**/*.ts" }, "searching for **/*.ts"],
-    ["list_dir", { target_directory: "/Users/me/src/app/packages/cli" }, "listing app/packages/cli"],
+    ["list_dir", { target_directory: "/Users/me/src/app/apps/cli" }, "listing app/apps/cli"],
     ["WebSearch", { query: "react 19 release" }, "searching the web for react 19 release"],
     ["WebFetch", { url: "https://stripe.com/docs/api" }, "browsing stripe.com/docs/api"],
     ["open_page", { url: "https://www.example.com/" }, "browsing example.com"],

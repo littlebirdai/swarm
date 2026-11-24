@@ -76,7 +76,7 @@ describe("the flow with the edit drawn in", () => {
 
 describe("what it would have run on", () => {
   test("the when globs against the recent changes' files", () => {
-    const recent = [{ files: ["packages/web/app.tsx"] }, { files: ["packages/cli/x.ts"] }, { files: ["packages/shared/a.ts", "README.md"] }, { files: [] }];
+    const recent = [{ files: ["packages/web/app.tsx"] }, { files: ["apps/cli/x.ts"] }, { files: ["packages/shared/a.ts", "README.md"] }, { files: [] }];
     expect(wouldRun("packages/web/**, packages/shared/**", recent)).toEqual({ hits: 2, total: 4 });
     expect(wouldRun(undefined, recent)).toBeNull();
     expect(wouldRun("always", recent)).toBeNull();
@@ -122,7 +122,7 @@ describe("a proposed edit drawn as a ghost until it is live", () => {
 
 describe("the checkout an edit starts in", () => {
   test("recent changes read through the published path table; a row without them reads none", () => {
-    const withRecent = { ...codecast, root: "/w/codecast", recent: { paths: ["packages/web/a.tsx", "packages/cli/b.ts"], commits: [{ sha: "a", subject: "x", at: 1, files: [0] }, { sha: "b", subject: "y", at: 2, files: [1] }], dropped: 0 } };
+    const withRecent = { ...codecast, root: "/w/codecast", recent: { paths: ["packages/web/a.tsx", "apps/cli/b.ts"], commits: [{ sha: "a", subject: "x", at: 1, files: [0] }, { sha: "b", subject: "y", at: 2, files: [1] }], dropped: 0 } };
     const c = pipelineCheckout(withRecent);
     expect(c.root).toBe("/w/codecast");
     expect(wouldRun("packages/web/**", c.recent!)).toEqual({ hits: 1, total: 2 });

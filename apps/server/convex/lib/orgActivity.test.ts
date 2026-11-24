@@ -35,9 +35,9 @@ describe("path prefixes", () => {
     // commit is evidence for each seam it touched.
     expect(commitAreaPrefixes([{ filename: "packages/web/a.tsx" }, { filename: "apps/server/b.ts" }])).toEqual(["apps/server", "packages/web"]);
     // Spanning the root and a package: the same.
-    expect(commitAreaPrefixes([{ filename: "docs/x.md" }, { filename: "packages/cli/src/y.ts" }])).toEqual(["docs", "packages/cli"]);
+    expect(commitAreaPrefixes([{ filename: "docs/x.md" }, { filename: "apps/cli/src/y.ts" }])).toEqual(["apps/cli", "docs"]);
     // Files at different depths under one package share the package.
-    expect(commitAreaPrefixes([{ filename: "packages/cli/src/a.ts" }, { filename: "packages/cli/package.json" }])).toEqual(["packages/cli"]);
+    expect(commitAreaPrefixes([{ filename: "apps/cli/src/a.ts" }, { filename: "apps/cli/package.json" }])).toEqual(["apps/cli"]);
     // Root files only: the root.
     expect(commitAreaPrefixes([{ filename: "README.md" }, { filename: "CLAUDE.md" }])).toEqual([""]);
     // The cap bounds what one sweeping commit contributes.
@@ -97,13 +97,13 @@ describe("areas and people (S9)", () => {
         { repository: "acme/app", timestamp: NOW - D, author_name: "Me", files: null },
         { repository: "acme/app", timestamp: NOW - D, author_name: "Me" },
         // A transcript row with the full file shape.
-        { repository: "acme/app", timestamp: NOW - D, author_name: "Me", files: [{ filename: "packages/cli/src/daemon.ts", status: "modified", additions: 4, deletions: 2, changes: 6 } as any] },
+        { repository: "acme/app", timestamp: NOW - D, author_name: "Me", files: [{ filename: "apps/cli/src/daemon.ts", status: "modified", additions: 4, deletions: 2, changes: 6 } as any] },
         // A spanning commit: convex and web, one row, both seams.
         { repository: "acme/app", timestamp: NOW - D, author_name: "Mate", files: [{ filename: "apps/server/convex/x.ts" }, { filename: "packages/web/y.tsx" }] },
       ],
     }));
     expect(a.commits).toEqual({ total: 4, with_files: 2, without_files: 2, spanning_areas: 1, landed: 0 });
-    expect(a.areas.map((x) => [x.path_prefix, x.commits_30d])).toEqual([["", 2], ["packages/web", 1], ["apps/server", 1], ["packages/cli", 1]]);
+    expect(a.areas.map((x) => [x.path_prefix, x.commits_30d])).toEqual([["", 2], ["packages/web", 1], ["apps/cli", 1], ["apps/server", 1]]);
   });
 });
 

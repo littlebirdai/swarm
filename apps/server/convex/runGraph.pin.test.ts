@@ -46,8 +46,8 @@ const UNION = {
 const origin = (root: string, file: string, hash: string, nodes: Array<{ id: string }>) => ({
   device_id: "laptop", root, file, files: [], graph_hash: hash, nodes: nodes.map((n) => ({ id: n.id, h: `${hash}-${n.id}` })),
 });
-// `cast flow run packages/cli/src/workflow/templates/change.cast --team Codecast --task ...`: a file push from codecast's checkout.
-const codecastAt = (nodes: Array<{ id: string } & Record<string, any>>, hash: string) => ({ ...CODECAST, nodes, origin: origin("/code/codecast", "packages/cli/src/workflow/templates/change.cast", hash, nodes) });
+// `cast flow run apps/cli/src/workflow/templates/change.cast --team Codecast --task ...`: a file push from codecast's checkout.
+const codecastAt = (nodes: Array<{ id: string } & Record<string, any>>, hash: string) => ({ ...CODECAST, nodes, origin: origin("/code/codecast", "apps/cli/src/workflow/templates/change.cast", hash, nodes) });
 const codecastPush = codecastAt(CODECAST.nodes, "hc");
 const unionPush = (n: number) => ({ ...UNION, origin: origin(`/code/union-mobile/.codecast/worktrees/s${n}`, ".codecast/flows/change.cast", "hu", UNION.nodes) });
 
@@ -103,7 +103,7 @@ describe("two checkouts push the same slug, interleaved", () => {
     const resumed = await daemon(codecastRun);
     expect(ids(resumed.workflow.nodes)).toEqual(ids(CODECAST.nodes));
     expect(resumed.workflow.source).toBe(CODECAST.source);
-    expect(resumed.workflow.origin).toMatchObject({ root: "/code/codecast", file: "packages/cli/src/workflow/templates/change.cast" });
+    expect(resumed.workflow.origin).toMatchObject({ root: "/code/codecast", file: "apps/cli/src/workflow/templates/change.cast" });
     const other = await daemon(unionRun);
     expect(ids(other.workflow.nodes)).toEqual(ids(UNION.nodes));
     expect(other.workflow.origin.root).toBe("/code/union-mobile/.codecast/worktrees/s2");
@@ -146,7 +146,7 @@ describe("two checkouts push the same slug, interleaved", () => {
 describe("a version is its graph pushed from one place", () => {
   test("a second worktree's push of the same graph is its own version, so its run's daemon reads its own checkout", async () => {
     const { t, start, daemon } = await setup();
-    const at = (root: string) => ({ ...CODECAST, origin: origin(root, "packages/cli/src/workflow/templates/change.cast", "hc", CODECAST.nodes) });
+    const at = (root: string) => ({ ...CODECAST, origin: origin(root, "apps/cli/src/workflow/templates/change.cast", "hc", CODECAST.nodes) });
     const first = await start(at("/code/codecast/.codecast/worktrees/s1"));
     const second = await start(at("/code/codecast/.codecast/worktrees/s2"));
     expect((await daemon(first)).workflow.origin.root).toBe("/code/codecast/.codecast/worktrees/s1");
@@ -369,7 +369,7 @@ describe("the row stands at the version its runs would read", () => {
     await t.withIdentity({ subject: `${owner}|s` }).mutation(api.workflows.webUpsert, edit);
     const got = await daemon(await runNamingNoVersion(t, owner, id));
     expect(got.workflow.origin?.root).toBe("/code/codecast");
-    expect(got.workflow.origin?.file).toBe("packages/cli/src/workflow/templates/change.cast");
+    expect(got.workflow.origin?.file).toBe("apps/cli/src/workflow/templates/change.cast");
   });
 
   test("Union pushes from its file, an older CLI pushes the shipped template: a run naming no version is the template's", async () => {

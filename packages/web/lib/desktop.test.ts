@@ -1020,7 +1020,7 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
     expect(boot).not.toHaveBeenCalled();
     expect(preloads()).toBe(0);
     // The driver attached after the head parsed: it stamps the tab and fires
-    // the event (packages/cli/src/browser/observe.ts agentTabStampSource).
+    // the event (apps/cli/src/browser/observe.ts agentTabStampSource).
     dom.window.sessionStorage.setItem(AGENT_TAB_KEY, "1");
     dom.window.document.dispatchEvent(new dom.window.Event(AGENT_TAB_EVENT));
     await Promise.resolve();
@@ -1136,7 +1136,7 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
 // exact names before any page script. The extension is plain JS with no
 // import from the CLI, so the names are pinned by text.
 describe("agent-tab stamp contract", () => {
-  const cliDir = join(import.meta.dir, "..", "..", "cli", "src", "browser");
+  const cliDir = join(import.meta.dir, "..", "..", "..", "apps", "cli", "src", "browser");
   const extDir = join(import.meta.dir, "..", "..", "..", "apps", "browser-extension");
 
   test("the CLI recorder (shared by the engine init script) exports the gate's names", () => {

@@ -86,7 +86,7 @@
     "repo": {
       "files": [
         {
-          "path": "packages/cli/src/workflow/templates/line/prove.md",
+          "path": "apps/cli/src/workflow/templates/line/prove.md",
           "before": "Prove the problem before anything is built: run the project's check on the\nbase and show it failing for the reason the problem names.\n\nWhen the check cannot show the failure, stop the run.\n",
           "after": "Prove the problem before anything is built: run the project's check on the\nbase and show it failing for the reason the problem names.\n\nWhen the check cannot show the failure, stop the run and say on the problem\nwhat you tried, what the check printed, and what would let a next run prove\nit (a fixture, a test, a narrower reading of the problem), so the person who\nreads the problem knows what to do next.\n"
         }

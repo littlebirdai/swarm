@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import type { CheckResult, ConvoMessage, ProductionReply } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { parseWorkflowFile } from '../../../../../packages/cli/src/workflow/parser';
-import { splitReviewNote } from '../../../../../packages/cli/src/workflow/reviewNote';
+import { parseWorkflowFile } from '../../../../../apps/cli/src/workflow/parser';
+import { splitReviewNote } from '../../../../../apps/cli/src/workflow/reviewNote';
 import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
 import type { MessageRow } from '../../adapters/convo';
 import { readSessionMoment, SESSION_LINE_FORMS } from '../../adapters/moment';
@@ -26,8 +26,8 @@ import { meta } from './meta';
 // written varies. One grader reads the card cold, as the person does; a second
 // reads it beside the session to catch claims the session does not bear out.
 
-export const TEMPLATE = 'packages/cli/src/workflow/templates/line/review.md';
-const DECIDE = 'packages/cli/src/workflow/templates/decide.cast';
+export const TEMPLATE = 'apps/cli/src/workflow/templates/line/review.md';
+const DECIDE = 'apps/cli/src/workflow/templates/decide.cast';
 const TASK_HEADER = '# Task: Review\n';
 const VAR = /\$([a-z_]+(?:\.[a-z_]+)*)/g;
 

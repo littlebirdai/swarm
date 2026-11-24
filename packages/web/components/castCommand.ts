@@ -697,7 +697,7 @@ export function parseCastCommandString(rawCommand: string): ParsedCastCommand | 
 }
 
 /**
- * What a `cast say` told the person (packages/cli/src/sayCommand.ts): the
+ * What a `cast say` told the person (apps/cli/src/sayCommand.ts): the
  * heredoc body, or the words of its argument with the shell quoting undone.
  * The command keeps no copy of its own, so the transcript's tool call is the
  * message. Null for any other command and for a say with nothing in it.

@@ -7,7 +7,7 @@ cast hosts provision <id> --shared                                  # once, by t
 cast hosts provision <id> --add-user cam --github cameron417        # per person; re-run to refresh keys and tools
 ```
 
-Code: `packages/cli/src/browser/sharedHost.ts` (script generators), `addUserToHost` and the `shared` branch of `provisionLinuxHost` in `browser/provisionLinux.ts`, and `remote/sharedHostGuard.ts` (the host-side push refusal).
+Code: `apps/cli/src/browser/sharedHost.ts` (script generators), `addUserToHost` and the `shared` branch of `provisionLinuxHost` in `browser/provisionLinux.ts`, and `remote/sharedHostGuard.ts` (the host-side push refusal).
 
 ## Every daemon is a peer
 

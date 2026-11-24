@@ -29,7 +29,7 @@ and its run is a run.
 
 `org_roles.line_workflow_slug?: string`, default `line`. Resolution, in order:
 a path on disk, the caller's own `workflows` row by slug, a shipped template by
-name (`packages/cli/src/workflow/templates.ts`). `cast workflow run` with no
+name (`apps/cli/src/workflow/templates.ts`). `cast workflow run` with no
 file resolves the caller's role line (the session's `org_role_id` or
 `standing_role_id`), else `line`. `cast role line <handle> [--set <slug>]`
 reads or writes it; the scope page Settings tab has the same picker. A change

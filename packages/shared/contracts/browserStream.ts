@@ -1,10 +1,10 @@
 // Remote browser watching: the contract between the web viewer
 // (packages/web/lib/browserWatchRelay.ts), the Convex relay
 // (apps/server/convex/browserStream.ts) and the daemon's relay loop
-// (packages/cli/src/browser/watchRelay.ts).
+// (apps/cli/src/browser/watchRelay.ts).
 //
 // The browser watch stream's normal transport is a loopback WebSocket to the
-// daemon (packages/cli/src/browser/watchServer.ts), which only the machine the
+// daemon (apps/cli/src/browser/watchServer.ts), which only the machine the
 // viewer sits at can reach. This is the second transport, for an agent whose
 // browser runs on another of your machines. It is the terminal relay's lease
 // protocol (terminalStream.ts) carrying the watch protocol's messages:

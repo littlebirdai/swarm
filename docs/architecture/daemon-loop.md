@@ -26,7 +26,7 @@ An `async` function that parses a whole transcript before its first `await` stil
 blocks the loop. A worker crash must not turn a large job into an unbounded
 main-process fallback.
 
-`packages/cli/src/daemon.loopBudget.guard.test.ts` checks named hot-path source
+`apps/cli/src/daemon.loopBudget.guard.test.ts` checks named hot-path source
 regions. It checks direct calls, not the transitive call graph. New expensive
 callees need their own region. Its two current exceptions cover the small daemon
 state merge and a memoized project-directory stat. The test rejects stale
@@ -58,8 +58,8 @@ The host launches the same executable through `main` before ordinary CLI boot:
 
 | Install | Child invocation shape |
 | --- | --- |
-| Source | `bun packages/cli/src/main.ts _worker <kind>` |
-| Built JavaScript | `node packages/cli/dist/main.js _worker <kind>` or Bun |
+| Source | `bun apps/cli/src/main.ts _worker <kind>` |
+| Built JavaScript | `node apps/cli/dist/main.js _worker <kind>` or Bun |
 | Compiled binary | `codecast _worker <kind>` |
 
 These are supervised invocation shapes, not commands to start by hand. The
@@ -203,7 +203,7 @@ or while waiting on its own background work (a workflow, a background command,
 a monitor), that work dies too. The stale-status watchdog used to mark such a
 session completed, and it stayed stopped until a person typed "continue".
 
-Now the watchdog revives it instead (`packages/cli/src/midWorkRevive.ts`). Once
+Now the watchdog revives it instead (`apps/cli/src/midWorkRevive.ts`). Once
 the process table confirms the agent is gone, a session whose last status was
 working, thinking, compacting or waiting gets a system message queued to its
 conversation; delivery resumes it, and the agent relaunches what was stopped.
@@ -361,8 +361,8 @@ Run the focused source checks from the repository root, with long commands in
 a private tmux runner:
 
 ```sh
-bun test ./packages/cli/src/bench/load.test.ts ./packages/cli/src/bench/probes.test.ts ./packages/cli/src/bench/stats.test.ts ./packages/cli/src/bench/daemonBench.test.ts
-bun test ./packages/cli/src/bench/integration.test.ts
+bun test ./apps/cli/src/bench/load.test.ts ./apps/cli/src/bench/probes.test.ts ./apps/cli/src/bench/stats.test.ts ./apps/cli/src/bench/daemonBench.test.ts
+bun test ./apps/cli/src/bench/integration.test.ts
 ```
 
 `cast bench daemon` exits 1 only when `acceptance.status` is `FAIL`; a NOT
@@ -397,7 +397,7 @@ cleanup, not just latency on successful requests. Keep the broad CLI, typecheck,
 packaging and guard gates tied to the source actually being released.
 
 Use rooted test paths, for example `bun test ./src/daemon.loopBudget.guard.test.ts`
-from `packages/cli`. The Darwin Bun filter-path traversal issue can exhaust file
+from `apps/cli`. The Darwin Bun filter-path traversal issue can exhaust file
 descriptors when an unrooted filter walks the monorepo. The full CLI gate belongs
 in an isolated environment: legacy tests that inspect the default tmux server
 must not run against a person's live fleet.

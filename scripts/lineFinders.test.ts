@@ -6,7 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { parseLineProfileText } from "../packages/cli/src/lineProfile";
+import { parseLineProfileText } from "../apps/cli/src/lineProfile";
 import { evalSignals, signalArgv } from "../apps/evals/src/signals";
 import { insightBlockerSignals } from "../apps/server/convex/signals";
 import { LESSON_SIGNAL, lessonFingerprint } from "../apps/server/convex/lineLearn";
@@ -30,7 +30,7 @@ const producers: Record<string, () => Filed[]> = {
   lessons: () => {
     // The card's Revise or Drop note (lineLearn), and the weekly harvest the
     // cast-lessons skill files by hand: its command block is what an agent runs.
-    const skill = read("packages/cli/skills/cast-lessons/SKILL.md");
+    const skill = read("apps/cli/skills/cast-lessons/SKILL.md");
     const source = skill.match(/--source (\S+)/)?.[1] ?? "";
     const kind = skill.match(/--kind (\S+)/)?.[1] ?? "";
     expect(skill).toMatch(/--fingerprint lesson:<rule-slug>/);

@@ -42,7 +42,7 @@ uploads the detached signature as `latest.json.sig`:
 ```
 
 The client pins public keys by key id in `RELEASE_MANIFEST_SIGNING`
-(`packages/cli/src/update.ts`). The verification lives in
+(`apps/cli/src/update.ts`). The verification lives in
 `cli-kit/src/update/signing.ts`; the publisher side is
 `cli-kit/release/sign-manifest.ts` (`--keygen`, sign, `--append`, `--verify`).
 

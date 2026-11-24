@@ -124,7 +124,7 @@ committed `codecast.json` (schema and merge in
 }
 ```
 
-`cast sources add` and `cast sources key rotate` write it (`packages/cli/src/
+`cast sources add` and `cast sources key rotate` write it (`apps/cli/src/
 codecastJson.ts`): `--write <path>` names the file (a directory means its
 codecast.json), otherwise the nearest existing codecast.json from the working
 directory up to the checkout root, else one at the root; `--no-write` writes

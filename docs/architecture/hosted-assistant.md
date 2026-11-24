@@ -289,7 +289,7 @@ routes) are edited only by the stage named here.
 | Wallet | `convex/wallet.ts`, `convex/lib/wallet.ts` | Period budget, reservation in the same mutation that checks the cap, true-up, ledger, queries for the UI. |
 | Billing | `~/src/platform/packages/billing/**`, `convex/billing.ts`, its route in `convex/http.ts` | Stripe over fetch (no SDK), checkout, portal, signed webhook. Prices and limits come from the `PLANS` catalog (see Plans); `@platform/billing` takes them as input and holds none of its own. Env-gated: no keys means plans are granted by hand and the upgrade button says so. |
 | Google identity and connectors | `convex/auth.ts`, `platform/packages/auth` web provider list, `components/AuthProviderButtons.tsx`, `convex/googleOAuth.ts` | Google sign-in (env-gated on `AUTH_GOOGLE_ID`), Calendar scope, an internal token getter the tools call. |
-| pi cost | `packages/cli/src/parser.ts` | Read pi's per-message `usage.cost` into `usage_totals`. |
+| pi cost | `apps/cli/src/parser.ts` | Read pi's per-message `usage.cost` into `usage_totals`. |
 | Hosted mode (web) | Removed in 675dda920. What remains is `packages/web/components/simple/**` (the assistant mark, privacy note, connect toast and the shared wording such as `askFirst.ts`) and `app/settings/plan/page.tsx` | The web app has one mode; the assistant is reached from the main app's DashboardLayout. |
 | Onboarding | `packages/web/app/login/page.tsx`, `packages/web/app/signup/page.tsx` | The separate `/welcome` onboarding was removed with hosted mode in 675dda920; sign in and sign up are the app's own pages. |
 | Hosted mode (mobile) | `apps/mobile/components/hosted/**`, the tabs, `app/session/[id].tsx` | The same mode in the phone's tabs. |

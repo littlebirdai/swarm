@@ -2,7 +2,7 @@
 // set on a session sends its start, every backend's turn end (applyAgentStatus)
 // schedules one judge, and the verdict continues, stops or surfaces the loop.
 // The model is a stubbed fetch; the judge prompt itself is graded by
-// packages/cli/scripts/goal-judge-eval.ts.
+// apps/cli/scripts/goal-judge-eval.ts.
 import { afterEach, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { convexTest } from "convex-test";
 import schema from "./schema";

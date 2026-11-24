@@ -902,7 +902,7 @@ shellIpc.handle("route-navigate", (e, navPath) => {
 // front of this one. macOS 14+ honors an activation only from the app that is
 // active, so the daemon's own raise leaves Chrome behind the app the human
 // clicked in; this repeats it from here. Same pid-addressed Apple event as
-// packages/cli/src/browser/raiseApp.ts. Resolves whether the event was sent.
+// apps/cli/src/browser/raiseApp.ts. Resolves whether the event was sent.
 shellIpc.handle("raise-app", (_e, pid) => {
   if (process.platform !== "darwin" || !Number.isInteger(pid) || pid <= 1) return false;
   const jxa =

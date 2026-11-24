@@ -1222,7 +1222,7 @@ export const webList = query({
  * CONSOLIDATION NOTE, and it is the first thing to fix after this ships.
  *
  * The daemon and the browser each already answer this question, from the same
- * vocabulary, in `packages/cli/src/capabilities/fleetDiff.ts`. That module is the
+ * vocabulary, in `apps/cli/src/capabilities/fleetDiff.ts`. That module is the
  * canonical algorithm and this is a second implementation of it — which exists
  * only because the Convex runtime can import `@codecast/shared` and nothing else,
  * and that module lives in the CLI package. Move `fleetDiff.ts` to

@@ -3,7 +3,7 @@ import { UsageError } from '@platform/evals/cli';
 
 import { stripInjectionNoise } from '@codecast/shared/contracts';
 
-import { cliFetchRead } from '../../../../../packages/cli/src/cliHttp';
+import { cliFetchRead } from '../../../../../apps/cli/src/cliHttp';
 import { NO_TEAM_CONTENT_GATE } from '../../../../../apps/server/convex/lib/vendorGuard';
 import { contextFromRows, haikuRequest, isConversationTurn, isGenericNudge, isMachineCarrierText, normalizeForMatch, predictSuggestions, type StoredProfile } from '../../../../../apps/server/convex/composerSuggestions';
 import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';

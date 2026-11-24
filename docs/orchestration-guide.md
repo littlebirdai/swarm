@@ -193,7 +193,7 @@ The runtime is transparent -- `cast plan autopilot` picks the right one automati
 
 ## Agent Roles
 
-Agent prompts are bundled into the CLI (`packages/cli/src/agents/prompts.ts`; no external config files needed).
+Agent prompts are bundled into the CLI (`apps/cli/src/agents/prompts.ts`; no external config files needed).
 
 ### Implementer
 The workhorse. Gets the plan and its task, implements, tests, commits. Runs on Opus unless the task names a model or the plan has a model stylesheet (`cast plan create --model-stylesheet`).

@@ -20,7 +20,7 @@ def live_messaging():
     src = open(os.path.join(REPO, "packages/shared/contracts/snippets.ts")).read()
     body = re.search(r"export const MESSAGING_SNIPPET = `(.*?)`;", src, re.S).group(1)
     return body.replace("\\`", "`").strip()
-HARNESS = os.path.join(REPO, "packages/cli/scripts/prompt-dry-run.ts")
+HARNESS = os.path.join(REPO, "apps/cli/scripts/prompt-dry-run.ts")
 MESSAGING = live_messaging()
 ROUNDS = 5
 

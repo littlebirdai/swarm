@@ -22,7 +22,7 @@
    ```bash
    cp packages/web/.env.example packages/web/.env.local
    cp apps/server/.env.example apps/server/.env.local
-   cp packages/cli/.env.example packages/cli/.env.local
+   cp apps/cli/.env.example apps/cli/.env.local
    ```
 
 3. Configure your Convex instance URL in each `.env.local`.
@@ -49,7 +49,7 @@ Codecast is a Bun monorepo with these packages:
 
 | Package | Description |
 |---------|-------------|
-| `packages/cli` | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
+| `apps/cli` | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
 | `apps/server` | Convex backend: schema, queries, mutations, auth |
 | `packages/web` | React + Vite web app |
 | `apps/desktop` | Electron desktop app |

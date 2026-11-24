@@ -21,7 +21,7 @@ Headless launches, explicit `CODECAST_CHROMIUM` overrides, other Chrome channels
 The release workflow runs native installer tests and the compiled CLI browser test before publishing:
 
 ```bash
-cd packages/cli
+cd apps/cli
 bun test src/browser/appIdentity.test.ts src/browser/appIdentity.native.test.ts --timeout 30000
 bun scripts/test-browser-branding.ts ../web/binaries/codecast-darwin-arm64
 ```

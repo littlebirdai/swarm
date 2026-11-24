@@ -29,7 +29,7 @@
  * `command` is a READ ONLY legacy shape. Claude Code merged commands into
  * skills upstream and a skill wins a name clash, so we never materialize a
  * command — but bare `<dir>/<name>.md` command files are still on real disks
- * and the machine inventory reports them (`packages/cli/src/capabilities/inventory.ts`),
+ * and the machine inventory reports them (`apps/cli/src/capabilities/inventory.ts`),
  * so the vocabulary has to be able to name one. `MATERIALIZABLE_KINDS` is the
  * list a driver may write.
  *

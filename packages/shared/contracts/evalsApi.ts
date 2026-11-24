@@ -10,7 +10,7 @@
 //
 // The shapes mirror what is on disk: run.json, result.json and score.json in
 // a run folder (apps/evals/src/layout.ts and @platform/evals' model), the
-// guard's calls.log marks (packages/cli/scripts/prompt-dry-run-bin/cast), and
+// guard's calls.log marks (apps/cli/scripts/prompt-dry-run-bin/cast), and
 // the multiplayer sim's artifacts (packages/web/store/__tests__/sim/report.ts
 // and dsl.ts). The neutral part, which every product's eval views share,
 // lives in @platform/evals/contract; each part re-exports it and adds what is

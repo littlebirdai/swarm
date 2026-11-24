@@ -14,7 +14,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const CLI = join(import.meta.dir, "../../cli/src/index.ts");
+const CLI = join(import.meta.dir, "../../../apps/cli/src/index.ts");
 const OUT = join(import.meta.dir, "../lib/renderGalleryPipeline.generated.ts");
 const ansi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 

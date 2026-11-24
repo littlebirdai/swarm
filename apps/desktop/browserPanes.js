@@ -78,7 +78,7 @@ const REGISTRY_VERSION = 1;
 const REGISTRY_FILE = "desktop-panes.json";
 
 /** Where the CLI keeps browser state: `$CODECAST_DIR/browser`, else
- *  `~/.codecast/browser` (packages/cli/src/browser/profile.ts browserHome). */
+ *  `~/.codecast/browser` (apps/cli/src/browser/profile.ts browserHome). */
 function defaultRegistryPath() {
   const os = require("os");
   const path = require("path");

@@ -28,8 +28,8 @@
 set -euo pipefail
 A_HOST=$1; A_W1=$2; B_HOST=$3; ID=$4
 W=${CODECAST_WORKTREE:-$(cd "$(dirname "$0")/../../.." && pwd)}
-CB="bun $W/packages/cli/src/index.ts browser"
-cd "$W/packages/cli"
+CB="bun $W/apps/cli/src/index.ts browser"
+cd "$W/apps/cli"
 
 probe() { # <tab> — the row's stamps, whether it is rendered, the window's role
   $CB tab "$1" >/dev/null 2>&1

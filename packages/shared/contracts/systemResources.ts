@@ -42,7 +42,7 @@ export interface ResourcePoint {
   diskWriteBytesPerSecond?: number;
   networkReceivedBytesPerSecond?: number;
   networkSentBytesPerSecond?: number;
-  /** The daemon's load governor level when sampled (packages/cli/src/loadGovernor.ts). */
+  /** The daemon's load governor level when sampled (apps/cli/src/loadGovernor.ts). */
   governor?: "calm" | "busy" | "over";
 }
 

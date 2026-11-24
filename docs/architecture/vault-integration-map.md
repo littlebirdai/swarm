@@ -261,7 +261,7 @@ File: `cli/src/browser/credentials.ts` (rationale in the header at :1-39).
 
 **Golden fixtures**
 - `cli/src/__fixtures__/install-golden/{fresh,existing}/<slug>.md`, `manifest.json` and `help.txt`.
-- Test: `cli/src/install.golden.test.ts`. Regenerate from `packages/cli` with `UPDATE_GOLDEN=1 bun test src/install.golden.test.ts` (:79, :103).
+- Test: `cli/src/install.golden.test.ts`. Regenerate from `apps/cli` with `UPDATE_GOLDEN=1 bun test src/install.golden.test.ts` (:79, :103).
 - `GOLDEN_SLUGS` and `GOLDEN_CLI_ROOT` narrow a run or point it at another tree; `__fixtures__/install-golden/BASELINE.md` documents them.
 
 ## 9. Org templates declaring required secrets
@@ -301,5 +301,5 @@ One dynamic route, `mobile/app/settings/[section].tsx`, renders `SETTINGS_PAGES[
   `envFor(row).map((b) => b.var)`); machineMessages imports no runtime code
   from secrets.
 - origin/main carries `"vault.md": ["vault"]` in NOT_INSTRUCTIONS
-  (packages/cli/src/docsCommands.guard.test.ts). Delete it in the commit that
-  lands packages/cli/src/secrets/ and the `vault` command group.
+  (apps/cli/src/docsCommands.guard.test.ts). Delete it in the commit that
+  lands apps/cli/src/secrets/ and the `vault` command group.

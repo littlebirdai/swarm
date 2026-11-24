@@ -184,7 +184,7 @@ describe("project scoping stops at a path boundary", () => {
   test("scopeByProject keeps the project, its subdirectories and unplaced rows only", () => {
     const rows = [
       { _id: "same", project_path: "/repo/codecast" },
-      { _id: "child", project_path: "/repo/codecast/packages/cli" },
+      { _id: "child", project_path: "/repo/codecast/apps/cli" },
       { _id: "sibling", project_path: "/repo/codecast-web" },
       { _id: "by-root", project_path: "/elsewhere", git_root: "/repo/codecast" },
       { _id: "sibling-root", project_path: "/elsewhere", git_root: "/repo/codecast-web" },

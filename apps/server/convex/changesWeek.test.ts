@@ -238,10 +238,10 @@ async function setup() {
 
   const seed = async () => {
     await commit("m1", "feat(web): line pages", at("09:00", MON), ["packages/web/line.tsx", "packages/web/page.tsx"], { conversation_id: ids.vis });
-    await commit("m2", "chore(cli): bump version to 1.1.157", at("15:00", MON), ["packages/cli/package.json"]);
-    await commit("t1", `fix(cli): ${SECRET} upload`, at("10:00", TUE), ["packages/cli/upload.ts"], { conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev" });
+    await commit("m2", "chore(cli): bump version to 1.1.157", at("15:00", MON), ["apps/cli/package.json"]);
+    await commit("t1", `fix(cli): ${SECRET} upload`, at("10:00", TUE), ["apps/cli/upload.ts"], { conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev" });
     await commit("t2", "docs: refresh the guide", at("11:00", TUE), ["docs/guide.md"]);
-    await commit("t3", "chore(cli): bump version to 1.1.158", at("15:00", TUE), ["packages/cli/package.json"]);
+    await commit("t3", "chore(cli): bump version to 1.1.158", at("15:00", TUE), ["apps/cli/package.json"]);
   };
   const rebuildDay = (date: string) => t.action(internal.changesSchedule.rebuildDay, { team_id: ids.team, repository: REPO, date });
   const rebuildWeek = () => t.action(internal.changesWeek.rebuildWeek, { team_id: ids.team, repository: REPO, week: WEEK });

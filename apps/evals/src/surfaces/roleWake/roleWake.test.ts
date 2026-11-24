@@ -16,9 +16,9 @@ import type { AgentResult } from '../../surface';
 import impl, { captureRoleWake, frameOf, MAX_SKEW_MS, type RoleWakeDeps, type RoleWakeSnap } from './index';
 import { meta } from './meta';
 import { harnessNote, readWorld, servedDirFor } from './world';
-import { briefTextLines } from '../../../../../packages/cli/src/briefLines';
+import { briefTextLines } from '../../../../../apps/cli/src/briefLines';
 
-const GUARD = join(REPO_ROOT, 'packages', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast');
+const GUARD = join(REPO_ROOT, 'apps', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast');
 let home: string;
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'evals-rolewake-'));

@@ -45,7 +45,7 @@ import {
   type GoalVerdict,
 } from "@codecast/shared/contracts/sessionGoal";
 
-/** The judge's model. Graded by packages/cli/scripts/goal-judge-eval.ts. */
+/** The judge's model. Graded by apps/cli/scripts/goal-judge-eval.ts. */
 export const GOAL_JUDGE_MODEL = "claude-haiku-5-5";
 /** How many times a judge waits again for the turn's messages before judging what it has. */
 const SYNC_RETRIES = 3;

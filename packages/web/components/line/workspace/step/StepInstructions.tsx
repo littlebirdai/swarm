@@ -32,8 +32,8 @@ export type StepInstructionsProps = {
   projects: ReadonlyArray<{ _id: string; title?: string | null }>;
 };
 
-/** The checkout path of the templates cast ships its own lines from (packages/cli/src/workflow/templates.ts). */
-const SHIPPED_DIR = "packages/cli/src/workflow/templates";
+/** The checkout path of the templates cast ships its own lines from (apps/cli/src/workflow/templates.ts). */
+const SHIPPED_DIR = "apps/cli/src/workflow/templates";
 
 /** Where a step's text lives and what runs it, from the graph's home (editability): its file in the checkout it was
  *  pushed from, or in cast's own templates for a shipped line never pushed, and the machine. Null while unread or for a

@@ -84,7 +84,7 @@ convex/initiatives.ts calls it wherever the owner becomes a role. The
 analyzer reads the top of the tree from `coverage` in `org.analysisInputs`
 (convex/lib/orgCoverage.ts, pure, beside lib/orgActivity): the open
 initiatives with owner, health, date and projects with leads. The prompt rule
-is `ORG_INITIATIVES_RULE` (packages/cli/src/orgInit.ts), and the letter's
+is `ORG_INITIATIVES_RULE` (apps/cli/src/orgInit.ts), and the letter's
 second paragraph is written into the letter's own shape sentence and the
 decision rule, at their sites. An initiative with no owner is a finding that
 names who to ask; the analyzer posts no change for it and never creates an

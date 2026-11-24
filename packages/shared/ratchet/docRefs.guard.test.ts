@@ -188,15 +188,15 @@ describe("doc references", () => {
 
   test("the scanner reads paths the way docs write them", () => {
     const refs = refsIn([
-      "see `packages/cli/src/daemon.ts:42` and (docs/architecture/sync-host.md).",
+      "see `apps/cli/src/daemon.ts:42` and (docs/architecture/sync-host.md).",
       "the generated api under apps/server/convex/_generated/api.ts",
       "any of packages/*, docs/<slug>.md, ~/.codecast/config.json, $HOME/.codecast/x",
       "a route at packages/web/app/(marketing)/page.tsx and scripts/ci/ alone",
       "a relative ../../../scripts/sim.ts include",
     ].join("\n"));
     expect([...refs].sort()).toEqual([
+      "apps/cli/src/daemon.ts",
       "docs/architecture/sync-host.md",
-      "packages/cli/src/daemon.ts",
       "packages/web/app/(marketing)/page.tsx",
       "scripts/ci",
     ]);

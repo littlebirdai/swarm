@@ -9,7 +9,7 @@ import { DRY_RUN_SCRIPT } from '../paths';
 import { evalsApiKey, postCall } from './apiCall';
 import type { AgentOptions, AgentResult, CallResult, SurfaceRequest } from '../surface';
 
-// Every model call an eval makes goes through packages/cli/scripts/
+// Every model call an eval makes goes through apps/cli/scripts/
 // prompt-dry-run.ts (pl-810): a private config dir, no hooks, a guard `cast`,
 // and nothing reaching the founder's inbox. A call surface uses its --call
 // mode; an agent surface runs a full turn against a served world. --dry

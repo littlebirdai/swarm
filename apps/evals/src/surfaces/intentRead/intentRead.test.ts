@@ -4,8 +4,8 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { parseWorkflowSource } from '../../../../../packages/cli/src/workflow/parser';
-import { BUILTIN_WORKFLOW_TEMPLATES } from '../../../../../packages/cli/src/workflow/templates';
+import { parseWorkflowSource } from '../../../../../apps/cli/src/workflow/parser';
+import { BUILTIN_WORKFLOW_TEMPLATES } from '../../../../../apps/cli/src/workflow/templates';
 import { fixturesDir } from '../../paths';
 import impl, { answerOf, intentReadRequest, outcomeOf, type IntentReadSnap } from './index';
 import { INTENT_READ_MODEL, meta } from './meta';

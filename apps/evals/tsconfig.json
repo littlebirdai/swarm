@@ -12,14 +12,14 @@
     "fixtures/**/*.ts",
     "../../apps/server/convex/lib/anthropic.ts",
     "../../apps/server/convex/idleSummary.ts",
-    "../../packages/cli/src/cliHttp.ts",
-    "../../packages/cli/src/config/readAuthConfig.ts",
-    "../../packages/cli/src/conversationRef.ts",
-    "../../packages/cli/src/secretRedaction.ts",
-    "../../packages/cli/src/ccKeychain.ts",
-    "../../packages/cli/src/orgInitRun.ts",
-    "../../packages/cli/src/bundledAssets.d.ts",
-    "../../packages/cli/src/browser/assets.d.ts",
-    "../../packages/cli/src/computer/assets.d.ts"
+    "../../apps/cli/src/cliHttp.ts",
+    "../../apps/cli/src/config/readAuthConfig.ts",
+    "../../apps/cli/src/conversationRef.ts",
+    "../../apps/cli/src/secretRedaction.ts",
+    "../../apps/cli/src/ccKeychain.ts",
+    "../../apps/cli/src/orgInitRun.ts",
+    "../../apps/cli/src/bundledAssets.d.ts",
+    "../../apps/cli/src/browser/assets.d.ts",
+    "../../apps/cli/src/computer/assets.d.ts"
   ]
 }

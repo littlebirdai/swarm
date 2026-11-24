@@ -54,7 +54,7 @@ describe("the release scripts call the gate", () => {
     await Bun.file(new URL(path, import.meta.url)).text();
 
   test("CLI deploy.sh gates on the R2 latest.json version before bumping", async () => {
-    const script = await read("../../packages/cli/scripts/deploy.sh");
+    const script = await read("../../apps/cli/scripts/deploy.sh");
     const gateLine = script.indexOf("release-version-gate.ts");
     const bumpLine = script.indexOf("jq --arg v \"$VERSION\" '.version = $v' package.json");
     expect(gateLine).toBeGreaterThan(-1);

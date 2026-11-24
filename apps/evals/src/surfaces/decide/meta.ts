@@ -7,7 +7,7 @@ export const meta: SurfaceMeta = {
   route: 'call',
   // The asking session runs on the person's Claude Code default.
   model: PROD_DEFAULT_MODEL,
-  sources: surfaceSources('decide', 'packages/shared/contracts/snippets.ts', 'packages/cli/src/decideCommand.ts'),
+  sources: surfaceSources('decide', 'packages/shared/contracts/snippets.ts', 'apps/cli/src/decideCommand.ts'),
   reps: { check: 5 },
   // One Opus call over up to ~45k tokens of session, plus two Sonnet graders.
   maxUsdPerRep: 1.2,

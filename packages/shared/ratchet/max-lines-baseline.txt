@@ -11,61 +11,61 @@ apps/mobile/app/call.tsx 950
 apps/mobile/app/session/[id].tsx 6500
 apps/mobile/components/MarkdownRenderer.tsx 950
 apps/mobile/components/session/NewSessionSheet.tsx 850
-packages/cli/src/app/cli.ts 950
-packages/cli/src/blame.ts 1000
-packages/cli/src/browser/bridge/host.test.ts
-packages/cli/src/browser/bridge/host.ts
-packages/cli/src/browser/cli.ts 1450
-packages/cli/src/browser/cliEngine.ts
-packages/cli/src/browser/instance.ts 900
-packages/cli/src/browser/provisionLinux.ts
-packages/cli/src/callSnap.test.ts 2050
-packages/cli/src/callSnap.ts 2900
-packages/cli/src/capabilities/inventory.ts 1150
-packages/cli/src/capabilities/manifests.ts 1100
-packages/cli/src/capabilities/nativeCatalog.ts 1050
-packages/cli/src/ccAccounts.test.ts 2450
-packages/cli/src/ccAccounts.ts 3300
-packages/cli/src/check.ts 1100
-packages/cli/src/cloud/hostTools.ts 1200
-packages/cli/src/cloud/mirror/apply.ts 1300
-packages/cli/src/cloud/mirror/transform.ts 850
-packages/cli/src/cloud/prepare.ts
-packages/cli/src/cloud/transfer.test.ts 1250
-packages/cli/src/cloudAgents/codex.test.ts 950
-packages/cli/src/cloudAgents/codex.ts 950
-packages/cli/src/cloudAgents/watcher.ts 850
-packages/cli/src/codexAppServer.ts 1400
-packages/cli/src/daemon.interactive-prompt-parse.test.ts 900
-packages/cli/src/daemon.machine-prompt-safety.test.ts
-packages/cli/src/daemon.tmux-classify.test.ts
-packages/cli/src/daemon.ts
-packages/cli/src/daemon.waiting-tasks.test.ts 900
-packages/cli/src/decideCommand.ts
-packages/cli/src/doctor.ts 950
-packages/cli/src/execution/coordinator.ts 1000
-packages/cli/src/formatter.ts 2150
-packages/cli/src/hosts/cli.ts 1800
-packages/cli/src/index.ts
-packages/cli/src/jsonlGenerator.test.ts 900
-packages/cli/src/jsonlGenerator.ts 1050
-packages/cli/src/judgeFixCommand.ts 850
-packages/cli/src/orgTemplate.test.ts 1200
-packages/cli/src/orgTemplateRun.ts 1100
-packages/cli/src/parser.test.ts 1350
-packages/cli/src/parser.ts 2100
-packages/cli/src/prCommand.ts 1250
-packages/cli/src/publish.ts 1000
-packages/cli/src/remote/session-move.ts 1500
-packages/cli/src/retryQueue.test.ts 950
-packages/cli/src/secrets/command.ts 850
-packages/cli/src/snippets.sections.test.ts 950
-packages/cli/src/syncService.ts
-packages/cli/src/test-helpers/messagingHarness.ts 950
-packages/cli/src/workflow/runner.test.ts
-packages/cli/src/workflow/runner.ts
-packages/cli/src/workspace/lifecycle.test.ts 1000
-packages/cli/src/workspace/lifecycle.ts 950
+apps/cli/src/app/cli.ts 950
+apps/cli/src/blame.ts 1000
+apps/cli/src/browser/bridge/host.test.ts
+apps/cli/src/browser/bridge/host.ts
+apps/cli/src/browser/cli.ts 1450
+apps/cli/src/browser/cliEngine.ts
+apps/cli/src/browser/instance.ts 900
+apps/cli/src/browser/provisionLinux.ts
+apps/cli/src/callSnap.test.ts 2050
+apps/cli/src/callSnap.ts 2900
+apps/cli/src/capabilities/inventory.ts 1150
+apps/cli/src/capabilities/manifests.ts 1100
+apps/cli/src/capabilities/nativeCatalog.ts 1050
+apps/cli/src/ccAccounts.test.ts 2450
+apps/cli/src/ccAccounts.ts 3300
+apps/cli/src/check.ts 1100
+apps/cli/src/cloud/hostTools.ts 1200
+apps/cli/src/cloud/mirror/apply.ts 1300
+apps/cli/src/cloud/mirror/transform.ts 850
+apps/cli/src/cloud/prepare.ts
+apps/cli/src/cloud/transfer.test.ts 1250
+apps/cli/src/cloudAgents/codex.test.ts 950
+apps/cli/src/cloudAgents/codex.ts 950
+apps/cli/src/cloudAgents/watcher.ts 850
+apps/cli/src/codexAppServer.ts 1400
+apps/cli/src/daemon.interactive-prompt-parse.test.ts 900
+apps/cli/src/daemon.machine-prompt-safety.test.ts
+apps/cli/src/daemon.tmux-classify.test.ts
+apps/cli/src/daemon.ts
+apps/cli/src/daemon.waiting-tasks.test.ts 900
+apps/cli/src/decideCommand.ts
+apps/cli/src/doctor.ts 950
+apps/cli/src/execution/coordinator.ts 1000
+apps/cli/src/formatter.ts 2150
+apps/cli/src/hosts/cli.ts 1800
+apps/cli/src/index.ts
+apps/cli/src/jsonlGenerator.test.ts 900
+apps/cli/src/jsonlGenerator.ts 1050
+apps/cli/src/judgeFixCommand.ts 850
+apps/cli/src/orgTemplate.test.ts 1200
+apps/cli/src/orgTemplateRun.ts 1100
+apps/cli/src/parser.test.ts 1350
+apps/cli/src/parser.ts 2100
+apps/cli/src/prCommand.ts 1250
+apps/cli/src/publish.ts 1000
+apps/cli/src/remote/session-move.ts 1500
+apps/cli/src/retryQueue.test.ts 950
+apps/cli/src/secrets/command.ts 850
+apps/cli/src/snippets.sections.test.ts 950
+apps/cli/src/syncService.ts
+apps/cli/src/test-helpers/messagingHarness.ts 950
+apps/cli/src/workflow/runner.test.ts
+apps/cli/src/workflow/runner.ts
+apps/cli/src/workspace/lifecycle.test.ts 1000
+apps/cli/src/workspace/lifecycle.ts 950
 apps/server/convex/accountSwitch.test.ts 1650
 apps/server/convex/accountSwitch.ts 2700
 apps/server/convex/agentTasks.ts

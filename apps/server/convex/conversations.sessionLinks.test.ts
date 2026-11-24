@@ -6,7 +6,7 @@ import schema from "./schema";
 
 // /cli/session-links answers the session trailer hook, which adds a
 // Codecast-Session link to a commit only when the session's team can read it
-// (packages/cli/src/sessionTrailer.ts). team_visible is that answer, by the
+// (apps/cli/src/sessionTrailer.ts). team_visible is that answer, by the
 // rule commit ingest uses to trust the link (isConversationTeamVisible).
 
 const modules = {

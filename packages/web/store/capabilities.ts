@@ -581,7 +581,7 @@ export function parseCapabilityEntries(
  *
  * WHY THIS FOLD LOOKS LIKE THE SERVER'S
  *
- * `packages/cli/src/capabilities/fleetDiff.ts` is the canonical fleet fold, and
+ * `apps/cli/src/capabilities/fleetDiff.ts` is the canonical fleet fold, and
  * `foldFleet` in `apps/server/convex/capabilities.ts` is already a second
  * copy of it — with a note at the top saying the fix is to move `fleetDiff.ts`
  * into `packages/shared/contracts/` and delete the copy. This slice cannot

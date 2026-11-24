@@ -16,7 +16,7 @@ copy = [
   ".env.local",
   "packages/convex/.env.local",
   "packages/web/.env.local",
-  "packages/cli/.env.local",
+  "apps/cli/.env.local",
 ]
 install = ["bun install"]
 

@@ -1,7 +1,7 @@
 // Relay for watching a session's browser tab on another machine.
 //
 // The watch stream's normal transport is a loopback WebSocket to the daemon
-// (packages/cli/src/browser/watchServer.ts): only a viewer on the agent's own
+// (apps/cli/src/browser/watchServer.ts): only a viewer on the agent's own
 // machine reaches it. This is the second transport, the terminal relay's lease
 // protocol (terminalStream.ts) carrying browser frames. The contract and its
 // numbers are in packages/shared/contracts/browserStream.ts.

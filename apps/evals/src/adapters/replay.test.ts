@@ -376,7 +376,7 @@ describe('what a rep records', () => {
 
   test("the guard's ruler moves with what it classifies, not with its comments", () => {
     const dir = mkdtempSync(join(tmpdir(), 'evals-guardsha-'));
-    const guard = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'packages', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast'), 'utf8');
+    const guard = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'packages', '..', 'apps', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast'), 'utf8');
     const variant = (name: string, text: string) => {
       writeFileSync(join(dir, name), text);
       return guardClassifierSha(join(dir, name));

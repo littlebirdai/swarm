@@ -50,7 +50,7 @@ export function evidenceCount(task: LineTaskLike, artifacts: Array<{ task_id?: s
 
 // ---------------------------------------------------------------- the line picker (L2)
 
-/** The workflow templates the CLI ships (packages/cli/src/workflow/templates.ts).
+/** The workflow templates the CLI ships (apps/cli/src/workflow/templates.ts).
  *  The web has no copy of the sources; it needs only the names a role's line
  *  may resolve to when the host has pushed no workflow of that slug. */
 export const SHIPPED_LINE_TEMPLATES: ReadonlyArray<{ slug: string; name: string }> = [

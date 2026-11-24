@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import type { ConvoMessage, Freeze, FreezeResolver, ProductionReply } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { redactSecrets } from '../../../../packages/cli/src/secretRedaction';
+import { redactSecrets } from '../../../../apps/cli/src/secretRedaction';
 import { labelPath } from '../labels';
 import { fixturesDir, homePaths, publicFreezesDir, treeRoot } from '../paths';
 import { loadSurface, refFormsLine, surfaceMeta } from '../registry';

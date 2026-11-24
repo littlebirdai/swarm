@@ -21,7 +21,7 @@ The daemon finds declarations in the repos of its codecast panes (`@codecast_pro
 
 ## A pass
 
-`packages/cli/src/dataSync/engine.ts`, under a lock, every minute from the daemon (`dataSync/loop.ts` spawns `cast datasync now --quiet`, so hashing never runs on the daemon's event loop):
+`apps/cli/src/dataSync/engine.ts`, under a lock, every minute from the daemon (`dataSync/loop.ts` spawns `cast datasync now --quiet`, so hashing never runs on the daemon's event loop):
 
 1. Read the changes since the cursor and apply each. The state file (`~/.codecast/data-sync/state.json`) records, per file, the version this machine and the index last agreed on. A row that differs from that version is a change from another machine; a row that matches it is this machine's own commit coming back.
 2. Walk each folder and send what differs from the agreed version: new and edited files, and deletions.

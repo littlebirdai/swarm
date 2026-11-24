@@ -20,7 +20,7 @@ import { join } from 'node:path';
 
 import { headOfPeopleOpening } from '@codecast/shared/contracts/headOfPeoplePrompt';
 
-import { looseLines } from '../../../../packages/cli/src/orgLooseRun';
+import { looseLines } from '../../../../apps/cli/src/orgLooseRun';
 import { homePaths } from '../../src/paths';
 import { EVERY_READ, writeFrozenVerbs, writeServedRead } from '../../src/served';
 

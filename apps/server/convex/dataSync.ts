@@ -1,6 +1,6 @@
 // Data sync: the index every machine of one person reads and writes to keep
 // the folders their repos declare ([host] data in .codecast/workspace.toml)
-// the same everywhere. The daemon's loop (packages/cli/src/dataSync) uploads a
+// the same everywhere. The daemon's loop (apps/cli/src/dataSync) uploads a
 // file's bytes to storage, commits its row here, and reads every row past the
 // last `seq` it saw. Every function is scoped to the caller: a row is one
 // person's file and nobody else's.

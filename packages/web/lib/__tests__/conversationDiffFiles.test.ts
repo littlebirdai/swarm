@@ -21,7 +21,7 @@ test("the session tree combines edits to the same file from different agents", (
   expect(files[0].patch).not.toContain("middle");
 });
 
-// Changes the daemon observed on disk around a Bash call (packages/cli/src/
+// Changes the daemon observed on disk around a Bash call (apps/cli/src/
 // shellChanges.ts): whole-file writes that know the text before them, and
 // deletions. Neither comes out of a tool call, so they are built directly.
 function observed(id: string, filePath: string, changeType: "write" | "delete", newContent: string, oldContent?: string) {

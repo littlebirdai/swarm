@@ -5,7 +5,7 @@ import { stripAnsi } from '@platform/cli-kit/render';
 import type { ConvoMessage } from '@platform/evals';
 import { UsageError } from '@platform/evals/cli';
 
-import { briefTextLines } from '../../../../../packages/cli/src/briefLines';
+import { briefTextLines } from '../../../../../apps/cli/src/briefLines';
 
 import { emptyOrgReads } from '../../commands/snapshot';
 import { FAKED_WRITES } from '../../fakes/cast/verbs';

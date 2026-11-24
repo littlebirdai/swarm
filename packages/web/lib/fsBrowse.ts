@@ -2,7 +2,7 @@
 // composer's @ file completion.
 //
 // The daemon's loopback hook server exposes the /fs routes
-// (packages/cli/src/fs/browseHttp.ts). We reach it through the same discovery
+// (apps/cli/src/fs/browseHttp.ts). We reach it through the same discovery
 // the integrated terminal uses — getTerminalEndpoint — so it answers exactly
 // when the viewer is on the machine whose daemon will run the session. Every
 // failure (other machine, daemon down, old daemon without the route) collapses
@@ -99,7 +99,7 @@ export async function fetchDirListing(
   return listing;
 }
 
-/** One folder's sessions on this machine (packages/cli/src/fs/localSessions.ts). */
+/** One folder's sessions on this machine (apps/cli/src/fs/localSessions.ts). */
 export type LocalFolder = {
   path: string;
   repository?: string;

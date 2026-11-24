@@ -3,7 +3,7 @@
 // Convex as ciphertext and only the daemon (holding the private key) can read it.
 //
 // This is the SubtleCrypto mirror of the daemon's node:crypto decrypt
-// (packages/cli/src/providerKeyCrypto.ts); the two interoperate only because both
+// (apps/cli/src/providerKeyCrypto.ts); the two interoperate only because both
 // use the exact parameters in @codecast/shared/contracts (providerKeyCrypto). The
 // round-trip is unit-tested there. Do not change the algorithm on one side only.
 
