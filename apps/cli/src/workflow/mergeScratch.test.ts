@@ -278,6 +278,50 @@ release();
 
 describe("shutDown", () => {
   test(
+    "stops a group member that holds a pipe after the step shell exits",
+    async () => {
+      const r = repo();
+      let pid = 0;
+      let shellExited = false;
+      const ran = runShell(
+        `perl -e '$SIG{TERM} = sub { exit 0 }; open(my $f, ">", "ready") or die $!; close($f); while (1) { sleep 30 }' &`,
+        r.root,
+        () => {},
+        {},
+        (child) => {
+          pid = child.pid!;
+          trackStep(child);
+          child.once("exit", () => {
+            shellExited = true;
+          });
+        },
+      );
+      try {
+        await pollUntil(
+          () => shellExited && existsSync(join(r.root, "ready")),
+          "the shell exiting and its child starting",
+        );
+        let released = false;
+        expect(
+          await shutDown(async () => {
+            released = true;
+          }, 500),
+        ).toBe(true);
+        expect(released).toBe(true);
+      } finally {
+        if (pid) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {}
+        }
+        await ran;
+        r.done();
+      }
+    },
+    { timeout: 30_000 },
+  );
+
+  test(
     "stops the running step's whole process group, then releases its tree",
     async () => {
       const r = repo();

@@ -5424,7 +5424,7 @@
     "swarm/no-comments": 17
   },
   "apps/cli/src/workflow/mergeStation.ts": {
-    "swarm/no-comments": 66
+    "swarm/no-comments": 64
   },
   "apps/cli/src/workflow/nodePrompt.foreign.test.ts": {
     "swarm/no-comments": 3
@@ -5583,7 +5583,7 @@
   },
   "apps/cli/src/workflow/stationProcs.ts": {
     "swarm/no-blocking-child-process-call": 1,
-    "swarm/no-comments": 58
+    "swarm/no-comments": 57
   },
   "apps/cli/src/workflow/subjectPark.ts": {
     "swarm/no-comments": 24

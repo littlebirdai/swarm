@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pollUntil } from "../test-helpers/pollUntil";
 import { BRANCH, PR_URL, T, setup } from "./mergeStation.testkit";
 
 // The Merge station's before-merge deploy steps: from a tree that holds main,
@@ -10,6 +20,104 @@ import { BRANCH, PR_URL, T, setup } from "./mergeStation.testkit";
 // repository's merge lock, and the real scratch worktree.
 
 describe("cast flow merge: before-merge steps", () => {
+  test(
+    "releases the lease and tree on TERM during a step and starts no later step",
+    async () => {
+      const dir = mkdtempSync(join(tmpdir(), "merge-stop-"));
+      const driver = join(dir, "driver.ts");
+      writeFileSync(
+        driver,
+        `
+      import { existsSync, readFileSync, writeFileSync } from "node:fs";
+      import { join } from "node:path";
+      import { setup } from ${JSON.stringify(join(import.meta.dir, "mergeStation.testkit.ts"))};
+      import { runShell } from ${JSON.stringify(join(import.meta.dir, "../land/shipCheckout.ts"))};
+      import { shellQuote } from ${JSON.stringify(join(import.meta.dir, "../shellQuote.ts"))};
+      import { pollUntil } from ${JSON.stringify(join(import.meta.dir, "../test-helpers/pollUntil.ts"))};
+      const dir = process.argv[2];
+      const s = setup();
+      writeFileSync(join(dir, "repo"), s.root);
+      s.profile("first");
+      const profile = ".codecast/workspace.toml";
+      s.onMain({ [profile]: readFileSync(join(s.work, profile), "utf-8") + '\\n[[ship.deploy]]\\nname = "later"\\nwhen = ["api/**"]\\nrun = "later"\\nstage = "before_push"\\n' });
+      s.ci(s.branch("api/route.ts", "export {}\\n"));
+      s.answers["/cli/repo-lease"] = async ({ op }) => {
+        if (op !== "release") return { held: true };
+        writeFileSync(join(dir, "release-request"), "");
+        await pollUntil(() => existsSync(join(dir, "release-reply")), "lease response");
+        writeFileSync(join(dir, "released"), "");
+        return { released: true };
+      };
+      let firstReturned = false;
+      const result = await s.run({
+        scratch: undefined,
+        exec: (...args) => {
+          if (firstReturned) writeFileSync(join(dir, "continued"), "");
+          return s.exec(...args);
+        },
+        runStep: async (cmd, cwd, log, env, track) => {
+          if (cmd !== "first") {
+            writeFileSync(join(dir, "later"), "");
+            return { code: 0, output: "" };
+          }
+          writeFileSync(join(dir, "tree"), cwd);
+          const outcome = await runShell("trap 'exit 0' TERM; touch " + shellQuote(join(dir, "ready")) + "; while :; do sleep 1; done", cwd, log, env, (child) => {
+            track?.(child);
+            writeFileSync(join(dir, "group"), String(child.pid));
+          });
+          firstReturned = true;
+          return outcome;
+        },
+      });
+      process.exit(result.code);
+    `,
+      );
+      const child = Bun.spawn([process.execPath, driver, dir], {
+        stdout: "ignore",
+        stderr: "inherit",
+      });
+      const file = (name: string) => join(dir, name);
+      try {
+        await pollUntil(
+          () => existsSync(file("ready")),
+          "the first step starting",
+        );
+        const tree = readFileSync(file("tree"), "utf-8");
+        expect(existsSync(tree)).toBe(true);
+        child.kill("SIGTERM");
+        await pollUntil(
+          () => existsSync(file("release-request")),
+          "the station releasing its deploy lease",
+        );
+        expect(child.exitCode).toBeNull();
+        writeFileSync(file("release-reply"), "");
+        expect(await child.exited).toBe(143);
+        expect(existsSync(file("released"))).toBe(true);
+        expect(existsSync(tree)).toBe(false);
+        expect(existsSync(file("later"))).toBe(false);
+        expect(existsSync(file("continued"))).toBe(false);
+      } finally {
+        if (existsSync(file("group"))) {
+          try {
+            process.kill(
+              -Number(readFileSync(file("group"), "utf-8")),
+              "SIGKILL",
+            );
+          } catch {}
+        }
+        child.kill("SIGKILL");
+        await child.exited;
+        if (existsSync(file("repo")))
+          rmSync(readFileSync(file("repo"), "utf-8"), {
+            recursive: true,
+            force: true,
+          });
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+    T,
+  );
+
   test(
     "a step runs from the rebased tree holding main, and its target is recorded deployed at the landed sha",
     async () => {

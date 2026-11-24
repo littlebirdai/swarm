@@ -192,11 +192,9 @@ export function trackStep(child: ChildProcess): void {
 export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
   const steps = [...running];
   const groups = steps.flatMap((step) => (step.pid ? [step.pid] : []));
-  for (const step of steps) {
-    if (!step.pid || step.exitCode !== null || step.signalCode !== null)
-      continue;
+  for (const group of groups) {
     try {
-      process.kill(-step.pid, "SIGTERM");
+      process.kill(-group, "SIGTERM");
     } catch {}
   }
   const deadline = Date.now() + graceMs;
@@ -225,7 +223,7 @@ export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
         if (stdout.trim() && !hasLiveMember) return true;
       } catch {}
     }
-    const delay = Math.min(50, deadline - Date.now());
+    const delay = Math.min(250, deadline - Date.now());
     if (delay <= 0) return false;
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
@@ -261,6 +259,7 @@ export async function shutDown(
 export async function acquiredTree(
   repo: string,
   at: string,
+  afterStop?: () => void | Promise<void>,
 ): Promise<ScratchTree> {
   const { acquireWorkspace, healWorkspace, releaseWorkspace } =
     await import("../workspace/lifecycle.js");
@@ -295,13 +294,15 @@ export async function acquiredTree(
       console.log(
         `stopped while ${restoring}: production may run a backend the default branch lacks until the next merge or deploy`,
       );
-    stopping = shutDown(release).finally(() => {
-      if (landedAs) {
-        console.log(landedAs);
-        process.exit(0);
-      }
-      process.exit(sig === "SIGINT" ? 130 : 143);
-    });
+    stopping = shutDown(release)
+      .finally(afterStop)
+      .finally(() => {
+        if (landedAs) {
+          console.log(landedAs);
+          process.exit(0);
+        }
+        process.exit(sig === "SIGINT" ? 130 : 143);
+      });
   }
   for (const sig of ["SIGTERM", "SIGINT"] as const) process.once(sig, onSignal);
   let setUp = false;

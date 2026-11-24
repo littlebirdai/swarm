@@ -84,7 +84,7 @@ export type MergeStationArgs = {
   post: (path: string, body: Record<string, unknown>) => Promise<any>;
   exec?: Exec;
   runStep?: typeof runShell;
-  scratch?: (repo: string, at: string) => Promise<ScratchTree>;
+  scratch?: typeof acquiredTree;
   wait?: Wait;
   /** How long a station that lost its lease after a deploy waits to take it back and restore main (default 15 min). */
   leaseWaitMs?: number;
@@ -312,9 +312,9 @@ async function mergeStation(
   // The steps that went out and the tree each deployed: a failure after one sends them again from main.
   const deployed = new Map<string, { step: ShipDeployStep; tip: string }>();
   let tree: ScratchTree | null = null;
-  // The repository's lease across machines, taken before the first before-merge step and held through the landed
-  // sha, so no other station's or ship checkout's deploy lands between this deploy and its merge.
   let lease: RepoLease | null = null;
+  let releasing: Promise<void> | undefined;
+  const releaseLease = () => (releasing ??= lease?.release());
   const takeLease = async (): Promise<string | null> => {
     if (lease) return null;
     if (!args.repository)
@@ -337,7 +337,8 @@ async function mergeStation(
   try {
     if (!args.scratch) await sweepScratchTrees(repo);
     try {
-      tree = await (args.scratch ?? acquiredTree)(repo, already ?? head);
+      const acquire = args.scratch ?? acquiredTree;
+      tree = await acquire(repo, already ?? head, releaseLease);
     } catch (err) {
       return refuse(`could not make a worktree to rebase in: ${message(err)}`);
     }
@@ -693,7 +694,7 @@ async function mergeStation(
     }
     return await recordLanded(args, url, landed.sha, outcomes);
   } finally {
-    await (lease as RepoLease | null)?.release();
+    await releaseLease();
     if (tree) await tree.release();
     unlock();
   }
