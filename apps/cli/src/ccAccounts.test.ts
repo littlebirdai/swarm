@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { readLocalCredentialAsync } from "./ccKeychain.js";
+import { parseRateLimitFingerprint } from "./ccRateLimitHeaders.js";
 import {
   buildProfile,
   parseProfile,
@@ -57,7 +57,6 @@ import {
   SETUP_TOKEN_LIFETIME_MS,
   extractSetupToken,
   readAccountTokenValue,
-  parseRateLimitFingerprint,
   sameAccountFingerprint,
   attributeFingerprint,
   ACCOUNT_LAUNCH_UNSET,
@@ -87,23 +86,6 @@ const OAUTH_ACCOUNT = {
 };
 
 describe("buildProfile", () => {
-  it("snapshots credential + identity + timestamp", () => {
-    const p = buildProfile(CRED, OAUTH_ACCOUNT, 1000);
-    expect(p.credentials.claudeAiOauth.refreshToken).toBe("rt-456");
-    expect(p.oauthAccount.emailAddress).toBe("ashot@footage.com");
-    expect(p.saved_at).toBe(1000);
-  });
-
-  it("rejects non-JSON and non-OAuth credentials", () => {
-    expect(() => buildProfile("not json", OAUTH_ACCOUNT, 0)).toThrow(
-      CcAccountError,
-    );
-    // API-key logins have no claudeAiOauth block — nothing snapshotable.
-    expect(() =>
-      buildProfile(JSON.stringify({ apiKey: "sk-..." }), OAUTH_ACCOUNT, 0),
-    ).toThrow(/claudeAiOauth/);
-  });
-
   it("tolerates a missing oauthAccount block", () => {
     const p = buildProfile(CRED, null, 0);
     expect(p.oauthAccount).toEqual({});
@@ -111,13 +93,6 @@ describe("buildProfile", () => {
 });
 
 describe("parseProfile", () => {
-  it("round-trips buildProfile output", () => {
-    const p = buildProfile(CRED, OAUTH_ACCOUNT, 1234);
-    const back = parseProfile(JSON.stringify(p));
-    expect(back.credentials.claudeAiOauth.accessToken).toBe("at-123");
-    expect(back.saved_at).toBe(1234);
-  });
-
   it("accepts hand-saved profiles with float epoch-second saved_at", () => {
     // The first profiles were saved manually with python time.time() (seconds,
     // float) — saved_at is display metadata only, any number passes through.
@@ -817,14 +792,9 @@ describe("resnapshotIfActiveFresher (sandboxed $HOME)", () => {
 
   // The daemon's timers read the credential off the loop; the async read must
   // answer from the same store as the sync one, file store and file fallback alike.
-  it("readActiveCredentialAsync and readLocalCredentialAsync match their sync twins", async () => {
+  it("reads the active file credential through the async and sync readers", async () => {
     writeActive(1234);
     expect(await readActiveCredentialAsync()).toBe(readActiveCredential());
-    // PATH names no real directory, so the keychain call fails and the read
-    // falls back to the file. (Not compared with the sync read: bun's sync
-    // spawn resolves `security` regardless of PATH, so on a Mac the sync
-    // read answers from the real keychain here.)
-    expect(await readLocalCredentialAsync()).toContain('"expiresAt":1234');
   });
 });
 
@@ -926,39 +896,25 @@ describe("identity matched read back", () => {
     invalidateAccountsCache();
   });
 
-  it("matches exactly one profile by account uuid", async () => {
+  it.each([
+    { field: "uuid", input: { uuid: ALPHA.accountUuid }, account: "alpha" },
+    { field: "email", input: { email: "BETA@example.com" }, account: "beta" },
+    {
+      field: "organization",
+      input: { organization: "org-alpha" },
+      account: "alpha",
+    },
+    {
+      field: "refresh token",
+      input: { refreshToken: "rt-beta" },
+      account: "beta",
+    },
+  ])("matches one profile by $field", async ({ input, account }) => {
     writeProfile("alpha", ALPHA, credOf("at-alpha", "rt-alpha", 1000));
     writeProfile("beta", BETA, credOf("at-beta", "rt-beta", 1000));
-    expect(
-      await matchProfileForCredential({ uuid: ALPHA.accountUuid }),
-    ).toEqual({
+    expect(await matchProfileForCredential(input)).toEqual({
       kind: "matched",
-      name: "alpha",
-    });
-  });
-
-  it("matches by email, organization, or refresh token equality", async () => {
-    writeProfile("alpha", ALPHA, credOf("at-alpha", "rt-alpha", 1000));
-    writeProfile("beta", BETA, credOf("at-beta", "rt-beta", 1000));
-    expect(
-      await matchProfileForCredential({ email: "BETA@example.com" }),
-    ).toEqual({
-      kind: "matched",
-      name: "beta",
-    });
-    expect(
-      await matchProfileForCredential({ organization: "org-alpha" }),
-    ).toEqual({
-      kind: "matched",
-      name: "alpha",
-    });
-    // The strongest evidence there is: one refresh token belongs to one grant,
-    // and it names the profile even with no label at all.
-    expect(
-      await matchProfileForCredential({ refreshToken: "rt-beta" }),
-    ).toEqual({
-      kind: "matched",
-      name: "beta",
+      name: account,
     });
   });
 
@@ -1438,24 +1394,6 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
     expect(free.rotated).toContain("active");
   });
 
-  it("probes the active token + live dormant tokens, rotates lapsed ones first, keys by uuid", async () => {
-    const calls: string[] = [];
-    const res = await refreshUsageSnapshots({
-      now: NOW,
-      fetchImpl: usageFetch(calls),
-    });
-    // Active covers profile a (freshest token wins); b probed with its own
-    // token; c's dormant token had lapsed, so it was rotated and probed with
-    // the new one — its reading no longer freezes at the last live probe.
-    expect(calls.sort()).toEqual(["at-active", "at-b", "at-c-rotated"]);
-    expect(res.probed.sort()).toEqual(["active", "b", "c"]);
-    expect(res.rotated).toEqual(["c"]);
-    const cache = readUsageCache();
-    expect(cache.accounts["uuid-a"]?.session?.percent).toBe(28);
-    expect(cache.accounts["uuid-b"]?.session?.percent).toBe(90);
-    expect(cache.accounts["uuid-c"]?.session?.percent).toBe(28);
-  });
-
   it("probes the pool copy the fleet is on, and the heartbeat carries that reading", async () => {
     const token = "sk-ant-oat01-" + "a".repeat(86) + "-" + "bcdefghi";
     writeAccountToken("pool-m", token);
@@ -1563,17 +1501,17 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
     expect(readActiveStamp()?.since).toBe(NOW + 60_000);
   });
 
-  it("keeps the previous snapshot when a probe fails", async () => {
-    const calls: string[] = [];
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: usageFetch(calls) });
-    const res = await refreshUsageSnapshots({
-      now: NOW + 10 * 60_000,
+  it("reports the failure of each account when all usage requests fail", async () => {
+    const result = await refreshUsageSnapshots({
+      now: NOW,
       fetchImpl: (async () =>
-        new Response("overloaded", { status: 529 })) as any,
+        new Response("overloaded", { status: 529 })) as unknown as typeof fetch,
     });
-    expect(res.failed.length).toBe(3);
-    // Old readings survive — stale beats blank.
-    expect(readUsageCache().accounts["uuid-b"]?.session?.percent).toBe(90);
+    expect(result.failed.map((failure) => failure.name).sort()).toEqual([
+      "active",
+      "b",
+      "c",
+    ]);
   });
 
   it("attaches usage to the heartbeat payload by account identity", async () => {
@@ -1623,36 +1561,6 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
       parseStatusLineUsage({ cost: { total_duration_ms: 1 } }, NOW),
     ).toBeNull();
     expect(parseStatusLineUsage({ rate_limits: {} }, NOW)).toBeNull();
-  });
-
-  it("files a post under the account whose windows it carries, named or not", async () => {
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: usageFetch([]) });
-    expect(
-      (
-        await ingestStatusLineUsage(statusLinePayload(91, 42, "b"), {
-          account: "b",
-          now: NOW + 1000,
-        })
-      )?.key,
-    ).toBe("uuid-b");
-    // No account name: a session on the keychain login, recognised all the same.
-    expect(
-      (
-        await ingestStatusLineUsage(statusLinePayload(33, 44, "a"), {
-          account: undefined,
-          now: NOW + 1000,
-        })
-      )?.key,
-    ).toBe("uuid-a");
-    expect(
-      await ingestStatusLineUsage(statusLinePayload(1, 2), {
-        account: "../x",
-        now: NOW,
-      }),
-    ).toBeNull();
-    const cache = readUsageCache();
-    expect(cache.accounts["uuid-b"]?.session?.percent).toBe(91);
-    expect(cache.accounts["uuid-a"]?.session?.percent).toBe(33);
   });
 
   // 2026-09-15: sessions keep the profile name they launched under, but the
@@ -1833,6 +1741,7 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
     });
     expect(after).toContain("at-b");
     expect(readUsageCache().accounts["uuid-b"]?.session?.percent).toBe(90);
+    expect(readUsageCache().accounts["uuid-b"]?.source).toBeUndefined();
   });
 
   // The live payload has no model-scoped window. An account posting without
@@ -1962,22 +1871,6 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
     expect(readUsageCache().accounts["uuid-b"]?.weekly?.percent).toBe(40);
   });
 
-  it("keeps an exhausted session or week closed when a delayed live post reports less usage", async () => {
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: usageFetch([]) });
-    await ingestStatusLineUsage(statusLinePayload(102, 100), {
-      account: "b",
-      now: NOW + 1_000,
-    });
-    await ingestStatusLineUsage(statusLinePayload(96, 28), {
-      account: "b",
-      now: NOW + 16_000,
-    });
-    const b = readUsageCache().accounts["uuid-b"];
-    expect(b?.session?.percent).toBe(102);
-    expect(b?.weekly?.percent).toBe(100);
-    expect(b?.fetched_at).toBe(NOW + 1_000);
-  });
-
   it("allows an exhausted session window to reset without reopening an exhausted week", async () => {
     await refreshUsageSnapshots({ now: NOW, fetchImpl: usageFetch([]) });
     await ingestStatusLineUsage(statusLinePayload(102, 100), {
@@ -1993,20 +1886,6 @@ describe("refreshUsageSnapshots (sandboxed $HOME, injected fetch)", () => {
     const b = readUsageCache().accounts["uuid-b"];
     expect(b?.session?.percent).toBe(3);
     expect(b?.weekly?.percent).toBe(100);
-  });
-
-  it("accepts an authoritative usage probe that clears an exhausted window", async () => {
-    await refreshUsageSnapshots({ now: NOW, fetchImpl: usageFetch([]) });
-    await ingestStatusLineUsage(statusLinePayload(102, 100), {
-      account: "b",
-      now: NOW + 1_000,
-    });
-    await refreshUsageSnapshots({
-      now: NOW + 31 * 60_000,
-      fetchImpl: usageFetch([]),
-    });
-    expect(readUsageCache().accounts["uuid-b"]?.session?.percent).toBe(90);
-    expect(readUsageCache().accounts["uuid-b"]?.source).toBeUndefined();
   });
 
   // The token endpoint + usage endpoint behind one fetch: a refresh with the

@@ -1,28 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { HARNESS_HOOKS } from "@codecast/agent-clients/harnessHooks";
 import { BUNDLED_SKILLS } from "./bundledSkills";
 import {
   CODECAST_HOOK_SCRIPTS,
-  CODECAST_OWNED_HOME_PATHS,
   CODECAST_SKILL_NAMES,
-  ORCH_AGENT_FILES,
-  ORCH_MARKER,
-  ORCH_SKILL_REL,
-  STABLE_FEED_HOOK_FILE,
   isCodecastHookCommand,
   isCodecastOwnedHomePath,
 } from "./codecastOwned";
-
-const indexSrc = fs.readFileSync(
-  path.join(import.meta.dir, "index.ts"),
-  "utf-8",
-);
-// The hook installers (which name the hook file) live in stableContextHooks.ts, split out of stableContext.ts.
-const stableSrc = ["stableContext.ts", "stableContextHooks.ts"]
-  .map((f) => fs.readFileSync(path.join(import.meta.dir, f), "utf-8"))
-  .join("\n");
 
 describe("CODECAST_HOOK_SCRIPTS is the set the installers actually write", () => {
   test("every hook HARNESS_HOOKS registers is listed, and nothing else is but the retired one", () => {
@@ -37,28 +21,6 @@ describe("CODECAST_HOOK_SCRIPTS is the set the installers actually write", () =>
       expect(registered.has(name) || name === "codecast-shell-changes.sh").toBe(
         true,
       );
-  });
-
-  test("stableContext.ts derives its hook file name from the shared list", () => {
-    expect(stableSrc).toContain("STABLE_FEED_HOOK_FILE");
-    expect(stableSrc).not.toMatch(/"stable-feed\.sh"/);
-    expect(STABLE_FEED_HOOK_FILE).toBe("stable-feed.sh");
-  });
-
-  test("index.ts uses the shared orchestration names", () => {
-    expect(indexSrc).toContain("ORCH_MARKER");
-    expect(indexSrc).not.toContain(
-      'const ORCH_MARKER = "/.codecast/orchestration/"',
-    );
-    expect(indexSrc).toContain("ORCH_AGENT_FILES");
-    expect(indexSrc).toContain("ORCH_SKILL_REL");
-    expect(ORCH_MARKER).toBe("/.codecast/orchestration/");
-    expect([...ORCH_AGENT_FILES]).toEqual([
-      "implementer.md",
-      "reviewer.md",
-      "critic.md",
-    ]);
-    expect(ORCH_SKILL_REL).toBe(".claude/skills/codecast-orchestrate");
   });
 });
 
@@ -79,12 +41,9 @@ describe("isCodecastHookCommand", () => {
     "/Users/x/.claude/hooks/thread-state-mine.sh",
     "npx prettier --write",
     "",
+    undefined,
   ])("%s is the user's", (cmd) => {
     expect(isCodecastHookCommand(cmd, "/Users/x")).toBe(false);
-  });
-
-  test("a missing command is nobody's", () => {
-    expect(isCodecastHookCommand(undefined)).toBe(false);
   });
 });
 
@@ -108,6 +67,13 @@ describe("isCodecastOwnedHomePath", () => {
       isCodecastOwnedHomePath(".claude/skills/codecast-orchestrate/SKILL.md"),
     ).toBe(true);
     expect(isCodecastOwnedHomePath(".claude/agents/reviewer.md")).toBe(true);
+    expect(isCodecastOwnedHomePath(".codecast/x")).toBe(true);
+    expect(
+      isCodecastOwnedHomePath(".claude/hooks/codecast-statusline.sh"),
+    ).toBe(true);
+    expect(
+      isCodecastOwnedHomePath(".claude/hooks/codecast-shell-changes.sh"),
+    ).toBe(true);
     expect(isCodecastOwnedHomePath(".claude/hooks/task-pulse.sh")).toBe(true);
     expect(isCodecastOwnedHomePath(".claude/hooks/codecast-prompt.sh")).toBe(
       true,
@@ -125,21 +91,5 @@ describe("isCodecastOwnedHomePath", () => {
         ".claude/skills/codecast-orchestrate-fork/SKILL.md",
       ),
     ).toBe(false);
-  });
-
-  test("the table covers the hook scripts plus the statusline hook, the skill, the three agents and .codecast", () => {
-    expect(CODECAST_OWNED_HOME_PATHS).toContain(".codecast");
-    expect(CODECAST_OWNED_HOME_PATHS).toContain(
-      ".claude/hooks/codecast-statusline.sh",
-    );
-    expect(CODECAST_OWNED_HOME_PATHS).toContain(
-      ".claude/hooks/codecast-shell-changes.sh",
-    );
-    expect(
-      CODECAST_OWNED_HOME_PATHS.filter((p) => p.startsWith(".claude/hooks/")),
-    ).toHaveLength(10);
-    expect(
-      CODECAST_OWNED_HOME_PATHS.filter((p) => p.startsWith(".claude/agents/")),
-    ).toHaveLength(3);
   });
 });

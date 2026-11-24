@@ -6,7 +6,12 @@
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loggedArgv, servedReadKey } from "../../../apps/evals/src/served.ts";
+import {
+  EVERY_READ,
+  loggedArgv,
+  servedReadKey,
+  writeFrozenVerbs,
+} from "../../../apps/evals/src/served.ts";
 import {
   GUARD,
   logged,
@@ -121,35 +126,16 @@ describe("guard cast: served reads", () => {
     expect(fs.readFileSync(`${kept}.exit`, "utf8")).toBe("0\n");
   });
 
-  test("org review is a read without --spawn and refused with it", () => {
-    const w = world();
-    expect(w.cast("org", "review", "--team", "T").out).toBe(
-      "LIVE org review --team T dir=/real/state\n",
-    );
-    const r = w.cast("org", "review", "--team", "T", "--spawn");
-    expect(r.code).toBe(1);
-    expect(r.out).toBe("");
-    expect(w.log()).toContain("REFUSED org review --team T --spawn");
-  });
-
-  test("decide show and ls are reads; any other decide posts and is refused", () => {
-    const w = world();
-    expect(w.cast("decide", "show", "sd-5").out).toBe(
-      "LIVE decide show sd-5 dir=/real/state\n",
-    );
-    expect(w.cast("decide", "ls").out).toBe("LIVE decide ls dir=/real/state\n");
-    for (const argv of [
-      ["decide", "Ship it?"],
-      ["decide", "Ship it?", "-o", "Yes"],
-      ["decide", "recommend", "sd-5", "1"],
-    ]) {
-      expect(w.cast(...argv).code).toBe(1);
-      expect(w.log()).toContain(`REFUSED ${logged(argv)}`);
-    }
-  });
-
-  test("stack show and ls are reads; any other stack verb writes and never reaches the real CLI", () => {
-    const w = world();
+  test("stack shows and lists decisions but refuses writes", () => {
+    const w = world({
+      tree: [
+        ...TREE,
+        ["stack", false],
+        ...(["show", "ls", "create", "add", "policy"] as const).map(
+          (verb): TreeEntry => [`stack ${verb}`, true],
+        ),
+      ],
+    });
     expect(w.cast("stack", "show", "ds-5").out).toBe(
       "LIVE stack show ds-5 dir=/real/state\n",
     );
@@ -160,12 +146,20 @@ describe("guard cast: served reads", () => {
       ["stack", "policy", "ds-5", "--due", "tomorrow"],
     ]) {
       expect(w.cast(...argv).code).toBe(1);
-      expect(w.log()).not.toContain(`LIVE ${argv.join(" ")}`);
+      expect(w.log()).toContain(`REFUSED ${logged(argv)}`);
     }
   });
 
   test("goals, plan replay and a published page's reads go live; publish writes are refused", () => {
-    const w = world();
+    const w = world({
+      tree: [
+        ...TREE,
+        ["publish", true],
+        ["publish ls", true],
+        ["publish comments", true],
+        ["publish rm", true],
+      ],
+    });
     for (const argv of [
       ["goals", "--brief"],
       ["plan", "replay", "pl-4"],
@@ -184,7 +178,7 @@ describe("guard cast: served reads", () => {
       ["publish", "rm", "pg"],
     ]) {
       expect(w.cast(...argv).code).toBe(1);
-      expect(w.log()).not.toContain(`LIVE ${argv.join(" ")}`);
+      expect(w.log()).toContain(`REFUSED ${logged(argv)}`);
     }
   });
 
@@ -264,81 +258,17 @@ describe("guard cast: served reads", () => {
       });
       return r.stdout.toString().trim();
     };
-    expect(classify("goals", "--brief")).toBe("read");
-    expect(classify("org", "inputs", "--team", "T")).toBe("read");
-    expect(classify("brief", "edit", "-")).toBe("write");
-    expect(classify("task", "create", "x")).toBe("write");
-    for (const argv of [
-      ["events", "resolve", "g1"],
-      ["events", "ignore", "g1"],
-      ["metrics", "add", "m"],
-      ["metrics", "rm", "w1"],
-      ["metrics", "backfill"],
-    ])
-      expect(classify(...argv)).toBe("write");
-    expect(classify("plan", "replay", "pl-4")).toBe("read");
-    for (const group of ["task", "trigger", "doc", "org"])
-      expect(classify(group, "replay", "x")).toBe("write");
-    expect(classify("publish", "comments", "pg", "--resolve=c1")).toBe("write");
-    expect(classify("read", "jx7abcd")).toBe("read");
-    expect(classify("read", "jx7abcd", "--ack")).toBe("write");
-    expect(classify("read", "jx7abcd", "--ask", "x")).toBe("read");
-    // The trial's cards and spend are a read; its verbs start runs, record spend or rebuild cards.
-    expect(
-      classify("line", "trial", "--project", "AgentWatch Trial", "--json"),
-    ).toBe("read");
-    expect(classify("line", "trial")).toBe("read");
-    for (const verb of ["run", "dispatch", "spend", "recard"])
-      expect(classify("line", "trial", verb, "x")).toBe("write");
-    // What a connected product lets codecast read is a read; a connector's own verbs run actions.
-    expect(classify("connector", "readers", "union")).toBe("read");
-    expect(classify("connector", "resolve", "union", "x")).toBe("write");
-    // Workflow runs and templates are listed; starting or re-asking a run writes.
-    for (const verb of ["runs", "list"])
-      expect(classify("workflow", verb)).toBe("read");
-    for (const verb of ["run", "reask"])
-      expect(classify("workflow", verb, "x")).toBe("write");
-    // The report page kit and the CLI's guides print; a bare decide still posts.
-    expect(classify("decide", "kit", "page.html")).toBe("read");
-    expect(classify("guide", "visual")).toBe("read");
-    expect(classify("decide", "Ship it?", "-o", "Ship")).toBe("write");
-    expect(fs.existsSync(path.join(w.runDir, "calls.log"))).toBe(false);
-    expect(w.real()).toEqual([]);
-  });
-
-  test("brief and call reads go live; brief edit, call hold and call snap write and are refused", () => {
-    const w = world();
-    for (const argv of [
+    const reads = [
+      ["goals", "--brief"],
+      ["org", "inputs", "--team", "T"],
+      ["org", "review", "--team", "T"],
+      ["decide", "show", "sd-5"],
+      ["decide", "ls"],
+      ["decide", "kit", "page.html"],
       ["brief"],
       ["brief", "@chief-of-staff", "--json"],
       ["call", "cl-42"],
       ["call", "cl-42", "15:25", "--transcript"],
-    ]) {
-      expect(w.cast(...argv).out).toBe(
-        `LIVE ${argv.join(" ")} dir=/real/state\n`,
-      );
-    }
-    const writes = [
-      ["brief", "edit", "-"],
-      ["brief", "--team", "Codecast", "edit", "-"],
-      ["brief", "edit", "--for", "@chief-of-staff", "-"],
-      ["call", "hold", "3m"],
-      ["call", "--for", "jx7abcd", "hold", "off"],
-      ["call", "snap", "cl-42:15"],
-    ];
-    for (const argv of writes) {
-      expect(w.cast(...argv).code).toBe(1);
-      expect(w.log()).toContain(`REFUSED ${logged(argv)}`);
-    }
-    expect(w.real().filter((a) => a !== "agent-context --json")).toHaveLength(
-      4,
-    );
-    // Every check here is a guard spawn, about two seconds each at a load of 500.
-  }, 120_000);
-
-  test("pr, chat, trigger history, events and metrics reads go live; their writes are refused", () => {
-    const w = world();
-    for (const argv of [
       ["pr", "ls"],
       ["pr", "show", "12"],
       ["pr", "events", "12"],
@@ -353,21 +283,63 @@ describe("guard cast: served reads", () => {
       ["events", "show", "g1"],
       ["metrics", "ls"],
       ["metrics", "show", "w1"],
-    ]) {
-      expect(w.cast(...argv).out).toBe(
-        `LIVE ${argv.join(" ")} dir=/real/state\n`,
-      );
-    }
-    for (const argv of [
+      ["plan", "replay", "pl-4"],
+      ["read", "jx7abcd"],
+      ["read", "jx7abcd", "--ask", "x"],
+      ["line", "trial", "--project", "AgentWatch Trial", "--json"],
+      ["line", "trial"],
+      ["connector", "readers", "union"],
+      ["workflow", "runs"],
+      ["workflow", "list"],
+      ["guide", "visual"],
+    ];
+    const writes = [
+      ["org", "review", "--team", "T", "--spawn"],
+      ["decide", "Ship it?"],
+      ["decide", "Ship it?", "-o", "Yes"],
+      ["decide", "recommend", "sd-5", "1"],
+      ["brief", "edit", "-"],
+      ["brief", "--team", "Codecast", "edit", "-"],
+      ["brief", "edit", "--for", "@chief-of-staff", "-"],
+      ["call", "hold", "3m"],
+      ["call", "--for", "jx7abcd", "hold", "off"],
+      ["call", "snap", "cl-42:15"],
       ["pr", "comment", "12", "hi"],
       ["pr", "merge", "12"],
       ["pr", "review", "12", "--approve"],
       ["chat", "send", "hi"],
       ["chat", "mark-read"],
+      ["task", "create", "x"],
+      ["events", "resolve", "g1"],
+      ["events", "ignore", "g1"],
+      ["metrics", "add", "m"],
+      ["metrics", "rm", "w1"],
+      ["metrics", "backfill"],
+      ...["task", "trigger", "doc", "org"].map((group) => [
+        group,
+        "replay",
+        "x",
+      ]),
+      ["publish", "comments", "pg", "--resolve=c1"],
+      ["read", "jx7abcd", "--ack"],
+      ...["run", "dispatch", "spend", "recard"].map((verb) => [
+        "line",
+        "trial",
+        verb,
+        "x",
+      ]),
+      ["connector", "resolve", "union", "x"],
+      ["workflow", "run", "x"],
+      ["workflow", "reask", "x"],
+    ];
+    for (const [argv, expected] of [
+      ...reads.map((argv) => [argv, "read"] as const),
+      ...writes.map((argv) => [argv, "write"] as const),
     ]) {
-      expect(w.cast(...argv).code).toBe(1);
-      expect(w.log()).toContain(`REFUSED ${logged(argv)}`);
+      expect(classify(...argv), JSON.stringify(argv)).toBe(expected);
     }
+    expect(fs.existsSync(path.join(w.runDir, "calls.log"))).toBe(false);
+    expect(w.real()).toEqual([]);
   }, 120_000);
 
   test("a word a pure command group has no subcommand for is answered as commander does, logged UNKNOWN, and run nowhere", () => {
@@ -481,9 +453,9 @@ describe("guard cast: served reads", () => {
 
   test("a * line freezes every read, so a world answers from its record or not at all", () => {
     const w = world({
-      frozen: ["*"],
       files: { [`reads/${servedReadKey(["brief"])}.out`]: "the brief\n" },
     });
+    writeFrozenVerbs(w.serveDir, ["org", EVERY_READ]);
     expect(w.cast("brief").out).toBe("the brief\n");
     for (const argv of [
       ["plan", "show", "pl-31"],
@@ -491,7 +463,11 @@ describe("guard cast: served reads", () => {
       ["read", "jx7abcd"],
       ["feed"],
     ]) {
-      expect(w.cast(...argv)).toMatchObject({ code: 1, out: "" });
+      const result = w.cast(...argv);
+      expect(result).toMatchObject({ code: 1, out: "" });
+      expect(result.err).toContain(
+        "is frozen for this replay and was not captured",
+      );
       expect(w.log()).toContain(`UNSERVED ${argv.join(" ")}`);
     }
     expect(w.log()).not.toContain("LIVE");

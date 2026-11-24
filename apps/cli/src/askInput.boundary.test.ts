@@ -17,8 +17,10 @@ function daemonReader(name: string) {
   };
   const fakeFs = {
     statSync: stat,
-    readFileSync: () =>
-      JSON.stringify({ questions: [{ question: "Continue?" }] }),
+    readFileSync(file: string) {
+      reads.push(file);
+      return JSON.stringify({ questions: [{ question: "Continue?" }] });
+    },
     promises: { stat: async (file: string) => stat(file) },
   };
   const body = new Bun.Transpiler({ loader: "ts" }).transformSync(
@@ -49,7 +51,10 @@ test.each(["readAskUserQuestionInput", "askInputSidecarMtimeMs"])(
       expect(await fn(id)).toBeNull();
     expect(reads).toEqual([]);
     expect(await fn("valid-session_1")).not.toBeNull();
-    expect(reads).toEqual(["/fixture/ask-input/valid-session_1.json"]);
+    const file = "/fixture/ask-input/valid-session_1.json";
+    expect(reads).toEqual(
+      name === "readAskUserQuestionInput" ? [file, file] : [file],
+    );
   },
 );
 

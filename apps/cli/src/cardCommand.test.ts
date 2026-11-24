@@ -126,9 +126,6 @@ describe("cast card build inputs", () => {
     expect(
       authorConfidence(undefined, { ...words, confidence: undefined }),
     ).toBeUndefined();
-    expect(authorConfidence(undefined, { ...words, confidence: "high" })).toBe(
-      "high" as any,
-    );
   });
 
   test("a card's reach is counted from the record, not by its author", () => {

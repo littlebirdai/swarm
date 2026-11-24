@@ -30,7 +30,6 @@ import {
   checkProject,
   lastLogLine,
   logPath,
-  classifyWatchLine,
   filesNotAsChecked,
   unlistedChanges,
   projectsTouching,
@@ -38,6 +37,7 @@ import {
   IDLE_EXIT_MS,
   STUCK_PASS_MS,
   watcherExit,
+  lockFor,
   tscBinary,
   tscInTree,
   nearestTsconfig,
@@ -64,34 +64,6 @@ beforeEach(() => {
 afterEach(() => {
   isolation.restore();
   watcherIdentity.matches = realIdentity;
-});
-
-describe("classifyWatchLine", () => {
-  test("tsc's watch markers", () => {
-    expect(
-      classifyWatchLine("[9:41:02 AM] Starting compilation in watch mode..."),
-    ).toEqual({ kind: "start" });
-    expect(
-      classifyWatchLine(
-        "[9:42:10 AM] File change detected. Starting incremental compilation...",
-      ),
-    ).toEqual({ kind: "start" });
-    expect(
-      classifyWatchLine(
-        "[9:42:14 AM] Found 3 errors. Watching for file changes.",
-      ),
-    ).toEqual({ kind: "done", errors: 3 });
-    expect(
-      classifyWatchLine(
-        "[9:42:14 AM] Found 1 error. Watching for file changes.",
-      ),
-    ).toEqual({ kind: "done", errors: 1 });
-    expect(
-      classifyWatchLine(
-        "src/a.ts(3,5): error TS2322: Type 'string' is not assignable to type 'number'.",
-      ),
-    ).toEqual({ kind: "line" });
-  });
 });
 
 describe("watchReducer", () => {
@@ -138,6 +110,8 @@ describe("watchReducer", () => {
     expect(fs.readFileSync(outputPath(dir), "utf-8")).toBe(
       "src/a.ts(3,5): error TS2322: Type 'string' is not assignable to type 'number'.\n",
     );
+    reduce("[9:41:45 AM] Found 3 errors. Watching for file changes.");
+    expect(readWatchState(dir)?.errors).toBe(3);
     // The next pass replaces, never appends.
     reduce(
       "[9:42:10 AM] File change detected. Starting incremental compilation...",
@@ -202,7 +176,7 @@ describe("checkProject", () => {
     expect(r.errors).toBe(0);
   });
 
-  test("starts a watcher when none runs, and reports one that never comes up", async () => {
+  test("starts a watcher when none runs or the recorded pid is dead", async () => {
     const dir = watchDir("/tree", "convex");
     let starts = 0;
     const start = () => {
@@ -480,29 +454,6 @@ describe("a corrected tsconfig path", () => {
       ),
     ).toBe(true);
   });
-
-  test("the same tsconfig keeps the running watcher", async () => {
-    const dir = watchDir("/tree2", "web");
-    writeWatchState(dir, {
-      pid: process.pid,
-      project: "web",
-      tsconfig: "apps/web/tsconfig.json",
-      root: "/tree2",
-      startedAt: 1,
-      inProgress: false,
-      finishedAt: Date.now(),
-      errors: 0,
-    });
-    fs.writeFileSync(outputPath(dir), "\n");
-    let starts = 0;
-    const r = await checkProject(
-      { name: "web", tsconfig: "apps/web/tsconfig.json" },
-      "/tree2",
-      { start: () => starts++ },
-    );
-    expect(starts).toBe(0);
-    expect(r.started).toBe(false);
-  });
 });
 
 describe("which programs a tree carries", () => {
@@ -671,16 +622,9 @@ describe("which TypeScript runs the check", () => {
   test("the project's own tsc wins over one installed above it", () => {
     const above = install("pkgs");
     expect(tscInTree(tree, "pkgs/api/tsconfig.json")).toBe(above);
+    expect(tscBinary(tree, "pkgs/api/tsconfig.json")).toBe(above);
     const beside = install("pkgs/api");
     expect(tscInTree(tree, "pkgs/api/tsconfig.json")).toBe(beside);
-  });
-
-  test("deps installed at an intermediate directory are found, not skipped", () => {
-    // The bug: only the tsconfig's own directory and the tree root were tried,
-    // so a workspace package installed one level up fell through to PATH.
-    const mid = install("pkgs");
-    expect(tscInTree(tree, "pkgs/api/tsconfig.json")).toBe(mid);
-    expect(tscBinary(tree, "pkgs/api/tsconfig.json")).toBe(mid);
   });
 
   test("the tree root counts, and a tree with none says so", () => {
@@ -753,14 +697,17 @@ describe("which TypeScript runs the check", () => {
 });
 
 describe("a watcher stopped for --fresh", () => {
-  test("a lock another live ask holds times out in the words lockFor reads as contention", async () => {
+  test("a lock another live ask holds reports contention", async () => {
     const file = path.join(watchDir("/tree", "web"), "start.lock");
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const release = await acquireFileLock(file, { describe: "cast check web" });
     try {
-      await expect(
-        acquireFileLock(file, { describe: "cast check web", waitMs: 300 }),
-      ).rejects.toThrow(/\bhas held\b|\bwas still taking\b/);
+      const error = await lockFor(file, {
+        describe: "cast check web",
+        waitMs: 300,
+      }).catch((error) => error);
+      expect(error).toBeInstanceOf(CheckFailure);
+      expect(error).toMatchObject({ kind: "locked", detail: { lock: file } });
     } finally {
       release();
     }

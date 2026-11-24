@@ -36,9 +36,6 @@
   "apps/cli/kit/decision-kit.js": {
     "swarm/no-comments": 112
   },
-  "apps/cli/learning/bunMockModule.learning.test.ts": {
-    "swarm/no-comments": 5
-  },
   "apps/cli/learning/bunToMatchObject.learning.test.ts": {
     "swarm/no-comments": 5
   },
@@ -190,7 +187,7 @@
     "swarm/no-comments": 21
   },
   "apps/cli/scripts/prompt-dry-run.cut.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 9
   },
   "apps/cli/scripts/prompt-dry-run.fake.guard.test.ts": {
     "swarm/no-comments": 20
@@ -199,7 +196,7 @@
     "swarm/no-comments": 17
   },
   "apps/cli/scripts/prompt-dry-run.guard.test.ts": {
-    "swarm/no-comments": 22
+    "swarm/no-comments": 17
   },
   "apps/cli/scripts/prompt-dry-run.harness.guard.test.ts": {
     "swarm/no-comments": 10
@@ -259,7 +256,7 @@
     "swarm/no-comments": 12
   },
   "apps/cli/src/agentContext.test.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 8
   },
   "apps/cli/src/agentContext.ts": {
     "swarm/no-comments": 20
@@ -342,7 +339,7 @@
     "swarm/no-comments": 22
   },
   "apps/cli/src/atomicWrite.test.ts": {
-    "swarm/no-comments": 53
+    "swarm/no-comments": 49
   },
   "apps/cli/src/atomicWrite.ts": {
     "swarm/no-comments": 1
@@ -350,14 +347,8 @@
   "apps/cli/src/attachedFileDownload.ts": {
     "swarm/no-comments": 1
   },
-  "apps/cli/src/authRelay.test.ts": {
-    "swarm/no-comments": 3
-  },
   "apps/cli/src/authRelay.ts": {
     "swarm/no-comments": 16
-  },
-  "apps/cli/src/authServer.test.ts": {
-    "swarm/no-comments": 11
   },
   "apps/cli/src/authServer.ts": {
     "swarm/no-comments": 2
@@ -411,9 +402,6 @@
   },
   "apps/cli/src/bench/stats.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/cli/src/benchCli.test.ts": {
-    "swarm/no-comments": 5
   },
   "apps/cli/src/blame.test.ts": {
     "swarm/no-comments": 22
@@ -985,13 +973,13 @@
     "swarm/no-comments": 3
   },
   "apps/cli/src/bundledSkills.test.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 10
   },
   "apps/cli/src/bundledSkills.ts": {
     "swarm/no-comments": 21
   },
   "apps/cli/src/cachedJsonStore.test.ts": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 11
   },
   "apps/cli/src/cachedJsonStore.ts": {
     "swarm/no-comments": 17
@@ -1000,13 +988,13 @@
     "swarm/no-comments": 7
   },
   "apps/cli/src/callFrameRefs.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 9
   },
   "apps/cli/src/callFrameRefs.ts": {
-    "swarm/no-comments": 19
+    "swarm/no-comments": 18
   },
   "apps/cli/src/callSnap.test.ts": {
-    "swarm/no-comments": 179
+    "swarm/no-comments": 172
   },
   "apps/cli/src/callSnap.ts": {
     "swarm/no-comments": 425
@@ -1197,7 +1185,7 @@
     "swarm/no-comments": 5
   },
   "apps/cli/src/ccAccounts.claudeJsonPatch.test.ts": {
-    "swarm/no-comments": 27
+    "swarm/no-comments": 13
   },
   "apps/cli/src/ccAccounts.fleetStore.test.ts": {
     "swarm/no-comments": 33
@@ -1206,7 +1194,7 @@
     "swarm/no-comments": 6
   },
   "apps/cli/src/ccAccounts.test.ts": {
-    "swarm/no-comments": 238
+    "swarm/no-comments": 226
   },
   "apps/cli/src/ccAccounts.ts": {
     "swarm/no-blocking-child-process-call": 9,
@@ -1229,7 +1217,7 @@
     "swarm/no-comments": 12
   },
   "apps/cli/src/ccLiveGate.ts": {
-    "swarm/no-comments": 47
+    "swarm/no-comments": 45
   },
   "apps/cli/src/ccPool.test.ts": {
     "swarm/no-comments": 14
@@ -1269,7 +1257,7 @@
     "swarm/no-comments": 4
   },
   "apps/cli/src/check.test.ts": {
-    "swarm/no-comments": 24
+    "swarm/no-comments": 22
   },
   "apps/cli/src/check.ts": {
     "swarm/no-blocking-child-process-call": 7,
@@ -1310,7 +1298,7 @@
     "swarm/no-comments": 4
   },
   "apps/cli/src/claudeConfigDirs.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 22
   },
   "apps/cli/src/claudeDefaultModel.test.ts": {
     "swarm/no-comments": 2
@@ -1791,7 +1779,7 @@
     "swarm/no-comments": 8
   },
   "apps/cli/src/codecastOwned.test.ts": {
-    "swarm/no-comments": 2
+    "swarm/no-comments": 1
   },
   "apps/cli/src/codecastOwned.ts": {
     "swarm/no-comments": 12
@@ -8307,7 +8295,7 @@
     "swarm/no-comments": 32
   },
   "apps/server/convex/agentTasks.ts": {
-    "swarm/no-comments": 642
+    "swarm/no-comments": 640
   },
   "apps/server/convex/agentTasks.verbHistory.test.ts": {
     "swarm/no-comments": 2
@@ -29165,7 +29153,7 @@
     "swarm/no-comments": 12
   },
   "packages/render/src/index.ts": {
-    "swarm/no-comments": 9
+    "swarm/no-comments": 7
   },
   "packages/render/src/mobileSessionStyle.ts": {
     "swarm/no-comments": 20
@@ -29537,7 +29525,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 42
+    "swarm/no-comments": 35
   },
   "packages/shared/contracts/ingest.ts": {
     "swarm/no-comments": 80

@@ -34,7 +34,7 @@ export function defaultClaudeConfigDir(home: string = homeDir()): string {
 }
 
 /** Extra config dirs found under `home`, sorted, the default dir excluded. */
-export function discoverClaudeConfigDirs(
+function discoverClaudeConfigDirs(
   home: string,
   envConfigDir?: string,
 ): string[] {
@@ -78,9 +78,4 @@ export function claudeConfigDirs(home: string = homeDir()): string[] {
 /** The projects dir (transcripts) of every config dir, default first. */
 export function claudeProjectsDirs(home: string = homeDir()): string[] {
   return claudeConfigDirs(home).map((d) => path.join(d, "projects"));
-}
-
-/** Tests only: forget the cached answer. */
-export function resetClaudeConfigDirsCache(): void {
-  cache = null;
 }

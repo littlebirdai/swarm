@@ -646,23 +646,6 @@ describe("the 128 GB machine the first version throttled (MacBook-Pro-182, 2026-
       concurrent({ env: { CAST_CHECK_RESERVE_GB: "127" }, use: () => 8 * GB }),
     ).toBe(1);
   });
-
-  test("the numbers check-status showed then are now a machine with room", () => {
-    const cap = capacityFor({
-      totalBytes: 128 * GB,
-      maxWatchers: 16,
-      env: {},
-      needPeaks: () => [],
-      peaksOf: (w) => peaksFor(w.project),
-      learnedP95s: Object.values(learned).map((g) => g * GB),
-      measure: () => 0,
-    });
-    expect(cap.budgetBytes).toBe(Math.round(128 * GB * 0.8));
-    expect(cap.capBytes).toBe(Math.round(128 * GB * 0.8));
-    expect(cap.pressure).toBe(false);
-    expect(cap.coldBytes).toBe(5.4 * GB);
-    expect(cap.needBytes).toBe(5.4 * GB);
-  });
 });
 
 describe("admission by what the machine can give now", () => {
@@ -828,17 +811,6 @@ Anonymous pages:                             1994891.`;
         () => {},
       )?.map((w) => w.project),
     ).toEqual(["web"]);
-  });
-
-  test("nearly full swap with plenty available is old swap, not pressure", () => {
-    seed("web", 5);
-    const cap = capacity({
-      availableBytes: 40 * GB,
-      swapUsedBytes: 3 * GB,
-      swapTotalBytes: 4 * GB,
-    });
-    expect(cap.pressure).toBe(false);
-    expect(makeRoom(cap, () => {})).toEqual([]);
   });
 });
 

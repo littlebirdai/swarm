@@ -11,10 +11,8 @@ import {
   presenterPrompt,
   problemCheckpoints,
   readWrites,
-  renderDecisionMarkdown,
   renderPreview,
   replayContext,
-  stdinSections,
   type WriteRecord,
 } from "./lib/linePresent.ts";
 
@@ -203,7 +201,11 @@ describe("captureDecision", () => {
         "--context",
         "two",
       ]),
-      rec(3, ["decide", "edit", "--context", "-"], "three\n"),
+      rec(
+        3,
+        ["decide", "edit", "--context", "-"],
+        "three\n---\nstill context\n",
+      ),
       rec(4, [
         "decide",
         "edit",
@@ -216,7 +218,7 @@ describe("captureDecision", () => {
       ]),
     ])!;
     expect(d.question).toBe("Third?");
-    expect(d.context).toBe("three");
+    expect(d.context).toBe("three\n---\nstill context");
     expect(d.options).toEqual([{ label: "Keep" }, { label: "Change" }]);
     expect([d.posts, d.edits, d.from]).toEqual([2, 2, [2, 3, 4]]);
   });
@@ -279,9 +281,17 @@ describe("captureDecision", () => {
     ).toBe(true);
   });
 
-  test("several - values split one stdin on --- lines; one takes it whole", () => {
-    expect(stdinSections("a\n---\nb\n", 1)).toEqual(["a\n---\nb"]);
-    expect(stdinSections("a\n---\nb\n", 2)).toEqual(["a", "b"]);
+  test("a decision splits stdin between the question and context", () => {
+    const decision = captureDecision([
+      rec(1, ["decide", "Old question", "-o", "A", "-o", "B"]),
+      rec(
+        2,
+        ["decide", "edit", "--question", "-", "--context", "-"],
+        "Question?\n---\nContext\n",
+      ),
+    ]);
+    expect(decision?.question).toBe("Question?");
+    expect(decision?.context).toBe("Context");
   });
 });
 
@@ -438,7 +448,7 @@ describe("the preview", () => {
         "-o",
         "Send it back: lead with the intro :: goes to the builder",
         "--context",
-        'I would **ship**. See union:conversation/3f2a9c1e-aaaa-bbbb-cccc-1234567890ab@2026-10-09T14:03:00Z for the case.\n\n> Just tried you by phone\n\n```cast-canvas\n<div data-canvas-title="Before and after"><b style="color:var(--sol-red)">before</b></div>\n```\n\nAfter the canvas.',
+        'I would **ship**. See union:conversation/3f2a9c1e-aaaa-bbbb-cccc-1234567890ab@2026-10-09T14:03:00Z for the case at https://codecast.sh/a/slug-12345678.\n\n> Just tried you by phone\n\n```cast-canvas\n<div data-canvas-title="Before and after"><b style="color:var(--sol-red)">before</b></div>\n```\n\nAfter the canvas.',
       ],
     },
   ])!;
@@ -467,6 +477,10 @@ describe("the preview", () => {
     expect(html).toContain("<strong>ship</strong>");
     expect(html).toContain("<blockquote>");
     expect(html).toContain(
+      '<span class="pv" title="union:conversation/3f2a9c1e-aaaa-bbbb-cccc-1234567890ab@2026-10-09T14:03:00Z">union conversation as of 2026-10-09 14:03Z</span>',
+    );
+    expect(html).toContain("https://codecast.sh/a/slug-12345678");
+    expect(html).toContain(
       '<div class="l">Send it back: lead with the intro</div><div class="d">goes to the builder</div>',
     );
     expect(html).toContain("Or answer in your own words");
@@ -483,16 +497,6 @@ describe("the preview", () => {
       html.indexOf("figcaption"),
     );
     expect(html).not.toContain("language-cast-canvas");
-  });
-
-  test("a product view reference in a sentence becomes a pill; a url stays a url", () => {
-    const html = renderDecisionMarkdown(
-      "Read union:conversation/3f2a9c1e-aaaa-bbbb-cccc-1234567890ab@2026-10-09T14:03:00Z and https://codecast.sh/a/slug-12345678.",
-    );
-    expect(html).toContain(
-      '<span class="pv" title="union:conversation/3f2a9c1e-aaaa-bbbb-cccc-1234567890ab@2026-10-09T14:03:00Z">union conversation as of 2026-10-09 14:03Z</span>',
-    );
-    expect(html).toContain("https://codecast.sh/a/slug-12345678");
   });
 
   test("a markdown report renders in place; a missing one and a missing decision say so", () => {

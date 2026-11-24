@@ -520,6 +520,7 @@ describe("lineSaidAt", () => {
   ];
   test("the line being said, else the last one said while the hold lasts", () => {
     expect(lineSaidAt(lines, 6000)).toEqual({ index: 1, during: true });
+    expect(lineSaidAt(lines, 9000)).toEqual({ index: 1, during: false });
     expect(lineSaidAt(lines, 9000 + CALL_LAST_SAID_HOLD_MS)).toEqual({
       index: 1,
       during: false,

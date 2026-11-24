@@ -2,12 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import {
-  claudeConfigDirs,
-  claudeProjectsDirs,
-  discoverClaudeConfigDirs,
-  resetClaudeConfigDirsCache,
-} from "./claudeConfigDirs.js";
+import { claudeConfigDirs, claudeProjectsDirs } from "./claudeConfigDirs.js";
 import { SessionWatcher, type SessionEvent } from "./sessionWatcher.js";
 
 // A person who runs one Claude subscription per CLAUDE_CONFIG_DIR (a shell alias
@@ -33,14 +28,12 @@ beforeEach(() => {
   process.env.HOME = home;
   delete process.env.CLAUDE_CONFIG_DIR;
   fs.mkdirSync(path.join(home, ".claude", "projects"), { recursive: true });
-  resetClaudeConfigDirsCache();
 });
 
 afterEach(() => {
   process.env.HOME = prevHome;
   if (prevEnv === undefined) delete process.env.CLAUDE_CONFIG_DIR;
   else process.env.CLAUDE_CONFIG_DIR = prevEnv;
-  resetClaudeConfigDirsCache();
   fs.rmSync(home, { recursive: true, force: true });
 });
 
@@ -70,17 +63,17 @@ describe("claudeConfigDirs", () => {
     fs.writeFileSync(path.join(home, ".claude.json"), "{}");
     fs.mkdirSync(path.join(home, "visible"), { recursive: true });
     fs.writeFileSync(path.join(home, "visible", ".claude.json"), "{}");
-    expect(discoverClaudeConfigDirs(home)).toEqual([]);
     expect(claudeConfigDirs()).toEqual([path.join(home, ".claude")]);
   });
 
   test("the daemon's own CLAUDE_CONFIG_DIR counts, wherever it is", () => {
-    expect(discoverClaudeConfigDirs(home, "~/elsewhere/claude")).toEqual([
+    process.env.CLAUDE_CONFIG_DIR = "~/elsewhere/claude";
+    expect(claudeConfigDirs()).toEqual([
+      path.join(home, ".claude"),
       path.join(home, "elsewhere", "claude"),
     ]);
-    expect(discoverClaudeConfigDirs(home, path.join(home, ".claude"))).toEqual(
-      [],
-    );
+    process.env.CLAUDE_CONFIG_DIR = path.join(home, ".claude");
+    expect(claudeConfigDirs()).toEqual([path.join(home, ".claude")]);
   });
 });
 
@@ -125,7 +118,7 @@ describe("SessionWatcher with no explicit root", () => {
 });
 
 describe("the recent-file scan job", () => {
-  test("carries the config dirs' projects roots to the worker", async () => {
+  test("the scan job validator accepts only nonempty project root paths", async () => {
     const { validScanJob } = await import("./workers/scanTypes.js");
     const job = {
       name: "recent",

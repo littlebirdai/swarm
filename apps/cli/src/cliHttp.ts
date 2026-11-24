@@ -21,7 +21,6 @@ export interface CliFetchOptions {
    */
   retries?: number;
   /** Notified before each retry. Used for debug output and in tests. */
-  onRetry?: (info: { url: string; attempt: number; reason: string }) => void;
 }
 
 export const DEFAULT_CLI_TIMEOUT_MS = 45_000;
@@ -68,7 +67,6 @@ export async function cliFetch(
       : DEFAULT_CLI_TIMEOUT_MS);
   const retries = opts.retries ?? 0;
   const notifyRetry = (attempt: number, reason: string) => {
-    opts.onRetry?.({ url, attempt, reason });
     if (process.env.CAST_DEBUG)
       console.error(
         `[cast] ${url} ${reason}; retrying (${attempt + 1}/${retries})`,
@@ -92,7 +90,7 @@ export async function cliFetch(
 }
 
 /** After this long without an answer, one line on stderr says the CLI is waiting on the backend. */
-export const WAIT_NOTE_MS = 10_000;
+const WAIT_NOTE_MS = 10_000;
 
 async function fetchWithRetries(
   url: string,

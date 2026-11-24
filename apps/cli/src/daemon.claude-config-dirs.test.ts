@@ -9,7 +9,6 @@ import {
   refreshRecentSessionFileForTests,
   resetSessionFileIndexForTests,
 } from "./daemon.js";
-import { resetClaudeConfigDirsCache } from "./claudeConfigDirs.js";
 
 // Alexander Green runs each Claude subscription under its own
 // CLAUDE_CONFIG_DIR (~/.claude-account-N). Session 7829f4de lived in
@@ -36,14 +35,12 @@ async function withHome(run: (home: string) => Promise<void>): Promise<void> {
     process.env.HOME = home;
     process.env.CODECAST_DIR = path.join(home, ".codecast");
     fs.mkdirSync(path.join(home, ".claude", "projects"), { recursive: true });
-    resetClaudeConfigDirsCache();
     resetSessionFileIndexForTests();
     await run(home);
   } finally {
     process.env.HOME = priorHome;
     if (priorConfig === undefined) delete process.env.CODECAST_DIR;
     else process.env.CODECAST_DIR = priorConfig;
-    resetClaudeConfigDirsCache();
     resetSessionFileIndexForTests();
     fs.rmSync(home, { recursive: true, force: true });
   }

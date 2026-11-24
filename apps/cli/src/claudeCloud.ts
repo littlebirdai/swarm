@@ -87,14 +87,14 @@ interface CloudSessionState {
 type StateFile = { sessions: Record<string, CloudSessionState> };
 
 /** `owner/name` from a git source URL, or null. */
-export function repoFromSourceUrl(
+function repoFromSourceUrl(
   url: string | undefined,
 ): { owner: string; name: string } | null {
   return repoOwnerName(githubRepo(url)) ?? null;
 }
 
 /** The Claude Code session uuid the sandbox runs, read off any payload that carries it. */
-export function innerSessionId(events: CloudEvent[]): string | undefined {
+function innerSessionId(events: CloudEvent[]): string | undefined {
   for (const e of events) {
     const id = e.payload?.session_id;
     if (typeof id === "string" && id) return id;
@@ -228,7 +228,6 @@ export interface ClaudeCloudWatcherOptions {
   /** Interval while a cloud turn runs or right after a send. */
   fastPollMs?: number;
   rootDir?: string;
-  statePath?: string;
   /** Local checkout for a repo name, or null. The daemon passes its resolver. */
   resolveRepoDir?: (repo: {
     owner: string;
@@ -274,7 +273,7 @@ export class ClaudeCloudWatcher extends EventEmitter {
   constructor(opts: ClaudeCloudWatcherOptions = {}) {
     super();
     this.rootDir = opts.rootDir ?? codecastPath("claude-cloud");
-    this.statePath = opts.statePath ?? path.join(this.rootDir, "state.json");
+    this.statePath = path.join(this.rootDir, "state.json");
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.readToken = opts.readToken ?? defaultReadToken;
     this.resolveRepoDir = opts.resolveRepoDir ?? (async () => null);

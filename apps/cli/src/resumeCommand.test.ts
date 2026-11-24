@@ -489,6 +489,12 @@ describe("resolveResumeAgentType (dispatch trusts the cursor/pi hint over the fi
     expect(resolveResumeAgentType(undefined, "grok")).toBe("grok");
   });
 
+  test("an antigravity hint wins over a missing local transcript", () => {
+    expect(resolveResumeAgentType("antigravity", undefined)).toBe(
+      "antigravity",
+    );
+  });
+
   test("without a store-owned hint the local file (or the claude default) decides", () => {
     expect(resolveResumeAgentType(undefined, "claude")).toBe("claude");
     expect(resolveResumeAgentType("codex", "codex")).toBe("codex");

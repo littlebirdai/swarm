@@ -2,27 +2,28 @@
 // the picture: the picture would reach everyone who can read the session,
 // outside the call's own access rule, and outlive the recording.
 // Run: bun test src/callFrameRefs.test.ts
-import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { callFrameSeenRef } from "@codecast/calls/callRecordings";
 import { replayFrameSeenRef } from "@codecast/shared/contracts/replayPlayer";
 
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "cast-frames-"));
-const savedDir = process.env.CODECAST_DIR;
-process.env.CODECAST_DIR = path.join(home, ".codecast");
+let home: string;
+let savedDir: string | undefined;
 
-const {
-  referenceCallFrames,
-  rememberCallFrames,
-  resetCallFrameMemory,
-  callFrameAtPath,
-} = await import("./callFrameRefs.js");
+beforeEach(() => {
+  savedDir = process.env.CODECAST_DIR;
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "cast-frames-"));
+  process.env.CODECAST_DIR = path.join(home, ".codecast");
+});
+
+const { referenceCallFrames, rememberCallFrames, callFrameAtPath } =
+  await import("./callFrameRefs.js");
 const { parseSessionFile } = await import("./parser.js");
 const { SyncService } = await import("./syncService.js");
 
-afterAll(() => {
+afterEach(() => {
   if (savedDir === undefined) delete process.env.CODECAST_DIR;
   else process.env.CODECAST_DIR = savedDir;
   fs.rmSync(home, { recursive: true, force: true });
@@ -91,32 +92,7 @@ function readLines(id: string, file: string, bytes: number) {
   return { call: JSON.stringify(call), result: JSON.stringify(result) };
 }
 
-beforeEach(() => resetCallFrameMemory());
-
 describe("a Read of a snapped frame", () => {
-  it("parses to the moment's reference on the tool result, and no image", () => {
-    const file = writeFrame("cl-117_2m30s_screen.png");
-    rememberCallFrames([
-      {
-        path: file,
-        ref: "cl-117@2:30",
-        recording_id: "r1",
-        width: 1920,
-        height: 1080,
-      },
-    ]);
-    const { call, result } = readLines("toolu_1", file, PNG.length);
-    const messages = parseSessionFile(`${call}\n${result}\n`);
-    // The parser still sees the picture; the reference replaces it before sync.
-    expect(messages.some((m) => m.images?.length)).toBe(true);
-    expect(referenceCallFrames(messages as any)).toBe(1);
-    expect(messages.some((m) => m.images?.length)).toBe(false);
-    const res = messages
-      .flatMap((m) => m.toolResults ?? [])
-      .find((r) => r.toolUseId === "toolu_1");
-    expect(callFrameSeenRef(res?.content)).toBe("cl-117@2:30");
-  });
-
   it("a replay frame becomes the replay's moment, never the customer's page", () => {
     const file = writeFrame("rp-12-83s.png");
     rememberCallFrames([
@@ -141,7 +117,7 @@ describe("a Read of a snapped frame", () => {
     expect(referenceCallFrames(messages as any)).toBe(0);
   });
 
-  it("is known in a later batch than its Read, and after a restart forgot the Read", () => {
+  it("is known in a later batch than its Read, and after a restart forgot the Read", async () => {
     const file = writeFrame("cl-117_2m45s_screen.png");
     rememberCallFrames([
       {
@@ -160,9 +136,13 @@ describe("a Read of a snapped frame", () => {
     expect(later[0].images).toBeUndefined();
     // A daemon that restarted between them knows the frame by its file's size
     // and dimensions, which Claude Code records beside the picture.
-    resetCallFrameMemory();
+    const moduleUrl = new URL("./callFrameRefs.js", import.meta.url);
+    moduleUrl.searchParams.set("run", "restart");
+    const restarted: typeof import("./callFrameRefs.js") = await import(
+      moduleUrl.href
+    );
     const again = parseSessionFile(`${result}\n`);
-    expect(referenceCallFrames(again as any)).toBe(1);
+    expect(restarted.referenceCallFrames(again as any)).toBe(1);
     expect(callFrameSeenRef(again[0].toolResults?.[0].content)).toBe(
       "cl-117@2:45",
     );
@@ -249,6 +229,7 @@ describe("the sync", () => {
     ]);
     const { call, result } = readLines("toolu_4", file, PNG.length);
     const messages = parseSessionFile(`${call}\n${result}\n`);
+    expect(messages.some((m) => m.images?.length)).toBe(true);
     const sync = new SyncService({
       convexUrl: "http://localhost:0",
       userId: "u",

@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import {
-  antigravityUserRequest,
   classifyAntigravityTranscriptTail,
   parseAntigravityTranscript,
 } from "./antigravityTranscript.js";
@@ -11,7 +10,6 @@ import {
   antigravityDataDirFromTranscript,
   antigravitySessionIdFromPath,
 } from "./antigravityPaths.js";
-import { parseTranscriptFor } from "./parser.js";
 
 // Real transcripts from agy 1.5.14 (2026-11-22), with the home path scrubbed:
 //  - print-one-command: `agy -p` that ran one shell command and answered "pong"
@@ -266,22 +264,6 @@ describe("parseAntigravityTranscript", () => {
       },
       { name: "manage_task", input: { Action: "list" } },
     ]);
-  });
-
-  test("parseTranscriptFor dispatches antigravity to this parser", () => {
-    const content = fixture("print-one-command.jsonl");
-    expect(parseTranscriptFor("antigravity", content)).toEqual(
-      parseAntigravityTranscript(content),
-    );
-  });
-
-  test("antigravityUserRequest keeps the request body and nothing else", () => {
-    expect(
-      antigravityUserRequest(
-        "<USER_REQUEST>\n  fix it\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nlocal time\n</ADDITIONAL_METADATA>",
-      ),
-    ).toBe("fix it");
-    expect(antigravityUserRequest("plain prompt")).toBe("plain prompt");
   });
 });
 

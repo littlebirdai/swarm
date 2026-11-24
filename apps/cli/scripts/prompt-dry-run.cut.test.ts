@@ -1,7 +1,6 @@
 // The guard `git` (prompt-dry-run-bin/git) on a served dir cut at its
 // capture: git history stops at the cut, a later commit is refused as an
 // unknown object, fetch does nothing, and outside a cut it is the real git.
-// The guard `cast` refuses a record read the cut snapshot did not capture.
 // Real git on throwaway repositories; no network, no real `cast`.
 import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { spawnSync } from "node:child_process";
@@ -213,21 +212,5 @@ describe("git cut at the capture", () => {
       guard("git", ["--version"], { cwd: tmpRoot, serve: served(), run }).out,
     ).toStartWith("git version");
     expect(fs.existsSync(path.join(run, "git.log"))).toBe(false);
-  });
-});
-
-describe("cast cut at the capture", () => {
-  test("a record read the snapshot did not capture is refused as UNSERVED, never read live", () => {
-    const run = runDir();
-    const res = guard("cast", ["plan", "show", "pl-350", "--json"], {
-      cwd: tmpRoot,
-      serve: served(),
-      run,
-    });
-    expect(res.code).toBe(1);
-    expect(res.err).toContain("is frozen for this replay and was not captured");
-    expect(fs.readFileSync(path.join(run, "calls.log"), "utf8")).toContain(
-      "UNSERVED plan show pl-350 --json",
-    );
   });
 });

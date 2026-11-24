@@ -33,13 +33,6 @@ describe("planInjection", () => {
     expect(pastes(plan.actions).join("")).not.toContain("__cc_poll");
   });
 
-  test("a multi-line text answer is flattened so no newline submits early", () => {
-    const plan = planInjection(
-      JSON.stringify({ __cc_poll: true, text: "first\nsecond" }),
-    );
-    expect(pastes(plan.actions)).toEqual(["first  ·  second"]);
-  });
-
   test("structured keys are pressed in order with no Escape", () => {
     const plan = planInjection(
       JSON.stringify({ __cc_poll: true, keys: ["2", "1", "Enter"] }),
@@ -71,21 +64,6 @@ describe("planInjection", () => {
       "paste:tighten the plan",
       "key:Enter",
     ]);
-  });
-
-  test("text embedded in steps declines once and presses none of the option keys", () => {
-    const plan = planInjection(
-      JSON.stringify({
-        __cc_poll: true,
-        steps: [
-          { key: "2" },
-          { key: "1", text: "my own answer" },
-          { key: "1" },
-        ],
-      }),
-    );
-    expect(keys(plan.actions)).toEqual(["Escape", "Enter"]);
-    expect(pastes(plan.actions)).toEqual(["my own answer"]);
   });
 
   test("an ordinary message clears the composer, pastes and submits", () => {

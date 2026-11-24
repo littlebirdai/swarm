@@ -558,6 +558,8 @@ describe("fleet store (sandboxed $HOME)", () => {
   it("is off on request: no pin launches as before", async () => {
     await putFleetOn("tok", now);
     process.env.CODECAST_CC_FLEET = "0";
-    expect(launchAccountPrefix(undefined).account).not.toBe(FLEET_GATE_ACCOUNT);
+    const launch = launchAccountPrefix(undefined);
+    expect(launch.account).toBe("tok");
+    expect(launch.prefix).toContain("cc-token-tok.env");
   });
 });

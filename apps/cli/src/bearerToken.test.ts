@@ -4,7 +4,6 @@ import {
   splitPresentedToken,
 } from "@platform/auth/cli";
 import {
-  REQUEST_DEVICE_BOUND_TOKENS,
   bearerFromStored,
   mintDeviceId,
   secretFromStored,
@@ -69,8 +68,7 @@ describe("what goes back into the file", () => {
 });
 
 describe("asking for bound tokens at mint", () => {
-  test("is ON: a new token names the device that minted it", () => {
-    expect(REQUEST_DEVICE_BOUND_TOKENS).toBe(true);
+  test("a new token names the device that minted it", () => {
     expect(mintDeviceId()).toBe(deviceId());
   });
 });

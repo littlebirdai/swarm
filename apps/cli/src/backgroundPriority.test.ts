@@ -4,7 +4,6 @@ import {
   DELIVERY_HOLD_MS,
   holdForDelivery,
   isDeliveryHeld,
-  resetBackgroundForTest,
   setBackgroundSessions,
   setGovernorBackground,
 } from "./backgroundPriority";
@@ -25,7 +24,11 @@ const proc = (
   ...(sessionId ? { sessionId } : {}),
 });
 
-beforeEach(() => resetBackgroundForTest());
+beforeEach(async () => {
+  await applyBackground([]);
+  await setBackgroundSessions([]);
+  await setGovernorBackground([]);
+});
 
 test("a session put in the background has every process lowered, including ones it starts later, and comes back when released", async () => {
   const calls: Array<[number, boolean]> = [];
@@ -61,7 +64,7 @@ test("a session put in the background has every process lowered, including ones 
 
 test("a reused pid is a new process, and a process that failed to change is not reported as lowered", async () => {
   const calls: number[] = [];
-  await setBackgroundSessions(["s1"]);
+  await setBackgroundSessions(["s1"], async () => true);
   const fail = async (pid: number) => {
     calls.push(pid);
     return false;

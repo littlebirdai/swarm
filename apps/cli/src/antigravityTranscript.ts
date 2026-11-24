@@ -99,7 +99,7 @@ function count(value: unknown): number | undefined {
 
 /** The user's own words of a USER_INPUT row: the <USER_REQUEST> body when agy
  *  wrapped it, else the whole content. */
-export function antigravityUserRequest(content: string): string {
+function antigravityUserRequest(content: string): string {
   const match = content.match(USER_REQUEST);
   return (match ? match[1] : content).trim();
 }
