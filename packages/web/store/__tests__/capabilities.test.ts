@@ -31,7 +31,7 @@ import {
 //
 // `entries_json` is `JSON.stringify({ items, marketplaces })` — the exact string
 // `normalizeReport` stores (apps/server/convex/capabilities.ts) and the exact
-// shape `Inventory` declares (packages/cli/src/capabilities/inventory.ts). Tests
+// shape `Inventory` declares (apps/cli/src/capabilities/inventory.ts). Tests
 // that invent a friendlier envelope pass while every real machine reads as
 // unreadable, which is how the envelope bug survived a green suite.
 function stateRow(

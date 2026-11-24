@@ -1,5 +1,5 @@
 // How every unattended session opens: a workflow station's hand
-// (packages/cli/src/workflow/nodePrompt.ts stationBrief) and a `cast spawn
+// (apps/cli/src/workflow/nodePrompt.ts stationBrief) and a `cast spawn
 // --unattended` run. A role's hand is a worker of the session that started it
 // and opens on that session's brief alone.
 // It says only what is true of all of them. What one kind of run may do (its

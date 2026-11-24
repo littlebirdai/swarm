@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Run variants x scenarios x reps through packages/cli/scripts/prompt-dry-run.ts --call,
+# Run variants x scenarios x reps through apps/cli/scripts/prompt-dry-run.ts --call,
 # then grade. Usage: run.py <round> <model> <reps> <variant,...> [scenario,...]
 import json, os, re, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
@@ -15,7 +15,7 @@ def live_messaging():
     src = open(os.path.join(REPO, "packages/shared/contracts/snippets.ts")).read()
     body = re.search(r"export const MESSAGING_SNIPPET = `(.*?)`;", src, re.S).group(1)
     return body.replace("\\`", "`").strip()
-HARNESS = os.path.join(REPO, "packages/cli/scripts/prompt-dry-run.ts")
+HARNESS = os.path.join(REPO, "apps/cli/scripts/prompt-dry-run.ts")
 MESSAGING = live_messaging()
 PAR = int(os.environ.get("PAR", "6"))
 

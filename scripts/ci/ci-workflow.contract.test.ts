@@ -163,7 +163,7 @@ describe("code_paths", () => {
     const first = commit("README.md");
     const web = commit("packages/web/a.ts");
     git(repo, "checkout", "-q", "-b", "feature", first);
-    const cli = commit("packages/cli/b.ts");
+    const cli = commit("apps/cli/b.ts");
     git(repo, "checkout", "-q", "main");
     const docs = commit("docs/c.md");
 
@@ -183,7 +183,7 @@ describe("code_paths", () => {
     };
 
     test("a pull request diffs its head against the merge base", () => {
-      expect(run({ EVENT_NAME: "pull_request", PR_BASE_SHA: docs, PR_HEAD_SHA: cli })).toEqual(["packages/cli/b.ts"]);
+      expect(run({ EVENT_NAME: "pull_request", PR_BASE_SHA: docs, PR_HEAD_SHA: cli })).toEqual(["apps/cli/b.ts"]);
     });
 
     test("a push diffs against the commit main pointed at before it", () => {
@@ -410,7 +410,7 @@ describe("verify", () => {
 // list is written by hand in ci.yml; this finds the files by their skip so a
 // new one cannot be left off it.
 describe("darwin-only cli tests", () => {
-  const CLI_SRC = new URL("../../packages/cli/src/", import.meta.url);
+  const CLI_SRC = new URL("../../apps/cli/src/", import.meta.url);
   const NOT_DARWIN = String.raw`process\.platform\s*!==?\s*["']darwin["']`;
   const IS_DARWIN = String.raw`process\.platform\s*===?\s*["']darwin["']`;
   const SKIPS_OFF_DARWIN = [
@@ -471,8 +471,8 @@ describe("workflow concurrency", () => {
 
 describe("computer tests are opt-in", () => {
   test("the default CLI suite excludes computer tests and the dedicated command restores them", () => {
-    const config = Bun.TOML.parse(readFileSync(new URL("../../packages/cli/bunfig.toml", import.meta.url), "utf8")) as any;
-    const pkg = JSON.parse(readFileSync(new URL("../../packages/cli/package.json", import.meta.url), "utf8"));
+    const config = Bun.TOML.parse(readFileSync(new URL("../../apps/cli/bunfig.toml", import.meta.url), "utf8")) as any;
+    const pkg = JSON.parse(readFileSync(new URL("../../apps/cli/package.json", import.meta.url), "utf8"));
     expect(config.test.pathIgnorePatterns).toContain("**/src/computer/**");
     expect(pkg.scripts["test:computer"]).toBe("bun test ./src/computer/ --isolate --path-ignore-patterns=''");
   });

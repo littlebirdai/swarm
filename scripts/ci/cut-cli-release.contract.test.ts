@@ -18,7 +18,7 @@ const read = async (file: string) =>
 // Bun's YAML parser: no dependency, and the same runtime CI pins.
 const cut = await read("cut-cli-release.yml");
 const finalize = await read("finalize-cli-release.yml");
-const script = (file: string) => Bun.file(new URL(`../../packages/cli/scripts/${file}`, import.meta.url)).text();
+const script = (file: string) => Bun.file(new URL(`../../apps/cli/scripts/${file}`, import.meta.url)).text();
 const binaries = await script("build-binaries.sh");
 const deploy = await script("deploy.sh");
 

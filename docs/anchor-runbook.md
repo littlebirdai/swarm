@@ -21,7 +21,7 @@ feature's refusal, not an empty list.
 - **Slack** (`slack.ts`, `http.ts`): `/api/webhooks/slack` (HMAC v0 verify, replay window,
   event dedup) wakes the channel's anchor; `linkChannel`/`postMessage`; per-workspace bot tokens
   from the "Add to Slack" install in `slack_installations`.
-- **CLI** (`packages/cli/src/index.ts`): `cast anchor create | ls | wake | brief | rm | link-channel | say`.
+- **CLI** (`apps/cli/src/index.ts`): `cast anchor create | ls | wake | brief | rm | link-channel | say`.
 
 ## Deploying changes to it
 

@@ -22,7 +22,7 @@ bug this structure removes.
 Cloud agents (Cursor Cloud, Codex Cloud, the OpenAI Agents API) are not clients
 of their own. They are providers riding on the `cursor` and `codex` ids, declared
 in `packages/shared/contracts/cloudAgents.ts` and run from
-`packages/cli/src/cloudAgents/`.
+`apps/cli/src/cloudAgents/`.
 
 ## The spelling seam
 
@@ -43,8 +43,8 @@ knew two clients and dropped the rest.
 Three per-client jobs dispatch off the client id rather than an if/else chain:
 
 - **Watcher kind** (`descriptor.watcherKind`): `jsonl-dir` for clients that append line-delimited JSON under a home directory (Claude, Codex, Gemini, pi, Grok, Muse), and `sqlite` for clients that keep sessions in a database polled read-only (Cursor's workspace store, OpenCode's `opencode.db`). `json-store` is a reserved value with no current client.
-- **Parser** (`parseTranscriptFor(clientId, content)` in `packages/cli/src/parser.ts`): a raw transcript blob to the daemon's `ParsedMessage[]`, one parser per client with Claude as the default.
-- **Tail classifier** (`classifyTranscriptTailFor(agentType)` in `packages/cli/src/daemon.ts`): the transcript tail to a working/idle turn state. Every client has one except **Gemini, which returns `undefined`**: an honest "this format isn't classified, defer" rather than a guess.
+- **Parser** (`parseTranscriptFor(clientId, content)` in `apps/cli/src/parser.ts`): a raw transcript blob to the daemon's `ParsedMessage[]`, one parser per client with Claude as the default.
+- **Tail classifier** (`classifyTranscriptTailFor(agentType)` in `apps/cli/src/daemon.ts`): the transcript tail to a working/idle turn state. Every client has one except **Gemini, which returns `undefined`**: an honest "this format isn't classified, defer" rather than a guess.
 
 That deferral is the philosophy in one place: **a missing capability degrades, it
 never breaks the session.** A Gemini session with no tail classifier still syncs,

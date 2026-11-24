@@ -14,7 +14,7 @@ const REPO = join(WEB_ROOT, "..", "..");
 const ROOTS = [
   join(WEB_ROOT, "app"), join(WEB_ROOT, "components"), join(WEB_ROOT, "lib"), join(WEB_ROOT, "hooks"),
   join(MOBILE_ROOT, "app"), join(MOBILE_ROOT, "components"), join(MOBILE_ROOT, "lib"),
-  join(REPO, "packages", "cli", "src"),
+  join(REPO, "apps", "cli", "src"),
   join(REPO, "packages", "shared", "contracts"),
   join(REPO, "apps", "server", "convex"),
 ];
@@ -44,19 +44,19 @@ function readable(line: string): string[] {
 // line", "Anchor the link at a line". One entry per line, path:line-text.
 const ALLOWED: ReadonlyArray<[string, string]> = [
   // A link's #msg-<id> fragment, and a comment pinned to a line: the verb.
-  ["packages/cli/src/index.ts", "Anchor the link at a line"],
-  ["packages/cli/src/index.ts", "#msg-<id> anchor"],
-  ["packages/cli/src/index.ts", "to anchor the exact message"],
-  ["packages/cli/src/index.ts", "(no anchor)"],
-  ["packages/cli/src/index.ts", "message line to anchor"],
-  ["packages/cli/src/prCommand.ts", "Anchor the comment"],
-  ["packages/cli/src/prCommand.ts", "anchors nothing"],
+  ["apps/cli/src/index.ts", "Anchor the link at a line"],
+  ["apps/cli/src/index.ts", "#msg-<id> anchor"],
+  ["apps/cli/src/index.ts", "to anchor the exact message"],
+  ["apps/cli/src/index.ts", "(no anchor)"],
+  ["apps/cli/src/index.ts", "message line to anchor"],
+  ["apps/cli/src/prCommand.ts", "Anchor the comment"],
+  ["apps/cli/src/prCommand.ts", "anchors nothing"],
   ["packages/web/app/(marketing)/compare/comparisons.ts", "anchor to"],
   ["packages/web/app/(marketing)/compare/comparisons.ts", "anchors a comment"],
   ["apps/server/convex/githubWebhooks.ts", "const where = comment.path"],
   ["apps/server/convex/artifactMarkdown.ts", 'class="anchor"'],
   // The analyzer's vocabulary rule names the word so the page never carries it.
-  ["packages/cli/src/orgInit.ts", "invented_words"],
+  ["apps/cli/src/orgInit.ts", "invented_words"],
   // The team icon set has a boat anchor.
   ["packages/web/components/TeamIcon.tsx", 'anchor: "Anchor"'],
   ["apps/mobile/app/(tabs)/chat.tsx", "anchor: '⚓'"],

@@ -7,7 +7,7 @@
 // conversation card and the decision queue import this rather than each
 // keeping a copy that can drift.
 //
-// Mirror parsers: packages/cli/src/daemon.ts (parsePollMessage) and
+// Mirror parsers: apps/cli/src/daemon.ts (parsePollMessage) and
 // apps/server/convex/pendingMessages.ts (isControlMessage).
 
 export type PollQuestion = {

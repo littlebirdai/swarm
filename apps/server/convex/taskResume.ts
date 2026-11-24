@@ -3,7 +3,7 @@
 // pulse names), whether it still holds it, what still blocks it, its open
 // subtasks, its last progress note, and its plan with the next step that can
 // start. One lean read for the SessionStart hook
-// (packages/cli/src/taskContextHook.ts), which waits on it with a short
+// (apps/cli/src/taskContextHook.ts), which waits on it with a short
 // timeout; `cast task context` is the full one.
 
 import { v } from "convex/values";

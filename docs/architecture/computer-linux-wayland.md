@@ -2,7 +2,7 @@
 
 Status: assessment, no code. Written for ct-94270 (plan pl-1034), 2026-11-14.
 
-Today the Linux provider (`packages/cli/src/computer/linux/helper.py`) is X11 only: trees from AT-SPI, windows from EWMH properties, pointer and keyboard through XTEST, pixels through `XGetImage`, all on the Xvfb at `:99` that `src/browser/provisionLinux.ts` starts on every cloud host. This note covers what a Wayland session changes, what a headless cloud host would need to run one, and what that costs next to Xvfb.
+Today the Linux provider (`apps/cli/src/computer/linux/helper.py`) is X11 only: trees from AT-SPI, windows from EWMH properties, pointer and keyboard through XTEST, pixels through `XGetImage`, all on the Xvfb at `:99` that `src/browser/provisionLinux.ts` starts on every cloud host. This note covers what a Wayland session changes, what a headless cloud host would need to run one, and what that costs next to Xvfb.
 
 ## What stays the same
 

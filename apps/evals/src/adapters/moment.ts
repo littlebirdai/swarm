@@ -1,7 +1,7 @@
 import { UsageError } from '@platform/evals/cli';
 
-import { parseConversationRef } from '../../../../packages/cli/src/conversationRef';
-import { cliFetchRead } from '../../../../packages/cli/src/cliHttp';
+import { parseConversationRef } from '../../../../apps/cli/src/conversationRef';
+import { cliFetchRead } from '../../../../apps/cli/src/cliHttp';
 import { apiConfig, readConversation, splitLineRef, toRows, type CliReadConversation, type MessageRow } from './convo';
 
 // A moment in a session, as a call surface freezes it: the session's rows up

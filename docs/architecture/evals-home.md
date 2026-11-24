@@ -9,7 +9,7 @@ This spec was written read-only. It starts from the operator design (Design 2), 
 | Question | Decision |
 |---|---|
 | Where the home lives | A new workspace package `apps/evals` (`@codecast/evals`, private), run by a root launcher `./evals`. It is never mounted under `cast`. |
-| Replay route | Every model call goes through `packages/cli/scripts/prompt-dry-run.ts`, as pl-810's rule requires. It gains a `--call` mode for single-call surfaces. The shared request builders make the user prompt and the system prompt prod sends identical to prod's. `--max-output-tokens` plus the `prod-budget` and `model-as-pinned` gates recover most of the fidelity `claude -p` loses. Three gaps remain: temperature (claude cannot set it; `run.json` records what prod sends), a fixed preamble of about 175 input tokens that claude adds on a subscription login (an SDK identity line in the system prompt and reminders for the environment, the model and today's date, which matters to a date-sensitive prompt), and a neutral system line (`Follow the user's instructions.`) where prod sends no system prompt (title, settle, insight, call-summary, handoff, suggest). The API backend (founder decision 2) closes all three. No prod API key is ever needed. |
+| Replay route | Every model call goes through `apps/cli/scripts/prompt-dry-run.ts`, as pl-810's rule requires. It gains a `--call` mode for single-call surfaces. The shared request builders make the user prompt and the system prompt prod sends identical to prod's. `--max-output-tokens` plus the `prod-budget` and `model-as-pinned` gates recover most of the fidelity `claude -p` loses. Three gaps remain: temperature (claude cannot set it; `run.json` records what prod sends), a fixed preamble of about 175 input tokens that claude adds on a subscription login (an SDK identity line in the system prompt and reminders for the environment, the model and today's date, which matters to a date-sensitive prompt), and a neutral system line (`Follow the user's instructions.`) where prod sends no system prompt (title, settle, insight, call-summary, handoff, suggest). The API backend (founder decision 2) closes all three. No prod API key is ever needed. |
 | How a freeze picks its surface | A `<surface>@<ref>` prefix on the ref. `FreezeResolver.resolve` only ever sees `{messageRef, runRef}`, and tags are applied after it returns (`platform/.../cli/freeze.ts:56-57`). |
 | One concept for cases | Every case is a freeze. Settle's 17 synthetic cases, org snapshots and real moments are all freezes. The `sim` seam stays unset. |
 | What goes in git (the repo is PUBLIC) | Surface code, synthetic fixtures (with their labels inside), and freeze pointers for synthetic fixtures only. Every real freeze, snapshot, run, label and ground-truth file lives in `EVALS_HOME`. Codecast's own grade sets are kept private too. That is founder decision 1, with this as the default. |
@@ -100,7 +100,7 @@ export interface SurfaceMeta {
   title: string;
   route: 'call' | 'agent';
   model: string;                     // pinned id (models.ts)
-  sources: string[];                 // repo paths hashed by `stale` (always add this surface's dir and packages/cli/scripts/prompt-dry-run.ts)
+  sources: string[];                 // repo paths hashed by `stale` (always add this surface's dir and apps/cli/scripts/prompt-dry-run.ts)
   reps: { check: number; smoke?: number };
   maxUsdPerRep: number;              // fallback cost estimate before any real run on the model
   criteria?: string | null;          // the default judge criteria from section 3; a fixture's `judge` seeds its first freeze instead
@@ -157,7 +157,7 @@ Out of git, in `EVALS_HOME`:
   - Allowed keys are `id, name, createdAt, anchor{kind,id}, subject{id,kind,title}, asOf, trigger{type}, judge, notes, tags, meta{surface, visibility, snapshot}`. Any other key is refused, with its name in the error.
   - `subject.title` becomes `<surface> <case>`, because `fs/freezes.ts` searches that field.
   - `trigger.data` is dropped.
-  - A string that `containsSecrets` (`packages/cli/src/secretRedaction.ts:154`) matches is refused.
+  - A string that `containsSecrets` (`apps/cli/src/secretRedaction.ts:154`) matches is refused.
 
 **`src/freezes.guard.test.ts`** fails on any of these:
 - a committed freeze outside the allowlist, or not `visibility: 'public'`, or not `subject.kind: 'synthetic'`
@@ -183,7 +183,7 @@ The ref grammar is `<surface>@<ref>`. The resolver splits on the first `@`. An u
 
 **ConvoSource** (`adapters/convo.ts`):
 - `inbox` spawns `cast sessions --json`.
-- `load` and `message`: when the subject has a freeze snapshot, they return the snapshot's messages. Otherwise they page `/cli/read` via `cliFetchRead(`${siteUrl}/cli/read`, …)` with `{api_token, conversation_id, start_line, end_line, full_content: true}`. `siteUrl` and `api_token` come from `readAuthConfig(defaultConfigDir())` (`packages/cli/src/config/readAuthConfig.ts`), which decrypts the stored token.
+- `load` and `message`: when the subject has a freeze snapshot, they return the snapshot's messages. Otherwise they page `/cli/read` via `cliFetchRead(`${siteUrl}/cli/read`, …)` with `{api_token, conversation_id, start_line, end_line, full_content: true}`. `siteUrl` and `api_token` come from `readAuthConfig(defaultConfigDir())` (`apps/cli/src/config/readAuthConfig.ts`), which decrypts the stored token.
 - `find` runs `cliSearchRequest(siteUrl, {api_token, query, …})`.
 - Messages map to `ConvoMessage` as follows: `channel: 'session'`, `isGroup: false`, `direction` inbound for user and outbound for assistant, `at` = the message's ISO timestamp, so that `momentOf`'s cut works.
 - `toRows()` maps `/cli/read` messages to the row fields the prod selectors read. U4 writes the mapping and a fixture test.
@@ -196,7 +196,7 @@ The private freeze `meta` also carries: `{surface, visibility:'private', snapsho
 - The surface builds a `SurfaceRequest {model, system?, prompt, max_tokens, temperature?}` with the same exported function prod uses (units U5-U7).
 - `ctx.call` writes `prompt.md` and `system.md` (if any), then runs:
   ```
-  bun packages/cli/scripts/prompt-dry-run.ts --run <runDir>/call<k> --prompt prompt.md --call [--system system.md] --model <req.model> --max-output-tokens <req.max_tokens>
+  bun apps/cli/scripts/prompt-dry-run.ts --run <runDir>/call<k> --prompt prompt.md --call [--system system.md] --model <req.model> --max-output-tokens <req.max_tokens>
   ```
 - Gates added on every call:
   - `model-as-pinned`: `out.json.modelUsage` has the pinned id, and it has the most output tokens. On an agent run the gate reads the agent's own loop instead: every top-level assistant message in `stream.jsonl` ran on the pin (`loopTurnsOf` in `adapters/dryRun.ts`). The `Agent` subagents it chooses to start, which may name another model, are its behaviour and are named in the evidence, not counted. An agent run with no stream falls back to the most output.
@@ -245,7 +245,7 @@ Both gates read `calls.log`, which only the guard writes, so neither sees a `cas
 
 ### 2.6 Guard: served reads
 
-All of this is in `packages/cli/scripts/prompt-dry-run-bin/cast`, in this order:
+All of this is in `apps/cli/scripts/prompt-dry-run-bin/cast`, in this order:
 
 1. Log the argv to `calls.log` shell-quoted: an argument that is not a plain word is single-quoted, so `loggedArgv` in `src/served.ts` splits a line back into exactly the arguments it was. A rescore classifies a `REFUSED` line again with today's guard (`DRY_RUN_CLASSIFY`), and a write whose quoted first argument begins with a read verb (`decide 'show which plan ships'`) stays a write. Lines logged before 2026-10-03 kept the argv space joined, so a quoted phrase there reads as separate words.
 2. Keep the three existing org cases (`org inputs|health|ls` from `org-inputs.json`, `org-health.json`, `org-ls.json`) and `org proposals`. Old `served/` dirs keep working unchanged. Each answer also logs `SERVED <argv>`.
@@ -420,9 +420,9 @@ Acceptance:
 **U3: Harness** (ct-55700)
 
 Files:
-- `packages/cli/scripts/prompt-dry-run.ts`
-- `packages/cli/scripts/prompt-dry-run-bin/cast`
-- new `packages/cli/scripts/prompt-dry-run.guard.test.ts`
+- `apps/cli/scripts/prompt-dry-run.ts`
+- `apps/cli/scripts/prompt-dry-run-bin/cast`
+- new `apps/cli/scripts/prompt-dry-run.guard.test.ts`
 
 Precondition: `pgrep -fl prompt-dry-run` is empty. Never edit the guard while a run is alive.
 
@@ -455,7 +455,7 @@ The test runs the guard as a subprocess with a temp `RUN_DIR` and `DRY_RUN_SERVE
 - `bun prompt-dry-run.ts --run /tmp/x --prompt <file>` without `--model` exits 2 without spawning `claude`
 
 Acceptance:
-- `bun test packages/cli/scripts/prompt-dry-run.guard.test.ts` is green.
+- `bun test apps/cli/scripts/prompt-dry-run.guard.test.ts` is green.
 - `grep -rn "prompt-dry-run.ts" --include=*.ts --include=*.sh --include=*.md .` shows no in-repo caller without `--model`, apart from docs that U16 updates.
 - Manual smoke, which spends a few cents of the subscription window: `--call` on a prompt `Reply with the word ok.` with `--model claude-haiku-4-5-20251001`. Then:
   - `out.json.modelUsage` has only that id, or it dominates
@@ -468,7 +468,7 @@ Acceptance:
 Files, all new:
 - `evals` (root launcher)
 - `.codecast/check.toml` (add `evals = "apps/evals/tsconfig.json"`)
-- `apps/evals/tsconfig.json`: model it on `packages/cli/tsconfig.typecheck.json`, include `src/**` plus the convex, shared and cli source files the surfaces import (today `lib/anthropic.ts`, `cliHttp.ts`, `config/readAuthConfig.ts`, `secretRedaction.ts` and `ccKeychain.ts`, which doctor's login check reads), no `rootDir`, `noEmit`
+- `apps/evals/tsconfig.json`: model it on `apps/cli/tsconfig.typecheck.json`, include `src/**` plus the convex, shared and cli source files the surfaces import (today `lib/anthropic.ts`, `cliHttp.ts`, `config/readAuthConfig.ts`, `secretRedaction.ts` and `ccKeychain.ts`, which doctor's login check reads), no `rootDir`, `noEmit`
 - `apps/evals/src/{index,main,paths,models,surface,registry,layout,stats,served,state,snippet}.ts` (`main.ts` is the program; `index.ts` keeps `stale` off its import graph)
 - `src/adapters/{convo,freezes,resolver,replay,judge,runs,dryRun}.ts`
 - `src/commands/{status,check,stale,snapshot,grade,capture,doctor,snippetCmd,publish}.ts`
@@ -594,18 +594,18 @@ Acceptance:
 **U8: Trigger frame leaf**
 
 Files:
-- new `packages/cli/src/triggerFrame.ts`
-- `packages/cli/src/taskScheduler.ts`
-- new `packages/cli/src/triggerFrame.test.ts`
-- new `packages/cli/src/__fixtures__/triggerFrame.golden.json`: the fixture tasks, the fixed `now`, and each pre-refactor frame
+- new `apps/cli/src/triggerFrame.ts`
+- `apps/cli/src/taskScheduler.ts`
+- new `apps/cli/src/triggerFrame.test.ts`
+- new `apps/cli/src/__fixtures__/triggerFrame.golden.json`: the fixture tasks, the fixed `now`, and each pre-refactor frame
 
 Change: move `buildPrompt`'s body (595 on) into `export function buildTriggerFrame(task, now: number)`. Its imports stay light: `SAFE_MODE_MANDATE` from `./agentLaunch.js`, and `triggerLifecycleInstructions` and `runResultThreadOf` from `@codecast/shared/contracts`. `formatTimeAgo` was a private function at the bottom of `taskScheduler.ts` with no other caller, so it moves into `triggerFrame.ts` unchanged. `Date.now()` becomes `now`. The private `buildPrompt(task)` returns `buildTriggerFrame(task, Date.now())`.
 
 Acceptance:
 - the frame for 3 fixture tasks, with and without `last_run_summary`, equals the pre-refactor output at a fixed `now` (golden written first)
 - `cast check cli`
-- `bun test packages/cli/src/triggerFrame.test.ts`
-- importing `triggerFrame.ts` alone does not load `taskScheduler.ts`: check with `bun -e "await import('./packages/cli/src/triggerFrame.ts')"` and an import-graph assertion in the test
+- `bun test apps/cli/src/triggerFrame.test.ts`
+- importing `triggerFrame.ts` alone does not load `taskScheduler.ts`: check with `bun -e "await import('./apps/cli/src/triggerFrame.ts')"` and an import-graph assertion in the test
 
 **U9: CI wiring**
 
@@ -701,7 +701,7 @@ Acceptance: the same baseline as U12.
 Files: `src/surfaces/orgReview/{meta,index,build,checkProposal,assemble,grade,present,migrate}.ts` and `grade.test.ts`. Three one-line seams outside the dir: `ReplayOutput.promptSha` (`surface.ts`, read by `adapters/replay.ts`), `grade?(dir, label, freeze)` with `grade --freeze <id>` (`commands/grade.ts`; without the flag it takes the freeze the dir's `run.json` names), and `LEGACY` exported from `commands/snapshot.ts` so the migration writes the same layout.
 
 Port:
-- `build.ts`: `mkrun.ts`. Import `buildOrgAnalyzerPrompt` and `summarizeInputs` from `packages/cli/src/orgInitRun.ts` by relative path. That builder only wraps `headOfPeoplePrompt()` (`packages/shared/contracts/headOfPeoplePrompt.ts`, the analyzer's text), so `meta.sources` lists that file, and `orgProposal.ts`, which `spec-parses` grades against, beside `orgInitRun.ts` and `orgInit.ts`. Keep the harness note, and point it at `checkProposal.ts`. Keep the hashes that `hashes.json` recorded: the replay writes `hashes.json` (plus `workspace` and `promptSha`) into the run folder, and `run.json.promptSha` is the full sha256 of the analyzer prompt without the harness note (its first 12 characters are the old `prompt` hash), so reps compare even though each note names its own run folder.
+- `build.ts`: `mkrun.ts`. Import `buildOrgAnalyzerPrompt` and `summarizeInputs` from `apps/cli/src/orgInitRun.ts` by relative path. That builder only wraps `headOfPeoplePrompt()` (`packages/shared/contracts/headOfPeoplePrompt.ts`, the analyzer's text), so `meta.sources` lists that file, and `orgProposal.ts`, which `spec-parses` grades against, beside `orgInitRun.ts` and `orgInit.ts`. Keep the harness note, and point it at `checkProposal.ts`. Keep the hashes that `hashes.json` recorded: the replay writes `hashes.json` (plus `workspace` and `promptSha`) into the run folder, and `run.json.promptSha` is the full sha256 of the analyzer prompt without the harness note (its first 12 characters are the old `prompt` hash), so reps compare even though each note names its own run folder.
 - `checkProposal.ts`: `check.ts`.
 - `assemble.ts`: `assemble-proposals.py`.
 - `grade.ts`: `grade.py`, with the same sets, bands and pools. The workspace comes from `freeze.meta.workspace`, not the path. The pool is `labels/org-review/<ws>/handle-pool.json` (every role handle any old round proposed or any old served roster held, which grade.py globbed and the old rounds no longer carry here), every snapshot's roster for the workspace, and every role an org-review run since proposed. Check scores: records, sessions and roles_named are grade/3; coverage is the share of projects with work that has a lead after; repeats is 1 when nothing repeats; summary_words has no band in grade.py, so it is shown at weight 0.

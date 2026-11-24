@@ -3,10 +3,10 @@
 // with a clip renders fresh at any scale, where `cast browser shot` reads the
 // compositor's last frame at 1x, which a background tab stops producing.
 
-import { CdpConnection, listTargetsVia } from "../../cli/src/browser/cdp";
-import { readBridgeState } from "../../cli/src/browser/bridge/host";
-import { bridgeEndpointIfConfigured } from "../../cli/src/browser/bridge/real";
-import { engineSession } from "../../cli/src/browser/engine";
+import { CdpConnection, listTargetsVia } from "../../../apps/cli/src/browser/cdp";
+import { readBridgeState } from "../../../apps/cli/src/browser/bridge/host";
+import { bridgeEndpointIfConfigured } from "../../../apps/cli/src/browser/bridge/real";
+import { engineSession } from "../../../apps/cli/src/browser/engine";
 
 export type CastTab = {
   conn: CdpConnection;

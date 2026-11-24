@@ -84,7 +84,7 @@
   <!-- ── Row 2: one run ── -->
   <rect class="inset" x="40" y="246" width="880" height="86" rx="8"/>
   <path class="cmd" d="M822 184 V236 H86 V260" marker-end="url(#aCmd)"/>
-  <text class="k" x="200" y="258">ONE RUN OF packages/cli/src/workflow/templates/line.cast</text>
+  <text class="k" x="200" y="258">ONE RUN OF apps/cli/src/workflow/templates/line.cast</text>
   <g class="l">
     <rect class="agent" x="56" y="264" width="60" height="32" rx="8"/><text x="64" y="284">ground</text>
     <rect class="human" x="136" y="264" width="82" height="32" rx="8"/><text x="144" y="284">plan gate</text>

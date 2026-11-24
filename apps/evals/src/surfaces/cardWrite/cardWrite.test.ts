@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import presenterBase from '../../../../../packages/cli/src/workflow/presenter.md' with { type: 'text' };
+import presenterBase from '../../../../../apps/cli/src/workflow/presenter.md' with { type: 'text' };
 import type { Fixture } from '../../adapters/resolver';
 import { REPO_ROOT } from '../../paths';
 import { servedReadKey } from '../../served';
@@ -113,7 +113,7 @@ describe('card-write replay', () => {
       },
     } satisfies ReplayCtx;
     const out = await cardWrite.replay(snap, ctx);
-    expect(sent!.guard).toEndWith('packages/cli/scripts/line-present-replay-bin');
+    expect(sent!.guard).toEndWith('apps/cli/scripts/line-present-replay-bin');
     expect(sent!.model).toBe(meta.model);
     expect(sent!.prompt.endsWith(HARNESS_NOTE)).toBe(true);
     const served = (argv: string[]) => readFileSync(join(sent!.serveDir!, 'reads', `${servedReadKey(argv)}.out`), 'utf8');

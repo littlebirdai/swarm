@@ -19,9 +19,9 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CdpConnection, listTargetsVia } from "../../cli/src/browser/cdp";
-import { readBridgeState } from "../../cli/src/browser/bridge/host";
-import { bridgeEndpointIfConfigured } from "../../cli/src/browser/bridge/real";
+import { CdpConnection, listTargetsVia } from "../../../apps/cli/src/browser/cdp";
+import { readBridgeState } from "../../../apps/cli/src/browser/bridge/host";
+import { bridgeEndpointIfConfigured } from "../../../apps/cli/src/browser/bridge/real";
 
 const OUT_DIR = "/tmp/guide-figure-shots";
 const phone = process.argv.includes("--phone");

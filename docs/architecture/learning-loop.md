@@ -174,7 +174,7 @@ same door errors and deploys use, `POST /cli/ingest/<key>`):
   being extracted opens the next moment. Events join by their own times: an
   event joins a waiting moment only when it falls within the quiet window of
   that moment's events, so a replay of history or a late batch keeps apart
-  what happened apart (`packages/cli/scripts/agentwatch-replay.ts` replays
+  what happened apart (`apps/cli/scripts/agentwatch-replay.ts` replays
   Union's judged history this way, `refs.as_of` set to when AgentWatch read
   it).
 - **The extractor is the product's code.** `.codecast/moments/<kind>.ts` in

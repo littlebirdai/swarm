@@ -189,7 +189,7 @@ describe("once the shell answers that it has the view", () => {
   test("the create names the offering session, so the shell's registry knows who may drive the view", async () => {
     // The chip put the session's uuid on the route (`&s=`, lib/browserPane.ts);
     // the shell records it in desktop-panes.json and that session's
-    // `cast browser` finds this exact view (packages/cli/src/browser/desktopPane.ts).
+    // `cast browser` finds this exact view (apps/cli/src/browser/desktopPane.ts).
     available = true;
     const session = "509b4b48-c521-4352-bf19-eafa153745bb";
     const { root, act } = await mount({ session });

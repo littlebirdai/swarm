@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 /**
  * The key a served read is filed under: sha256 over each argument followed
- * by \x1f. The guard (packages/cli/scripts/prompt-dry-run-bin/cast) computes
+ * by \x1f. The guard (apps/cli/scripts/prompt-dry-run-bin/cast) computes
  * the same with `printf '%s\x1f' "$@" | shasum -a 256`, so a read `snapshot`
  * captured is the read a replay is answered with.
  */
@@ -78,7 +78,7 @@ export function recordSentence(frozen: string[], fakes = false): string {
 
 /**
  * The moment a served dir's world stands at: the guard `git`
- * (packages/cli/scripts/prompt-dry-run-bin/git) answers every git call in a
+ * (apps/cli/scripts/prompt-dry-run-bin/git) answers every git call in a
  * repository from the history as of `at`, each root in `pins` at its pinned
  * commit and any other at its default branch's last commit before `at`.
  */

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import type { Freeze, FreezeStore } from '@platform/evals';
 import { fsFreezeStore } from '@platform/evals/fs';
 
-import { containsSecrets } from '../../../../packages/cli/src/secretRedaction';
+import { containsSecrets } from '../../../../apps/cli/src/secretRedaction';
 import { homePaths, publicFreezesDir } from '../paths';
 
 // Two homes for freezes behind one store. A synthetic fixture's pointer is

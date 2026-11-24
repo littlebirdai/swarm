@@ -84,7 +84,7 @@ longer on the team run `cast hosts team remove <machine> <linux-user>` as the
 machine's admin. That queues the same lock-out (daemon stopped, login locked,
 `authorized_keys` and codecast login removed, home kept). If a row is already
 gone but the account is still live on the box, run `removeUserRootScript`'s
-steps by hand as root (`packages/cli/src/browser/sharedHost.ts`).
+steps by hand as root (`apps/cli/src/browser/sharedHost.ts`).
 
 ## Logins
 

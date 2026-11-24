@@ -2,7 +2,7 @@
 // repo declares them ([host] data in .codecast/workspace.toml). The rules both
 // sides hold: which folders may sync, which paths inside one, and the limits.
 // The server (convex/dataSync.ts) enforces them; the daemon
-// (packages/cli/src/dataSync) checks them first so it never sends a refusal.
+// (apps/cli/src/dataSync) checks them first so it never sends a refusal.
 
 /** Rows per page, both reading changes and committing them. */
 export const DATA_SYNC_PAGE = 200;

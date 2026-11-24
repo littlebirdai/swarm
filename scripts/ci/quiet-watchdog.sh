@@ -15,7 +15,7 @@ shift
 [ "${1:-}" = "--" ] && shift
 log=$(mktemp)
 # Every synchronous spawn the tests make, as it starts and returns
-# (packages/cli/src/test-helpers/spawnTrace.ts): the hang sat inside one.
+# (apps/cli/src/test-helpers/spawnTrace.ts): the hang sat inside one.
 export CODECAST_SPAWN_TRACE=$(mktemp)
 trap 'rm -f "$log" "$CODECAST_SPAWN_TRACE"' EXIT
 

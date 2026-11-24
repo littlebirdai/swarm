@@ -10,7 +10,7 @@ export const meta: SurfaceMeta = {
   model: AGENT_MODEL,
   // Real freezes replay the opening prod sent; fixtures render bootstrapMessage
   // (and through it roleOpeningMessage) from the tree.
-  sources: surfaceSources('anchor-brief', 'apps/server/convex/anchors.ts', 'packages/shared/contracts/headOfPeoplePrompt.ts', ROLE_WAKE_DIR, 'apps/evals/src/served.ts', 'packages/cli/scripts/prompt-dry-run-bin/cast'),
+  sources: surfaceSources('anchor-brief', 'apps/server/convex/anchors.ts', 'packages/shared/contracts/headOfPeoplePrompt.ts', ROLE_WAKE_DIR, 'apps/evals/src/served.ts', 'apps/cli/scripts/prompt-dry-run-bin/cast'),
   reps: { check: 8, smoke: 3 },
   maxUsdPerRep: 1.5,
   criteria: 'the opening turn orients the role to its scope and does no writes',

@@ -178,20 +178,20 @@ jobs:
             exit 1
           fi
 
-          git show "$SOURCE_COMMIT:packages/cli/package.json" |
+          git show "$SOURCE_COMMIT:apps/cli/package.json" |
             jq -S 'del(.version)' > /tmp/source-cli-package.json
-          jq -S 'del(.version)' packages/cli/package.json > /tmp/head-cli-package.json
+          jq -S 'del(.version)' apps/cli/package.json > /tmp/head-cli-package.json
           diff -u /tmp/source-cli-package.json /tmp/head-cli-package.json
           source_changes=$(git diff --name-only "$SOURCE_COMMIT"..HEAD -- \
-            packages/cli packages/shared bun.lock package.json |
-            grep -v '^packages/cli/package.json$' || true)
+            apps/cli packages/shared bun.lock package.json |
+            grep -v '^apps/cli/package.json$' || true)
           if [[ -n "$source_changes" ]]; then
             echo "::error::CLI/shared build inputs changed after the binary build commit"
             printf '%s\n' "$source_changes"
             exit 1
           fi
 
-          current=$(jq -r '.version' packages/cli/package.json)
+          current=$(jq -r '.version' apps/cli/package.json)
           if [[ "$current" != "$PREVIOUS_VERSION" && "$current" != "$RELEASE_VERSION" ]]; then
             echo "::error::main package version is neither the predecessor nor the recovery target"
             exit 1
@@ -216,15 +216,15 @@ jobs:
           output_root=/tmp/cli-fallback
           git worktree add --detach "$build_root" "$SOURCE_COMMIT"
           jq --arg version "$RELEASE_VERSION" '.version = $version' \
-            "$build_root/packages/cli/package.json" > /tmp/fallback-cli-package.json
-          mv /tmp/fallback-cli-package.json "$build_root/packages/cli/package.json"
+            "$build_root/apps/cli/package.json" > /tmp/fallback-cli-package.json
+          mv /tmp/fallback-cli-package.json "$build_root/apps/cli/package.json"
           (
             cd "$build_root"
             bun install --frozen-lockfile
           )
           mkdir -p "$output_root"
           (
-            cd "$build_root/packages/cli"
+            cd "$build_root/apps/cli"
             bash scripts/guard-no-src-shadow.sh
             for target in linux-arm64 linux-x64 windows-x64; do
               if [[ "$target" == "windows-x64" ]]; then
@@ -540,43 +540,43 @@ jobs:
           git pull --ff-only origin main
           git merge-base --is-ancestor "$SOURCE_COMMIT" HEAD
 
-          git show "$SOURCE_COMMIT:packages/cli/package.json" |
+          git show "$SOURCE_COMMIT:apps/cli/package.json" |
             jq -S 'del(.version)' > /tmp/source-cli-package.json
-          jq -S 'del(.version)' packages/cli/package.json > /tmp/head-cli-package.json
+          jq -S 'del(.version)' apps/cli/package.json > /tmp/head-cli-package.json
           diff -u /tmp/source-cli-package.json /tmp/head-cli-package.json
           source_changes=$(git diff --name-only "$SOURCE_COMMIT"..HEAD -- \
-            packages/cli packages/shared bun.lock package.json |
-            grep -v '^packages/cli/package.json$' || true)
+            apps/cli packages/shared bun.lock package.json |
+            grep -v '^apps/cli/package.json$' || true)
           if [[ -n "$source_changes" ]]; then
             echo "::error::CLI/shared build inputs changed while the release was staging"
             printf '%s\n' "$source_changes"
             exit 1
           fi
 
-          current=$(jq -r '.version' packages/cli/package.json)
+          current=$(jq -r '.version' apps/cli/package.json)
           created_commit=false
           if [[ "$current" == "$PREVIOUS_VERSION" ]]; then
             jq --arg version "$RELEASE_VERSION" '.version = $version' \
-              packages/cli/package.json > /tmp/cli-package.json
-            mv /tmp/cli-package.json packages/cli/package.json
+              apps/cli/package.json > /tmp/cli-package.json
+            mv /tmp/cli-package.json apps/cli/package.json
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add packages/cli/package.json
+            git add apps/cli/package.json
             git commit -m "chore(cli): bump version to $RELEASE_VERSION"
             release_sha=$(git rev-parse HEAD)
             created_commit=true
           elif [[ "$current" == "$RELEASE_VERSION" ]]; then
             release_sha=""
             while read -r candidate; do
-              candidate_version=$(git show "$candidate:packages/cli/package.json" | jq -r '.version')
-              parent_version=$(git show "$candidate^:packages/cli/package.json" 2>/dev/null |
+              candidate_version=$(git show "$candidate:apps/cli/package.json" | jq -r '.version')
+              parent_version=$(git show "$candidate^:apps/cli/package.json" 2>/dev/null |
                 jq -r '.version' 2>/dev/null || true)
               if [[ "$candidate_version" == "$RELEASE_VERSION" &&
                 "$parent_version" != "$RELEASE_VERSION" ]]; then
                 release_sha="$candidate"
                 break
               fi
-            done < <(git rev-list --reverse "$SOURCE_COMMIT"..HEAD -- packages/cli/package.json)
+            done < <(git rev-list --reverse "$SOURCE_COMMIT"..HEAD -- apps/cli/package.json)
             if [[ -z "$release_sha" ]]; then
               echo "::error::could not identify the existing version bump commit"
               exit 1

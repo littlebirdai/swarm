@@ -15,7 +15,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { buildBootGraph } from "../../../../cli/src/bench/bootGraph";
+import { buildBootGraph } from "../../../../../apps/cli/src/bench/bootGraph";
 import { WINDOW_SLOTS } from "./windowSlots";
 
 const SIM = import.meta.dir;

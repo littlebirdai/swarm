@@ -5,7 +5,7 @@
 // `cl-N` with its words as transcript segments and its video as the call's
 // one screen file. The message a person sends carries only the tag below and
 // their own words. Two readers turn the tag into something:
-//   - the daemon delivering it (packages/cli screenRecordingBrief) writes the
+//   - the daemon delivering it (apps/cli screenRecordingBrief) writes the
 //     agent's copy: the timed lines, a keyframe beside each, and how to get
 //     any other moment (screenRecordingBrief here);
 //   - web and the phone draw it as a player over its transcript, read live

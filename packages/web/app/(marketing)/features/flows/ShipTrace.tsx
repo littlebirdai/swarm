@@ -77,7 +77,7 @@ type Policy = "press" | "auto";
 const TARGETS: { name: TargetName; when: string[]; policy: Policy; runs?: "push" }[] = [
   { name: "web", when: ["packages/web/**", "packages/shared/**", "platform/**"], policy: "press", runs: "push" },
   { name: "backend", when: ["apps/server/**", "packages/shared/**", "platform/**"], policy: "press" },
-  { name: "cli", when: ["packages/cli/**", "packages/shared/**", "platform/**"], policy: "press" },
+  { name: "cli", when: ["apps/cli/**", "packages/shared/**", "platform/**"], policy: "press" },
   { name: "mobile", when: ["apps/mobile/**", "packages/shared/**"], policy: "press" },
   { name: "desktop", when: ["apps/desktop/**"], policy: "press" },
 ];

@@ -129,7 +129,7 @@ export const ct57659Run3: ReportRun = {
    "completed_at": 1791396469926,
    "node_id": "green",
    "outcome": "success",
-   "result_preview": "bun test v1.3.14 (0d9b296a)\n\npackages/cli/src/workflow/proveFailRoute.test.ts:\n(pass) a failed Prove has a route > prove routes on failure with no proof json [0.54ms]\n\n 1 pass\n 0 fail\n 2 expect() calls\nRan 1 test across 1 file. [55.00ms]",
+   "result_preview": "bun test v1.3.14 (0d9b296a)\n\napps/cli/src/workflow/proveFailRoute.test.ts:\n(pass) a failed Prove has a route > prove routes on failure with no proof json [0.54ms]\n\n 1 pass\n 0 fail\n 2 expect() calls\nRan 1 test across 1 file. [55.00ms]",
    "started_at": 1791396469083,
    "status": "completed"
   },
@@ -220,7 +220,7 @@ export const ct57659Run5: ReportRun = {
    "completed_at": 1791398219407,
    "node_id": "green",
    "outcome": "success",
-   "result_preview": "bun test v1.3.14 (0d9b296a)\n\npackages/cli/src/workflow/proveFailRoute.test.ts:\n(pass) a failed Prove has a route > analyze leads to prove [0.04ms]\n(pass) a failed Prove has a route > prove (category code, failed, no proof json) parks at unproven [0.45ms]\n(pass) a failed Prove has a route > prove (category code, settled, no proof json) parks at unproven [0.04ms]\n(pass) a failed Prove has a route > prove (category code, reproduced missing) parks at unproven [0.09ms]\n(pass) a failed Prove has a route > prove (category code, reproduced unusable) parks at unproven [0.04ms]\n(pass) a failed Prove has a route > prove (category code, reproduced null) parks at unproven [0.06ms]\n(pass) a failed Prove has a route > prove (category code, proof json unreadable) parks at unproven [0.07ms]\n(pass) a failed",
+   "result_preview": "bun test v1.3.14 (0d9b296a)\n\napps/cli/src/workflow/proveFailRoute.test.ts:\n(pass) a failed Prove has a route > analyze leads to prove [0.04ms]\n(pass) a failed Prove has a route > prove (category code, failed, no proof json) parks at unproven [0.45ms]\n(pass) a failed Prove has a route > prove (category code, settled, no proof json) parks at unproven [0.04ms]\n(pass) a failed Prove has a route > prove (category code, reproduced missing) parks at unproven [0.09ms]\n(pass) a failed Prove has a route > prove (category code, reproduced unusable) parks at unproven [0.04ms]\n(pass) a failed Prove has a route > prove (category code, reproduced null) parks at unproven [0.06ms]\n(pass) a failed Prove has a route > prove (category code, proof json unreadable) parks at unproven [0.07ms]\n(pass) a failed",
    "started_at": 1791398218607,
    "status": "completed"
   },

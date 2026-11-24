@@ -3,7 +3,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 const WT = join(import.meta.dir, "..", "..", "..");
-const { blindDiff } = await import(`${WT}/packages/cli/src/workflow/blindChange.ts`);
+const { blindDiff } = await import(`${WT}/apps/cli/src/workflow/blindChange.ts`);
 const change = blindDiff({ cwd: WT, base: "1995ab683^", head: "1995ab683", redact: ["JasonBenn", "Jason Benn", "Jason", "Ashot", "union-ai", "union-mobile"] });
 const dir = `${WT}/apps/evals/fixtures/intent-read`;
 mkdirSync(dir, { recursive: true });

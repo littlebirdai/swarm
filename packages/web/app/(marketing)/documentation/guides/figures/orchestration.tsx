@@ -6,7 +6,7 @@ import { Box, Label, Sheet } from "../figureParts";
 
 /**
  * Figures for the orchestration guide. The review verdicts, round limits and
- * critic sweep are the /orchestrate skill's (packages/cli/orchestration).
+ * critic sweep are the /orchestrate skill's (apps/cli/orchestration).
  */
 
 // ─── Waves through a dependency graph ──────────────────────────────────────

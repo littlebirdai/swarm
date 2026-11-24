@@ -17,7 +17,7 @@ import { getPost } from "../posts";
 // minutes later (jx7ca7t) found both pages rendering with no console errors.
 // The browser card is the Agent features page on the same account. Product
 // claims were checked against the "Let agents use your Chrome" guide,
-// packages/cli/src/browser (handoff.ts, policy.ts, bridge/protocol.ts) and
+// apps/cli/src/browser (handoff.ts, policy.ts, bridge/protocol.ts) and
 // packages/browser-extension/background.js. Nothing was composited or retouched.
 
 const DIR = "/blog/agents-in-your-own-chrome";

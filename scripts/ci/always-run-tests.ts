@@ -32,7 +32,7 @@ export const SUITES: Array<{ job: string; dir: string; roots: string[]; flags: s
   { job: "test-convex", dir: "apps/server", roots: ["convex", "scripts"], flags: [] },
   // test-cli runs --parallel, a fresh global per file: the boot graph guards
   // count the module registry, which earlier files in one process have filled.
-  { job: "test-cli", dir: "packages/cli", roots: ["src"], flags: ["--parallel"] },
+  { job: "test-cli", dir: "apps/cli", roots: ["src"], flags: ["--parallel"] },
   { job: "test-cli", dir: "apps/evals", roots: ["src"], flags: [] },
   // test-web and test-mobile run with --isolate: their mount tests replace
   // modules with mock.module, which is permanent within one process.

@@ -37,7 +37,7 @@ import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceO
  *   confirmSession → done / failed once the resume command reports
  *   failSession    → clear the fence and record why (any step)
  *
- * Nothing here moves files; that is the CLI (packages/cli/src/migrate).
+ * Nothing here moves files; that is the CLI (apps/cli/src/migrate).
  */
 
 import { policyWorkspaceOf, requireTeamPolicyAllows } from "./lib/teamPolicyGuard";

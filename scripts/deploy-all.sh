@@ -15,7 +15,7 @@ for arg in "$@"; do
     --force) FORCE_CLI=true ;;
     --desktop) FORCE_DESKTOP=true ;;
     # Forward the CLI release's pre-deploy typecheck+test override (see
-    # packages/cli/scripts/deploy.sh --skip-checks). Discouraged: only when the
+    # apps/cli/scripts/deploy.sh --skip-checks). Discouraged: only when the
     # only failures are known-unrelated/flaky and verified out-of-band.
     --skip-checks) SKIP_CLI_CHECKS=true ;;
   esac
@@ -96,7 +96,7 @@ echo "3. Checking CLI for changes..."
 PUBLISHED_SRC=$(curl -fsS https://dl.codecast.sh/latest.json | sed -n 's/.*"sourceCommit"[[:space:]]*:[[:space:]]*"\([0-9a-f]*\)".*/\1/p')
 CLI_NEEDS_RELEASE=true
 if [[ -n "$PUBLISHED_SRC" ]] && git cat-file -e "$PUBLISHED_SRC^{commit}" 2>/dev/null \
-  && git diff --quiet "$PUBLISHED_SRC" HEAD -- packages/cli ':!packages/cli/package.json' packages/shared platform; then
+  && git diff --quiet "$PUBLISHED_SRC" HEAD -- apps/cli ':!apps/cli/package.json' packages/shared platform; then
   CLI_NEEDS_RELEASE=false
 fi
 CLI_VERSION=""

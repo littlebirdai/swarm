@@ -2,7 +2,7 @@
  * The example every mock on /features/pull-requests shares: one pull request,
  * the session that owns it, one reviewer. The repository and people are
  * illustrative; every label, state name, command and output line follows the
- * real formatters (packages/cli/src/prCommand.ts, convex/prShepherd.ts,
+ * real formatters (apps/cli/src/prCommand.ts, convex/prShepherd.ts,
  * components/pr/*).
  */
 

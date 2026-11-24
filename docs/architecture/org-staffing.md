@@ -295,7 +295,7 @@ CLI: `cast project update <ref> --goal - --metric "..." (repeatable) --priority 
 
 ## S8. The analyzer prompt
 
-`packages/cli/src/orgInit.ts` holds the prompt as an exported template, tested.
+`apps/cli/src/orgInit.ts` holds the prompt as an exported template, tested.
 It is written at principle level and says:
 
 - The company framing (S1) and that staffing is budgeting.

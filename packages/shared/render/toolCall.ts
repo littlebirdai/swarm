@@ -845,7 +845,7 @@ export function summarizeToolGroup(actions: readonly ToolCallLike[], counted = c
 }
 
 // A command or a query leads with what identifies it, so it clips from the end.
-// A path is the opposite — `codecast/packages/cli/src/stateCommand.ts` clipped
+// A path is the opposite — `codecast/apps/cli/src/stateCommand.ts` clipped
 // that way keeps only the directories and drops the one word the reader wants —
 // so a path sheds leading segments instead and keeps its filename.
 function clipSubject(subject: string, budget: number, isPath: boolean): string {

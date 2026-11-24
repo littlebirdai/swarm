@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { Command, CommanderError, Option } from 'commander';
 
-import { expandCommandStdinDashes } from '../../../../../packages/cli/src/sendBody';
+import { expandCommandStdinDashes } from '../../../../../apps/cli/src/sendBody';
 
 // The real CLI's own command tree (`cast agent-context --json`), the one the
 // dry-run guard already reads: every command path, alias, positional and

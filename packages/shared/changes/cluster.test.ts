@@ -99,7 +99,7 @@ describe("the 2026-10-02 codecast day", () => {
     const again = build({ commits: [...commits].reverse(), visible: sessionsOf(commits) });
     expect(again.stories.map((s) => s.story_key)).toEqual(r.stories.map((s) => s.story_key));
     const cliKey = holding(r.stories, "926be8efb")[0].story_key;
-    const late = commit({ sha: "late1", subject: "fix(cli): wake retries", timestamp: Date.UTC(2026, 9, 2, 17, 0), paths: { "packages/cli/src/wake.ts": 12 } });
+    const late = commit({ sha: "late1", subject: "fix(cli): wake retries", timestamp: Date.UTC(2026, 9, 2, 17, 0), paths: { "apps/cli/src/wake.ts": 12 } });
     const withLate = build({ commits: [...commits, late], visible: sessionsOf(commits) });
     const s = holding(withLate.stories, "late1")[0];
     expect(s.story_key).toBe(cliKey);
@@ -134,7 +134,7 @@ describe("rules (a) to (c) in isolation", () => {
   const batch = day("2026-09-30")[0];
 
   test("slices of the 09-30 batch commit join the stories of their areas", () => {
-    const cli = commit({ sha: "cli1", subject: "fix(cli): x", timestamp: batch.timestamp - 60 * MIN, paths: { "packages/cli/src/a.ts": 10 } });
+    const cli = commit({ sha: "cli1", subject: "fix(cli): x", timestamp: batch.timestamp - 60 * MIN, paths: { "apps/cli/src/a.ts": 10 } });
     const convex = commit({ sha: "cvx1", subject: "feat(convex): y", timestamp: batch.timestamp + 30 * MIN, conversation_id: "jx7s", paths: { "packages/convex/convex/y.ts": 10 } });
     const r = build({ commits: [batch, cli, convex], visible: [{ conversation_id: "jx7s" }] });
     // cli (44%) and convex (34%) are slices; the thin areas (docs, shared, animation-plans) ride with cli.
@@ -211,10 +211,10 @@ describe("rules (a) to (c) in isolation", () => {
 
   test("rule (b) breaks on a 3 hour gap and on scope; a branch groups whole", () => {
     const cs = [
-      commit({ sha: "m1", subject: "fix(cli): a", timestamp: T0, paths: { "packages/cli/a.ts": 1 } }),
-      commit({ sha: "m2", subject: "fix(cli): b", timestamp: T0 + 170 * MIN, paths: { "packages/cli/a.ts": 1 } }),
-      commit({ sha: "m3", subject: "fix(cli): c", timestamp: T0 + 360 * MIN, paths: { "packages/cli/a.ts": 1 } }),
-      commit({ sha: "m4", subject: "fix(auth): d", timestamp: T0 + MIN, paths: { "packages/cli/a.ts": 1 } }),
+      commit({ sha: "m1", subject: "fix(cli): a", timestamp: T0, paths: { "apps/cli/a.ts": 1 } }),
+      commit({ sha: "m2", subject: "fix(cli): b", timestamp: T0 + 170 * MIN, paths: { "apps/cli/a.ts": 1 } }),
+      commit({ sha: "m3", subject: "fix(cli): c", timestamp: T0 + 360 * MIN, paths: { "apps/cli/a.ts": 1 } }),
+      commit({ sha: "m4", subject: "fix(auth): d", timestamp: T0 + MIN, paths: { "apps/cli/a.ts": 1 } }),
       commit({ sha: "b1", branch: "feat/x", timestamp: T0, paths: { "packages/web/a.ts": 9 } }),
       commit({ sha: "b2", branch: "feat/x", timestamp: T0 + MIN, paths: { "packages/convex/a.ts": 1, "packages/web/b.ts": 1, "docs/a.md": 1 } }),
     ];
@@ -256,7 +256,7 @@ describe("rules (a) to (c) in isolation", () => {
 
   test("PRs join by commit or by visible session", () => {
     const a = commit({ sha: "a", conversation_id: "s1", paths: { "packages/web/a.ts": 5 } });
-    const b = commit({ sha: "b", subject: "fix(cli): b", pr_id: "pr9", paths: { "packages/cli/a.ts": 5 } });
+    const b = commit({ sha: "b", subject: "fix(cli): b", pr_id: "pr9", paths: { "apps/cli/a.ts": 5 } });
     const r = build({ commits: [a, b], visible: [{ conversation_id: "s1" }], prs: [{ id: "pr1", conversation_ids: ["s1"] }, { id: "pr2", shas: ["b"] }, { id: "pr3", conversation_ids: ["private"] }] });
     expect(holding(r.stories, "a")[0].pr_ids).toEqual(["pr1"]);
     expect(holding(r.stories, "b")[0].pr_ids).toEqual(["pr2", "pr9"]);
@@ -264,7 +264,7 @@ describe("rules (a) to (c) in isolation", () => {
 
   test("a squash or merge commit joins the pull request its subject names, unless a private session made it", () => {
     const squash = commit({ sha: "sq", subject: "Stop asking for fields the card never asked for (#3827)", paths: { "packages/web/a.ts": 5 } });
-    const merge = commit({ sha: "mg", subject: "Merge pull request #12 from acme/feat-x", timestamp: T0 + 300 * MIN, paths: { "packages/cli/a.ts": 5 } });
+    const merge = commit({ sha: "mg", subject: "Merge pull request #12 from acme/feat-x", timestamp: T0 + 300 * MIN, paths: { "apps/cli/a.ts": 5 } });
     const hidden = commit({ sha: "hd", subject: "feat(mobile): private (#40)", conversation_id: "secret", timestamp: T0 + 600 * MIN, paths: { "apps/mobile/a.ts": 5 } });
     const prs = [{ id: "pr3827", number: 3827 }, { id: "pr12", number: 12 }, { id: "pr40", number: 40 }, { id: "pr7", number: 7 }];
     const r = build({ commits: [squash, merge, hidden], visible: [], prs });

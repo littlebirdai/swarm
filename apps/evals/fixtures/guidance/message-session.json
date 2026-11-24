@@ -12,6 +12,6 @@
   },
   "snapshot": {
     "captured_at": "2026-10-06T12:00:00.000Z",
-    "request": "Session jx7abcd is editing packages/cli/src/auth.ts at the same time as me. Tell it to stop touching that file until I'm done."
+    "request": "Session jx7abcd is editing apps/cli/src/auth.ts at the same time as me. Tell it to stop touching that file until I'm done."
   }
 }

@@ -23,7 +23,7 @@
 #
 # Inputs (each overridable):
 #   APP=dist/mac-arm64/Codecast.app        from `npm run build` (signed + notarized)
-#   CLI=../../packages/web/binaries/codecast-darwin-arm64  from packages/cli/scripts/build-binaries.sh
+#   CLI=../../packages/web/binaries/codecast-darwin-arm64  from apps/cli/scripts/build-binaries.sh
 #   OUT_DIR=dist/mdm
 # Usage: ./scripts/build-mdm-pkg.sh [--no-notarize]
 
@@ -48,7 +48,7 @@ done
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
 [ -d "$APP" ] || fail "no app at $APP (build it with npm run build)"
-[ -f "$CLI" ] || fail "no CLI binary at $CLI (build it with packages/cli/scripts/build-binaries.sh)"
+[ -f "$CLI" ] || fail "no CLI binary at $CLI (build it with apps/cli/scripts/build-binaries.sh)"
 
 SIGN_PKG=0
 if security find-identity -v -p basic | grep -F "$INSTALLER_IDENTITY" >/dev/null; then

@@ -25,7 +25,7 @@ A watcher built while other sessions were editing several packages keeps checkin
 
 ## Tests
 
-Each package's test guidance is in its own `AGENTS.md` (`packages/web`, `packages/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
+Each package's test guidance is in its own `AGENTS.md` (`packages/web`, `apps/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
 
 ## Git history
 
@@ -54,7 +54,7 @@ Web carries a second layer of defence. A query that merely ENRICHES a surface go
 
 ## Prompt dry runs
 
-Run any headless `claude -p` that grades a prompt through `packages/cli/scripts/prompt-dry-run.ts`, never a bare `claude -p`: the daemon syncs every transcript under `~/.claude/projects`, so a bare run lands in the founder's inbox, and only the harness isolates it and refuses its writes. `--model` is required. The script's header documents its flags, isolation and output files. Don't edit the harness or its guard while a run is alive (bash reads a script as it runs). To grade a prod prompt against real moments, use `./evals`, which drives this harness.
+Run any headless `claude -p` that grades a prompt through `apps/cli/scripts/prompt-dry-run.ts`, never a bare `claude -p`: the daemon syncs every transcript under `~/.claude/projects`, so a bare run lands in the founder's inbox, and only the harness isolates it and refuses its writes. `--model` is required. The script's header documents its flags, isolation and output files. Don't edit the harness or its guard while a run is alive (bash reads a script as it runs). To grade a prod prompt against real moments, use `./evals`, which drives this harness.
 
 ## CLI releases
 
@@ -70,7 +70,7 @@ The workflow builds all five binaries on a macOS runner, signs the darwin ones w
 
 The certificate and its passphrase live in the repo secrets `MACOS_SIGN_CERT_P12` and `MACOS_SIGN_CERT_PASSPHRASE`. To rotate: export a fresh `.p12` from Keychain Access on Ashot's machine (the escrow copy) and replace both secrets.
 
-`packages/cli/scripts/deploy.sh` is the laptop path. It is also the only path that publishes the npm package and the Homebrew tap; both are mirrors, and R2 plus `latest.json` are the real release. Details in `docs/GETTING-STARTED.md` under "Cut a release from CI".
+`apps/cli/scripts/deploy.sh` is the laptop path. It is also the only path that publishes the npm package and the Homebrew tap; both are mirrors, and R2 plus `latest.json` are the real release. Details in `docs/GETTING-STARTED.md` under "Cut a release from CI".
 
 ## Workspace access vs routing
 

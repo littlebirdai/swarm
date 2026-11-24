@@ -53,7 +53,7 @@ prove the builders still post what the actions posted.
 
 ## Every model call goes through the dry run harness
 
-Every replay, judge and grader call runs `packages/cli/scripts/prompt-dry-run.ts`,
+Every replay, judge and grader call runs `apps/cli/scripts/prompt-dry-run.ts`,
 never a bare `claude -p` (the daemon would sync a bare run into the founder's
 inbox; see AGENTS.md "Prompt dry runs"). `--model` is always passed.
 

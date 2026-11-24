@@ -1,7 +1,7 @@
 // The change history of each device's agent harness: every write codecast
 // made to CLAUDE.md, the hooks or ~/.claude/settings.json on that machine,
 // with the action that caused it. The daemon records them locally
-// (packages/cli/src/harness.ts) and attaches the unsent ones to its heartbeat;
+// (apps/cli/src/harness.ts) and attaches the unsent ones to its heartbeat;
 // the /cli/heartbeat route forwards them here, after presence, so a failure
 // never costs the machine its heartbeat.
 

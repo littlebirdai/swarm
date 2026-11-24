@@ -72,11 +72,11 @@ async function setup() {
 
   await commit("a1", "feat(web): line pages", "09:00", ["packages/web/line.tsx", "packages/web/page.tsx"], { conversation_id: ids.vis });
   await commit("a2", "fix(web): line page scroll", "09:30", ["packages/web/line.tsx"], { conversation_id: ids.vis });
-  await commit("b1", "fix(cli): retry the upload\n\nWhy it broke.\n\nCodecast-Session: jx7bbbb", "10:00", ["packages/cli/upload.ts"], {
+  await commit("b1", "fix(cli): retry the upload\n\nWhy it broke.\n\nCodecast-Session: jx7bbbb", "10:00", ["apps/cli/upload.ts"], {
     conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev", pr_id: ids.privPr,
   });
   await commit("d1", "docs: refresh the guide", "11:00", ["docs/guide.md"], { author_name: "Cy", author_email: "cy@acme.dev" });
-  await commit("r1", "chore(cli): bump version to 1.2.3", "12:00", ["packages/cli/package.json"]);
+  await commit("r1", "chore(cli): bump version to 1.2.3", "12:00", ["apps/cli/package.json"]);
   // None of these belong to the day of acme/app in this team.
   await commit("x1", "feat: elsewhere", "09:10", ["src/a.ts"], { repository: "acme/other" });
   await commit("x2", "wip: scratch", "09:20", ["packages/web/x.ts"], { branch: "worktree-agent-abc" });

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
-import { buildOrgAnalyzerPrompt, summarizeInputs } from '../../../../../packages/cli/src/orgInitRun';
+import { buildOrgAnalyzerPrompt, summarizeInputs } from '../../../../../apps/cli/src/orgInitRun';
 import { REPO_ROOT } from '../../paths';
 import { recordSentence, type Cut } from '../../served';
 

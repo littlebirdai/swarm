@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { buildBootGraph, importChain, type GraphOptions } from "../../../packages/cli/src/bench/bootGraph";
+import { buildBootGraph, importChain, type GraphOptions } from "../../../apps/cli/src/bench/bootGraph";
 
 // The native bundle's import graph, walked the way Metro walks it, in seconds
 // and without Metro. It exists because a production OTA export failed after a

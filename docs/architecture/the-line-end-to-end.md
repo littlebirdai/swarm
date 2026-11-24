@@ -16,7 +16,7 @@ findings, people's complaints, our own corrections) into a small number of
 causes, each tied to a goal. The back half turns a cause into one change with
 proof, and asks a person one question about it. Nothing here adds a third
 engine, a second decision rail or a second evidence model: every stage is a
-node in the DOT engine (`packages/cli/src/workflow/`), every question is a
+node in the DOT engine (`apps/cli/src/workflow/`), every question is a
 `session_decisions` row, every artifact attaches to the task. Sections are
 numbered LE1 onward so code can cite them.
 
@@ -329,7 +329,7 @@ category, and the session that asked it never does (`answererFor`).
 
 The question comes from a session, not from a form. The presenting station
 (`card_write`, named by the gate as `asker=card_write`) reads the base presenter
-(`packages/cli/src/workflow/presenter.md`) followed by this line's addendum
+(`apps/cli/src/workflow/presenter.md`) followed by this line's addendum
 (`templates/line/card_write.md`). It runs the product before and after on the
 cases behind the problem, builds a page with the decision kit, and posts one
 decision with `cast decide`: its own question, its own answers, a short context

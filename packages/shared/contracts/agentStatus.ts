@@ -254,7 +254,7 @@ export function isLivenessStale(
 // here and both writers import their own term back.
 
 // How often the daemon flushes every live session's heartbeat in one batched
-// mutation (packages/cli/src/daemon.ts).
+// mutation (apps/cli/src/daemon.ts).
 export const HEARTBEAT_FLUSH_INTERVAL_MS = 30 * 1000;
 
 // How stale the stored stamp must be before a flush actually writes it

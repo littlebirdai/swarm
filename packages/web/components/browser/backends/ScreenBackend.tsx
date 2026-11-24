@@ -2,7 +2,7 @@
 // and popups that live outside the agent's tab and so never reach the stream.
 //
 // The host serves its Xvfb as VNC behind websockify on its own loopback; this
-// machine's daemon forwards that port (packages/cli/src/cloud/hostForward.ts)
+// machine's daemon forwards that port (apps/cli/src/cloud/hostForward.ts)
 // and noVNC's RFB client draws it here, inside the pane's own chrome. noVNC's
 // page is deliberately not used: its floating control bar and status strip
 // are a second UI inside ours. The pane strip carries the verbs instead.

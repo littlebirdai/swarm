@@ -54,12 +54,12 @@ import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
-import { BRIDGE_EXTENSION_ID, CAST_TAB_GROUP, targetIdOfTab } from "../../packages/cli/src/browser/bridge/protocol.ts";
-import { Cdp, extensionContext as sharedExtensionContext, findTestChrome as findChrome, freePort, pairExtension } from "../../packages/cli/scripts/lib/chromeRig.ts";
+import { BRIDGE_EXTENSION_ID, CAST_TAB_GROUP, targetIdOfTab } from "../../apps/cli/src/browser/bridge/protocol.ts";
+import { Cdp, extensionContext as sharedExtensionContext, findTestChrome as findChrome, freePort, pairExtension } from "../../apps/cli/scripts/lib/chromeRig.ts";
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
 const extDir = path.join(repoRoot, "apps/browser-extension");
-const cliEntry = path.join(repoRoot, "packages/cli/src/index.ts");
+const cliEntry = path.join(repoRoot, "apps/cli/src/index.ts");
 
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "cast-bridge-smoke-"));
 const castDir = path.join(work, "castdir");

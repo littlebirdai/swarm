@@ -1,8 +1,8 @@
 /**
  * Every string on the cast computer page that claims to be CLI output or CLI
  * behaviour. Each one is copied from the CLI and helper sources:
- * packages/cli/src/computer/{format,tree,errors,cli,batch,setup}.ts and
- * packages/cli/native/computer-use-macos (AppBlockList, SecureTextRedaction,
+ * apps/cli/src/computer/{format,tree,errors,cli,batch,setup}.ts and
+ * apps/cli/native/computer-use-macos (AppBlockList, SecureTextRedaction,
  * AgentCursor). Change them there first.
  */
 

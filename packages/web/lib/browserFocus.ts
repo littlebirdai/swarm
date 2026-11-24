@@ -3,7 +3,7 @@
 //
 // The daemon's loopback hook server exposes POST /browser/focus?tab=<id> (or
 // ?session_uuid=<uuid> for the tab that session drives) and
-// POST /browser/reopen (packages/cli/src/browser/focusHttp.ts). We reach it
+// POST /browser/reopen (apps/cli/src/browser/focusHttp.ts). We reach it
 // through the same discovery the integrated terminal uses — getTerminalEndpoint
 // — so this works exactly when the viewer is on the machine whose daemon drove
 // the browser, and needs no new server-side plumbing.

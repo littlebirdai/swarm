@@ -7,7 +7,7 @@ export const meta: SurfaceMeta = {
   route: 'call',
   // The review station is an agent=claude hand with no model of its own, so it runs the launching person's Claude Code default.
   model: PROD_DEFAULT_MODEL,
-  sources: surfaceSources('review-note', 'packages/cli/src/workflow/templates/line/review.md', 'packages/cli/src/workflow/templates/decide.cast'),
+  sources: surfaceSources('review-note', 'apps/cli/src/workflow/templates/line/review.md', 'apps/cli/src/workflow/templates/decide.cast'),
   reps: { check: 5 },
   // One Opus call over up to ~45k tokens of review session, plus two Sonnet graders.
   maxUsdPerRep: 1.2,

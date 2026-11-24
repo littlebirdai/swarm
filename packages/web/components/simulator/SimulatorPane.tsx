@@ -4,7 +4,7 @@
 // a screen.
 //
 // The stream is BrowserStream's with source "sim" (the daemon's simulator
-// engine, packages/cli sim/watch.ts): the same socket, relay and agent cursor
+// engine, apps/cli sim/watch.ts): the same socket, relay and agent cursor
 // as a watched browser tab. This file is the pane around it: one 32px header
 // in the house panel language, carrying the device's name, whether it is
 // live, its controls, and the pane's own close and expand. The controls take

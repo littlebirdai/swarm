@@ -6,7 +6,7 @@
 //
 //   human   a store action in the window (the same calls a component makes),
 //           which reaches dispatch:dispatch through the window's _dispatch
-//   daemon  the mutation names packages/cli/src/syncService.ts sends, under
+//   daemon  the mutation names apps/cli/src/syncService.ts sends, under
 //           the user's api token (token principal)
 //   agent   chat:sendMessage with origin "agent", as `cast chat send` from a session
 //   admin   teams:removeMember as the team's admin

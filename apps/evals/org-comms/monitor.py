@@ -29,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # AC3's gap as delivery enforces it today (3 minutes until Oct 22, 1 since).
 CONTEXT_GAP_MS = int(re.search(r"CONTEXT_MIN_GAP_MS = ([\d_]+)", open(os.path.join(REPO, "apps/server/convex/transcripts.ts")).read()).group(1).replace("_", ""))
 HOME = os.path.join(os.environ.get("CODECAST_EVALS_HOME") or os.path.expanduser("~/.local/share/codecast/evals"), "org-comms")
-HARNESS = os.path.join(REPO, "packages/cli/scripts/prompt-dry-run.ts")
+HARNESS = os.path.join(REPO, "apps/cli/scripts/prompt-dry-run.ts")
 BASELINE = os.path.join(HOME, "baseline.json")
 USER_ENV = "CODECAST_ORG_COMMS_USER"
 

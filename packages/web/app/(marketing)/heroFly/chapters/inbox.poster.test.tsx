@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import * as path from "node:path";
 import { renderToString } from "react-dom/server";
-import { buildBootGraph } from "../../../../../cli/src/bench/bootGraph";
+import { buildBootGraph } from "../../../../../../apps/cli/src/bench/bootGraph";
 import { useInboxStore } from "../../../../store/inboxStore";
 import { HeroSandbox } from "../sandbox";
 import { createFilmClock, FilmClockContext } from "../filmClock";

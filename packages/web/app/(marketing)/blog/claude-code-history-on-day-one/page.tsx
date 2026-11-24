@@ -15,7 +15,7 @@ import { getPost } from "../posts";
 // down the list). The transcript image starts at Claude's first reply, below a
 // prompt whose attached screenshot showed other people's photos. Nothing was
 // composited or retouched. The import numbers come from the test run in session
-// jx71jtq (ct-57303) and were rechecked against packages/cli/src/daemon.ts,
+// jx71jtq (ct-57303) and were rechecked against apps/cli/src/daemon.ts,
 // packages/convex/convex/conversations.ts and
 // packages/shared/contracts/inboxProjection.ts.
 
