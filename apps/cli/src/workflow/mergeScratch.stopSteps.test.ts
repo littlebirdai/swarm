@@ -133,12 +133,12 @@ ${run}
     } finally {
       proc.kill("SIGKILL");
       await proc.exited;
-      for (const file of ["ready", "group"]) {
+      for (const file of ["ready", "group", "other-group"]) {
         if (!existsSync(join(dir, file))) continue;
         const pid = Number(readFileSync(join(dir, file), "utf-8"));
         if (pid > 1) {
           try {
-            process.kill(file === "group" ? -pid : pid, "SIGKILL");
+            process.kill(file === "ready" ? pid : -pid, "SIGKILL");
           } catch {}
         }
       }
@@ -209,14 +209,20 @@ await stopped;
       const actual = await withStepReads(
         `exec ${shellQuote(Bun.which("ps")!)} "$@"`,
         `
-step(${JSON.stringify(command)});
+const running = step(${JSON.stringify(command)});
+let closed = false;
+void running.closed.then(() => { closed = true; });
 await waitFor("armed");
 const stopped = await stopSteps(4_500);
-console.log(JSON.stringify({ finished: existsSync("finished"), stopped }));
+console.log(JSON.stringify({ finished: existsSync("finished"), stopped, closed }));
 `,
         true,
       );
-      expect(JSON.parse(actual)).toEqual({ finished: true, stopped: true });
+      expect(JSON.parse(actual)).toEqual({
+        finished: true,
+        stopped: true,
+        closed: true,
+      });
     },
   );
 
@@ -257,10 +263,10 @@ if (!existsSync("stopped")) {
 } else if (!existsSync("exited")) {
   const group = readFileSync("group", "utf8");
   console.log(group, readFileSync("parent", "utf8"), group, "0 ? Wed Jan 1 00:00:00 2020 shell");
-  console.log("700", group, "700 0 ? Wed Jan 1 00:00:02 2020 same-second");
-  console.log("701", group, "701 0 ? Wed Jan 1 00:00:03 2020 later");
-  console.log("702", group, "702 0 ? Wed Jan 1 00:00:00 2020 earlier");
-  console.log("703", group, group, "0 ? Wed Jan 1 00:00:00 2020 group-member");
+  console.log("700000000", group, "700000000 0 ? Wed Jan 1 00:00:02 2020 same-second");
+  console.log("700000001", group, "700000001 0 ? Wed Jan 1 00:00:03 2020 later");
+  console.log("700000002", group, "700000002 0 ? Wed Jan 1 00:00:00 2020 earlier");
+  console.log("700000003", group, group, "0 ? Wed Jan 1 00:00:00 2020 group-member");
 } else {
   console.log("1 0 1 0 ? Wed Jan 1 00:00:00 2020 init");
 }
@@ -274,7 +280,7 @@ Date.now = () => start + (existsSync("stopped") ? 4_000 + performance.now() - cl
 writeFileSync("parent", String(process.pid));
 process.kill = (pid, signal) => {
   if (pid < 0 && signal === "SIGTERM") writeFileSync("stopped", "");
-  if (pid >= 700 && pid <= 703) {
+  if (pid >= 700000000 && pid <= 700000003) {
     signals.push(pid);
     return true;
   }
@@ -289,7 +295,10 @@ await running.closed;
 console.log(JSON.stringify({ stopped, signals }));
 `,
     );
-    expect(JSON.parse(actual)).toEqual({ stopped: false, signals: [702] });
+    expect(JSON.parse(actual)).toEqual({
+      stopped: false,
+      signals: [700000002],
+    });
   });
 
   test.each([
@@ -331,14 +340,14 @@ if (!existsSync("exited")) {
 } else {
   if (${leader}) console.log(group, "1", group, "0 ? Wed Jan 1 00:00:03 2020 replacement");
   const member = ${member};
-  if (member !== null) console.log("700 1", group, "0 ? Wed Jan 1 00:00:0" + member + " 2020 unclaimed");
+  if (member !== null) console.log("700000000 1", group, "0 ? Wed Jan 1 00:00:0" + member + " 2020 unclaimed");
 }
 `,
         `
 const signals = [];
 const kill = process.kill;
 process.kill = (pid, signal) => {
-  if (pid === 700 && signal === "SIGTERM") {
+  if (pid === 700000000 && signal === "SIGTERM") {
     signals.push(pid);
     return true;
   }
@@ -357,6 +366,7 @@ let otherClosed;
 if (${secondStep}) {
   const other = spawn("/bin/bash", ["-c", "trap 'exit 0' TERM; touch armed; while :; do sleep 0.02; done"], { detached: true });
   otherClosed = once(other, "close");
+  writeFileSync("other-group", String(other.pid));
   trackStep(other);
   await waitFor("armed");
 }
@@ -474,11 +484,16 @@ await running.closed;
     }
   });
 
-  test("keeps the tree when a TERM trap starts a child before the shell exits", async () => {
-    const fork = `perl -MPOSIX -e ${shellQuote(`POSIX::setsid() >= 0 or die $!; $SIG{TERM}="IGNORE"; ${mark} sleep 30;`)} </dev/null >/dev/null 2>&1 & ${waitForShell}; exit 0`;
-    const command = `trap ${shellQuote(fork)} TERM; touch armed; while :; do sleep 0.02; done`;
-    const actual = await withStepReads(
-      `
+  test.each([
+    { group: "the shell's group", detach: "" },
+    { group: "its own group", detach: "POSIX::setsid() >= 0 or die $!;" },
+  ])(
+    "keeps the tree when a TERM trap starts a child in $group",
+    async ({ detach }) => {
+      const fork = `perl -MPOSIX -e ${shellQuote(`${detach} $SIG{TERM}="IGNORE"; ${mark} sleep 30;`)} </dev/null >/dev/null 2>&1 & ${waitForShell}; exit 0`;
+      const command = `trap ${shellQuote(fork)} TERM; touch armed; while :; do sleep 0.02; done`;
+      const actual = await withStepReads(
+        `
 const pid = existsSync("ready") ? Number(readFileSync("ready", "utf8")) : 0;
 const table = ps();
 process.stdout.write(table.stdout);
@@ -486,7 +501,7 @@ if (pid && table.stdout.toString().split("\\n").some((row) => Number(row.trimSta
   writeFileSync("sampled-child", "");
 }
 `,
-      `
+        `
 const running = step(${JSON.stringify(command)});
 await waitFor("armed");
 const stopped = stopSteps(1_500);
@@ -496,9 +511,10 @@ await running.closed;
 process.kill(Number(readFileSync("ready", "utf8")), 0);
 console.log(await stopped);
 `,
-    );
-    expect(actual).toBe("false");
-  });
+      );
+      expect(actual).toBe("false");
+    },
+  );
 
   test.each([
     { mode: "ignores TERM", term: '$SIG{TERM}="IGNORE";', expected: false },
