@@ -8,9 +8,8 @@ Work directly in the main checkout. Other sessions may have uncommitted work in 
 
 `apps/` holds applications that run or ship. Keep each app's `*.test.ts` files beside its source.
 `packages/` holds small, single-purpose libraries. Each library uses `src/` for source and `test/` for tests.
-`tests/` holds cross-package test suites as workspace members.
+`tests/` holds cross-package test suites; one with its own `package.json` is a workspace member.
 `platform/` is a generated mirror. Never restructure it by hand.
-Follow-up PRs will move `web`, `convex`, `cli`, `electron`, `mobile`, and `evals` from `packages/` to `apps/`.
 
 ## Vendored platform packages
 

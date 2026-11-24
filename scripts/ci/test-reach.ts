@@ -160,11 +160,12 @@ function importsOf(file: string, text: string): string[] {
 
 const PACKAGE_NAMES = [...WORKSPACE_DIRS.keys()].map((name) => name.replace(/-/g, "\\-")).join("|");
 const ROOT_NAMES = WORKSPACE_ROOTS.join("|");
-// `../convex/` or `../../web/`: a path relative to the file, so it can only mean
-// this repository, from any file.
-const RELATIVE_REACH = new RegExp(`["'\`/]\\.\\./(${PACKAGE_NAMES})(?=["'\`/])`, "g");
-// The same reach spelled as path segments: join(dir, "..", "..", "cli", "src").
-const SEGMENT_REACH = new RegExp(`["'\`]\\.\\.["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
+// `../convex/`, `../../web/` or `../../../apps/browser-extension/`: a path
+// relative to the file, so it can only mean this repository, from any file.
+const RELATIVE_REACH = new RegExp(`["'\`/]\\.\\./(?:(?:${ROOT_NAMES})/)?(${PACKAGE_NAMES})(?=["'\`/])`, "g");
+// The same reach spelled as path segments: join(dir, "..", "..", "cli", "src")
+// or join(dir, "..", "..", "apps", "playground").
+const SEGMENT_REACH = new RegExp(`["'\`]\\.\\.["'\`]\\s*,\\s*(?:["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*)?["'\`](${PACKAGE_NAMES})["'\`]`, "g");
 // The same as segments from the repo root: join(ROOT, "packages", "cli", "src").
 const ROOTED_SEGMENT_REACH = new RegExp(`["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
 // `packages/web/`: from test code it means this repository; from product code
