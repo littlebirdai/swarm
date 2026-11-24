@@ -335,7 +335,7 @@ export function briefTextLines(brief: any, now: number): string[] {
       ? [`  people who report to it:`, ...briefPeopleLines(f.people, now)]
       : []),
     ...briefCharterLines(String(brief.charter ?? "")),
-    // How to move them, only for an area read by a number (packages/goals/src/climb.ts).
+    // How to move them, only for an area read by a number (packages/org/src/rolePlaybook.ts).
     ...(briefServesNumbers(f)
       ? [
           "",
