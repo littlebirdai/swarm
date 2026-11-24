@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
-import { CODECAST_BASE_URL, publicUrl } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL, publicUrl } from "@codecast/entities";
 import { extendTailwindMerge } from "tailwind-merge";
 
 // The type scale's names (tailwind.config.ts fontSize). Unregistered,

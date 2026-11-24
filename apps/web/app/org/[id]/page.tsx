@@ -5,7 +5,7 @@
 // /org/workspace is the root scope and keeps its own page (scopes-and-feed.md
 // F3). Anything else is the chart.
 import { useParams, useRouter } from "next/navigation";
-import { objectHref, orgObjectOfRef } from "@codecast/shared/entities";
+import { objectHref, orgObjectOfRef } from "@codecast/entities";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { OrgTreeFeeder } from "../../../components/inbox/InboxEffects";

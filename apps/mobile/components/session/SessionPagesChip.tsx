@@ -16,7 +16,7 @@ import {
 } from "@/constants/Theme";
 import { openLink } from "@/lib/links";
 import { useSessionPages } from "@codecast/web/hooks/useSessionPages";
-import { pageShareUrl } from "@codecast/shared/entities";
+import { pageShareUrl } from "@codecast/entities";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import {
   usePageEmbedQuery,

@@ -71,7 +71,7 @@ describe("parseIntentSource", () => {
     });
   });
 
-  // One url reader (shared/entities parseEntityUrl) says what a codecast link
+  // One url reader (packages/entities/src parseEntityUrl) says what a codecast link
   // opens, so a pasted link and the short id name the same source.
   test("a codecast link or path reads as the object it opens", () => {
     expect(

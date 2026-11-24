@@ -29,6 +29,7 @@
     "@codecast/deploys": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/entities": "workspace:*",
     "@codecast/fence": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",

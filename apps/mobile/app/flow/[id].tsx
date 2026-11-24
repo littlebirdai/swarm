@@ -39,7 +39,7 @@ import {
   objectStyles,
 } from "@/components/objects/ObjectParts";
 import { FlowRunCard, WHO } from "@/components/session/FlowCard";
-import { flowSlugOf, flowRefOf } from "@codecast/shared/entities";
+import { flowSlugOf, flowRefOf } from "@codecast/entities";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import {
   useFlowLibrary,

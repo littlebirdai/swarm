@@ -74,7 +74,7 @@ import type {
   CommitCiState,
   QueueGroup,
 } from "@codecast/deploys/deployTargets";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { ShareControl } from "../ShareControl";
 import { EntityIdPill } from "../EntityIdPill";
 import { PageHeader } from "../ui/page-header";

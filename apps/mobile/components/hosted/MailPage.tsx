@@ -14,7 +14,7 @@ import {
   SettingsScroll,
 } from "@/components/settings/SettingsUI";
 import { openWebPage } from "@/lib/links";
-import { CODECAST_BASE_URL } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL } from "@codecast/entities";
 import type { WhiskReturnPath } from "@codecast/convex/convex/whisk";
 import {
   LANE_COPY,

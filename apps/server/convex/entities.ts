@@ -4,7 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { getAuthenticatedUserId } from "./pendingMessages";
 
 // Entity tables addressable by pill/link surfaces, in resolution order.
-// Mirrors EntityType in @codecast/shared/entities.
+// Mirrors EntityType in @codecast/entities.
 const ID_TYPE_TABLES = [
   ["docs", "doc"],
   ["tasks", "task"],

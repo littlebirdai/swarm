@@ -28,7 +28,7 @@ import {
   parseReplayRef,
   parseRepoObjectId,
   type EntityType,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { docRelatesToTask } from "@codecast/shared/tasks";
 import {
   roleAssigneeInfo,

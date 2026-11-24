@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 
-import { bareEntityIdRegex } from "@codecast/shared/entities";
+import { bareEntityIdRegex } from "@codecast/entities";
 import type { ConvoMessage, GateResult } from "@platform/evals";
 import { UsageError } from "@platform/evals/cli";
 

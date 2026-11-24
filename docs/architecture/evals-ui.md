@@ -717,7 +717,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
   - `signals.ts`
   - tests: `adapters/replay.test.ts`, `commands/check.test.ts`, `commands/line.test.ts`
 - **Platform:** `~/src/platform/packages/evals/src/render/runs.ts` and a new `render/runs.test.ts`, then `scripts/vendor-platform.sh`, which refreshes `platform/packages/evals` and `platform/vendor-manifest.txt`.
-- **Shared:** `packages/shared/package.json`, `packages/shared/contracts/appSurfaces.ts`.
+- **Shared:** `packages/entities/package.json`.
 - **Daemon:** `apps/cli/src/daemon.ts`.
 - **Web:**
   - routing: `src/App.tsx`, `components/RoutePane.tsx`, `lib/pageLayout.tsx`, `lib/desktopHandoff.ts`, `src/routes.manifest.ts`, `lib/pathLabel.ts`, `components/CommandPalette.tsx`

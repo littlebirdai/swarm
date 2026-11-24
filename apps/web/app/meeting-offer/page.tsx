@@ -52,7 +52,7 @@ import {
 } from "../../hooks/useRecorder";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { soundMeetingDetected } from "../../lib/sounds";
 import { MeetingOfferFace } from "../../components/calls/MeetingOfferToast";
 import "../../components/calls/recorder.css";

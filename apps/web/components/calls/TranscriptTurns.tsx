@@ -9,7 +9,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useLongPress } from "../../hooks/useLongPress";
 import { firstName, speakerColor, speakerShortName } from "./speakers";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { ParticipantTag } from "./GuestTag";
 import { groupTurns, turnsAnchor, type Turn } from "./transcriptTurnModel";
 import { CallLinkButton } from "./CallLinkButton";

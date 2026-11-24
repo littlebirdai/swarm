@@ -32,7 +32,7 @@ import {
 import { MomentView } from "./MomentView";
 import { NavLink, useLineNav } from "./parts";
 import { sourceName } from "../../../lib/line/sourceNames";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import "./originTrail.css";
 
 export type OriginTrailProps = {

@@ -7,7 +7,7 @@
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Ellipsis } from "lucide-react";
-import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
+import { objectHref, type OrgObjectKind } from "@codecast/entities";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { ShareControl } from "../../ShareControl";
 import { cn } from "../../../lib/utils";

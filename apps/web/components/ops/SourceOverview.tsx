@@ -9,7 +9,7 @@
 // here too, and a silent keyed source opens its test-event check in place.
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { entityRoute, formatCallTime } from "@codecast/shared/entities";
+import { entityRoute, formatCallTime } from "@codecast/entities";
 import {
   BellRing,
   ChevronDown,

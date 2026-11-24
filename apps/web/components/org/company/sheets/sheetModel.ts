@@ -2,7 +2,7 @@
 // crumb that says where an object sits, the names a Serves line links, whom
 // a role reports to, and what a role is doing this minute.
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
-import { personRefOf } from "@codecast/shared/entities";
+import { personRefOf } from "@codecast/entities";
 import type { OrgRole, OrgSession, OrgTree } from "../../orgTypes";
 import { sessionsLine } from "../nowModel";
 import { roleWords } from "../../orgStaffingTypes";

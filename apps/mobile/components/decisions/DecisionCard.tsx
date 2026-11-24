@@ -44,7 +44,7 @@ import {
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import type { AnswerDraft } from "@codecast/web/lib/decisionAnswer";
 import { decisionAnswerLabel } from "@codecast/shared/contracts";
-import { pageShareUrl } from "@codecast/shared/entities";
+import { pageShareUrl } from "@codecast/entities";
 import { appAlert } from "@/lib/popups";
 
 /** How a decision that no longer waits reads, or null while it waits. */

@@ -4,7 +4,7 @@
 // address is replaced, so Back skips this hop.
 import { useRouter } from "next/navigation";
 import { useWatchEffect } from "../../../../../hooks/useWatchEffect";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import type { LineViewProps } from "../types";
 
 export function DeploysMoved({ selection }: LineViewProps) {

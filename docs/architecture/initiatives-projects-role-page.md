@@ -381,7 +381,7 @@ is when. One parser reads a source the way people and the review write one
 quote), and one function says where it opens (`intentSourceHref`, web lib/intentSources, since routes are the web's). A
 codecast link or path to a session, a task, a plan, a doc or a call
 (`https://codecast.sh/tasks/ct-12`, `/conversation/jx7abcd`) reads as that
-object, by the one url reader (`parseEntityUrl`, shared/entities), so a pasted
+object, by the one url reader (`parseEntityUrl`, packages/entities/src), so a pasted
 link and the short id name the same source; any other URL is a `link`. A
 source sent in its stored shape is held to the same address rules: a link is
 an http or https URL and stays a link, a call line takes the shared form, a

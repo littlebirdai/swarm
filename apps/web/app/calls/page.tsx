@@ -57,7 +57,7 @@ import {
   isRoomlessKey,
 } from "@codecast/calls/callRoomKeys";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
-import { callRefId } from "@codecast/shared/entities";
+import { callRefId } from "@codecast/entities";
 import { joinCall } from "../../lib/calls/callManager";
 import { callTitle, type CallPlace } from "../../lib/calls/roomLabels";
 import { isConvexId, useInboxStore, useMyUserId } from "../../store/inboxStore";
@@ -135,7 +135,7 @@ import {
   fmtCallLength,
   speakerColor,
 } from "../../components/calls/speakers";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { CallSessionChips } from "../../components/calls/CallSessionChips";
 import { CallFollowThrough } from "../../components/calls/CallFollowThrough";
 import { useMutation } from "convex/react";

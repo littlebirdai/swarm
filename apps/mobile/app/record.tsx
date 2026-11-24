@@ -34,7 +34,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { Text as RNText } from "@/components/Themed";
 import {
   Theme,

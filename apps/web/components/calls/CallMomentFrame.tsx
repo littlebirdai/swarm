@@ -10,7 +10,7 @@ import {
   recordingSubject,
   type CallMomentMiss,
 } from "@codecast/calls/callRecordings";
-import { formatCallTime, parseCallRef } from "@codecast/shared/entities";
+import { formatCallTime, parseCallRef } from "@codecast/entities";
 import { toVideoFile, useCallRecordings } from "../../hooks/useRoomRecording";
 import { useNearViewport } from "../../hooks/useNearViewport";
 import { useStableMediaSrcs } from "../../hooks/useStableMediaSrcs";

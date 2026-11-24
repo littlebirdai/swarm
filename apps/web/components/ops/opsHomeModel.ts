@@ -10,7 +10,7 @@ import type { SourceProvider } from "@codecast/shared/contracts/ingest";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";
 import type { OpsGroup, OpsReplay, OpsSource, OpsWatch } from "./opsTypes";
 import { SOURCE_PROVIDER_LABEL } from "./parts";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { replayTitle } from "./opsModel";
 import type { OpsHomeShow } from "./opsPaths";
 import type { SourceHealth } from "./sourceHealth";

@@ -34,7 +34,7 @@ import {
   type TimelineGroup,
 } from "../../../../../lib/line/lineTimeline";
 import { opsHref } from "../../../../ops/opsPaths";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { OriginTrail } from "../../../widgets/OriginTrail";
 import { useLineNav } from "../../../widgets/parts";
 import "./timelineView.css";

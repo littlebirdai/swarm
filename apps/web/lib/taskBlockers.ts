@@ -11,7 +11,7 @@ import {
   type StatusOf,
   type WaitTone,
 } from "@codecast/shared/tasks";
-import { truncateEntityLabel } from "@codecast/shared/entities";
+import { truncateEntityLabel } from "@codecast/entities";
 import { lookup } from "./liveEntities";
 import { workspaceKeyOfRow } from "./workspaceScope";
 

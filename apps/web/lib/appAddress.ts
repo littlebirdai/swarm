@@ -11,7 +11,7 @@ import {
   entityRoute,
   entityTypeFromId,
   normalizeEntityType,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   appPathOf,
   normalizeUrl,

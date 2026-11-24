@@ -16,7 +16,7 @@ import {
 import { boardArtFor } from "./boardArt";
 import { BOARD_VERBS } from "./boardVerbs";
 import { BOARD_ART } from "./boardArt";
-import { pageShareUrl } from "@codecast/shared/entities";
+import { pageShareUrl } from "@codecast/entities";
 
 export * from "./boardGeometry";
 export * from "./boardLayout";

@@ -6,7 +6,7 @@
 // Read only: the pickers live on the line and the sheet.
 import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
-import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
+import { objectHref, type OrgObjectKind } from "@codecast/entities";
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
 import type { ProjectItem } from "../../../store/inboxStore";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";

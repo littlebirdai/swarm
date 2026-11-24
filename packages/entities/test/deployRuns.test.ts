@@ -3,7 +3,7 @@ import {
   deployRunRefRegex,
   parseDeployRunRef,
   splitDeployRunRef,
-} from "./index";
+} from "../src/index";
 
 const matches = (text: string) =>
   [...text.matchAll(deployRunRefRegex())].map((m) => ({

@@ -2866,7 +2866,7 @@ import {
   type OrgProposalReply,
   type OrgReplyItem,
 } from "./orgProposal";
-import { parseProposalChangeRef } from "../entities";
+import { parseProposalChangeRef } from "@codecast/entities";
 
 describe("a person's answers as the message the agent reads (proposalReplyText)", () => {
   const TITLE = "Rank Union's projects by the goals they carry";

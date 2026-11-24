@@ -3,7 +3,7 @@ import {
   parseSharePath,
   sharePath,
   SHARED_OBJECT_KINDS,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { isStandaloneSharePath } from "../lib/desktopHandoff";
 import { guestJoinPath } from "@codecast/calls/callGuests";
 import { guestMeetMeta, shareMeta } from "./shareData";

@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, Pencil, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { objectHref } from "@codecast/shared/entities";
+import { objectHref } from "@codecast/entities";
 import { useLineOpen } from "../lines/lineOpen";
 import { TaskListContent } from "../../../app/tasks/page";
 import type { ScopeRef } from "../../../hooks/useScopeQueries";

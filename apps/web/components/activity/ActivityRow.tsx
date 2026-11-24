@@ -3,7 +3,7 @@ import type React from "react";
 import Link from "next/link";
 import { ChevronRight, GitCommit, ListChecks, RotateCw } from "lucide-react";
 import { toast } from "sonner";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { SESSION_STATUS } from "../../lib/sessionStatus";
 import { requestSessionRestart } from "../../lib/sessionCommands";

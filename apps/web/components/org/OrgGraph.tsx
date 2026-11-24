@@ -89,7 +89,7 @@ import { ORG_FLOW_EDGE_TYPES } from "./OrgFlowEdges";
 import type { FlowMap, RoleFlow } from "./orgFlow";
 import { keyBelongsElsewhere } from "../../shortcuts/keyOwnership";
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
-import type { OrgObjectKind } from "@codecast/shared/entities";
+import type { OrgObjectKind } from "@codecast/entities";
 import { useInitiatives } from "../../hooks/useInitiatives";
 import { layoutGoals, type GoalProject, type GoalsLayout } from "./goalsLayout";
 import { GOALS_EDGE_TYPES, GOALS_NODE_TYPES } from "./GoalsNodeCards";

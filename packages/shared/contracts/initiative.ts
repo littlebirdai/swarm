@@ -15,7 +15,7 @@
 // decisions taken, and the sources that say who stated the goal and where.
 
 import { matchHandle, memberHandle } from "@codecast/chat/handles";
-import { parseEntityUrl } from "../entities";
+import { parseEntityUrl } from "@codecast/entities";
 import {
   bandWords,
   metricBand,
@@ -433,7 +433,7 @@ export type IntentSourceKind = (typeof INTENT_SOURCE_KINDS)[number];
 
 /**
  * Who said it and where. `ref` is the object's own address: a call reference
- * (`cl-42`, `cl-42:15`, the shared/entities form), a chat message id, a doc id, a session short id with an
+ * (`cl-42`, `cl-42:15`, the packages/entities/src form), a chat message id, a doc id, a session short id with an
  * optional `:line`, `ct-N`, `pl-N`, or a URL. `quote` is the words as said.
  * A `note` has no address: its quote is all there is.
  */
@@ -467,7 +467,7 @@ const trimQuote = (text: string): string | undefined => {
 };
 
 const isWebAddress = (t: string): boolean => /^https?:\/\/\S+$/i.test(t);
-/** A codecast link or path read as the object it opens (a call, a doc, a session, a task, a plan), by the one url reader (shared/entities parseEntityUrl). */
+/** A codecast link or path read as the object it opens (a call, a doc, a session, a task, a plan), by the one url reader (packages/entities/src parseEntityUrl). */
 function readEntityAddress(
   href: string,
 ): Pick<IntentSource, "kind" | "ref"> | null {
@@ -491,7 +491,7 @@ function readSourceRef(
   if (named) {
     const kind = named[1].toLowerCase() as IntentSourceKind;
     // A call line reads "call:cl-42:14" or "call:cl-42#14"; both store as the
-    // shared call reference form (shared/entities callRefId), "cl-42:14".
+    // shared call reference form (packages/entities/src callRefId), "cl-42:14".
     const ref =
       kind === "call"
         ? named[2].replace(/#(\d+(?:-\d+)?)$/, ":$1").toLowerCase()

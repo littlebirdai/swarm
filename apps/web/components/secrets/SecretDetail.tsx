@@ -60,7 +60,7 @@ import {
 import { KIND } from "../../lib/secretLook";
 import { useCopy } from "../../hooks/useCopy";
 import { useReveal } from "../../hooks/useReveal";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { ShareControl } from "../ShareControl";
 import { DeclineRequest, ValueEditor } from "./ValueForm";
 import {

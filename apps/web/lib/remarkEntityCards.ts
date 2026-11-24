@@ -2,7 +2,7 @@ import {
   parseCallRef,
   parseReplayRef,
   replayRefStart,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   parseEntityUrl,
   CONTEXTUAL_PR_REF_PREFIX,

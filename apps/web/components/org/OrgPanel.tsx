@@ -41,7 +41,7 @@ import { PinnedLead } from "./PinnedLead";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import type { OrgProposalListRow } from "./orgStaffingTypes";
 import type { OrgTree } from "./orgTypes";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { ShareControl } from "../ShareControl";
 
 /** What the drawer shows, as the address names it. */

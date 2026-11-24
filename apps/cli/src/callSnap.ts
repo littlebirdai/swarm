@@ -81,7 +81,7 @@ import {
   parseCallRef,
   parseCallTime,
   parseEntityUrl,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   spawn,
   whichBin,
