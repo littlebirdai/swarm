@@ -29794,9 +29794,6 @@
   "packages/shared/contracts/predictedEffect.ts": {
     "swarm/no-comments": 56
   },
-  "packages/shared/contracts/problemReach.ts": {
-    "swarm/no-comments": 1
-  },
   "packages/shared/contracts/problemScore.ts": {
     "swarm/no-comments": 36
   },
@@ -29922,12 +29919,6 @@
   },
   "packages/shared/contracts/sessionProject.ts": {
     "swarm/no-comments": 27
-  },
-  "packages/shared/contracts/signalFingerprint.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/signalFingerprint.ts": {
-    "swarm/no-comments": 38
   },
   "packages/shared/contracts/snippets.test.ts": {
     "swarm/no-comments": 16
@@ -30180,6 +30171,15 @@
   },
   "packages/ship/test/shipPlan.test.ts": {
     "swarm/no-comments": 3
+  },
+  "packages/signals/src/problemReach.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/signals/src/signalFingerprint.ts": {
+    "swarm/no-comments": 38
+  },
+  "packages/signals/test/signalFingerprint.test.ts": {
+    "swarm/no-comments": 5
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

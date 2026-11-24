@@ -57,6 +57,7 @@
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
+        "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
@@ -104,6 +105,7 @@
         "@codecast/policy": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
+        "@codecast/signals": "workspace:*",
         "@platform/cli-kit": "file:../../platform/packages/cli-kit",
         "@platform/evals": "file:../../platform/packages/evals",
         "@platform/snippets": "file:../../platform/packages/snippets",
@@ -138,6 +140,7 @@
         "@codecast/render": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
+        "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/web": "workspace:*",
@@ -268,6 +271,7 @@
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
+        "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
@@ -345,6 +349,7 @@
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
+        "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
@@ -783,6 +788,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/sessions": "workspace:*",
+        "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
@@ -795,6 +801,16 @@
     "packages/ship": {
       "name": "@codecast/ship",
       "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/signals": {
+      "name": "@codecast/signals",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/hash": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },
@@ -1267,6 +1283,8 @@
     "@codecast/shared": ["@codecast/shared@workspace:packages/shared"],
 
     "@codecast/ship": ["@codecast/ship@workspace:packages/ship"],
+
+    "@codecast/signals": ["@codecast/signals@workspace:packages/signals"],
 
     "@codecast/team": ["@codecast/team@workspace:packages/team"],
 

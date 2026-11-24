@@ -1,7 +1,7 @@
 // Lanes: what in an open issue list needs a person now (regressed,
 // escalating, new, firing, flapping). No React, no store.
 import { bucketSeries, GROUP_RULES } from "@codecast/shared/contracts/ingest";
-import { isRecordNotIssue } from "@codecast/shared/contracts/signalFingerprint";
+import { isRecordNotIssue } from "@codecast/signals/signalFingerprint";
 import type { OpsEvent, OpsGroup } from "./opsTypes";
 import { DAY, HOUR, issueState, regressedAt } from "./issueState";
 

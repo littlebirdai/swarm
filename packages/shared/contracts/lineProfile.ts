@@ -4,7 +4,7 @@
 // loader, the Convex mutation and the web store all name these types, so the
 // three cannot drift. Pure types and one comparison; no runtime deps.
 import { canonicalJson } from "./appConnector";
-import type { SignalKind } from "./signalFingerprint";
+import type { SignalKind } from "@codecast/signals/signalFingerprint";
 import { LINE_DEPLOY_DEFAULTS, type LineDeployProfile } from "./lineDeploy";
 
 export type LineValueSource = "file" | "default";

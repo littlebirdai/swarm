@@ -110,7 +110,7 @@ import {
   ciCheckFingerprint,
   groupFingerprint,
   isRecordNotIssue,
-} from "@codecast/shared/contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import { clusterPeople, mergeStoredPeople, userKeys } from "./lib/groupPeople";
 import type { ReplayIssue } from "@codecast/shared/replay";
 import {

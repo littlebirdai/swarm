@@ -1,7 +1,7 @@
 // The pure readings behind the source overview, the stream's occurrence rows,
 // the Apps board's run form and a silent source's check: what each shows,
 // worked out without React or the store, so each is tested on its own.
-import { isCiRunRecord } from "@codecast/shared/contracts/signalFingerprint";
+import { isCiRunRecord } from "@codecast/signals/signalFingerprint";
 import { counterDays } from "./sourceHealth";
 import { fixActionLabel, isRegressed } from "./issuesModel";
 import { formatValue } from "./metricModel";

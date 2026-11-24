@@ -59,7 +59,7 @@ import { isTerminalTaskStatus } from "@codecast/shared/tasks";
 import {
   SIGNAL_KINDS,
   type SignalKind,
-} from "@codecast/shared/contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import {
   LINE_SIGNAL_CAP,
   LINE_SIGNAL_WINDOW_MS,

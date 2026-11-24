@@ -104,7 +104,7 @@ test("the home lists the folded pair once, with no phone number in its title", (
 
 test("request ids name no cause: one function's errors fold into one row titled without them, two functions never fold", async () => {
   const { dropRequestIds } =
-    await import("@codecast/shared/contracts/signalFingerprint");
+    await import("@codecast/signals/signalFingerprint");
   const { errorTitle } = await import("@codecast/shared/contracts/ingest");
   const convex = (id: string, fn: string, rid: string, count: number) =>
     group({

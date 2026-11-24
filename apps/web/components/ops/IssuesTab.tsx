@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import type { GroupKind } from "@codecast/shared/contracts/ingest";
-import { isRecordNotIssue } from "@codecast/shared/contracts/signalFingerprint";
+import { isRecordNotIssue } from "@codecast/signals/signalFingerprint";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {
   OPS_OPEN_GROUPS_LIMIT,

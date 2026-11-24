@@ -36,6 +36,7 @@
     "@codecast/render": "workspace:*",
     "@codecast/sessions": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/signals": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/web": "workspace:*",

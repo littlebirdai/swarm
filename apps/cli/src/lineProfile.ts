@@ -11,7 +11,7 @@ import path from "node:path";
 import {
   SIGNAL_KINDS,
   type SignalKind,
-} from "@codecast/shared/contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import {
   LINE_DEPLOY_KEYS,
   LINE_DEPLOY_STEPS,

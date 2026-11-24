@@ -3,7 +3,7 @@
 import {
   failureMessageKey,
   parseStackFrame,
-} from "@codecast/shared/contracts/signalFingerprint";
+} from "@codecast/signals/signalFingerprint";
 import type { OpsSample } from "./opsTypes";
 import { FAILURE_KEY } from "./issueFold";
 

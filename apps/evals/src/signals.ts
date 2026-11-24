@@ -6,7 +6,7 @@ import {
   type BisectState,
   type Candidate,
 } from "@codecast/evals-api/evalsApi";
-import { evalsSignalFingerprint } from "@codecast/shared/contracts/signalFingerprint";
+import { evalsSignalFingerprint } from "@codecast/signals/signalFingerprint";
 
 // The eval finder (docs/architecture/the-line-end-to-end.md LE3): what `check
 // --signal` files through `cast signal add` once a run set is graded. A
