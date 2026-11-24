@@ -20,12 +20,12 @@ import {
   APPROVE_FOR_SESSION,
   SECRET_APPROVAL_TTL_MS,
   isPresenceRequired,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { seedPresence } from "./passkeys.testkit";
 import {
   formatVaultDeclined,
   parseVaultReady,
-} from "@codecast/shared/contracts";
+} from "@codecast/secrets/vaultMessages";
 import { isHumanOnlyCategory } from "./lib/decisionCategory";
 
 setDefaultTimeout(60_000);

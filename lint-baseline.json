@@ -29767,6 +29767,24 @@
   "packages/search/test/terms.test.ts": {
     "swarm/no-comments": 4
   },
+  "packages/secrets/src/secretRules.ts": {
+    "swarm/no-comments": 24
+  },
+  "packages/secrets/src/secretShapes.ts": {
+    "swarm/no-comments": 64
+  },
+  "packages/secrets/src/secrets.ts": {
+    "swarm/no-comments": 103
+  },
+  "packages/secrets/src/vaultMessages.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/secrets/test/secretShapes.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/secrets/test/secrets.test.ts": {
+    "swarm/no-comments": 16
+  },
   "packages/sessions/src/agentStatus.ts": {
     "swarm/no-comments": 231
   },
@@ -30004,21 +30022,6 @@
   "packages/shared/contracts/runEnd.test.ts": {
     "swarm/no-comments": 7
   },
-  "packages/shared/contracts/secretRules.ts": {
-    "swarm/no-comments": 24
-  },
-  "packages/shared/contracts/secretShapes.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/secretShapes.ts": {
-    "swarm/no-comments": 64
-  },
-  "packages/shared/contracts/secrets.test.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/secrets.ts": {
-    "swarm/no-comments": 103
-  },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
   },
@@ -30030,9 +30033,6 @@
   },
   "packages/shared/contracts/triggerLifecycle.ts": {
     "swarm/no-comments": 68
-  },
-  "packages/shared/contracts/vaultMessages.ts": {
-    "swarm/no-comments": 6
   },
   "packages/shared/contracts/vaultMirror.ts": {
     "swarm/no-comments": 37

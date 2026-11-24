@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-  formatDecisionAnswer,
-  formatVaultReady,
-} from "@codecast/shared/contracts";
+import { formatDecisionAnswer } from "@codecast/shared/contracts";
+import { formatVaultReady } from "@codecast/secrets/vaultMessages";
 import { classifyUserRows, pairCommandExpansions } from "../userRowKinds";
 
 let ts = 1;

@@ -42,7 +42,7 @@ import {
   SECRET_REDACTION_MIN,
   isCredentialName,
   parseDotenv,
-} from "@codecast/shared/contracts/secretRules";
+} from "@codecast/secrets/secretRules";
 
 /** `vault`: a Vault value, held to SECRET_REDACTION_MIN only (qualifiesAsKnownValue). */
 export type KnownValue = { value: string; name?: string; vault?: true };

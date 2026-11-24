@@ -57,7 +57,7 @@ import { MarkdownRenderer } from "./tools/MarkdownRenderer";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 import { PublishedPageEmbed } from "./PublishedPageEmbed";
 import { useHeldOption } from "../lib/agentTabGuard";
-import { NOT_CONFIRMED } from "@codecast/shared/contracts/secrets";
+import { NOT_CONFIRMED } from "@codecast/secrets/secrets";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { ShareControl } from "./ShareControl";
 import { policyTeamOf } from "@codecast/policy/managedPolicy";

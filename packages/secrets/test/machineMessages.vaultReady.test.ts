@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { formatVaultReady, parseVaultReady } from "./vaultMessages";
-import { envFor } from "./secrets";
+import { formatVaultReady, parseVaultReady } from "../src/vaultMessages";
+import { envFor } from "../src/secrets";
 
 const ready = (
   s: Parameters<typeof envFor>[0] & {

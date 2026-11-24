@@ -16,7 +16,7 @@ import {
   type SecretMeta,
   type SecretPayload,
   type SecretVersionMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   fillRequest,
   isStaged,

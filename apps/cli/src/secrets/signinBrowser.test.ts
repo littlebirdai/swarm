@@ -9,7 +9,7 @@ import type {
   SecretMeta,
   SigninCookie,
   SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   bridgeBrowserConn,
   applyVaultSignin,

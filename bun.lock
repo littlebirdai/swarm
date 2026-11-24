@@ -68,6 +68,7 @@
         "@codecast/render": "workspace:*",
         "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
+        "@codecast/secrets": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -174,6 +175,7 @@
         "@codecast/render": "workspace:*",
         "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
+        "@codecast/secrets": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/signals": "workspace:*",
@@ -324,6 +326,7 @@
         "@codecast/render": "workspace:*",
         "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
+        "@codecast/secrets": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -419,6 +422,7 @@
         "@codecast/render": "workspace:*",
         "@codecast/replay": "workspace:*",
         "@codecast/search": "workspace:*",
+        "@codecast/secrets": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -1015,6 +1019,17 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/secrets": {
+      "name": "@codecast/secrets",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/connectors": "workspace:*",
+        "@codecast/messages": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/sessions": {
       "name": "@codecast/sessions",
       "version": "0.0.1",
@@ -1047,6 +1062,7 @@
         "@codecast/projects": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/replay": "workspace:*",
+        "@codecast/secrets": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -1593,6 +1609,8 @@
     "@codecast/replay": ["@codecast/replay@workspace:packages/replay"],
 
     "@codecast/search": ["@codecast/search@workspace:packages/search"],
+
+    "@codecast/secrets": ["@codecast/secrets@workspace:packages/secrets"],
 
     "@codecast/sessions": ["@codecast/sessions@workspace:packages/sessions"],
 

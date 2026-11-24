@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { SecretMeta } from "@codecast/shared/contracts/secrets";
+import type { SecretMeta } from "@codecast/secrets/secrets";
 import type { ReadSecret } from "../secrets/inject.js";
 import {
   fieldFor,
@@ -398,8 +398,7 @@ describe("typeSecret", () => {
 
 describe("a typed value is one the transcript redaction scrubs", () => {
   test("the value valueFor types is among the Vault's redaction values, and redactSecrets removes it", async () => {
-    const { redactionValuesOf } =
-      await import("@codecast/shared/contracts/secrets");
+    const { redactionValuesOf } = await import("@codecast/secrets/secrets");
     const { setKnownValuesForTest } = await import("../knownValueRedaction.js");
     const { redactSecrets } = await import("../secretRedaction.js");
     const s = login({ password: "plain words pw 7", username: "ada" });

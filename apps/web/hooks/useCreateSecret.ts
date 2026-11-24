@@ -4,7 +4,7 @@ import type {
   LoginPayload,
   SecretKind,
   SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import type { VaultScope } from "./useSyncSecrets";
 import { useInboxStore } from "../store/inboxStore";
 import { useSampleVault } from "../components/secrets/sampleVault";

@@ -26,7 +26,7 @@ import {
   type SecretMeta,
   type SigninCookie,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 
 /** A browser's newer cookies go back to the Vault at most this often per sign-in. */
 export const SIGNIN_REFRESH_EVERY_MS = 30 * 60_000;

@@ -41,7 +41,7 @@ import {
   type SecretPayload,
   type SecretReadPurpose,
   type SecretVersionMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { argsAfterGroup, filesCommandFor, splitRunArgs } from "./argv.js";
 import {
   CLEARABLE,

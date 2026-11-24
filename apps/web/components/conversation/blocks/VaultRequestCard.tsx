@@ -14,8 +14,8 @@ import {
   SECRET_KINDS,
   type SecretKind,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
-import type { VaultReadyMessage } from "@codecast/shared/contracts";
+} from "@codecast/secrets/secrets";
+import type { VaultReadyMessage } from "@codecast/secrets/vaultMessages";
 import {
   useHeldSecrets,
   useSecrets,

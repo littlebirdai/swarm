@@ -35,7 +35,7 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { NOT_CONFIRMED } from "@codecast/shared/contracts/secrets";
+import { NOT_CONFIRMED } from "@codecast/secrets/secrets";
 import {
   getProjectName,
   useInboxStore,

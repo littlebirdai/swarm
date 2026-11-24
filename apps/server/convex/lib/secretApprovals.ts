@@ -3,7 +3,7 @@
 // approval decision through it, and secrets.ts records every event with it,
 // so neither imports the other's module graph.
 
-import { APPROVE_FOR_SESSION } from "@codecast/shared/contracts/secrets";
+import { APPROVE_FOR_SESSION } from "@codecast/secrets/secrets";
 import type { Doc, Id } from "../_generated/dataModel";
 import { consumePresence, presenceRefusal } from "./presence";
 import { isSessionOwner } from "../sessionOwners";

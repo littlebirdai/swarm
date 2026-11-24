@@ -7,7 +7,7 @@ import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
-import { APPROVE_FOR_SESSION, DENY } from "@codecast/shared/contracts/secrets";
+import { APPROVE_FOR_SESSION, DENY } from "@codecast/secrets/secrets";
 import { RUN_OPTIONS } from "@codecast/shared/contracts/commandRun";
 import { getFunctionName } from "convex/server";
 import { ConvexProvider } from "convex/react";

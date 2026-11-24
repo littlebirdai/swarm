@@ -2,10 +2,7 @@
 // survives encryption whole.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { decryptSecret, encryptSecret } from "./secrets";
-import {
-  SECRET_PAYLOAD_MAX,
-  validatePayload,
-} from "@codecast/shared/contracts/secrets";
+import { SECRET_PAYLOAD_MAX, validatePayload } from "@codecast/secrets/secrets";
 
 const KEY_ENV = "CONNECTION_SECRETS_KEY";
 let previousKey: string | undefined;

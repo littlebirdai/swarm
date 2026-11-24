@@ -28,7 +28,7 @@ import {
   isPresenceRequired,
   type PresenceAction,
   type PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { isAgentDrivenTab } from "./desktopHandoff";
 import { isDesktopShell, openExternalUrl } from "./desktop";
 import { PERSON_ONLY } from "./agentTabGuard";

@@ -4,10 +4,7 @@
 import { Platform } from "react-native";
 import * as Device from "expo-device";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type {
-  PresenceAction,
-  PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+import type { PresenceAction, PresenceGrant } from "@codecast/secrets/secrets";
 import { convex } from "@/lib/convex";
 import { optionalNative } from "@/lib/optionalNative";
 import type { Begun, NativePasskeyDeps } from "@/lib/passkeyCeremony";

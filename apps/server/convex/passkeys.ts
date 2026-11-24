@@ -59,7 +59,7 @@ import {
   type PasskeyMeta,
   type PresenceAction,
   type PresenceChallengeState,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 
 const actionValidator = v.union(...PRESENCE_ACTIONS.map((a) => v.literal(a)));
 

@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { totp } from "@codecast/shared/contracts/secrets";
+import { totp } from "@codecast/secrets/secrets";
 import { shellQuote } from "../shellQuote.js";
 import { argsAfterGroup, filesCommandFor, splitRunArgs } from "./argv.js";
 import {

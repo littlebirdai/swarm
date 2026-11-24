@@ -790,14 +790,14 @@ packages/render/test/render.test.ts 850
 packages/replay/src/mobile.ts 900
 packages/replay/src/rrweb.ts 850
 packages/replay/test/replay.test.ts 1350
+packages/secrets/src/secrets.ts 1300
+packages/secrets/test/secrets.test.ts 850
 packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350
 packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900
 packages/shared/contracts/judges.test.ts 1050
-packages/shared/contracts/secrets.test.ts 850
-packages/shared/contracts/secrets.ts 1300
 packages/shared/tasks/graph.test.ts 1300
 packages/shared/tasks/graph.ts 1300
 packages/snippets/src/snippets.ts 2050

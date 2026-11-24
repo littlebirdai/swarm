@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import {
   envNameProblem,
   secretNameProblem,
-} from "@codecast/shared/contracts/secretRules";
+} from "@codecast/secrets/secretRules";
 import { dataFolderFromManifest } from "@codecast/machines/dataSync";
 import type {
   BrowserSpec,

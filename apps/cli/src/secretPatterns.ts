@@ -3,10 +3,10 @@
 // Only the unambiguous ones live here: a private key block, a vendor token
 // with its prefix, a file named like a credential store.
 import * as path from "node:path";
-import { VENDOR_TOKEN_RE } from "@codecast/shared/contracts/secretShapes";
+import { VENDOR_TOKEN_RE } from "@codecast/secrets/secretShapes";
 
 export const PRIVATE_KEY_RE = /^\s*-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/m;
-// The vendor tokens are transcript redaction's own shapes (shared/contracts/secretShapes.ts).
+// The vendor tokens are transcript redaction's own shapes (secrets/src/secretShapes.ts).
 export { VENDOR_TOKEN_RE };
 const CREDENTIAL_FILE_NAMES = [
   "auth.json",

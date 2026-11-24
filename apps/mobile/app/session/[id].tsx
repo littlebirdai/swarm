@@ -275,8 +275,8 @@ import {
   parseDecisionAnswer,
   DECISION_ANSWER_TAG_RE,
   SAFETY_BLOCK_HINT,
-  type VaultReadyMessage,
 } from "@codecast/shared/contracts";
+import { type VaultReadyMessage } from "@codecast/secrets/vaultMessages";
 import {
   parseScheduledTask,
   stripPastedContent,

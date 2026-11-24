@@ -9,7 +9,7 @@ import {
   pickSecretByName,
   type SecretMeta,
   type SecretNeedsApproval,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import { lineDefaults } from "../lineScope.js";
 import {

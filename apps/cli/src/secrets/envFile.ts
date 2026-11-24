@@ -8,7 +8,7 @@ import {
   dotenvVars,
   secretNameProblem,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   KIND_FIELDS,
   fieldValue,

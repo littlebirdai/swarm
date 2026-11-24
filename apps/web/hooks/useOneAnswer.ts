@@ -4,7 +4,7 @@
 // go of the hold and says so; any other failure is a write still on its way.
 // An approval whose Touch ID was cancelled sent nothing, so the card is live again.
 import { useState } from "react";
-import { NOT_CONFIRMED } from "@codecast/shared/contracts/secrets";
+import { NOT_CONFIRMED } from "@codecast/secrets/secrets";
 import { isRefusedDispatchError } from "../store/mutativeMiddleware";
 
 /** Said when the server turned an answer away for good, so the card is live

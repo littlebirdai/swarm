@@ -1,6 +1,6 @@
 "use client";
 
-import { withoutSecrets } from "@codecast/shared/contracts/secretShapes";
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useMutation, useConvexAuth } from "convex/react";

@@ -9,7 +9,7 @@ import {
   presenceRequiredMessage,
   type PresenceAction,
   type PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import type { Doc, Id } from "../_generated/dataModel";
 import { sha256Hex } from "./hash";
 
