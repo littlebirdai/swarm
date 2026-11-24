@@ -9,8 +9,8 @@ const writes = (cmd: string, cwd = W) => shellWritePaths(cmd, cwd, "/home/me").m
 
 describe("what a command only reads or runs is never a write", () => {
   test("running a program with its output sent to /tmp credits the log, not the program", () => {
-    expect(writes("bun apps/cli/src/index.ts ship checkout --dry-run > /tmp/x.log")).toEqual([`${W}:/tmp/x.log`]);
-    expect(writes("bun ~/src/codecast/.conductor/pipeline-data/apps/cli/src/index.ts flow pipeline 2>&1 | tail -5")).toEqual([]);
+    expect(writes("bun packages/cli/src/index.ts ship checkout --dry-run > /tmp/x.log")).toEqual([`${W}:/tmp/x.log`]);
+    expect(writes("bun ~/src/codecast/.conductor/pipeline-data/packages/cli/src/index.ts flow pipeline 2>&1 | tail -5")).toEqual([]);
   });
 
   test("reading tools name files they do not write", () => {
@@ -20,8 +20,8 @@ describe("what a command only reads or runs is never a write", () => {
   });
 
   test("the command that told jx74gwv about main's index.ts writes only its worktree's pipeline.ts", () => {
-    const cmd = "cd ~/src/codecast/.conductor/pipeline-data/apps/cli && python3 - <<'EOF'\np='src/pipeline.ts'\ns=open(p).read()\nopen(p,'w').write(s)\nEOF\ncd ~/src/codecast/.conductor/pipeline-data && bun apps/cli/src/index.ts flow pipeline 2>&1";
-    expect(shellWritePaths(cmd, "/home/me/src/codecast", "/home/me")).toEqual([{ path: "src/pipeline.ts", dir: "/home/me/src/codecast/.conductor/pipeline-data/apps/cli" }]);
+    const cmd = "cd ~/src/codecast/.conductor/pipeline-data/packages/cli && python3 - <<'EOF'\np='src/pipeline.ts'\ns=open(p).read()\nopen(p,'w').write(s)\nEOF\ncd ~/src/codecast/.conductor/pipeline-data && bun packages/cli/src/index.ts flow pipeline 2>&1";
+    expect(shellWritePaths(cmd, "/home/me/src/codecast", "/home/me")).toEqual([{ path: "src/pipeline.ts", dir: "/home/me/src/codecast/.conductor/pipeline-data/packages/cli" }]);
   });
 });
 
@@ -55,7 +55,7 @@ describe("each kind of write", () => {
     expect(pythonWrites("p='src/a.ts'\ns=open(p).read()\nopen(p,'w').write(s)\nwith open(\"b.json\", \"a\") as f: f.write(x)\nopen('c.txt').read()\nPath('d.md').write_text(t)\nq = Path(\"e.md\")\nq.write_text(t)")).toEqual(["src/a.ts", "b.json", "d.md", "e.md"]);
     expect(writes(`python3 -c "open('x.txt','w').write('1')"`)).toEqual([`${W}:x.txt`]);
     // A name reassigned between writes: each write is the file it named then (one heredoc edits two files).
-    expect(pythonWrites("p='components/a.tsx'\ns=open(p).read()\nopen(p,'w').write(s)\n\np='../apps/cli/src/index.ts'\ns=open(p).read()\nopen(p,'w').write(s)")).toEqual(["components/a.tsx", "../apps/cli/src/index.ts"]);
+    expect(pythonWrites("p='components/a.tsx'\ns=open(p).read()\nopen(p,'w').write(s)\n\np='../cli/src/index.ts'\ns=open(p).read()\nopen(p,'w').write(s)")).toEqual(["components/a.tsx", "../cli/src/index.ts"]);
     expect(writes(`node -e "require('fs').writeFileSync('y.json', '{}')"`)).toEqual([`${W}:y.json`]);
     expect(writes("bun - <<'EOF'\nawait Bun.write('z.txt', 'x')\nconst a = require('fs').readFileSync('r.txt')\nEOF")).toEqual([`${W}:z.txt`]);
   });
