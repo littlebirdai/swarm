@@ -14,7 +14,7 @@ import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conver
 import {
   INBOX_PROJECTION_VERSION,
   inboxEpoch,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import {
   useInboxStore,
   projectReplicaInbox,

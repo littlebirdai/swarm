@@ -3,7 +3,7 @@ import {
   rowHeartbeatAliveAt,
   trustedStatusAt,
   type LiveFactsRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import { isHibernated } from "@codecast/sessions/hibernation";
 
 // A session row as the shared live derivation reads it (deriveLiveAt): the

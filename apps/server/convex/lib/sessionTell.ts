@@ -5,7 +5,7 @@
 // reaches agentTasks, sessionDecisions and the whole function graph behind
 // them (ct-92329). Nothing here may import a module that defines functions
 // other than pendingMessages.
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import type { Id } from "../_generated/dataModel";
 import { findConversationByAnyRefWhere } from "../conversationSessionLookup";
 import {

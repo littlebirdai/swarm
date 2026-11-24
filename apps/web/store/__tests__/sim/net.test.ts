@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { makeRng } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+import { makeRng } from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import { HIDDEN_OVERRIDE_SETTLE_MS } from "../../inboxOverlays";
 import {
   DEFAULT_DRAIN_HORIZON_MS,

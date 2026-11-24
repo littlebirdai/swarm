@@ -7,12 +7,12 @@ Two read only surveys of the codebase were run before the chapters were finalise
 - `anchors` at `packages/convex/convex/schema.ts:821`: `scope_type` team or user, `bot_user_id`, `host_user_id`, `conversation_id`, `persona`, `project_path`, `model`, `status`, `daily_session_cap`. `anchor_channels` at `:854` maps a chat or Slack channel to an anchor; a channel with no row falls back to the team anchor.
 - `packages/convex/convex/anchors.ts`: `provisionAnchor` (`:189`, mints the bot user and its team membership at `:262`), `deliverToAnchor` (`:373`, the single wake primitive), `wakeAnchor` (`:393`), `rebriefAnchor` (`:432`), `resolveAnchorForScope` (`:449`).
 - Three parent pointers on `conversations`: `parent_conversation_id` (`schema.ts:413`, hidden subagent), `spawned_by_conversation_id` (`:472`, visible child, written once by `conversations.ts:11295 linkSpawnedBy`), `agent_team_name` and `agent_name` (`:478`, the coding agent's own stamps; `"team-lead"` is the only role string in the schema, `conversations.ts:11325`).
-- One containment rule: `packages/convex/convex/ccAccountsShared.ts:699 nestParentIdOf`, shared by the renderer (`packages/web/components/GlobalSessionPanel.tsx:2201`), the kill cascade (`cleanup.ts:405`) and the server rollup (`packages/shared/contracts/inboxProjection.ts rollupParentIdOf`).
+- One containment rule: `packages/convex/convex/ccAccountsShared.ts:699 nestParentIdOf`, shared by the renderer (`packages/web/components/GlobalSessionPanel.tsx:2201`), the kill cascade (`cleanup.ts:405`) and the server rollup (`packages/inbox/src/inboxProjection.ts rollupParentIdOf`).
 - `rideLeadPlacements` in `inboxProjection.ts` (projection version 6 at `:66`): a teammate takes its lead's inbox bucket. Golden and property tests require a version bump on any placement change.
 - A worker's open decision lifts its parent into the questions bucket: `conversations.ts:9163 loadPendingDecisionConvIds`.
 - `cast send` attribution: `pendingMessages.ts:621 performSessionSend`; bot senders skipped for auto claim at `:671`.
 - `cast state`: `packages/cli/src/stateCommand.ts:221`; server `conversations.ts:10683 setThreadState`; a `blocked` pin un hides a stashed session (`:10733`).
-- Work state: `packages/shared/contracts/inboxProjection.ts:156 classifyWorkState`; settle classifier `idleSummary.ts:124` may only file done or needs input.
+- Work state: `packages/inbox/src/inboxProjection.ts:156 classifyWorkState`; settle classifier `idleSummary.ts:124` may only file done or needs input.
 - Triggers: `agent_tasks` at `schema.ts:2740`; `--spawn` omits `originating_conversation_id` (`agentTasks.ts:357`); `completeTaskRun` at `:704`.
 - Decisions: `session_decisions` at `schema.ts:2575`; `sessionDecisions.ts:276 resolve` patches status and answer only; the answer reaches the agent as an ordinary message send.
 - Labels are `inbox_buckets` and `bucket_assignments` (`schema.ts:1120`, `:1134`), personal per user.

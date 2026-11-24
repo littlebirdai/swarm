@@ -234,17 +234,21 @@ import { ECHO_SKEW_MS } from "../lib/pendingBanner";
 import {
   cascadeTakesDownRow,
   isClosedSession,
+} from "@codecast/inbox/closedSession";
+import {
   childAskingAt,
   deriveLiveAt,
   rowLiveDeadlines,
   type LiveFacts,
   type UserRest,
+} from "@codecast/inbox/inboxProjection";
+import {
   formatDecisionAnswer,
   parseDecisionAnswer,
   decisionAnswerLabel,
-  advisoryAnswerOpen,
-  isInboxRowField,
 } from "@codecast/shared/contracts";
+import { advisoryAnswerOpen } from "@codecast/inbox/inboxMembership";
+import { isInboxRowField } from "@codecast/inbox/inboxFields";
 import { CONVERSATION_FIELD_TWINS } from "@codecast/sessions/conversationFields";
 import {
   hasThreadState,
@@ -279,6 +283,8 @@ import { FNV1A32_OFFSET, fnv1a32Update } from "@codecast/hash/fnv1a32";
 import {
   INBOX_FACT_FIELDS,
   INBOX_PROJECTION_FIELDS,
+} from "@codecast/inbox/inboxFields";
+import {
   inboxEpoch,
   selectWorkingSet,
   computeFold,
@@ -288,11 +294,8 @@ import {
   inboxSortTimeOfRow,
   rowLastTurnAllowsPark,
   emptyInboxTally,
-  isOrphanOrSubagent,
-  isNestedIdentity,
   isAssignedAwayFromViewer,
   commandsSession,
-  rollupParentIdOf,
   rideLeadPlacements,
   roleLeadIdsOf,
   isUnderRole,
@@ -306,7 +309,12 @@ import {
   type InboxSortTime,
   type ProjectableInboxRow,
   type WorkingSetRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
+import {
+  isOrphanOrSubagent,
+  isNestedIdentity,
+  rollupParentIdOf,
+} from "@codecast/inbox/inboxMembership";
 import { guestIdentity } from "@codecast/calls/callGuests";
 import {
   isSessionUnread,
@@ -357,7 +365,7 @@ import {
   sessionHasOpenQuestion,
   type QuestionResolutions,
 } from "../lib/decisionQueue";
-import type { SessionActivity } from "@codecast/shared/contracts";
+import type { SessionActivity } from "@codecast/inbox/inboxProjection";
 import type {
   MergeBackStatus,
   SubagentCaps,

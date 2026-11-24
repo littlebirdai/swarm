@@ -13,7 +13,7 @@ import {
   AGENT_MODEL_CONFIG,
   agentSupportsExecutionTransport,
 } from "@codecast/agent-clients/agentClients";
-import { isStashHidden } from "@codecast/shared/contracts";
+import { isStashHidden } from "@codecast/inbox/inboxProjection";
 import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
 import {

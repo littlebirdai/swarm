@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { makeFunctionReference } from "convex/server";
-import { splitRows } from "@codecast/shared/contracts/inboxSplit";
+import { splitRows } from "@codecast/inbox/inboxSplit";
 import { rebuildSplitPayload, settleSplitPush } from "../useSplitQuery";
 
 // A busy account pushes liveness every second or two, and a phone downloads the

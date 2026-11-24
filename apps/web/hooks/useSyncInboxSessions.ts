@@ -11,7 +11,7 @@ import {
   isConvexId,
 } from "../store/inboxStore";
 import { agentStatusAt } from "../lib/liveness";
-import { WORKING_SET_RECENCY_MS } from "@codecast/shared/contracts";
+import { WORKING_SET_RECENCY_MS } from "@codecast/inbox/inboxProjection";
 import { startWarmLoop } from "./inboxWarm";
 import { toast } from "sonner";
 import { soundIdle } from "../lib/sounds";

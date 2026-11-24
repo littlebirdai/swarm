@@ -1,7 +1,7 @@
 // Shared fixtures for the inbox projection tests (conversations.projection.test.ts
 // and conversations.liveDerivation.test.ts). A .testkit.ts name keeps the Convex
 // bundler from deploying it.
-import { inboxEpoch } from "@codecast/shared/contracts";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
 import { makeFakeDb } from "./testDb";
 
 export const ME = "users_me";

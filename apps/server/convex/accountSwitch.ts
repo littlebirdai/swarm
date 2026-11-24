@@ -1,4 +1,4 @@
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 // Claude Code account switching + mass-continue for limit-blocked sessions.
 //
 // The daemon owns the actual swap (the credential lives in the machine's

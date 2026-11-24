@@ -2,7 +2,7 @@
 // working line reads it. The show rule lives in the shared contract
 // (isSessionActivityFresh): the row must be working and the stamp fresh, so a
 // stale stamp hides rather than shows as current.
-import type { SessionActivity } from "@codecast/shared/contracts";
+import type { SessionActivity } from "@codecast/inbox/inboxProjection";
 
 /**
  * Wake signature for one row's activity field. Every liveness push hands back

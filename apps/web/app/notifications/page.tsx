@@ -13,7 +13,7 @@ import {
   NotificationGroupRow,
   NotificationRow,
 } from "../../components/notifications/NotificationRow";
-import { groupIdleNotifications } from "@codecast/shared/contracts";
+import { groupIdleNotifications } from "@codecast/inbox/idleDigest";
 import {
   ArrowUpRight,
   Bell,

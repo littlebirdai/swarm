@@ -8,21 +8,23 @@ import {
   splitInboxList,
   _resetChildAuqProbeCacheForTests,
 } from "./conversations";
-import { rebuildRows, rowHash } from "@codecast/shared/contracts/inboxSplit";
+import { rebuildRows, rowHash } from "@codecast/inbox/inboxSplit";
 import {
   INBOX_FACT_FIELDS,
-  INBOX_PROJECTION_VERSION,
   INBOX_ROW_FIELDS,
+} from "@codecast/inbox/inboxFields";
+import {
+  INBOX_PROJECTION_VERSION,
   INBOX_WINDOW_CAPS,
   digestProjection,
   inboxEpoch,
   isUnderRole,
   projectInbox,
-  rollupParentIdOf,
   selectWorkingSet,
   trustedStatusAt,
   type ProjectableInboxRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
+import { rollupParentIdOf } from "@codecast/inbox/inboxMembership";
 import {
   GEN_DAY,
   GEN_HOUR,
@@ -30,7 +32,7 @@ import {
   genWorld,
   makeRng,
   type GenWorld,
-} from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+} from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import schema from "./schema";
 
@@ -47,7 +49,6 @@ import schema from "./schema";
 //      other way;
 //   4. inboxForCLI's fold agrees with the overlay's per row, label extras
 //      fold exempt.
-
 const ME = "users_me";
 const EPOCH = inboxEpoch(1_800_000_000_000);
 const SEEDS = Array.from({ length: 14 }, (_, i) => 500 + i);
@@ -60,7 +61,6 @@ function dbFor(world: GenWorld, extra: Record<string, any[]> = {}) {
     ...extra,
   });
 }
-
 // Deep-copy a world so two executions read identical but distinct tables.
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v));

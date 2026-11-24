@@ -9,9 +9,9 @@
 // world, with genesis through real mutations, is sim/world.ts.
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { inboxEpoch } from "@codecast/shared/contracts";
-import { convexIdFor } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
-import { genTeamWorld } from "@codecast/shared/contracts/__fixtures__/teamWorldGen";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
+import { convexIdFor } from "@codecast/inbox/__fixtures__/inboxProjectionGen";
+import { genTeamWorld } from "@codecast/inbox/__fixtures__/teamWorldGen";
 import { makeSimBackend } from "@codecast/convex/convex/simBackend.testing";
 import { snapshotEntries } from "@platform/engine";
 import { useInboxStore } from "../../../inboxStore";

@@ -10,7 +10,7 @@ import {
   useInboxStore,
   type InboxSession,
 } from "./inboxStore";
-import type { UserRest } from "@codecast/shared/contracts";
+import type { UserRest } from "@codecast/inbox/inboxProjection";
 import { registerUndoRevert } from "./undo/onRevert";
 import { USER_REST_LABEL } from "./undo/policies/sessions";
 import { counted, undoAsOne } from "./undo/labels";

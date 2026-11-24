@@ -116,13 +116,14 @@ import {
   restartPlan,
   restartReloadsContext,
 } from "@codecast/convex/convex/wakeCost";
-import { isClosedSession, withSafetyBlock } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
+import { withSafetyBlock } from "@codecast/shared/contracts";
 import { contextWindowTokens } from "@codecast/agent-clients/agentClients";
 import {
   restartShareOfRemaining,
   formatCountdown,
 } from "@codecast/usage/usageLimits";
-import { USER_RESTS, type UserRest } from "@codecast/shared/contracts";
+import { USER_RESTS, type UserRest } from "@codecast/inbox/inboxProjection";
 import { describeDecision, pendingProposal } from "@codecast/usage/usageLimits";
 import { sessionLiveAt } from "../lib/liveness";
 import { TooltipProvider } from "./ui/tooltip";
@@ -171,7 +172,7 @@ import { RoleFace } from "./org/RoleFace";
 import { OwnerAvatar } from "./OwnersBadge";
 import { CharacterPicker } from "./identity/CharacterPicker";
 import { standingRoleIdOf } from "../lib/sessionIdentity";
-import { isUnderRole } from "@codecast/shared/contracts";
+import { isUnderRole } from "@codecast/inbox/inboxProjection";
 import { AuthErrorBadge } from "./AuthErrorBadge";
 import { toast } from "sonner";
 import { toastWriteError } from "../lib/dispatchBinding";

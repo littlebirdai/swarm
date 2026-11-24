@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IN_FLIGHT_FACT_KEYS } from "@codecast/shared/contracts";
+import { IN_FLIGHT_FACT_KEYS } from "@codecast/inbox/closedSession";
 import {
   closeFactsOf,
   closeKindOf,

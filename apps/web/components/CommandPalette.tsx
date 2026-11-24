@@ -250,7 +250,7 @@ import {
 import { gestureToast } from "../store/undoStack";
 import { counted } from "../store/undo/labels";
 
-import type { UserRest } from "@codecast/shared/contracts";
+import type { UserRest } from "@codecast/inbox/inboxProjection";
 import { useTriggerKillNotice } from "../hooks/useTriggerKillNotice";
 import {
   STATUS_OPTIONS,

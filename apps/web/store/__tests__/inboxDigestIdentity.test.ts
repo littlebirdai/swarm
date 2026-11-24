@@ -8,7 +8,7 @@ import { makeFakeDb } from "@codecast/convex/convex/testDb";
 import {
   INBOX_PROJECTION_VERSION,
   inboxEpoch,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import {
   useInboxStore,
   placeInboxRows,

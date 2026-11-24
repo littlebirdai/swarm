@@ -24,7 +24,7 @@ import {
   deriveLiveAt,
   placeProjectableRow,
   type ProjectableInboxRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import {
   AGENT_IDLE_GRACE_MS,
   HEARTBEAT_ALIVE_MS,

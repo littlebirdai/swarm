@@ -14,7 +14,7 @@ import { closeSetsAsideOnServer, nestedGroupOf } from "./lib/closeAside";
 import {
   cascadeTakesDownRow,
   isClosedSession,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/closedSession";
 
 setDefaultTimeout(60_000);
 

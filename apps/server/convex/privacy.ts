@@ -1,5 +1,5 @@
 import { matchDirectoryMapping } from "@codecast/team/directoryRules";
-import { isRunLog, type RunLogIdentity } from "@codecast/shared/contracts";
+import { isRunLog, type RunLogIdentity } from "@codecast/inbox/inboxMembership";
 import { teamVisibleConvTeam as sharedTeamVisibleConvTeam } from "@codecast/policy/managedPolicy";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { Doc, Id } from "./_generated/dataModel";

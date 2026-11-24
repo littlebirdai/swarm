@@ -29206,6 +29206,57 @@
   "packages/hosted-assistant/test/assistant.replyAsks.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/inbox/src/__fixtures__/inboxProjectionGen.ts": {
+    "swarm/no-comments": 36
+  },
+  "packages/inbox/src/__fixtures__/teamWorldGen.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/inbox/src/closedSession.ts": {
+    "swarm/no-comments": 30
+  },
+  "packages/inbox/src/idleDigest.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/inbox/src/inboxFields.ts": {
+    "swarm/no-comments": 45
+  },
+  "packages/inbox/src/inboxMembership.ts": {
+    "swarm/no-comments": 53
+  },
+  "packages/inbox/src/inboxProjection.ts": {
+    "swarm/no-comments": 627
+  },
+  "packages/inbox/src/inboxSplit.ts": {
+    "swarm/no-comments": 27
+  },
+  "packages/inbox/test/commandsSession.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/inbox/test/idleDigest.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/inbox/test/inboxProjection.golden.test.ts": {
+    "swarm/no-comments": 86
+  },
+  "packages/inbox/test/inboxProjection.property.test.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/inbox/test/inboxProjection.rows.test.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/inbox/test/inboxProjection.test.ts": {
+    "swarm/no-comments": 88
+  },
+  "packages/inbox/test/inboxProjection.time.test.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/inbox/test/inboxSplit.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/inbox/test/teamWorldGen.test.ts": {
+    "swarm/no-comments": 13
+  },
   "packages/ingest/src/ingest.ts": {
     "swarm/no-comments": 80
   },
@@ -29794,15 +29845,6 @@
   "packages/shared/contracts/__fixtures__/capabilityResolverGolden.ts": {
     "swarm/no-comments": 17
   },
-  "packages/shared/contracts/__fixtures__/inboxProjectionGen.ts": {
-    "swarm/no-comments": 36
-  },
-  "packages/shared/contracts/__fixtures__/teamWorldGen.test.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/__fixtures__/teamWorldGen.ts": {
-    "swarm/no-comments": 21
-  },
   "packages/shared/contracts/agentJudges.ts": {
     "swarm/no-comments": 34
   },
@@ -29848,17 +29890,11 @@
   "packages/shared/contracts/ciFailures.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/closedSession.ts": {
-    "swarm/no-comments": 30
-  },
   "packages/shared/contracts/commandRun.test.ts": {
     "swarm/no-comments": 1
   },
   "packages/shared/contracts/commandRun.ts": {
     "swarm/no-comments": 27
-  },
-  "packages/shared/contracts/commandsSession.test.ts": {
-    "swarm/no-comments": 2
   },
   "packages/shared/contracts/decisionAnswerLabel.test.ts": {
     "swarm/no-comments": 3
@@ -29884,44 +29920,8 @@
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
   },
-  "packages/shared/contracts/idleDigest.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/idleDigest.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/contracts/inboxFields.ts": {
-    "swarm/no-comments": 45
-  },
-  "packages/shared/contracts/inboxMembership.ts": {
-    "swarm/no-comments": 53
-  },
-  "packages/shared/contracts/inboxProjection.golden.test.ts": {
-    "swarm/no-comments": 86
-  },
-  "packages/shared/contracts/inboxProjection.property.test.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/contracts/inboxProjection.rows.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/inboxProjection.test.ts": {
-    "swarm/no-comments": 88
-  },
-  "packages/shared/contracts/inboxProjection.time.test.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/contracts/inboxProjection.ts": {
-    "swarm/no-comments": 627
-  },
-  "packages/shared/contracts/inboxSplit.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/inboxSplit.ts": {
-    "swarm/no-comments": 27
-  },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 24
+    "swarm/no-comments": 19
   },
   "packages/shared/contracts/judgeFix.ts": {
     "swarm/no-comments": 45

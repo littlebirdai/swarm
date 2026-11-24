@@ -5,10 +5,8 @@
 // notices) does not import the needs-input check, which reaches agentTasks
 // and the whole function graph behind it (ct-92329).
 import { internal } from "../_generated/api";
-import {
-  IDLE_DIGEST_WINDOW_MS,
-  isAssignedAwayFromOwnerSet,
-} from "@codecast/shared/contracts";
+import { IDLE_DIGEST_WINDOW_MS } from "@codecast/inbox/idleDigest";
+import { isAssignedAwayFromOwnerSet } from "@codecast/inbox/inboxProjection";
 import { enqueuePush } from "../pushRouter";
 import { listSessionOwnerIds } from "../sessionOwners";
 import { cardRangFor } from "./decisionRing";

@@ -1,7 +1,7 @@
 // A model of how ONE session moves between inbox sections over time, written
 // as a small explicit state machine. inboxLifecycle.model.test.ts drives random
 // action sequences through this model and through the real code side by side
-// (the shared placement in packages/shared/contracts/inboxProjection.ts and the
+// (the shared placement in packages/inbox/src/inboxProjection.ts and the
 // web store's chokepoint, placeInboxRows) and asserts after every action that
 // they agree. The pattern is plannotator's update-lifecycle.model.test.ts.
 //

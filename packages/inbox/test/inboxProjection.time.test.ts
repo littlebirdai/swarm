@@ -7,7 +7,7 @@ import {
   INBOX_CREATE_GRACE_MS,
   type InboxSortTimeInput,
   type LiveFactsRow,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 
 const EPOCH = inboxEpoch(1_800_000_000_000);
 const HOUR = 60 * 60 * 1000;

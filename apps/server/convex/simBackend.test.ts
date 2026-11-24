@@ -4,7 +4,7 @@ import { v } from "convex/values";
 import {
   convexIdFor,
   makeRng,
-} from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+} from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import { api } from "./_generated/api";
 import { dispatch } from "./dispatch";
 import { internalMutation, mutation, query } from "./functions";

@@ -124,7 +124,7 @@ import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,
 } from "@codecast/sessions/deliveryFailed";
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { materializeFileTags } from "@codecast/daemon/fileAttachment";
 import { downloadAttachedFile } from "./attachedFileDownload.js";
 import { mapLimit } from "@codecast/async";

@@ -3,7 +3,7 @@ import {
   placeProjectableRow,
   projectInbox,
   rowLiveDeadlines,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 
 const now = 1_800_000_000_000;
 const row = {

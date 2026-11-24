@@ -2,7 +2,7 @@ import {
   conversationSessionsBeatingSince,
   heartbeatsFor,
 } from "./lib/sessionHeartbeat";
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";
 import { noteScreenRecordingSent } from "./lib/screenRecordingSent";
@@ -60,7 +60,8 @@ import {
   SESSION_MESSAGE_OPEN_TAG,
   type SessionMessageIntent,
 } from "@codecast/messages/machineMessages";
-import { isReviveClientId, isStashHidden } from "@codecast/shared/contracts";
+import { isReviveClientId } from "@codecast/shared/contracts";
+import { isStashHidden } from "@codecast/inbox/inboxProjection";
 import { sendArrival, type SendArrival } from "@codecast/messages/sendArrival";
 import {
   answeredThreadStateFields,

@@ -43,6 +43,7 @@
     "@codecast/files": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/goals": "workspace:*",
+    "@codecast/inbox": "workspace:*",
     "@codecast/ingest": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",

@@ -20,14 +20,14 @@
 // the suite delivers it (deliver, drain), so it can interleave with feeds.
 // CLOCK: the realm's virtual clock behind Date.now and performance.now.
 import { expect } from "bun:test";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import {
-  INBOX_FACT_FIELDS,
   inboxEpoch,
   projectInbox,
   shouldShowInInbox,
   trustedStatusAt,
   type ProjectableInboxRow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import {
   GEN_DAY,
   GEN_HOUR,
@@ -36,7 +36,7 @@ import {
   genWorld,
   makeRng,
   type GenWorld,
-} from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+} from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import { makeChangeTrackedDb } from "@codecast/convex/convex/changeLog";
 import { EMPTY_CONVERSATION_GRACE_MS } from "@codecast/convex/convex/cleanup";
 import { SYNC_ACTIONS_RETENTION_MS } from "@codecast/convex/convex/syncLogPrune";

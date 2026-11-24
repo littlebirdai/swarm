@@ -7,10 +7,12 @@ import { heartbeatOf } from "./sessionHeartbeat";
 import {
   cascadeTakesDownRow,
   closeInFlightReason,
+  type InFlightFacts,
+} from "@codecast/inbox/closedSession";
+import {
   deriveLiveAt,
   rowHeartbeatAliveAt,
-  type InFlightFacts,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import { HEARTBEAT_ALIVE_MS } from "@codecast/sessions/agentStatus";
 import { isLoopFresh } from "@codecast/sessions/loopState";
 import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";

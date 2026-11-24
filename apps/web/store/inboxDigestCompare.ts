@@ -20,7 +20,7 @@ import {
   inWorkingSet,
   isWorkingSetWindow,
   type WorkingSetWindow,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import {
   anyOverlayActive,
   collectInboxOverlayDeps,

@@ -1,4 +1,4 @@
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 /**
  * Parking a session on the cloud host: the leaf every creator goes through.
  *

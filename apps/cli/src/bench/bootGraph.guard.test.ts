@@ -299,8 +299,8 @@ describe("command groups stay off the boot graph", () => {
       // lived in resourceMonitor.ts, which processTable.ts reads at load time
       // through the cycle processTable -> resourceMonitor -> sessionProcessMatcher
       // -> tmux, so loading resourceMonitor first threw a TDZ ReferenceError.
-      // 330 on 2026-10-29: contracts/inboxFields.ts, the inbox field ownership
-      // lists split out of contracts/inboxProjection.ts for its max-lines pin.
+      // 330 on 2026-10-29: packages/inbox/src/inboxFields.ts, the inbox field ownership
+      // lists split out of packages/inbox/src/inboxProjection.ts for its max-lines pin.
       // 335 on 2026-11-04, five leaves that modules already here call at load or
       // on their main path (none brings another file): claudeConfigDirs.ts (the
       // CLAUDE_CONFIG_DIR projects dirs reconciliation.ts walks), shared/async
@@ -349,8 +349,8 @@ describe("command groups stay off the boot graph", () => {
       // shows) and docReads.ts (the per-process doc read bases the doc commands
       // share; it reads only fs, path and codecastDir.ts, already here).
       // 359 the same day: sessionSummaryExtract.ts, split out of formatter.ts for
-      // its max-lines cap, no new code. 360 the same day: contracts/inboxMembership.ts,
-      // the membership identity rules split out of contracts/inboxProjection.ts
+      // its max-lines cap, no new code. 360 the same day: packages/inbox/src/inboxMembership.ts,
+      // the membership identity rules split out of packages/inbox/src/inboxProjection.ts
       // for its max-lines pin, no new code. 363 on 2026-11-14: imageDownscale.ts,
       // the image size cap split out of syncService.ts so screenshot writers stop
       // loading the sync client; packages/projects/src/projectContext.ts, the project block
@@ -381,7 +381,7 @@ describe("command groups stay off the boot graph", () => {
       // parser.ts the way museTranscript.ts is).
       // 373 the same day: agent-clients/src/agentPins.ts, the pinned-agents helpers (out
       // of agentClients.ts for its max-lines pin), carried by the contracts barrel.
-      // 374 (2026-11-23): contracts/closedSession.ts, the shared Close verdict
+      // 374 (2026-11-23): packages/inbox/src/closedSession.ts, the shared Close verdict
       // (isClosedSession, closeInFlightReason), carried by the contracts barrel.
       expect(
         graph.nodes.size,
@@ -432,7 +432,7 @@ describe("command groups stay off the boot graph", () => {
       // 4400 on 2026-10-28: managed devices (MDM). contracts/managedPolicy.ts
       // (+2: each policy's refusal words and the removed-device message) and
       // index.ts printing that message when a team has removed the device.
-      // 4401 on 2026-10-29: contracts/inboxProjection.ts lifting a hidden role
+      // 4401 on 2026-10-29: packages/inbox/src/inboxProjection.ts lifting a hidden role
       // lead whose only live work is a nested subagent (child_live).
       // 4405 on 2026-10-31: that day's ship grew files already here: castApi.ts
       // (+1.1, publish limits), index.ts and parser.ts (+0.6 each),
@@ -457,10 +457,10 @@ describe("command groups stay off the boot graph", () => {
       // managedPolicy.ts +1.5 each, tmuxRoute.ts +1.4).
       // 4520 later on 2026-11-08: growth in files already here, no new leaf
       // (index.ts +0.6 for the help text overhaul, tmux.ts +0.2,
-      // contracts/inboxFields.ts and packages/snippets/src/snippets.ts +0.2 each).
+      // packages/inbox/src/inboxFields.ts and packages/snippets/src/snippets.ts +0.2 each).
       // 4522 on 2026-11-08: `cast sessions -w --until` in index.ts (+1.4, the
       // option, its help line and the exit check in the watch loop; its parser,
-      // sessionsUntil.ts, loads lazily) and contracts/inboxProjection.ts (+0.6,
+      // sessionsUntil.ts, loads lazily) and packages/inbox/src/inboxProjection.ts (+0.6,
       // hibernated rows file by their verdict instead of as dormant).
       // 4525 that evening: growth in files already on the graph (tmux.ts, daemon-adjacent leaves), no new file.
       // 4570 on 2026-11-08, the CLI help and error pass: help text, examples and
@@ -478,7 +478,7 @@ describe("command groups stay off the boot graph", () => {
       // (+6, the read and search footers), usageCommand.ts (+3), @codecast/time
       // (+3), castApi.ts (+2, isOlderBackendRefusal) and under 2 KB each across
       // workState, sessionAsk, resolveWorkspace and the send and parking modules.
-      // 4637 on 2026-11-10: contracts/inboxProjection.ts (+0.4, commandsSession,
+      // 4637 on 2026-11-10: packages/inbox/src/inboxProjection.ts (+0.4, commandsSession,
       // the one command rule the server and the inbox share) and tmuxPaneState.ts
       // (+0.8, the idle-resume dialog a machine wake answers itself).
       // 4652 on 2026-11-11: stableContext.ts (+19, the one combined stable-context
@@ -565,7 +565,7 @@ describe("command groups stay off the boot graph", () => {
       // 4845 the same day: antigravityTranscript.ts maps agy's tool calls onto
       // Bash/Read/Edit/Write/WebSearch/Agent (+3), and agent-clients/src/agentPins.ts,
       // pin lists that let a newer client through (+1).
-      // 4851 (2026-11-23): contracts/closedSession.ts, the shared Close verdict,
+      // 4851 (2026-11-23): packages/inbox/src/closedSession.ts, the shared Close verdict,
       // and the daemon's close-aware lifecycle reads (+6).
       expect(
         Math.round(graph.totalBytes / 1024),
@@ -707,8 +707,8 @@ describe("command groups stay off the boot graph", () => {
       // driver's markdown_section arm judges every owned region with (ct-42887).
       // 522 on 2026-10-29: planHandoff.ts, the one plan-handoff parser the daemon
       // and the ingest worker share (a compaction summary self-linked a session).
-      // 523 on 2026-10-29: contracts/inboxFields.ts, split out of
-      // contracts/inboxProjection.ts for its max-lines pin.
+      // 523 on 2026-10-29: packages/inbox/src/inboxFields.ts, split out of
+      // packages/inbox/src/inboxProjection.ts for its max-lines pin.
       // 524 on 2026-10-31: herdTake.ts, the swap hold and the take route's
       // orchestration and client (the CLI loads the same file lazily).
       // 525 on 2026-10-31: transcriptTurn.ts, the unanswered-turn reading the
@@ -767,7 +767,7 @@ describe("command groups stay off the boot graph", () => {
       // itself stays a lazy import. 592 after serverError.ts, the same import-free
       // leaf castApi.ts reads on index.ts's graph. 593 after sessionSummaryExtract.ts,
       // split out of formatter.ts for its max-lines cap, no new code. 594 after
-      // contracts/inboxMembership.ts, split out of contracts/inboxProjection.ts
+      // packages/inbox/src/inboxMembership.ts, split out of packages/inbox/src/inboxProjection.ts
       // for its max-lines pin (2026-11-13), no new code. 595 after
       // foreignSessionWriter.ts (2026-11-14, GitHub #88): the resume path's
       // check for another program running the session; sessionProcessMatcher.ts,
@@ -808,7 +808,7 @@ describe("command groups stay off the boot graph", () => {
       // 623 the same day: antigravityLocal.ts loads only when an agy pane
       // launches or resumes.
       // 624 the same day: agent-clients/src/agentPins.ts, as on index.ts's graph above.
-      // 625 (2026-11-23): contracts/closedSession.ts, as on index.ts's graph above.
+      // 625 (2026-11-23): packages/inbox/src/closedSession.ts, as on index.ts's graph above.
       expect(
         graph.nodes.size,
         "source files on daemon.ts's static graph",

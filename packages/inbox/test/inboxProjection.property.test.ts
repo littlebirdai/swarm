@@ -15,7 +15,7 @@ import {
   type InboxBucket,
   type ProjectableInboxRow,
   type WorkingSetWindow,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 import {
   GEN_DAY,
   GEN_HOUR,
@@ -23,7 +23,7 @@ import {
   convexIdFor,
   genProjectableRows,
   makeRng,
-} from "./__fixtures__/inboxProjectionGen";
+} from "../src/__fixtures__/inboxProjectionGen";
 
 // PROPERTY TESTS for the shared inbox projection (sync-convergence,
 // "Validation plan"): the identities the convergence proof rests on, checked
@@ -230,7 +230,8 @@ describe("truncation flags", () => {
       expect(atCap.truncated).toEqual([]);
       expect(atCap.members.size).toBe(cap);
       const over = selectWorkingSet(rowsIn(w, cap + 1), EPOCH);
-      const expected = w === "owned" ? ["recent", "owned"] : [w];
+      const expected: WorkingSetWindow[] =
+        w === "owned" ? ["recent", "owned"] : [w];
       expect(over.truncated).toEqual(expected);
       expect(over.members.size).toBe(cap);
       for (const id of over.members.keys())

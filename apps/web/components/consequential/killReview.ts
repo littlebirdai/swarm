@@ -7,7 +7,7 @@
 import {
   closeInFlightReason,
   type InFlightReason,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/closedSession";
 import type { InboxSession } from "../../store/inboxStore";
 import { inFlightFactsOfRow, type CloseRow } from "../../lib/sessionClose";
 import {

@@ -190,7 +190,7 @@ in the heartbeat so "no checks ran" always names its cause.
 
 ### C3 One placement
 
-`packages/shared/contracts/inboxProjection.ts` is pure isomorphic code (no Node or DOM
+`packages/inbox/src/inboxProjection.ts` is pure isomorphic code (no Node or DOM
 APIs, no BigInt) imported by Convex, the web store, mobile, and the daemon. It exports:
 
 - `classifyWorkState(input)`: the one work state classifier, merging the server rules
@@ -616,7 +616,7 @@ metric fires when `loadCache` disables the cache so that noise is measurable.
   outbox, triggers, sends, chat and roles at every settle, and carries the red list of
   multi-party scenarios we fail today. How to run, read and replay it:
   [sync-sim.md](sync-sim.md).
-- Golden fixtures and property tests: `packages/shared/contracts/inboxProjection.golden.test.ts`
+- Golden fixtures and property tests: `packages/inbox/test/inboxProjection.golden.test.ts`
   over `__fixtures__/inboxProjection/*.json` (regenerate with `INBOX_GOLDEN_REGEN=1`,
   then bump the version and pin the printed hash), and
   `inboxProjection.property.test.ts` over seeded generated row sets
