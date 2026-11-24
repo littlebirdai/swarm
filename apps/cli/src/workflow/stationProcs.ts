@@ -60,21 +60,22 @@ const msUntilProvable = (rows: ProcRow[]): number =>
 
 async function readTree(
   pick: (procs: ProcRow[]) => ProcRow[],
-): Promise<ProcRow[]> {
-  const rows = pick(
-    await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }),
-  );
+): Promise<ProcRow[] | null> {
+  const first = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
+  if (!first.length) return null;
+  const rows = pick(first);
   const wait = msUntilProvable(rows);
   if (!wait) return rows;
   await new Promise((r) => setTimeout(r, wait));
-  return pick(await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }));
+  const second = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
+  return second.length ? pick(second) : rows;
 }
 
 async function endTree(
   group: number | null,
   pick: (procs: ProcRow[]) => ProcRow[],
   graceMs: number,
-): Promise<void> {
+): Promise<ProcRow[] | null> {
   const rows = await readTree(pick);
   // The group as a whole too: a member forked after the read takes the TERM.
   if (group !== null)
@@ -83,10 +84,13 @@ async function endTree(
     } catch {
       /* gone */
     }
-  await killProcessTree(rows, graceMs);
+  if (rows) await killProcessTree(rows, graceMs);
   // What forked into the group during the grace, read and checked the same way.
-  if (group !== null && groupAlive(group))
-    await killProcessTree(await readTree(pick), 0);
+  if (group !== null && groupAlive(group)) {
+    const leftovers = await readTree(pick);
+    if (leftovers) await killProcessTree(leftovers, 0);
+  }
+  return rows;
 }
 
 /**
@@ -145,15 +149,18 @@ export function endStationsOnExit(
   if (!list.length) return true;
   const read = () => {
     const procs = snapshotProcessTable({ timeout: PS_TIMEOUT_MS });
-    return uniqueRows(list.flatMap((g) => processGroupTree(procs, g)));
+    return procs.length
+      ? uniqueRows(list.flatMap((g) => processGroupTree(procs, g)))
+      : null;
   };
   const first = read();
-  let rows = first;
-  const wait = msUntilProvable(rows);
+  let latest = first;
+  const wait = first ? msUntilProvable(first) : 0;
   if (wait) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
-    rows = read();
+    latest = read();
   }
+  const rows = latest ?? first ?? [];
   for (const r of rows)
     try {
       process.kill(r.pid, "SIGTERM");
@@ -166,7 +173,7 @@ export function endStationsOnExit(
     } catch {
       /* gone */
     }
-  const proven = (rows.length ? rows : first).filter(
+  const proven = rows.filter(
     (r) =>
       r.pid > 1 &&
       r.pid !== process.pid &&
@@ -191,7 +198,7 @@ export function endStationsOnExit(
         env: { ...process.env, LANG: "C", LC_ALL: "C" },
       },
     ).unref();
-    return rows.length > 0;
+    return latest !== null && proven.length === rows.length;
   } catch {
     return false;
   }
@@ -364,31 +371,51 @@ export async function reapDeadRunnerStations(
   if (!dead.length) return [];
   const procs = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
   if (!procs.length) return [];
-  const claimed = dead.filter(({ file }) => {
-    try {
-      fs.unlinkSync(file);
-      return true;
-    } catch {
-      return false;
-    }
-  });
   const ended: number[] = [];
-  const ends: Promise<void>[] = [];
-  for (const { pgid, procs: known = [] } of claimed.flatMap(
-    ({ rec }) => rec.groups,
-  )) {
-    const rows = provenTree(procs, known);
-    if (!rows.length) continue;
-    ended.push(pgid);
-    // The group as a whole takes the TERM only while its leader is proven, the group id with it.
-    ends.push(
-      endTree(
-        rows.some((r) => r.pid === pgid) ? pgid : null,
-        (now) => provenTree(now, known),
-        graceMs,
-      ),
-    );
-  }
-  await Promise.all(ends);
+  await Promise.all(
+    dead.map(async ({ file, rec }) => {
+      const results = await Promise.all(
+        rec.groups.map(async ({ pgid, procs: known = [] }) => {
+          const first = provenTree(procs, known);
+          if (!first.length) return true;
+          const pick = (now: ProcRow[]) => provenTree(now, known);
+          const rows = await endTree(null, pick, graceMs);
+          if (!rows) return false;
+          const targets = new Set(
+            [...first, ...rows].map((row) => `${row.pid} ${row.startedAt}`),
+          );
+          const deadline = Date.now() + graceMs;
+          for (;;) {
+            const current = await snapshotProcessTableAsync({
+              timeout: PS_TIMEOUT_MS,
+            });
+            if (!current.length) return false;
+            const live = [
+              ...pick(current),
+              ...current.filter((row) =>
+                targets.has(`${row.pid} ${row.startedAt}`),
+              ),
+            ];
+            if (
+              live.every((row) => row.command.trimEnd().endsWith("<defunct>"))
+            )
+              break;
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) return false;
+            await new Promise((resolve) =>
+              setTimeout(resolve, Math.min(50, remaining)),
+            );
+          }
+          ended.push(pgid);
+          return true;
+        }),
+      );
+      if (results.every(Boolean)) {
+        try {
+          fs.unlinkSync(file);
+        } catch {}
+      }
+    }),
+  );
   return ended;
 }
