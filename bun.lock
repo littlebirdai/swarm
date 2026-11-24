@@ -37,6 +37,7 @@
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
+        "@codecast/vault": "workspace:*",
         "@inquirer/prompts": "^8.2.0",
         "@platform/auth": "file:../../platform/packages/auth",
         "@platform/cli-kit": "file:../../platform/packages/cli-kit",
@@ -261,6 +262,7 @@
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
+        "@codecast/vault": "workspace:*",
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.10.4",
         "@codemirror/lang-markdown": "^6.5.1",
@@ -402,6 +404,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@codecast/shared": "workspace:*",
+        "@codecast/vault": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.3",
@@ -463,7 +466,7 @@
       "name": "@codecast/memory",
       "version": "0.0.1",
       "dependencies": {
-        "@codecast/shared": "workspace:*",
+        "@codecast/vault": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.3",
@@ -517,6 +520,16 @@
     "packages/time": {
       "name": "@codecast/time",
       "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/vault": {
+      "name": "@codecast/vault",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/shared": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },
@@ -911,6 +924,8 @@
     "@codecast/team": ["@codecast/team@workspace:packages/team"],
 
     "@codecast/time": ["@codecast/time@workspace:packages/time"],
+
+    "@codecast/vault": ["@codecast/vault@workspace:packages/vault"],
 
     "@codecast/web": ["@codecast/web@workspace:apps/web"],
 

@@ -29,7 +29,7 @@ import {
   type Backlink,
   type ResolvedLink,
   type VaultQuery,
-} from "@codecast/shared/vault";
+} from "@codecast/vault";
 import { listVaults } from "./vaultRegistry.js";
 import { moveToTrash, writeVaultFile } from "./vaultFs.js";
 import {

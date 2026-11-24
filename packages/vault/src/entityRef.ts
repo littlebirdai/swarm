@@ -43,7 +43,7 @@ import {
   REPLAY_REF_SOURCE,
   FLOW_REF_SOURCE,
   type EntityType,
-} from "../entities";
+} from "@codecast/shared/entities";
 
 /** Object types a note may reference: every registered type, people included
  *  (a person is addressed by handle, `/org/@name`). */

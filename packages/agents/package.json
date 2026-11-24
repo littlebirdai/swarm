@@ -12,7 +12,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@codecast/shared": "workspace:*"
+    "@codecast/shared": "workspace:*",
+    "@codecast/vault": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

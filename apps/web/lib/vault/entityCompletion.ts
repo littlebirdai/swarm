@@ -26,7 +26,7 @@ import {
   sanitizeLinkText,
   type EntityRefType,
   type VaultEntityRef,
-} from "@codecast/shared/vault";
+} from "@codecast/vault";
 
 /** The mention-dropdown item shape, narrowed to the fields a link needs. */
 export interface EntityCompletionItem {

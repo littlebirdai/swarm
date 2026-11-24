@@ -114,7 +114,7 @@ export interface ParsedNote {
 import {
   VAULT_ASSET_EXTENSIONS,
   VAULT_MARKDOWN_EXTENSIONS,
-} from "@codecast/shared/contracts";
+} from "@codecast/shared/contracts/vaultProtocol";
 
 const KNOWN_EXTENSIONS: readonly string[] = [
   ...VAULT_MARKDOWN_EXTENSIONS,

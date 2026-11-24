@@ -29,7 +29,7 @@ import { fmt } from "./colors.js";
 import { commandGroup } from "./commandGroups.js";
 import { formatAge } from "./decideCommand.js";
 import { stdinText } from "./sendBody.js";
-import { slugifyHeading } from "@codecast/shared/vault";
+import { slugifyHeading } from "@codecast/vault/parseNote";
 import { scopeFor, signalDefaultProject } from "./lineScope.js";
 import { SIGNAL_KINDS } from "@codecast/shared/contracts/signalFingerprint";
 import {

@@ -31,6 +31,7 @@
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
+    "@codecast/vault": "workspace:*",
     "@inquirer/prompts": "^8.2.0",
     "@platform/auth": "file:../../platform/packages/auth",
     "@platform/cli-kit": "file:../../platform/packages/cli-kit",

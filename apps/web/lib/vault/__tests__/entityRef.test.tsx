@@ -31,7 +31,7 @@ import {
   sanitizeLinkText,
   scanEntityRefs,
   VaultIndex,
-} from "@codecast/shared/vault";
+} from "@codecast/vault";
 import {
   entityCompletions,
   entityLinkEdit,

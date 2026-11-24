@@ -30,10 +30,7 @@ import {
   TAG_SCHEME,
   type WikiLinkParts,
 } from "../../lib/vault/remarkWikiLink";
-import {
-  parseEntityRefHref,
-  type VaultEntityRef,
-} from "@codecast/shared/vault";
+import { parseEntityRefHref, type VaultEntityRef } from "@codecast/vault";
 import { EntityIdPill } from "../EntityIdPill";
 import { useInboxStore } from "../../store/inboxStore";
 import { slugifyHeading } from "../../lib/vault/parseNote";

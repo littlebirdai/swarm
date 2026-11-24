@@ -9,7 +9,7 @@ import {
   lineBytes,
   type MemoryAtlas,
 } from "@codecast/memory";
-import { parseNote } from "@codecast/shared/vault";
+import { parseNote } from "@codecast/vault/parseNote";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { formatBytes } from "./memoryView";
 import { MemoryLinkChip } from "./parts";

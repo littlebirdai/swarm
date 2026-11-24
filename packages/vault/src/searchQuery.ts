@@ -12,7 +12,7 @@
 // index; nothing here touches React or the store.
 
 import { basenameOf, stripKnownExtension } from "./parseNote";
-import { tokenizeQuery as tokenize } from "../search/tokenize";
+import { tokenizeQuery as tokenize } from "@codecast/shared/search/tokenize";
 
 export interface VaultQuery {
   /** Plain terms handed to minisearch (words inside phrases included). */
