@@ -386,6 +386,7 @@ async function mergeStation(
           { CAST_SHIP_BASE: from, CAST_SHIP_TIP: fresh },
           trackStep,
         );
+        await work.stopping;
         outcomes.push({
           step,
           ok: r.code === 0,
@@ -609,6 +610,7 @@ async function mergeStation(
           { CAST_SHIP_BASE: onto, CAST_SHIP_TIP: tip },
           trackStep,
         );
+        await work.stopping;
         if (r.code !== 0) {
           if (latest() !== onto) {
             log(

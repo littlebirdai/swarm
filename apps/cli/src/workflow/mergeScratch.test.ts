@@ -11,6 +11,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runShell } from "../land/shipCheckout";
+import { pollUntil } from "../test-helpers/pollUntil";
+import { pidGone, stillRunning } from "../test-helpers/processLiveness";
 import {
   holderGone,
   SCRATCH_STALE_MS,
@@ -279,10 +281,10 @@ describe("shutDown", () => {
     "stops the running step's whole process group, then releases its tree",
     async () => {
       const r = repo();
+      let pid = 0;
       try {
-        let pid = 0;
         const ran = runShell(
-          "sleep 30 & sleep 30; wait",
+          'sleep 30 & first=$!; sleep 30 & printf "%s\\n" "$first" "$!" > starting; mv starting ready; wait',
           r.root,
           () => {},
           {},
@@ -291,17 +293,71 @@ describe("shutDown", () => {
             trackStep(child);
           },
         );
-        await new Promise((res) => setTimeout(res, 300));
+        const ready = join(r.root, "ready");
+        await pollUntil(() => existsSync(ready), "both step children starting");
+        const children = readFileSync(ready, "utf-8")
+          .trim()
+          .split("\n")
+          .map(Number);
         let released = false;
         expect(
           await shutDown(async () => {
+            expect(await stillRunning([pid, ...children])).toEqual([]);
             released = true;
           }, 10_000),
         ).toBe(true);
         expect(released).toBe(true);
         await ran;
-        expect(() => process.kill(-pid, 0)).toThrow();
       } finally {
+        if (pid) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {}
+        }
+        r.done();
+      }
+    },
+    { timeout: 30_000 },
+  );
+
+  test(
+    "keeps its tree when a group member outlives the step shell",
+    async () => {
+      const r = repo();
+      let pid = 0;
+      const ran = runShell(
+        `perl -e '$SIG{TERM}="IGNORE"; open(my $f, ">", "starting") or die $!; print $f $$; close($f); rename("starting", "ready") or die $!; sleep 30' </dev/null >/dev/null 2>&1 & wait`,
+        r.root,
+        () => {},
+        {},
+        (child) => {
+          pid = child.pid!;
+          trackStep(child);
+        },
+      );
+      try {
+        const ready = join(r.root, "ready");
+        await pollUntil(
+          () => existsSync(ready),
+          "the TERM-ignoring child starting",
+        );
+        const childPid = Number(readFileSync(ready, "utf-8"));
+        let released = false;
+        expect(
+          await shutDown(async () => {
+            released = true;
+          }, 500),
+        ).toBe(false);
+        expect(released).toBe(false);
+        await ran;
+        expect(await pidGone(childPid)).toBe(false);
+      } finally {
+        if (pid) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {}
+        }
+        await ran;
         r.done();
       }
     },

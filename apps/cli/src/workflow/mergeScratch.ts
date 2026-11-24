@@ -9,7 +9,7 @@
 // own deploy lock, under the repository's common git dir, so every worktree
 // of the checkout shares it.
 
-import type { ChildProcess } from "../proc.js";
+import { execFileAsync, type ChildProcess } from "../proc.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -22,6 +22,7 @@ export type ScratchTree = {
   path: string;
   setup: (again?: boolean) => Promise<void>;
   release: () => Promise<void>;
+  stopping?: Promise<boolean>;
 };
 
 const LOCK_POLL_MS = 2000;
@@ -189,29 +190,45 @@ export function trackStep(child: ChildProcess): void {
 /** Stop every running step's whole process group with SIGTERM (deploy.sh's launchd job boots itself out on it) and
  *  wait for each to end. False when one is still running after the grace: its tree must stay. */
 export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
-  const live = [...running].filter(
-    (c) => c.exitCode === null && c.signalCode === null && c.pid,
-  );
-  for (const c of live) {
+  const steps = [...running];
+  const groups = steps.flatMap((step) => (step.pid ? [step.pid] : []));
+  for (const step of steps) {
+    if (!step.pid || step.exitCode !== null || step.signalCode !== null)
+      continue;
     try {
-      process.kill(-c.pid!, "SIGTERM");
+      process.kill(-step.pid, "SIGTERM");
     } catch {}
   }
-  const ended = await Promise.all(
-    live.map(
-      (c) =>
-        new Promise<boolean>((resolve) => {
-          if (c.exitCode !== null || c.signalCode !== null)
-            return resolve(true);
-          const timer = setTimeout(() => resolve(false), graceMs);
-          c.once("close", () => {
-            clearTimeout(timer);
-            resolve(true);
+  const deadline = Date.now() + graceMs;
+  for (;;) {
+    const remaining = deadline - Date.now();
+    if (!steps.some((step) => running.has(step))) {
+      const present = new Set(groups.filter((group) => alive(-group)));
+      if (!present.size) return true;
+      if (remaining <= 0) return false;
+      try {
+        const { stdout } = await execFileAsync(
+          "ps",
+          ["-ax", "-o", "pgid=,stat="],
+          {
+            encoding: "utf-8",
+            timeout: remaining,
+          },
+        );
+        const hasLiveMember = stdout
+          .trim()
+          .split("\n")
+          .some((line) => {
+            const [group, state] = line.trim().split(/\s+/);
+            return present.has(Number(group)) && !state?.startsWith("Z");
           });
-        }),
-    ),
-  );
-  return ended.every(Boolean);
+        if (stdout.trim() && !hasLiveMember) return true;
+      } catch {}
+    }
+    const delay = Math.min(50, deadline - Date.now());
+    if (delay <= 0) return false;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
 }
 
 /** The sha the merge landed as, once it has (merge.json is written first): a station stopped after that point still
@@ -263,6 +280,7 @@ export async function acquiredTree(
     skipSetup: true,
   });
   let released = false;
+  let stopping: Promise<boolean> | undefined;
   const release = async () => {
     if (released) return;
     released = true;
@@ -272,11 +290,12 @@ export async function acquiredTree(
     defaultExec("git", ["branch", "-D", branch], repo);
   };
   function onSignal(sig: NodeJS.Signals) {
+    if (stopping) return;
     if (restoring)
       console.log(
         `stopped while ${restoring}: production may run a backend the default branch lacks until the next merge or deploy`,
       );
-    void shutDown(release).finally(() => {
+    stopping = shutDown(release).finally(() => {
       if (landedAs) {
         console.log(landedAs);
         process.exit(0);
@@ -288,12 +307,18 @@ export async function acquiredTree(
   let setUp = false;
   return {
     path: workspace.path,
+    get stopping() {
+      return stopping;
+    },
     setup: async (again = false) => {
       if (!setUp || again) {
         await healWorkspace(repo, name);
         setUp = true;
       }
     },
-    release,
+    release: async () => {
+      if (stopping) await stopping;
+      else await release();
+    },
   };
 }
