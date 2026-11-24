@@ -1,7 +1,7 @@
 // When a hosted reply leaves the next move to the person (replyAsksPerson):
 // the engine files the turn under Your turn and the composer reads "Reply…".
 import { describe, expect, test } from "bun:test";
-import { replyAsksPerson } from "./assistant";
+import { replyAsksPerson } from "../src/assistant";
 
 describe("replyAsksPerson", () => {
   test("a question in the last paragraph, anywhere in it", () => {

@@ -476,7 +476,7 @@ import {
   type CloudSessionSource,
 } from "@codecast/agent-clients/cloudSessionSync";
 import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
-import { promptTitle } from "@codecast/shared/contracts/assistant";
+import { promptTitle } from "@codecast/hosted-assistant/assistant";
 
 /** What a conversation being started is called until its row syncs: a
  *  hosted one by the person's first words (the server stores the same

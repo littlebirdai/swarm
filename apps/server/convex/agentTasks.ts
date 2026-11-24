@@ -108,7 +108,7 @@ import {
 import { nextCadenceRun } from "@platform/assistant/cadence";
 import { startHostedConversationFor } from "./assistant/start";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
-import { HOSTED_TITLE_MAX_CHARS } from "@codecast/shared/contracts/assistant";
+import { HOSTED_TITLE_MAX_CHARS } from "@codecast/hosted-assistant/assistant";
 import { isSpawnedWorker } from "./lib/workerSettleTrigger";
 import { roleCharterOf } from "./lib/roleCharter";
 import {

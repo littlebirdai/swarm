@@ -37,7 +37,7 @@ import {
   type InboxSession,
   type SessionRoleSnapshot,
 } from "../../store/inboxStore";
-import { promptTitle } from "@codecast/shared/contracts/assistant";
+import { promptTitle } from "@codecast/hosted-assistant/assistant";
 import { useNowWhen } from "../../hooks/useCoarseNow";
 import { latestRestartRow, restartPending } from "../../lib/sessionCommands";
 import { useAckAssignment } from "../../hooks/useAckAssignment";

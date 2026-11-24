@@ -1,6 +1,6 @@
 "use client";
 
-import { approvalButtonLabel } from "@codecast/shared/contracts/assistant";
+import { approvalButtonLabel } from "@codecast/hosted-assistant/assistant";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useDecisionAnswer } from "../hooks/useDecisionAnswer";
 import { useDecisionDraftText } from "../hooks/useDecisionDraft";

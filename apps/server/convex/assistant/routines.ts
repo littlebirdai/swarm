@@ -9,7 +9,7 @@ import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   routineRefusal,
   type RoutineShape,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { walletPlan } from "../lib/wallet";
 import {
   cadenceAt,

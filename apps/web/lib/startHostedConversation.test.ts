@@ -4,7 +4,7 @@
 // (storeActionMutations.guard). The hosted branch sends no project, machine,
 // model or placement, and the first message rides the create.
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { useInboxStore } from "../store/inboxStore";
 import {
   DispatchNotWiredError,

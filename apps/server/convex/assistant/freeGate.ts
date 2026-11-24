@@ -26,7 +26,7 @@ import { internal } from "../_generated/api";
 import {
   FREE_DAILY_CEILING_USD,
   planOf,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { emailProven, workDomain } from "../lib/workDomain";
 import { hasLiveCode, sendEmailCode } from "../lib/emailProof";
 import { ensureWallet, money, walletRow } from "../lib/wallet";

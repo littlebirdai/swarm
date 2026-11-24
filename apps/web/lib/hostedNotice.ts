@@ -7,7 +7,7 @@ import {
   NOTICE_KINDS,
   noticeKindOf,
   type NoticeKind,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 /** The notice kind of a transcript row, or null for any other row. A notice

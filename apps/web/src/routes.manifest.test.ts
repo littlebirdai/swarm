@@ -539,7 +539,7 @@ describe("the simple lane's old addresses lead to routes", () => {
 
   it("Stripe's return page opens a settings section", async () => {
     const { BILLING_RETURN } =
-      await import("@codecast/shared/contracts/assistant");
+      await import("@codecast/hosted-assistant/assistant");
     const { settingsSectionForPath } = await import("../lib/settingsSections");
     expect(settingsSectionForPath(BILLING_RETURN.path)?.section).toBe("plan");
   });

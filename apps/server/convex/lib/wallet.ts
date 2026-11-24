@@ -23,7 +23,7 @@ import {
   planOf,
   type PlanId,
   type PlanSpec,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import {
   addMonths,
   money,

@@ -16,7 +16,7 @@ import { runTool, type Tool } from "@platform/agent";
 import schema from "../../schema";
 import { api } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { codecastTools } from "./codecast";
 import { MEMORY_DOC_TITLE } from "./workspace";
 import { connectionNote, MAIL_COMING_NOTE, toolsFor } from "./index";

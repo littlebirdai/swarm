@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { PLANS } from "@codecast/shared/contracts/assistant";
+import { PLANS } from "@codecast/hosted-assistant/assistant";
 import { disconnectNote, mailboxLine } from "./connectionWords";
 import { formatDecisionAnswer } from "@codecast/shared/contracts";
 import { calendarTools, mailTools } from "@platform/assistant";

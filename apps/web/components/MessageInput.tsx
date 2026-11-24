@@ -42,7 +42,7 @@ import {
   type AgentStatus,
 } from "@codecast/sessions/agentStatus";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
-import { HOSTED_IMAGE_REFUSAL } from "@codecast/shared/contracts/assistant";
+import { HOSTED_IMAGE_REFUSAL } from "@codecast/hosted-assistant/assistant";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useCoarseNow, useNowWhen } from "../hooks/useCoarseNow";
 import { formatCountdown } from "@codecast/shared/contracts";

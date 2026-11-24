@@ -18,7 +18,7 @@ import { matchesAction } from "../../shortcuts";
 import {
   APPROVAL_ANSWERS,
   approvalButtonLabel,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { RoutineNotifyLine } from "./RoutineNotifyLine";
 import type { QueueItem } from "../../lib/decisionQueue";
 import { useDecisionAnswer } from "../../hooks/useDecisionAnswer";

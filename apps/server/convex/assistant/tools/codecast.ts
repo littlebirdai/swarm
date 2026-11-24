@@ -19,7 +19,7 @@
 // tools that return them declare source "workspace" and the harness fences
 // that text as data.
 import { defineTool, Type, type Tool } from "@platform/agent";
-import { ROUTINE_MIN_INTERVAL_MS } from "@codecast/shared/contracts/assistant";
+import { ROUTINE_MIN_INTERVAL_MS } from "@codecast/hosted-assistant/assistant";
 import {
   TASK_PRIORITIES,
   TASK_STATUS_CATEGORIES,

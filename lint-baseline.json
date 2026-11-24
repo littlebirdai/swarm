@@ -29095,6 +29095,12 @@
   "packages/flows/test/flowPool.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/hosted-assistant/src/assistant.ts": {
+    "swarm/no-comments": 50
+  },
+  "packages/hosted-assistant/test/assistant.replyAsks.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/keyboard/src/keyBindings.ts": {
     "swarm/no-comments": 44
   },
@@ -29415,12 +29421,6 @@
   },
   "packages/shared/contracts/appSurfaces.ts": {
     "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/assistant.replyAsks.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/assistant.ts": {
-    "swarm/no-comments": 50
   },
   "packages/shared/contracts/callLinks.test.ts": {
     "swarm/no-comments": 1

@@ -7,7 +7,7 @@ import { useRouteMeta } from "../pageMeta";
 import { earlyAccessMailto } from "@/lib/siteLinks";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ComparisonList } from "../compare/ComparisonList";
-import { PLANS } from "@codecast/shared/contracts/assistant";
+import { PLANS } from "@codecast/hosted-assistant/assistant";
 import { planPoints, planPrice } from "@/components/simple/planWords";
 import { useUpgradesOpen } from "@/components/simple/billing";
 import {
