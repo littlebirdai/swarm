@@ -6,7 +6,7 @@ import { windowName, crossings, sortWatches, lineRuns, formatMeasure, isIntegral
 import { stats, timeWeights } from "./metricStats";
 import { seriesKey, periodChange, changeRange, changeSpan, changeState, fullestHeld, rangeChange, changeAmount, tinyBaseline, windowDelta } from "./metricSeries";
 import { transitionRows, wouldCross, clusterShips, distribution, lineSuggestions, suggestDirection, relatedShips, bandsFromTransitions, runningCrossing, sharePast, shipMarks, transitionsIn } from "./metricEvents";
-import { isTestEventName, openHistory, roundToScale, volumeOptions, duplicateWatch, volumeOptions, volumePreview, eventRows, hogqlOfPick, nameOfPick, queryIdentity } from "./metricEditing";
+import { isTestEventName, openHistory, roundToScale, volumeOptions, duplicateWatch, volumePreview, eventRows, hogqlOfPick, nameOfPick, queryIdentity } from "./metricEditing";
 import { D, H, watch } from "./metricTestFixtures";
 
 describe("round 5: sparse ticks, change against the prior period, ships, duplicates, HogQL picks", () => {
