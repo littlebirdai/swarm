@@ -43,7 +43,7 @@ import {
   isExpectationId,
   type Expectation,
 } from "@codecast/shared/contracts/expectations";
-import type { JudgeFinding } from "@codecast/shared/contracts/judges";
+import type { JudgeFinding } from "@codecast/judges/judges";
 import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
 import { DAY, WEEK, perDay, type LineSignal } from "../lineFlow";
 import type { LabelVerdict } from "./lineLabels";
@@ -272,7 +272,7 @@ const quoteOf = (md: string | undefined) => {
 /** A signal source as a reader says it: "union.invariant" reads "Union invariant", "sdk:union-errors" "Union errors". */
 export const sourceLabel = (source: string): string => sourceName(source);
 
-/** A codecast judge's findings are filed under source `judge:<name>` (shared/contracts/judges findingSignal). */
+/** A codecast judge's findings are filed under source `judge:<name>` (packages/judges/src/judges.ts findingSignal). */
 export const isCodecastJudgeSource = (source: string) =>
   source.startsWith("judge:");
 

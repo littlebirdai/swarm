@@ -5,7 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { canAccessDoc } from "./lib/access";
 import { checkRateLimit } from "./rateLimit";
 import { verifyApiToken } from "./apiTokens";
-import { MODEL_CALL_LIMITS } from "@codecast/shared/contracts/modelCall";
+import { MODEL_CALL_LIMITS } from "@codecast/judges/modelCall";
 import { callModel, parseJsonBlock } from "./lib/anthropic";
 import { requireVendorAllowed, type VendorGate } from "./lib/vendorGuard";
 import {

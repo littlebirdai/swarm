@@ -58,7 +58,7 @@ import {
   verdictOfOption,
   type ChangeCard,
 } from "@codecast/shared/contracts/changeCard";
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { findingConversation } from "@codecast/judges/judges";
 import {
   proposalOptions,
   sameCode,
@@ -71,11 +71,11 @@ export { sameCode };
 import {
   validateJudgeFixCard,
   type JudgeFixCard,
-} from "@codecast/shared/contracts/judgeFix";
+} from "@codecast/judges/judgeFix";
 import {
   isJudgeProblem,
   JUDGE_CASE_SOURCE,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 import {
   cancelCore,
   createRunCore,
@@ -777,7 +777,7 @@ async function cardView(
     audience: await audienceOf(ctx, row, project, run),
     card: row.card,
     proposal: row.proposal as ProposalCard | undefined,
-    /** The judge route's card (shared/contracts/judgeFix): a measured fix to a judge, its extractor or an expectation, for the project's reviewer. */
+    /** The judge route's card (packages/judges/src/judgeFix.ts): a measured fix to a judge, its extractor or an expectation, for the project's reviewer. */
     judge_fix: row.judge_fix as JudgeFixCard | undefined,
     /** The card settles an expectations proposal (proposalHolds): Apply writes the project's expectations, so it is never practice. */
     expectations: offGate,

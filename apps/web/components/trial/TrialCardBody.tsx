@@ -3,7 +3,7 @@
 // or a bare gate, with its answers. /trial and the /line Inbox both draw this,
 // each with its own header around it.
 import { useMemo } from "react";
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { findingConversation } from "@codecast/judges/judges";
 import { verdictOfOption } from "@codecast/shared/contracts/changeCard";
 import type { TrialCardRow } from "../../hooks/useSyncTrial";
 import {

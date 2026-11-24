@@ -1,0 +1,25 @@
+{
+  "name": "@codecast/judges",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./agentJudges": "./src/agentJudges.ts",
+    "./judgeFix": "./src/judgeFix.ts",
+    "./judgeReview": "./src/judgeReview.ts",
+    "./judges": "./src/judges.ts",
+    "./modelCall": "./src/modelCall.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/agent-clients": "workspace:*",
+    "@codecast/ingest": "workspace:*"
+  }
+}

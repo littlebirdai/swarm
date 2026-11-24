@@ -18,7 +18,7 @@ import {
   parseGoalVerdict,
   renderGoalEvidence,
 } from "@codecast/messages/sessionGoal";
-import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
+import { parseJsonBlock } from "@codecast/judges/modelCall";
 import { GOAL_JUDGE_FIXTURES } from "./goal-judge-fixtures";
 
 const arg = (name: string, fallback?: string) => {

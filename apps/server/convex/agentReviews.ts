@@ -46,7 +46,7 @@ import { liveBodyKey, readKeptBody, readKeptJson } from "./lib/momentBody";
 import { putChunk } from "./lib/replayChunks";
 import { retireSignals } from "./judgeRetire";
 import { embedFinding, momentEvidence } from "./findingGroups";
-import { firstSentence } from "@codecast/shared/contracts/judges";
+import { firstSentence } from "@codecast/judges/judges";
 import { recordMomentEvents } from "./moments";
 import {
   AGENT_FINDINGS_TURN,
@@ -57,7 +57,7 @@ import {
   parseAgentFindings,
   type AgentFinding,
   type ReviewTranscript,
-} from "@codecast/shared/contracts/agentJudges";
+} from "@codecast/judges/agentJudges";
 import { MOMENT_KIND } from "@codecast/ingest/moments";
 
 /** A lease the machine has not renewed in this long goes back to the queue. */

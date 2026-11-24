@@ -15,7 +15,7 @@ import {
 import type { WorkspaceKey } from "../lib/workspaceScope";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { trialHref } from "../lib/trialHref";
-import type { JudgeFixCard } from "@codecast/shared/contracts/judgeFix";
+import type { JudgeFixCard } from "@codecast/judges/judgeFix";
 import {
   currentOnly,
   type Superseded,
@@ -46,7 +46,7 @@ export type TrialCardRow = {
   card?: ChangeCard;
   /** A proposal gate's card (shared/contracts/proposalCard), when its words node wrote one. */
   proposal?: ProposalCard;
-  /** The judge route's card (shared/contracts/judgeFix): a measured fix to a judge, its extractor or an expectation, for the project's reviewer. */
+  /** The judge route's card (packages/judges/src/judgeFix.ts): a measured fix to a judge, its extractor or an expectation, for the project's reviewer. */
   judge_fix?: JudgeFixCard;
   /** The session decision the card is, when its station posted one (lineTrial.cards): the page to answer it on, and the session to talk to. */
   decision?: {

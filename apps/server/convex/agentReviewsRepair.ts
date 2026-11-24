@@ -9,13 +9,13 @@ import type { Doc } from "./_generated/dataModel";
 import { sourceFilingScope } from "./lib/ingestScope";
 import { retireSignals } from "./judgeRetire";
 import { embedFinding } from "./findingGroups";
-import { firstSentence } from "@codecast/shared/contracts/judges";
+import { firstSentence } from "@codecast/judges/judges";
 import {
   agentFindingSignal,
   agentSimilarText,
   parseAgentFindings,
   type AgentFinding,
-} from "@codecast/shared/contracts/agentJudges";
+} from "@codecast/judges/agentJudges";
 
 /**
  * Findings an agent judge filed while no line profile let its source open

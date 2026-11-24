@@ -720,8 +720,7 @@ export async function runReplay(
     ),
   );
   const t = tally(results);
-  const { fisherOneSided } =
-    await import("@codecast/shared/contracts/judgeFix");
+  const { fisherOneSided } = await import("@codecast/judges/judgeFix");
   const p = a.base
     ? fisherOneSided(t.work.pass, t.work.n, t.base.pass, t.base.n, "greater")
     : null;

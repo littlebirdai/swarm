@@ -11,7 +11,7 @@ import {
   budgetMonth,
   type BudgetPurpose,
   type BudgetSummary,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import { modelCost } from "./anthropic";
 
 /** Months of spend a budget row remembers. */

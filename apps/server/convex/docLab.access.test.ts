@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { LAB_RUNS_PER_MINUTE, admitRun, labPromptWithinLimits } from "./docLab";
-import { MODEL_CALL_LIMITS } from "@codecast/shared/contracts/modelCall";
+import { MODEL_CALL_LIMITS } from "@codecast/judges/modelCall";
 
 // The web Lab sends a doc's text to a model under the vendor gate of the doc
 // the caller names: the caller must be able to read that doc, and the model

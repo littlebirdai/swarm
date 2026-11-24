@@ -25,7 +25,7 @@ import {
   type FlowBar,
 } from "./lib/linePriority";
 import { problemSourceOf } from "./workflows";
-import { isJudgeProblem } from "@codecast/shared/contracts/judgeReview";
+import { isJudgeProblem } from "@codecast/judges/judgeReview";
 import { projectLeadOf } from "@codecast/org/orgLead";
 import { flowRouteFor } from "./lib/flowRoute";
 import { graphOfVersion, versionToPin } from "./lib/runGraph";

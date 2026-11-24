@@ -4,7 +4,7 @@
 import { gunzipSync, strFromU8 } from "fflate";
 import type { Doc } from "../_generated/dataModel";
 import type { MomentRecord } from "@codecast/ingest/moments";
-import type { JudgeFinding } from "@codecast/shared/contracts/judges";
+import type { JudgeFinding } from "@codecast/judges/judges";
 import { replaysBucketFromEnv, r2Presign } from "./r2";
 
 /** A moment's kept body, by its R2 key. The object is stored with Content-Encoding gzip (replays.putChunk), so fetch

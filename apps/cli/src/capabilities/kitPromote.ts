@@ -23,8 +23,8 @@ import {
 import type {
   ModelCallResult,
   ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
-import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
+import { parseJsonBlock } from "@codecast/judges/modelCall";
 import { writeHarnessFile } from "../harness.js";
 import { findOwnedSections } from "../snippets.js";
 import { findKitSections } from "./driver.js";

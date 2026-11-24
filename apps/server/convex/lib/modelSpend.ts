@@ -4,7 +4,7 @@
 // month. A leaf: modelCalls and lineTrial both import it.
 
 import type { Doc, Id } from "../_generated/dataModel";
-import type { BudgetPurpose } from "@codecast/shared/contracts/modelCall";
+import type { BudgetPurpose } from "@codecast/judges/modelCall";
 
 export const HOUR_MS = 3_600_000;
 const billionths = (n: number) => Math.round(n * 1e9) / 1e9;

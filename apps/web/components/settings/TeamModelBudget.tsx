@@ -23,7 +23,7 @@ import {
   BUDGET_PURPOSES,
   budgetWords,
   type BudgetSummary,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 
 const PURPOSE_LABEL = {
   judge: "Judging moments",

@@ -29329,6 +29329,27 @@
   "packages/ingest/test/volumeWatch.test.ts": {
     "swarm/no-comments": 3
   },
+  "packages/judges/src/agentJudges.ts": {
+    "swarm/no-comments": 34
+  },
+  "packages/judges/src/judgeFix.ts": {
+    "swarm/no-comments": 45
+  },
+  "packages/judges/src/judgeReview.ts": {
+    "swarm/no-comments": 30
+  },
+  "packages/judges/src/judges.ts": {
+    "swarm/no-comments": 59
+  },
+  "packages/judges/src/modelCall.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/judges/test/judgeReview.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/judges/test/judges.test.ts": {
+    "swarm/no-comments": 7
+  },
   "packages/keyboard/src/keyBindings.ts": {
     "swarm/no-comments": 44
   },
@@ -29914,9 +29935,6 @@
   "packages/sessions/test/threadState.test.ts": {
     "swarm/no-comments": 2
   },
-  "packages/shared/contracts/agentJudges.ts": {
-    "swarm/no-comments": 34
-  },
   "packages/shared/contracts/causeHistory.ts": {
     "swarm/no-comments": 146
   },
@@ -29946,21 +29964,6 @@
   },
   "packages/shared/contracts/index.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/judgeFix.ts": {
-    "swarm/no-comments": 45
-  },
-  "packages/shared/contracts/judgeReview.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/judgeReview.ts": {
-    "swarm/no-comments": 30
-  },
-  "packages/shared/contracts/judges.test.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/judges.ts": {
-    "swarm/no-comments": 59
   },
   "packages/shared/contracts/lineChat.ts": {
     "swarm/no-comments": 19
@@ -30003,9 +30006,6 @@
   },
   "packages/shared/contracts/metricSeries.test.ts": {
     "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/modelCall.ts": {
-    "swarm/no-comments": 19
   },
   "packages/shared/contracts/problemScore.ts": {
     "swarm/no-comments": 36

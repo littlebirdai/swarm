@@ -18,7 +18,7 @@ import {
   isJudgeFixCard,
   validateJudgeFixCard,
   type JudgeFixCard,
-} from "@codecast/shared/contracts/judgeFix";
+} from "@codecast/judges/judgeFix";
 
 function readJsonFile(file: string): { raw: unknown } | { error: string } {
   try {

@@ -15,7 +15,7 @@ import {
 } from "./lib/workflowGraphValidators";
 import { libraryOfFlow, recordWorkflowVersion } from "./flowVersions";
 import { flowRouteFor, type FlowRoute } from "./lib/flowRoute";
-import { isJudgeProblem } from "@codecast/shared/contracts/judgeReview";
+import { isJudgeProblem } from "@codecast/judges/judgeReview";
 import { LIBRARY_LINE, newestOfLine, nextSeq } from "./lib/runGraph";
 
 const nodeV = workflowNodeValidator;

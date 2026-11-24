@@ -2,7 +2,7 @@
 // (judges/*.md): 9-10 breaks trust, 7-8 the contact noticed, 5-6 a lapse they
 // likely missed. The problem page and the change card say it the same way.
 
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { findingConversation } from "@codecast/judges/judges";
 
 type Finding = {
   _id: string;

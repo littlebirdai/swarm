@@ -428,4 +428,4 @@ export function modelCost(model: string, usage: ModelUsage): number {
 
 // The JSON value a reply starts with: one implementation, shared with the CLI
 // (learning-loop.md LL8, the model call contract).
-export { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
+export { parseJsonBlock } from "@codecast/judges/modelCall";

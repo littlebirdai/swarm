@@ -7,7 +7,7 @@ import {
   BASE_CHECK,
   type ChangeCard,
 } from "@codecast/shared/contracts/changeCard";
-import { JUDGE_FIX_MIN_CONTROLS } from "@codecast/shared/contracts/judgeFix";
+import { JUDGE_FIX_MIN_CONTROLS } from "@codecast/judges/judgeFix";
 import type {
   TrialCardRow,
   TrialCited,

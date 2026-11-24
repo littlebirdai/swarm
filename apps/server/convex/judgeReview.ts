@@ -69,7 +69,7 @@ import {
   JUDGE_REVIEW_ATTEMPTS,
   JUDGE_REVIEW_GRAPH,
   type DiagnosisAnswer,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 
 type Review = NonNullable<Doc<"signals">["judge_review"]>;
 type Trigger = Review["trigger"];

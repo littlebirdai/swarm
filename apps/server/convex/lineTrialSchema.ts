@@ -39,7 +39,7 @@ export const lineTrialTables = {
     card: v.optional(v.any()),
     /** The proposal gate's card (shared/contracts/proposalCard), when its words node wrote one. */
     proposal: v.optional(v.any()),
-    /** The judge route's card (shared/contracts/judgeFix): a fix to a judge, its extractor or an expectation, measured on the ruled moments; the project's reviewer answers it. */
+    /** The judge route's card (packages/judges/src/judgeFix.ts): a fix to a judge, its extractor or an expectation, measured on the ruled moments; the project's reviewer answers it. */
     judge_fix: v.optional(v.any()),
     /** waiting: the run is paused on it. answered: a person answered here. closed: the run moved on or ended without an answer. */
     status: v.union(

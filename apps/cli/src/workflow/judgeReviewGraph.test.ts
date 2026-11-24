@@ -2,7 +2,7 @@
 // diagnoses the wrong finding named in the goal, and a script files its
 // answer through `cast signal diagnosis`.
 import { describe, expect, test } from "bun:test";
-import { JUDGE_REVIEW_GRAPH } from "@codecast/shared/contracts/judgeReview";
+import { JUDGE_REVIEW_GRAPH } from "@codecast/judges/judgeReview";
 import { parseWorkflowSource, validateWorkflow } from "./parser";
 import { expandScriptVars } from "./runner";
 import {
