@@ -1,4 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import * as path from "node:path";
+import { buildBootGraph } from "../../../../../../apps/cli/src/bench/bootGraph";
 import { renderToString } from "react-dom/server";
 import { useInboxStore } from "../../../../store/inboxStore";
 import { HeroSandbox } from "../sandbox";
@@ -12,8 +14,14 @@ import { chapter as conversation } from "./conversation.chapter";
 // The inbox chapter is the poster: the marketing prerender (src/prerender-entry
 // .tsx) renders it with renderToString, where the app's store holds nothing for
 // it and has no visitor. So it must draw from its fixtures alone.
-//
 const NOW = Date.UTC(2026, 8, 30, 12);
+const web = path.resolve(import.meta.dir, "../../../..");
+const repo = path.resolve(web, "../..");
+const STORE = path.join(web, "store/inboxStore.ts");
+
+const OWN = ["inbox.chapter.ts", "inbox.tsx", "inbox.motion.ts"]
+  .map((f) => path.join(import.meta.dir, f))
+  .concat([path.join(import.meta.dir, "../fixtures/desk.ts")]);
 
 function renderPoster(parts: typeof inbox.parts) {
   return renderToString(
@@ -28,6 +36,19 @@ function renderPoster(parts: typeof inbox.parts) {
 }
 
 describe("the poster chapter", () => {
+  test("its own modules have no runtime import of the store", () => {
+    const alias = (spec: string) =>
+      spec.startsWith("@/") ? path.join(web, spec.slice(2)) : null;
+    for (const file of OWN) {
+      const graph = buildBootGraph(file, repo, { alias });
+      const own = graph.nodes.get(file)!;
+      expect(
+        own.imports.includes(STORE),
+        `${path.basename(file)} imports the store`,
+      ).toBe(false);
+    }
+  });
+
   test("renders on the server from fixtures alone, reading nothing from the store", () => {
     const getState = spyOn(useInboxStore, "getState");
     const getInitialState = spyOn(useInboxStore, "getInitialState");

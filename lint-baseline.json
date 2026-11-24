@@ -13467,7 +13467,7 @@
     "swarm/no-comments": 5
   },
   "apps/web/app/(marketing)/heroFly/chapters/inbox.poster.test.tsx": {
-    "swarm/no-comments": 6
+    "swarm/no-comments": 5
   },
   "apps/web/app/(marketing)/heroFly/chapters/inbox.tsx": {
     "react-hooks/exhaustive-deps": 1,

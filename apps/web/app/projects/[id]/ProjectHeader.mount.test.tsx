@@ -574,6 +574,13 @@ async function verifyProjectHeader() {
     partOf.querySelector("[data-pill='initiative:in-1']"),
     "the goal it serves",
   );
+  for (const selector of [
+    "[data-charter]",
+    "[data-inline-edit='Project folder']",
+    "[data-repository-links]",
+  ]) {
+    assert.equal(header.querySelector(selector), null, selector);
+  }
   assert.doesNotMatch(header.textContent!, /The org chart, roles and scopes\./);
   env.search = "tab=timeline";
   await repaint();

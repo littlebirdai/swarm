@@ -40,6 +40,10 @@ test("the send button announces its custom label and the reason it is disabled",
     expect(b.getAttribute("aria-label")).toBe("Send and apply 3");
     expect(b.dataset.ccSendLabel).toBe("Send and apply 3");
     expect(b.hasAttribute("data-cc-send")).toBe(true);
+    expect(b.className).toContain("h-8");
+    expect(b.className).toContain("px-3");
+    expect(b.className).toContain("whitespace-nowrap");
+    expect(b.className).not.toMatch(/(^|\s)(w-\d|w-\[|aspect-)/);
     expect(b.disabled).toBe(false);
     expect(b.querySelector("svg")).not.toBeNull();
     // Held: the same pill, faded; its tooltip says why and offers no key, and
@@ -61,10 +65,11 @@ test("the send button announces its custom label and the reason it is disabled",
     );
     b = button(host);
     expect(b.disabled).toBe(true);
+    expect(b.classList.contains("opacity-[0.45]")).toBe(true);
     const held = host.querySelector<HTMLElement>("[data-tip]")!;
     expect(held.dataset.tip).toBe("Out of allowance");
     expect(held.dataset.accel).toBe("");
-    expect(held).not.toBe(b);
+    expect(b.parentElement).not.toBe(held);
     expect(held.contains(b)).toBe(true);
     expect(b.textContent?.trim()).toBe("Send 2 answers");
     // No label: the icon, named Send, no label hook.
@@ -73,6 +78,7 @@ test("the send button announces its custom label and the reason it is disabled",
     expect(b.textContent?.trim()).toBe("");
     expect(b.getAttribute("aria-label")).toBe("Send");
     expect(b.dataset.ccSendLabel).toBeUndefined();
+    expect(b.classList.contains("modern:text-sol-bg")).toBe(true);
     expect(b.hasAttribute("data-cc-send")).toBe(true);
     // The bare comment box ignores the label.
     await act(() =>

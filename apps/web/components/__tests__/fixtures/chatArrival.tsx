@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
-import { act } from "react";
+import { act, Profiler } from "react";
 import { createRoot } from "react-dom/client";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import type { ChatMessageView } from "../../chat/chatTypes";
@@ -10,6 +10,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
 });
 const offsets = new WeakMap<Element, number>();
+const distancesFromTail: number[] = [];
 const height = (el: Element) =>
   el.classList.contains("ch-list")
     ? 400
@@ -33,6 +34,8 @@ Object.defineProperties(dom.window.HTMLElement.prototype, {
       );
       if (next === (offsets.get(this) ?? 0)) return;
       offsets.set(this, next);
+      if (this.classList.contains("ch-list"))
+        distancesFromTail.push(this.scrollHeight - this.clientHeight - next);
       queueMicrotask(() => {
         if (this.isConnected)
           this.dispatchEvent(new dom.window.Event("scroll"));
@@ -205,27 +208,43 @@ test("edits and older pages preserve history, while equal-timestamp arrivals pin
   let messages = Array.from({ length: 40 }, (_, i) => message(i));
   let channelId = "history-fixture";
   let targetMessageId: string | undefined;
+  let lastReadAt: number | undefined = now + 25;
+  let commitOffset: number | undefined;
   const render = () =>
     act(async () =>
       root.render(
-        <ChatMessageList
-          messages={messages}
-          viewerId="me"
-          channelId={channelId}
-          targetMessageId={targetMessageId}
-          now={now}
-        />,
+        <Profiler
+          id="chat"
+          onRender={() => {
+            commitOffset ??=
+              host.querySelector<HTMLElement>(".ch-list")?.scrollTop;
+          }}
+        >
+          <ChatMessageList
+            key={targetMessageId === "message-10" ? channelId : "room"}
+            messages={messages}
+            viewerId="me"
+            channelId={channelId}
+            targetMessageId={targetMessageId}
+            lastReadAt={lastReadAt}
+            now={now}
+          />
+        </Profiler>,
       ),
     );
   try {
     await render();
-    const feed = host.querySelector<HTMLElement>(".ch-list")!;
+    let feed = host.querySelector<HTMLElement>(".ch-list")!;
     expect(
       feed.querySelector(":scope > .ch-list-fill > .ch-list-sizer"),
     ).not.toBeNull();
     expect(
       feed.scrollHeight - feed.scrollTop - feed.clientHeight,
     ).toBeLessThanOrEqual(1);
+    expect(
+      feed.querySelector('[role="separator"][aria-label="New messages"]'),
+    ).not.toBeNull();
+    lastReadAt = undefined;
     await pause(1050);
     await act(async () => {
       feed.scrollTop = 600;
@@ -260,13 +279,18 @@ test("edits and older pages preserve history, while equal-timestamp arrivals pin
     channelId = "linked-room";
     targetMessageId = "message-10";
     messages = Array.from({ length: 40 }, (_, i) => message(i));
+    commitOffset = undefined;
+    distancesFromTail.length = 0;
+    await render();
+    feed = host.querySelector<HTMLElement>(".ch-list")!;
+    expect(commitOffset).toBeGreaterThan(0);
+    expect(feed.scrollTop).toBe(387);
+    expect(feed.querySelector("#chatmsg-message-10")).not.toBeNull();
+    messages = [...messages, message(40, { createdAt: now + 38 })];
     await render();
     await pause(700);
-    expect(
-      feed.scrollHeight - feed.scrollTop - feed.clientHeight,
-    ).toBeGreaterThan(500);
-    expect(feed.scrollTop).toBeGreaterThan(0);
-    expect(feed.querySelector("#chatmsg-message-10")).not.toBeNull();
+    expect(feed.scrollTop).toBe(387);
+    expect(distancesFromTail).not.toContain(0);
     messages = [...messages, message(41)];
     await render();
     await nextFrame();
