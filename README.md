@@ -318,6 +318,7 @@ cast setup              # Auto-start on login (launchd/systemd/Task Scheduler)
 ```
 codecast/
   apps/
+    mobile/             iOS/Android app (Expo + React Native)
     desktop/            Native macOS desktop app
     browser-extension/  Chrome extension behind `cast browser`
     vscode-extension/   VS Code / Cursor blame integration
@@ -326,7 +327,6 @@ codecast/
     cli/                CLI daemon, commands, and background sync engine
     web/                Vite + React web app
     convex/             Self-hosted Convex backend (schema, queries, mutations)
-    mobile/             iOS/Android app (Expo + React Native)
     shared/             Encryption and cross-platform utilities
     evals/              Prompt evals against frozen moments
   scripts/              Deploy, build, and dev server scripts

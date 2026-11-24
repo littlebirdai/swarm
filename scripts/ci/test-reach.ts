@@ -32,7 +32,7 @@ export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-web": ["packages/web"],
   "test-cli": ["packages/cli/src", "packages/evals/src"],
   "test-shared": ["packages/shared"],
-  "test-mobile": ["packages/mobile"],
+  "test-mobile": ["apps/mobile"],
   "test-electron": ["apps/desktop"],
 };
 

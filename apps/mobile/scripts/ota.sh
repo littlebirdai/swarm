@@ -18,11 +18,11 @@ trap cleanup EXIT
 git -C "$ROOT" fetch --quiet origin
 git -C "$ROOT" worktree add --detach "$WT" "$SHA" >/dev/null
 for f in .env .env.production; do
-  if [ -f "$ROOT/packages/mobile/$f" ]; then cp "$ROOT/packages/mobile/$f" "$WT/packages/mobile/$f"; fi
+  if [ -f "$ROOT/apps/mobile/$f" ]; then cp "$ROOT/apps/mobile/$f" "$WT/apps/mobile/$f"; fi
 done
 (cd "$WT" && bun install --frozen-lockfile >/dev/null)
 
-cd "$WT/packages/mobile"
+cd "$WT/apps/mobile"
 EAS="${EAS:-npx -y eas-cli@latest}"
 MESSAGE="$(git log -1 --format=%s "$SHA")"
 PLATFORMS="$(node -p "(require('./app.json').expo.platforms || ['ios','android']).join(' ')")"

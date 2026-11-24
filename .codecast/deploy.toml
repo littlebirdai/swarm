@@ -58,8 +58,8 @@ finish = "cast force-update $version"
 # shared and web code too, so those paths ship it.
 [[target]]
 name = "mobile"
-when = ["packages/mobile/**", "packages/shared/**", "packages/web/**", "platform/**"]
-run = "packages/mobile/scripts/ota.sh $sha"
+when = ["apps/mobile/**", "packages/shared/**", "packages/web/**", "platform/**"]
+run = "apps/mobile/scripts/ota.sh $sha"
 policy = "release"
 after = ["backend"]
 

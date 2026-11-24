@@ -1,10 +1,10 @@
 // The phone images the docs pages show ("phone" in ../shots-phone.json),
 // captured from the iOS app's store shots mode over the same Acme world
-// (packages/mobile/store-shots/raw/docs) and framed here as a phone. The
+// (apps/mobile/store-shots/raw/docs) and framed here as a phone. The
 // main page's inbox (public/docs/app/mobile.webp) lives in ./main-page.ts.
 import type { Shot } from "../manifest";
 
-const RAW = "packages/mobile/store-shots/raw/docs";
+const RAW = "apps/mobile/store-shots/raw/docs";
 const phone = (name: string, raw: string, out: string): Shot => ({ name, raw: `${RAW}/${raw}.png`, frame: "phone", out });
 
 export const PHONE_SHOTS: Shot[] = [

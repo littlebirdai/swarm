@@ -575,7 +575,7 @@ export function renderGalleryMessages(now: number): Row[] {
   asst("Running the next one.");
   user("Base directory for this skill: /Users/me/.claude/skills/review\n\n# Review\n\nRead the diff and list what is wrong.");
   user("<bash-input>git status --short | head -3</bash-input>");
-  user("<bash-stdout>\x1b[32m M\x1b[0m packages/mobile/app.json\n\x1b[31m??\x1b[0m packages/mobile/lib/diffRows.ts</bash-stdout><bash-stderr></bash-stderr>");
+  user("<bash-stdout>\x1b[32m M\x1b[0m apps/mobile/app.json\n\x1b[31m??\x1b[0m apps/mobile/lib/diffRows.ts</bash-stdout><bash-stderr></bash-stderr>");
   asst("Output on its own:");
   user("<bash-stdout>only stdout, no input row before it</bash-stdout><bash-stderr>warning: shallow clone</bash-stderr>");
   asst("Compacting next.");
@@ -619,7 +619,7 @@ export function renderGalleryMessages(now: number): Row[] {
     verdict: "NEEDS_CHANGES",
     findings: [
       { severity: "major", file: "packages/web/lib/stickyPrompt.ts", line: 88, issue: "Vault-ready messages reach the **sticky header**.", fix: "Exclude `vault_ready` the way decision answers are excluded." },
-      { severity: "minor", file: "packages/mobile/app/session/[id].tsx", issue: "The hosted retry fold counts a vault-ready message as a person's turn." },
+      { severity: "minor", file: "apps/mobile/app/session/[id].tsx", issue: "The hosted retry fold counts a vault-ready message as a person's turn." },
     ],
     notes: "Re-ran `cast check web` and the four test files: 33 pass. Did not open a simulator.",
   }, "Structured output provided successfully");

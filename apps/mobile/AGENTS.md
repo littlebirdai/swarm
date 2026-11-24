@@ -1,4 +1,4 @@
-# packages/mobile
+# apps/mobile
 
 The root `CLAUDE.md` covers native modules and OTA safety, Metro's single copy of each package, the `@/` alias in shared web files, and the guard tests that enforce them (`lib/nativeDeps.guard.test.ts`, `metro.config.test.cjs`, `lib/bundleGraph.guard.test.ts`). This file adds how to test mobile code.
 

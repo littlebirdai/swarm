@@ -59,8 +59,8 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   ["packages/cli/src/orgInit.ts", "invented_words"],
   // The team icon set has a boat anchor.
   ["packages/web/components/TeamIcon.tsx", 'anchor: "Anchor"'],
-  ["packages/mobile/app/(tabs)/chat.tsx", "anchor: '⚓'"],
-  ["packages/mobile/app/(tabs)/tasks.tsx", "anchor: '⚓'"],
+  ["apps/mobile/app/(tabs)/chat.tsx", "anchor: '⚓'"],
+  ["apps/mobile/app/(tabs)/tasks.tsx", "anchor: '⚓'"],
   // Apple's code requirement language (a certificate trust anchor), copied
   // verbatim from codesign into the MDM profile; no person reads it.
   ["packages/convex/convex/managedDevices.ts", "and anchor apple generic and"],

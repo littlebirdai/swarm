@@ -211,7 +211,7 @@ describe('sessionTerminalOffer', () => {
 describe('the daemon still says what PANE_HOLD matches', () => {
   // terminalOffer reads the daemon's hold wording; a rewording there would
   // silently end the held offer.
-  const daemon = readFileSync(join(import.meta.dir, '../../../cli/src/daemon.ts'), 'utf8');
+  const daemon = readFileSync(join(import.meta.dir, '../../../../packages/cli/src/daemon.ts'), 'utf8');
   test('both hold phrases are in daemon.ts', () => {
     expect(daemon).toContain('waiting for a human answer in the terminal');
     expect(daemon).toContain('is signed out on this machine');

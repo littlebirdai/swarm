@@ -55,7 +55,7 @@ if (flag("--print")) {
 } else if (flag("--mobile")) {
   const port = value("--mobile") ?? "8095";
   const targets: Array<{ webSocketDebuggerUrl: string }> = await (await fetch(`http://localhost:${port}/json`)).json();
-  const evalScript = join(import.meta.dir, "../../mobile/scripts/hermes-eval.mjs");
+  const evalScript = join(import.meta.dir, "../../../apps/mobile/scripts/hermes-eval.mjs");
   // A dev client lists more than one page; the app's runtime is the one with the store.
   for (const t of targets) {
     let out = "";

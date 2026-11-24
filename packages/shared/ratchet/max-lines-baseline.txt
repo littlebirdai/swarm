@@ -5,6 +5,12 @@
 #
 # Prune it (drops gone entries, lowers numbers that came down, adds nothing):
 #   cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts
+apps/mobile/app/(tabs)/inbox.tsx 1000
+apps/mobile/app/(tabs)/tasks.tsx 1250
+apps/mobile/app/call.tsx 950
+apps/mobile/app/session/[id].tsx 6500
+apps/mobile/components/MarkdownRenderer.tsx 950
+apps/mobile/components/session/NewSessionSheet.tsx 850
 packages/cli/src/app/cli.ts 950
 packages/cli/src/blame.ts 1000
 packages/cli/src/browser/bridge/host.test.ts
@@ -151,12 +157,6 @@ packages/convex/convex/transcripts.test.ts 2050
 packages/convex/convex/transcripts.ts 3000
 packages/convex/convex/users.ts 4150
 packages/convex/convex/workflow_runs.ts
-packages/mobile/app/(tabs)/inbox.tsx 1000
-packages/mobile/app/(tabs)/tasks.tsx 1250
-packages/mobile/app/call.tsx 950
-packages/mobile/app/session/[id].tsx 6500
-packages/mobile/components/MarkdownRenderer.tsx 950
-packages/mobile/components/session/NewSessionSheet.tsx 850
 packages/shared/contracts/agentClients.ts 1500
 packages/shared/contracts/capabilities.ts 900
 packages/shared/contracts/capabilityResolver.test.ts 900

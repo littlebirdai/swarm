@@ -3,7 +3,7 @@
 // parses the web file's `import.meta` (a Hermes parse error) or pulls in
 // posthog-js/@sentry/react. Shared hooks' track() calls (the inbox drift
 // compare's heartbeat and drift events, the synclog crawl metrics) go to the
-// app's PostHog client, which packages/mobile/lib/analytics.ts initialises
+// app's PostHog client, which apps/mobile/lib/analytics.ts initialises
 // with the same event catalog as web; calls before init are queued there.
 // Init, identity and crash reporting stay with the mobile app.
 import { track as trackNative } from "@platform/analytics/native";

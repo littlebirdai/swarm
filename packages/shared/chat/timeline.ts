@@ -3,7 +3,7 @@
 //
 // Deliberately pure and dependency free so both platforms share one
 // implementation and one set of tests. That matters more than usual here:
-// packages/mobile has no CI and its tsconfig excludes test files, so logic that
+// apps/mobile has no CI and its tsconfig excludes test files, so logic that
 // lives inside a screen component is effectively untested on mobile. Logic that
 // lives here is not.
 

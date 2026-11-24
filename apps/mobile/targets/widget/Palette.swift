@@ -1,4 +1,4 @@
-// Solarized, the app's own palette (packages/mobile/constants/Theme.ts), and
+// Solarized, the app's own palette (apps/mobile/constants/Theme.ts), and
 // JetBrains Mono, the app's face. The strip is always dark: it sits on the
 // Lock Screen and inside the Dynamic Island, never on a light surface.
 

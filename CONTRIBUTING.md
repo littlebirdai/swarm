@@ -53,7 +53,7 @@ Codecast is a Bun monorepo with these packages:
 | `packages/convex` | Convex backend: schema, queries, mutations, auth |
 | `packages/web` | React + Vite web app |
 | `apps/desktop` | Electron desktop app |
-| `packages/mobile` | Expo/React Native iOS app |
+| `apps/mobile` | Expo/React Native iOS app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
 | `apps/browser-extension` | Chrome extension behind `cast browser` |
 | `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |

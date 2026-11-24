@@ -6,10 +6,10 @@
   phone body. Both pages are served from the repo's packages/ directory, so
   the fonts resolve to the phone app's bundled copies.
 */
-@font-face { font-family: "Instrument Sans"; src: url("../../mobile/assets/fonts/InstrumentSans-Regular.ttf"); font-weight: 400; }
-@font-face { font-family: "Instrument Sans"; src: url("../../mobile/assets/fonts/InstrumentSans-Medium.ttf"); font-weight: 500; }
-@font-face { font-family: "Instrument Sans"; src: url("../../mobile/assets/fonts/InstrumentSans-SemiBold.ttf"); font-weight: 600; }
-@font-face { font-family: "Instrument Sans"; src: url("../../mobile/assets/fonts/InstrumentSans-Bold.ttf"); font-weight: 700; }
+@font-face { font-family: "Instrument Sans"; src: url("../../../apps/mobile/assets/fonts/InstrumentSans-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Instrument Sans"; src: url("../../../apps/mobile/assets/fonts/InstrumentSans-Medium.ttf"); font-weight: 500; }
+@font-face { font-family: "Instrument Sans"; src: url("../../../apps/mobile/assets/fonts/InstrumentSans-SemiBold.ttf"); font-weight: 600; }
+@font-face { font-family: "Instrument Sans"; src: url("../../../apps/mobile/assets/fonts/InstrumentSans-Bold.ttf"); font-weight: 700; }
 
 /* Light: Verdigris. The plate is a cool patina a step darker than the app's own ground, so a white window lifts off it. */
 .frame-light {

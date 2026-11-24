@@ -3,7 +3,7 @@
 // content state and pushes it through APNs; the phone never coordinates.
 //
 // This file is the wire contract with installed widget builds. The Swift
-// twin lives in packages/mobile/targets/widget/CodecastActivityAttributes.swift
+// twin lives in apps/mobile/targets/widget/CodecastActivityAttributes.swift
 // (and its copy in the native module), so the rules follow from the fact that
 // the server is always talking to phones older than itself:
 //   - adding an OPTIONAL field is safe; the widget ignores what it does not know.

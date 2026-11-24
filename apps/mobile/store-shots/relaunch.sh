@@ -9,7 +9,7 @@ SIM=${SIM:?set SIM to the UDID cast sim acquire printed}
 APP=${APP:-/tmp/shots-dd/Build/Products/Debug-iphonesimulator/Codecast.app}
 # Refuse a bundle without the flag: this pool simulator's keychain may hold a
 # real sign-in, and without store shots mode the app would open that account.
-curl -s "http://localhost:${PORT:-8095}/packages/mobile/index.bundle?platform=ios&dev=true" \
+curl -s "http://localhost:${PORT:-8095}/apps/mobile/index.bundle?platform=ios&dev=true" \
   | grep -q '"EXPO_PUBLIC_STORE_SHOTS"' || { echo "Metro on :${PORT:-8095} is not serving store shots mode (EXPO_PUBLIC_STORE_SHOTS=1)"; exit 1; }
 xcrun simctl terminate "$SIM" com.ashotp.codecast 2>/dev/null || true
 xcrun simctl uninstall "$SIM" com.ashotp.codecast 2>/dev/null || true

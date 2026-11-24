@@ -13,9 +13,9 @@ test('Metro excludes nested worktrees, not the checkout it is building', () => {
   const root = path.resolve(__dirname, '../..');
   expect(blocked(path.join(__dirname, 'index.ts'))).toBe(false);
   for (const dir of ['.claude/worktrees', '.codecast/worktrees', '.conductor', 'dist-perf']) {
-    expect(blocked(path.join(root, dir, 'nested/packages/mobile/index.ts'))).toBe(true);
+    expect(blocked(path.join(root, dir, 'nested/apps/mobile/index.ts'))).toBe(true);
   }
-  expect(blocked(path.join(os.tmpdir(), '.codecast/worktrees/release/packages/mobile/index.ts'))).toBe(false);
+  expect(blocked(path.join(os.tmpdir(), '.codecast/worktrees/release/apps/mobile/index.ts'))).toBe(false);
 });
 
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'mobile-native-peer-'));
@@ -90,8 +90,8 @@ for (const platform of ['ios', 'android']) {
 const faceOrigins = [
   path.join(__dirname, 'components/identity/MobileSessionFace.tsx'),
   path.join(__dirname, 'components/AgentLogo.tsx'),
-  path.join(__dirname, '../web/components/org/avatars/index.tsx'),
-  path.join(__dirname, '../web/lib/sessionIdentity.ts'),
+  path.join(__dirname, '../../packages/web/components/org/avatars/index.tsx'),
+  path.join(__dirname, '../../packages/web/lib/sessionIdentity.ts'),
 ];
 for (const platform of ['ios', 'android']) {
   for (const pkg of packages) {
@@ -107,7 +107,7 @@ for (const platform of ['ios', 'android']) {
 
 test('the face art is an asset Metro bundles: all 24 WebP files, from the web package', () => {
   expect(config.resolver.assetExts).toContain('webp');
-  const art = path.join(__dirname, '../web/components/org/avatars');
+  const art = path.join(__dirname, '../../packages/web/components/org/avatars');
   expect(config.watchFolders.some(dir => art.startsWith(dir + path.sep))).toBe(true);
   expect(fs.readdirSync(art).filter(f => f.endsWith('.webp')).length).toBe(24);
 });

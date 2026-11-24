@@ -292,7 +292,7 @@ routes) are edited only by the stage named here.
 | pi cost | `packages/cli/src/parser.ts` | Read pi's per-message `usage.cost` into `usage_totals`. |
 | Hosted mode (web) | Removed in 675dda920. What remains is `packages/web/components/simple/**` (the assistant mark, privacy note, connect toast and the shared wording such as `askFirst.ts`) and `app/settings/plan/page.tsx` | The web app has one mode; the assistant is reached from the main app's DashboardLayout. |
 | Onboarding | `packages/web/app/login/page.tsx`, `packages/web/app/signup/page.tsx` | The separate `/welcome` onboarding was removed with hosted mode in 675dda920; sign in and sign up are the app's own pages. |
-| Hosted mode (mobile) | `packages/mobile/components/hosted/**`, the tabs, `app/session/[id].tsx` | The same mode in the phone's tabs. |
+| Hosted mode (mobile) | `apps/mobile/components/hosted/**`, the tabs, `app/session/[id].tsx` | The same mode in the phone's tabs. |
 
 ## Data model
 
@@ -796,7 +796,7 @@ the main app:
   the page; the phone opens it in the browser), and `usePlanFigures` is the
   page's figures for both.
 
-How hosted mode is wired on the phone (`packages/mobile`, built 2026-10-06):
+How hosted mode is wired on the phone (`apps/mobile`, built 2026-10-06):
 
 - **One mode, one registry.** The phone reads the web's own registry and
   words (`lib/surfaces.ts`: `useSurface`, `useHostedMode`, `useModeWords`),

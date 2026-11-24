@@ -82,7 +82,7 @@ export function useSyncCapabilityStateWithArgs(wsArgs: WorkspaceArgs) {
 }
 
 /** The app-shell entry point; mobile wraps the WithArgs variant in five lines
- *  the way packages/mobile does for tasks. */
+ *  the way apps/mobile does for tasks. */
 export function useSyncCapabilityState() {
   return useSyncCapabilityStateWithArgs(useWorkspaceArgs());
 }

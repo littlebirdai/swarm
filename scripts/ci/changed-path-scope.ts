@@ -122,7 +122,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   // (ct-49675).
   ["platform", ["platform/"]],
   ["electron", ["apps/desktop/"]],
-  ["mobile", ["packages/mobile/"]],
+  ["mobile", ["apps/mobile/"]],
   ["extension", ["apps/browser-extension/", "apps/vscode-extension/"]],
   ["playground", ["apps/playground/"]],
   ["infra", ["infra/"]],

@@ -1,5 +1,5 @@
 /**
- * The mobile session screen's look (packages/mobile/app/session/[id].tsx), as
+ * The mobile session screen's look (apps/mobile/app/session/[id].tsx), as
  * plain values both renderers accept: the React Native screen feeds them to
  * StyleSheet.create, and the web phone views (components/PhoneSession.tsx,
  * the marketing hero's phone) spread them into inline styles. Geometry and

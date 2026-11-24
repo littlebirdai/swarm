@@ -29,7 +29,7 @@ describe("areaOf", () => {
     expect(areaOf("apps/playground/src/main.tsx")).toBe("playground");
     expect(areaOf("infra/convex-host/Caddyfile")).toBe("infra");
     expect(areaOf("infra/README.md")).toBe("infra");
-    expect(areaOf("packages/mobile/app/index.tsx")).toBe("mobile");
+    expect(areaOf("apps/mobile/app/index.tsx")).toBe("mobile");
     expect(areaOf("apps/browser-extension/background.js")).toBe("extension");
     expect(areaOf("apps/vscode-extension/src/extension.ts")).toBe("extension");
   });
@@ -146,8 +146,8 @@ describe("classifyChangedPaths", () => {
   });
 
   test("a mobile change runs the mobile tests only", () => {
-    expect(flags(["packages/mobile/app/index.tsx"]).mobile).toBe(true);
-    expect(ran(["packages/mobile/app/index.tsx"])).toEqual(["test-mobile"]);
+    expect(flags(["apps/mobile/app/index.tsx"]).mobile).toBe(true);
+    expect(ran(["apps/mobile/app/index.tsx"])).toEqual(["test-mobile"]);
   });
 
   // web imports electron's window registry, so an electron change reaches
@@ -225,7 +225,7 @@ describe("classifyChangedPaths", () => {
 
 test("the classifier runs as a script and prints the flags", async () => {
   const proc = Bun.spawn(["bun", new URL("./changed-path-scope.ts", import.meta.url).pathname], {
-    stdin: new TextEncoder().encode("packages/mobile/app/index.tsx\n"),
+    stdin: new TextEncoder().encode("apps/mobile/app/index.tsx\n"),
     stdout: "pipe",
     stderr: "pipe",
   });

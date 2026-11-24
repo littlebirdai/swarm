@@ -265,7 +265,7 @@ describe("rules (a) to (c) in isolation", () => {
   test("a squash or merge commit joins the pull request its subject names, unless a private session made it", () => {
     const squash = commit({ sha: "sq", subject: "Stop asking for fields the card never asked for (#3827)", paths: { "packages/web/a.ts": 5 } });
     const merge = commit({ sha: "mg", subject: "Merge pull request #12 from acme/feat-x", timestamp: T0 + 300 * MIN, paths: { "packages/cli/a.ts": 5 } });
-    const hidden = commit({ sha: "hd", subject: "feat(mobile): private (#40)", conversation_id: "secret", timestamp: T0 + 600 * MIN, paths: { "packages/mobile/a.ts": 5 } });
+    const hidden = commit({ sha: "hd", subject: "feat(mobile): private (#40)", conversation_id: "secret", timestamp: T0 + 600 * MIN, paths: { "apps/mobile/a.ts": 5 } });
     const prs = [{ id: "pr3827", number: 3827 }, { id: "pr12", number: 12 }, { id: "pr40", number: 40 }, { id: "pr7", number: 7 }];
     const r = build({ commits: [squash, merge, hidden], visible: [], prs });
     expect(holding(r.stories, "sq")[0].pr_ids).toEqual(["pr3827"]);

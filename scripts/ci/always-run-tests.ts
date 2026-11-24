@@ -37,7 +37,7 @@ export const SUITES: Array<{ job: string; dir: string; roots: string[]; flags: s
   // test-web and test-mobile run with --isolate: their mount tests replace
   // modules with mock.module, which is permanent within one process.
   { job: "test-web", dir: "packages/web", roots: ["."], flags: ["--isolate"] },
-  { job: "test-mobile", dir: "packages/mobile", roots: ["."], flags: ["--isolate"] },
+  { job: "test-mobile", dir: "apps/mobile", roots: ["."], flags: ["--isolate"] },
 ];
 
 /** A suite's always-run files, relative to its package directory. */
