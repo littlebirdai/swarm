@@ -29950,12 +29950,6 @@
   "packages/shared/contracts/unattended.ts": {
     "swarm/no-comments": 9
   },
-  "packages/shared/contracts/usageLimits.test.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/usageLimits.ts": {
-    "swarm/no-comments": 94
-  },
   "packages/shared/contracts/vaultMessages.ts": {
     "swarm/no-comments": 6
   },
@@ -29973,12 +29967,6 @@
   },
   "packages/shared/contracts/volumeWatch.ts": {
     "swarm/no-comments": 31
-  },
-  "packages/shared/contracts/weeklyCard.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/weeklyCard.ts": {
-    "swarm/no-comments": 35
   },
   "packages/shared/contracts/worktrees.ts": {
     "swarm/no-comments": 13
@@ -30204,6 +30192,18 @@
   },
   "packages/triggers/test/triggerPrecheck.test.ts": {
     "swarm/no-comments": 7
+  },
+  "packages/usage/src/usageLimits.ts": {
+    "swarm/no-comments": 94
+  },
+  "packages/usage/src/weeklyCard.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/usage/test/usageLimits.test.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/usage/test/weeklyCard.test.ts": {
+    "swarm/no-comments": 5
   },
   "packages/vault/src/entityRef.ts": {
     "swarm/no-comments": 79

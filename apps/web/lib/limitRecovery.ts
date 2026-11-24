@@ -4,7 +4,7 @@
 // "continue" lands, and the agent picks up. The park card walks those steps so
 // the minute of restart reads as progress rather than as a stuck error.
 
-import type { RecoveryDecision } from "@codecast/shared/contracts";
+import type { RecoveryDecision } from "@codecast/usage/usageLimits";
 
 // The park's timestamp is the transcript's; the server stamps the park when the
 // daemon reports it, a beat later, and only then can a recovery act on it.

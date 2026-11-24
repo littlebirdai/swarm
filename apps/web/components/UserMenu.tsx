@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { objectHref, personRefOf } from "../lib/entityLinks";
-import { weeklyCardAllowed } from "@codecast/shared/contracts/weeklyCard";
+import { weeklyCardAllowed } from "@codecast/usage/weeklyCard";
 
 function MenuItem({
   icon: Icon,

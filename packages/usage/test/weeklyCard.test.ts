@@ -7,7 +7,7 @@ import {
   weekBounds,
   weekRangeLabel,
   type WeekCardSession,
-} from "./weeklyCard";
+} from "../src/weeklyCard";
 
 const H = 3_600_000;
 const LA = "America/Los_Angeles";

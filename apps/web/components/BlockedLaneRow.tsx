@@ -7,7 +7,10 @@
 // resumes and, when one of your accounts with room is kept off its machines,
 // offers to open it there through the shared review.
 import type { ReactNode } from "react";
-import { formatCountdown, worstUsagePercent } from "@codecast/shared/contracts";
+import {
+  formatCountdown,
+  worstUsagePercent,
+} from "@codecast/usage/usageLimits";
 import { WHERE_ACCOUNTS_RUN_ID } from "../lib/accountMachineAnchors";
 import { Button } from "./ui/button";
 import { ContinueAccountPicker } from "./ContinueAccountPicker";

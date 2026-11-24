@@ -795,10 +795,10 @@ packages/shared/contracts/orgProposal.ts 3750
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
 packages/shared/contracts/snippets.ts 2050
-packages/shared/contracts/usageLimits.ts 850
 packages/shared/entities/index.ts 1650
 packages/shared/replay/mobile.ts 900
 packages/shared/replay/replay.test.ts 1350
 packages/shared/replay/rrweb.ts 850
 packages/shared/tasks/graph.test.ts 1300
 packages/shared/tasks/graph.ts 1300
+packages/usage/src/usageLimits.ts 850

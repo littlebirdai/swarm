@@ -34,7 +34,7 @@ import {
   pendingProposal,
   formatAgo,
   standingLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useInboxStore } from "../store/inboxStore";
 import {

@@ -32,7 +32,7 @@ import {
   type WeekCardSession,
   type WeekCardStats,
   type WeekWhich,
-} from "@codecast/shared/contracts/weeklyCard";
+} from "@codecast/usage/weeklyCard";
 
 const HOUR = 3_600_000;
 const PAGE = 150;

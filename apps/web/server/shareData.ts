@@ -10,10 +10,7 @@ import {
   type GuestLinkRefusal,
 } from "@codecast/calls/callGuests";
 import { meetingTitle } from "../lib/calls/roomGuests";
-import {
-  weekRangeLabel,
-  type WeekCardStats,
-} from "@codecast/shared/contracts/weeklyCard";
+import { weekRangeLabel, type WeekCardStats } from "@codecast/usage/weeklyCard";
 
 /**
  * The server's view of shared objects: one Convex client, one query per share

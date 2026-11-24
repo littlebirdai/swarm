@@ -1,8 +1,5 @@
 import { expect, test } from "bun:test";
-import {
-  buildWeekCard,
-  weekBounds,
-} from "@codecast/shared/contracts/weeklyCard";
+import { buildWeekCard, weekBounds } from "@codecast/usage/weeklyCard";
 import { weekCardLedger } from "./weekCardLedger";
 
 const now = Date.UTC(2026, 10, 3, 18);

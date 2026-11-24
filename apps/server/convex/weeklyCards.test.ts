@@ -8,7 +8,7 @@ import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
 import schema from "./schema";
 import { allModules } from "./testModules.testkit";
-import { weekBounds } from "@codecast/shared/contracts/weeklyCard";
+import { weekBounds } from "@codecast/usage/weeklyCard";
 
 setDefaultTimeout(60_000);
 const api = anyApi as any;

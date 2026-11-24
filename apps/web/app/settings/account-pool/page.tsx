@@ -9,7 +9,7 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Layers } from "lucide-react";
-import { rankByHeadroom } from "@codecast/shared/contracts";
+import { rankByHeadroom } from "@codecast/usage/usageLimits";
 import {
   SettingsBadge,
   SettingsPanel,

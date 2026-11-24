@@ -38,7 +38,7 @@ import {
   weeklyCardAllowed,
   type WeekCardStats,
   type WeekWhich,
-} from "@codecast/shared/contracts/weeklyCard";
+} from "@codecast/usage/weeklyCard";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useCollectionRows } from "@codecast/web/hooks/useCollectionRows";
 import { useSyncWeeklyCards } from "@codecast/web/hooks/useSyncWeeklyCards";

@@ -346,7 +346,7 @@ in the tasks snippet. The role page's Settings tab says where the seat runs:
 the host, the machine of the standing session (`devices.getConversationMachine`)
 and the model. When the standing session is parked on a usage limit, the same
 section says what codecast does on that machine, in the sentence `cast usage`
-prints (`describeLimitRecovery` in `contracts/usageLimits.ts`, one body for
+prints (`describeLimitRecovery` in `packages/usage/src/usageLimits.ts`, one body for
 both), and what a person can do: move the session to another machine from its
 header chip, or add an account with `cast accounts save <name>`.
 

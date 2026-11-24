@@ -121,13 +121,9 @@ import { contextWindowTokens } from "@codecast/agent-clients/agentClients";
 import {
   restartShareOfRemaining,
   formatCountdown,
-} from "@codecast/shared/contracts";
-import {
-  USER_RESTS,
-  describeDecision,
-  pendingProposal,
-  type UserRest,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
+import { USER_RESTS, type UserRest } from "@codecast/shared/contracts";
+import { describeDecision, pendingProposal } from "@codecast/usage/usageLimits";
 import { sessionLiveAt } from "../lib/liveness";
 import { TooltipProvider } from "./ui/tooltip";
 import { cleanTitle } from "../lib/conversationProcessor";

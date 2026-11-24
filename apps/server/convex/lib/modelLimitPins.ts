@@ -27,7 +27,7 @@ import {
   fleetRunsFamily,
   modelLimitFamily,
   type CcUsage,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { hasModelRoom, modelRoomPercent, type ModelPin } from "./modelRoom";
 
 /** An account a session was pinned to and parked on again is not tried again for that model this week. */

@@ -3,7 +3,7 @@ import {
   accountDisplayName,
   describeDecision,
   describeLastAction,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { limitRecoveryAction } from "../limitRecovery";
 
 const profiles = [

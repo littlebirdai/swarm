@@ -21,7 +21,7 @@ import {
   formatAgo,
   formatCountdown,
   labeledUsageWindows,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { usageTone } from "../lib/usageTone";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useWatchEffect } from "../hooks/useWatchEffect";

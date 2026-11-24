@@ -16,7 +16,7 @@ import {
   headroomScore,
   limitWindows,
   type CcUsage,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 
 // Switch-ahead thresholds: the fleet moves off an account while its windows
 // still have room, before Claude Code's grace window (at 100%) and its

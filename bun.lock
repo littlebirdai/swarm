@@ -65,6 +65,7 @@
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
+        "@codecast/usage": "workspace:*",
         "@codecast/vault": "workspace:*",
         "@inquirer/prompts": "^8.2.0",
         "@platform/auth": "file:../../platform/packages/auth",
@@ -153,6 +154,7 @@
         "@codecast/signals": "workspace:*",
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
+        "@codecast/usage": "workspace:*",
         "@codecast/web": "workspace:*",
         "@convex-dev/auth": "0.0.79",
         "@expo/vector-icons": "^15.0.3",
@@ -293,6 +295,7 @@
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
+        "@codecast/usage": "workspace:*",
         "@convex-dev/auth": "0.0.79",
         "@convex-dev/prosemirror-sync": "^0.2.3",
         "@platform/agent": "file:../../platform/packages/agent",
@@ -376,6 +379,7 @@
         "@codecast/team": "workspace:*",
         "@codecast/time": "workspace:*",
         "@codecast/triggers": "workspace:*",
+        "@codecast/usage": "workspace:*",
         "@codecast/vault": "workspace:*",
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.10.4",
@@ -921,6 +925,17 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/usage": {
+      "name": "@codecast/usage",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/agent-clients": "workspace:*",
+        "@codecast/time": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/vault": {
       "name": "@codecast/vault",
       "version": "0.0.1",
@@ -1383,6 +1398,8 @@
     "@codecast/time": ["@codecast/time@workspace:packages/time"],
 
     "@codecast/triggers": ["@codecast/triggers@workspace:packages/triggers"],
+
+    "@codecast/usage": ["@codecast/usage@workspace:packages/usage"],
 
     "@codecast/vault": ["@codecast/vault@workspace:packages/vault"],
 

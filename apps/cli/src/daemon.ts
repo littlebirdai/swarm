@@ -60,8 +60,8 @@ import {
   type AgentPaneReadiness,
   type PaneTerminalModes,
 } from "@codecast/agent-clients/agentClients";
+import { RESUME_BURST_SPACING_MS } from "@codecast/usage/usageLimits";
 import {
-  RESUME_BURST_SPACING_MS,
   SNIPPET_CATALOG,
   STABLE_ENV_CONVERSATION_ID,
   STABLE_ENV_EXCLUDE,
