@@ -1,5 +1,5 @@
 import { useRef, type RefObject } from "react";
-import type { CallView } from "@codecast/shared/contracts";
+import type { CallView } from "@codecast/calls/callLinks";
 import type { CallVideoHandle } from "../components/calls/CallVideoPlayer";
 import { lineSeqAt, turnIndexAt } from "../lib/calls/callVideo";
 import { scrollIntoContainer } from "../lib/scrollWithin";

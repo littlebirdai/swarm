@@ -10,10 +10,13 @@
   },
   "exports": {
     "./callGuests": "./src/callGuests.ts",
+    "./callLinks": "./src/callLinks.ts",
     "./callPush": "./src/callPush.ts",
     "./callRecordings": "./src/callRecordings.ts",
     "./callRoomKeys": "./src/callRoomKeys.ts",
+    "./huddleDigest": "./src/huddleDigest.ts",
     "./recordingAudio": "./src/recordingAudio.ts",
+    "./screenRecording": "./src/screenRecording.ts",
     "./stagePins": "./src/stagePins.ts",
     "./transcribeLanguage": "./src/transcribeLanguage.ts"
   },

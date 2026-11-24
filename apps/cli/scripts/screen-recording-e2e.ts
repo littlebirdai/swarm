@@ -29,7 +29,7 @@ import {
 import { injectViaTmux } from "../src/daemon.ts";
 import { readAuthConfig } from "../src/config/readAuthConfig.ts";
 import { screenRecordingForDelivery } from "../src/screenRecordingBrief.ts";
-import { formatScreenRecordingMessage } from "@codecast/shared/contracts";
+import { formatScreenRecordingMessage } from "@codecast/calls/screenRecording";
 
 if (
   !process.env.TMUX_TMPDIR?.includes("sr-e2e") ||

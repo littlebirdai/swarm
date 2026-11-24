@@ -45,7 +45,7 @@ import {
   parseCallShareParam,
   parseCallViewParam,
   type CallView,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import {
   CALL_LINK_REFUSED_WORDS,
   lineFrameMs,

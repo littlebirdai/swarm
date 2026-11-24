@@ -12,7 +12,7 @@ import { themedStyles, useTheme } from "@/constants/Theme";
 import { canPlayInApp, VideoPlayerModal } from "@/components/InlineVideo";
 import { openLink } from "@/lib/links";
 import { formatCallTime } from "@codecast/calls/callRecordings";
-import { type ParsedScreenRecording } from "@codecast/shared/contracts";
+import { type ParsedScreenRecording } from "@codecast/calls/screenRecording";
 import { useCallDetail } from "@codecast/web/hooks/useSyncCalls";
 import { useCallRecordings } from "@codecast/web/lib/calls/callRecordingsFeed";
 import { playableFiles } from "@codecast/web/lib/calls/callVideo";

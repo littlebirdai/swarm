@@ -21,9 +21,6 @@ import {
   formatAgentSwitchNotice,
   formatDecisionAnswer,
   formatVaultReady,
-  formatHuddleSummaryTag,
-  formatScreenRecordingMessage,
-  screenRecordingBrief,
   formatScheduledTask,
   formatSessionMessage,
   formatUserMessage,
@@ -36,6 +33,11 @@ import {
   wrapMentionContext,
 } from "@codecast/shared/contracts";
 import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
+import { formatHuddleSummaryTag } from "@codecast/calls/huddleDigest";
+import {
+  formatScreenRecordingMessage,
+  screenRecordingBrief,
+} from "@codecast/calls/screenRecording";
 import { formatMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import {
   DELIVERY_FAILED_SUBTYPE,

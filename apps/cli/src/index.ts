@@ -139,10 +139,12 @@ import {
   type SnippetSection,
   allSnippetSlugs,
   type VaultInfo,
+} from "@codecast/shared/contracts";
+import {
   callLinkHow,
   callAnchorHref,
   callPathRef,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import {
   inlineForeignText,
   fenceForeignText,

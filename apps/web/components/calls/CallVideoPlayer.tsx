@@ -19,7 +19,7 @@ import {
   recordingFailureWords,
   recordingSubject,
 } from "@codecast/calls/callRecordings";
-import { type CallView } from "@codecast/shared/contracts";
+import { type CallView } from "@codecast/calls/callLinks";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
 import { useStableMediaSrcs } from "../../hooks/useStableMediaSrcs";

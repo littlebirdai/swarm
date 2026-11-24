@@ -14,7 +14,7 @@ import {
   callExcerptHref,
   callLinkHow,
   callLinkHref,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { isConvexId } from "../../lib/entityLinks";
 import { excerptLabel } from "../../lib/calls/excerptLabel";

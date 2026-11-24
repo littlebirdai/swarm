@@ -1,5 +1,5 @@
 import { Video } from "lucide-react";
-import { callMomentHref } from "@codecast/shared/contracts";
+import { callMomentHref } from "@codecast/calls/callLinks";
 import {
   describeClockSpans,
   spanStartSecond,

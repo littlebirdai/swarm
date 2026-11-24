@@ -17,11 +17,6 @@ export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
 export * from "./transcriptChunk";
-export * from "./callLinks";
-// The row a finished huddle leaves in its chat room or session: one formatter
-// for the digest markdown and the <huddle-summary> wire tag, one parser back.
-export * from "./huddleDigest";
-export * from "./screenRecording";
 // Without these two lines every consumer reinvents the capability vocabulary:
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four

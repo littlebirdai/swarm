@@ -74,7 +74,7 @@ import {
   callFrameHref,
   parseCallViewParam,
   type CallView,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import {
   callRefId,
   formatCallTime,

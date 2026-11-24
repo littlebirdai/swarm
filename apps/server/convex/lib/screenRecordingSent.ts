@@ -9,7 +9,7 @@
 // teammate's text naming it marks nothing.
 // A leaf: pendingMessages imports it, and screenRecordings imports
 // pendingMessages' callers, so nothing here may import a function module.
-import { parseScreenRecordingMessage } from "@codecast/shared/contracts";
+import { parseScreenRecordingMessage } from "@codecast/calls/screenRecording";
 
 export async function noteScreenRecordingSent(
   ctx: { db: any },

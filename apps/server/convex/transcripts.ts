@@ -49,13 +49,15 @@ import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import {
   addressesAgent,
   agentSpokenNames,
-  formatHuddleDigest,
-  formatHuddleSummaryTag,
   formatTranscriptChunk as formatChunk,
   liveFeedChunkHeader,
   needsFullBrief,
   ownRoomChunkHeader,
 } from "@codecast/shared/contracts";
+import {
+  formatHuddleDigest,
+  formatHuddleSummaryTag,
+} from "@codecast/calls/huddleDigest";
 import {
   FALLBACK_TRANSCRIBE_MODEL,
   LIVE_TRANSCRIBE_MODEL,
@@ -133,9 +135,7 @@ import {
   quietSince,
   withinHuddleGrace,
 } from "./lib/huddleGrace";
-export { HUDDLE_GRACE_MS };
-
-export { asrTranscriptionSession };
+export { HUDDLE_GRACE_MS, asrTranscriptionSession };
 
 // added_by is deliberately NOT accepted from clients: delivery acts AS the
 // route's adder (deliverRoutes), so a client-chosen added_by would let a

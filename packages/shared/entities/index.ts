@@ -18,7 +18,7 @@ import {
   callAnchorHref,
   callFrameHref,
   parseCallMomentParam,
-} from "../contracts/callLinks";
+} from "@codecast/calls/callLinks";
 import {
   CALL_TIME_SOURCE,
   formatCallTime,

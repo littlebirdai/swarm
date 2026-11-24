@@ -6,7 +6,7 @@ import {
   isHuddleSummaryTag,
   parseHuddleDigestContent,
   parseHuddleSummaryTag,
-} from "./huddleDigest";
+} from "../src/huddleDigest";
 
 const digest = {
   title: "Auth rollout",

@@ -13,7 +13,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { callExcerptHref, callLinkHow } from "@codecast/shared/contracts";
+import { callExcerptHref, callLinkHow } from "@codecast/calls/callLinks";
 import { useInboxStore } from "../../store/inboxStore";
 import { SessionFace } from "../identity";
 import { fmtClock } from "../triggerCadence";
