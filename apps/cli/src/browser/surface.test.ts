@@ -146,13 +146,13 @@ const read = (f: string) => fs.readFileSync(path.join(here, f), "utf-8");
 
 /**
  * The engine surface is cliEngine.ts PLUS everything cli.ts registers before
- * the `if (useEngine())` split — those commands (`hosts`, the bridge set) are
+ * the `if (shouldUseEngine())` split — those commands (`hosts`, the bridge set) are
  * shared by both paths, and a text reading of cliEngine.ts alone cannot know
  * that.
  */
 function surfaces(): { builtin: Surface; engine: Surface } {
   const cliSrc = read("cli.ts");
-  const shared = cliSrc.split("if (useEngine())")[0];
+  const shared = cliSrc.split("if (shouldUseEngine())")[0];
   return {
     builtin: readSurface(cliSrc),
     engine: { ...readSurface(shared), ...readSurface(read("cliEngine.ts")) },

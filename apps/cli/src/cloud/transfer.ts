@@ -67,7 +67,7 @@ function git(repo: string, args: string[], operation: string): string {
   );
 }
 
-function withFreshMain<T>(origin: string, use: (repo: string) => T): T {
+function withFreshMain<T>(origin: string, run: (repo: string) => T): T {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "cast-cloud-main-"));
   try {
     git(temp, ["init", "--bare", "-q"], "initialize isolated origin fetch");
@@ -85,7 +85,7 @@ function withFreshMain<T>(origin: string, use: (repo: string) => T): T {
       ],
       "fetch fresh origin/main on laptop",
     );
-    return use(temp);
+    return run(temp);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

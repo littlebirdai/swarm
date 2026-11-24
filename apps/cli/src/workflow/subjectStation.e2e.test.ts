@@ -24,12 +24,12 @@ import {
   sandbox,
   server,
   start,
-  useSandbox,
+  installSandboxHooks,
   world,
   worlds,
 } from "./subjectStation.testkit";
 
-useSandbox();
+installSandboxHooks();
 
 describe("the session is the run's subject", () => {
   test("a failed check comes back to the session, it fixes it, the run freezes again and goes on; it hears the answer and the end", async () => {

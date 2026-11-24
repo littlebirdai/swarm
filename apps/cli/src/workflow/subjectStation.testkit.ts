@@ -1,7 +1,7 @@
 /**
  * Fixtures the subject station's end-to-end tests share (subjectStation.e2e.test.ts): an isolated sandbox, a checkout
  * whose session changed a file, a change graph, a fake server playing the session, and one run. Each test file calls
- * useSandbox() once.
+ * installSandboxHooks() once.
  */
 import { afterAll, beforeAll } from "bun:test";
 import { execFileSync } from "../proc";
@@ -26,7 +26,7 @@ let origFetch: typeof fetch;
 export let origLog: typeof console.log;
 
 /** The isolated HOME and CODECAST_DIR every test runs in, set up once per test file. */
-export function useSandbox(): void {
+export function installSandboxHooks(): void {
   beforeAll(() => {
     sandbox = fs.realpathSync(
       fs.mkdtempSync(path.join(os.tmpdir(), "cast-subject-e2e-")),

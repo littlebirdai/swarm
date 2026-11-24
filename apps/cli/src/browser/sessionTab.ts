@@ -50,7 +50,7 @@ export interface SessionTab {
   focusRef(ref: string): Promise<void>;
 }
 
-/** The driver `cast browser` registered (cli.ts useEngine): the engine when a usable copy is installed. */
+/** The driver `cast browser` registered (cli.ts shouldUseEngine): the engine when a usable copy is installed. */
 const enginePath = () =>
   process.env.CAST_BROWSER_LEGACY !== "1" && engineFitness().ok;
 

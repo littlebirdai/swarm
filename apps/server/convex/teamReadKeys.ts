@@ -48,7 +48,7 @@ const PAGE_READ_BUDGET = 200;
 
 const isLive = (key: Doc<"team_read_keys">, now: number) =>
   !key.revoked_at && key.expires_at > now;
-const useDue = (key: Doc<"team_read_keys">, now: number) =>
+const isUseDue = (key: Doc<"team_read_keys">, now: number) =>
   now - (key.last_used_at ?? 0) >= USE_WINDOW_MS;
 
 async function liveKey(
@@ -212,7 +212,7 @@ export const keyForHash = internalQuery({
       .withIndex("by_key_hash", (q) => q.eq("key_hash", args.key_hash))
       .first();
     const key = await liveKey(ctx, row, now);
-    return key ? { key_id: key._id, use_due: useDue(key, now) } : null;
+    return key ? { key_id: key._id, use_due: isUseDue(key, now) } : null;
   },
 });
 
@@ -226,7 +226,7 @@ export const recordUse = internalMutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const key = await liveKey(ctx, await ctx.db.get(args.key_id), now);
-    if (!key || !useDue(key, now)) return;
+    if (!key || !isUseDue(key, now)) return;
     await ctx.db.patch(key._id, { last_used_at: now });
     await recordAuthorityEvent(ctx, {
       kind: "team_read_key_used",

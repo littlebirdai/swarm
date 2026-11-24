@@ -1,7 +1,7 @@
 /**
  * Fixtures the mirror apply tests share (apply.test.ts, apply.mcp.test.ts):
  * a temp host home per test, a seeded host, laptop bundles, and one apply call.
- * Each test file calls useHostHome() once.
+ * Each test file calls installHostHomeHooks() once.
  */
 import { afterEach, beforeEach } from "bun:test";
 import * as fs from "node:fs";
@@ -278,7 +278,7 @@ export function apply(
 }
 
 /** A fresh host home for every test of the calling file; each file calls it, since bun shares one module between files. */
-export function useHostHome(): void {
+export function installHostHomeHooks(): void {
   beforeEach(() => {
     home = fs.realpathSync(
       fs.mkdtempSync(path.join(os.tmpdir(), "mirror-apply-")),

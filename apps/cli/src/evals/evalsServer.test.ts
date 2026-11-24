@@ -124,7 +124,10 @@ type Auth = { token?: string | null; origin?: string };
  * other tests, so a request or child left over from an earlier test (one that
  * timed out under load, say) can never answer or count in this one.
  */
-async function use(home: string, deps: Partial<EvalsBridgeDeps> = {}) {
+async function startTestBridge(
+  home: string,
+  deps: Partial<EvalsBridgeDeps> = {},
+) {
   const marker = path.join(tmp, `execs-${++rigCount}.log`);
   const bridge = createEvalsBridge({
     evalsHome: () => home,
@@ -205,7 +208,7 @@ afterAll(() => {
 
 describe("/evals envelope", () => {
   test("a missing token or a foreign origin gets 403 and execs nothing", async () => {
-    const { api, execs } = await use(makeHome("auth", goodRoot));
+    const { api, execs } = await startTestBridge(makeHome("auth", goodRoot));
     expect((await api("/evals/health", {}, { token: null })).status).toBe(403);
     expect(
       (await api("/evals/health", {}, { token: "f".repeat(32) })).status,
@@ -225,7 +228,7 @@ describe("/evals envelope", () => {
   });
 
   test("a path outside the contract is 404 and never starts the child", async () => {
-    const { api, execs } = await use(makeHome("routes", goodRoot));
+    const { api, execs } = await startTestBridge(makeHome("routes", goodRoot));
     expect((await api("/evals/nope")).status).toBe(404);
     expect(
       (await api("/evals/health", { method: "POST", body: "{}" })).status,
@@ -234,7 +237,7 @@ describe("/evals envelope", () => {
   });
 
   test("the preflight answers with CORS for an allowed origin", async () => {
-    const { api } = await use(makeHome("preflight", goodRoot));
+    const { api } = await startTestBridge(makeHome("preflight", goodRoot));
     const res = await api("/evals/overview", { method: "OPTIONS" });
     expect(res.status).toBe(204);
     expect(res.headers.get("access-control-allow-origin")).toBe(ORIGIN);
@@ -247,7 +250,7 @@ describe("checkout validation, before any exec", () => {
     reason: string,
     deps: Partial<EvalsBridgeDeps> = {},
   ) => {
-    const { api, execs } = await use(home, deps);
+    const { api, execs } = await startTestBridge(home, deps);
     const res = await api("/evals/health");
     const body = await res.json();
     expect(res.status).toBe(503);
@@ -317,7 +320,7 @@ describe("checkout validation, before any exec", () => {
   });
 
   test("no bun on PATH", async () => {
-    const { api } = await use(makeHome("nobun", goodRoot), {
+    const { api } = await startTestBridge(makeHome("nobun", goodRoot), {
       command: () => ({ cmd: "codecast-test-no-such-bun", args: [] }),
     });
     const res = await api("/evals/health");
@@ -326,7 +329,7 @@ describe("checkout validation, before any exec", () => {
   });
 
   test("CODECAST_EVALS_REPO_ROOT names the checkout in place of checkout.json", async () => {
-    const { api } = await use(makeHome("override", null), {
+    const { api } = await startTestBridge(makeHome("override", null), {
       repoRootOverride: () => goodRoot,
     });
     expect((await api("/evals/health")).status).toBe(200);
@@ -335,7 +338,7 @@ describe("checkout validation, before any exec", () => {
 
 describe("the api child", () => {
   test("starts on demand in the checkout, once, and forwards method, path, query and body", async () => {
-    const { api, execs } = await use(makeHome("happy", goodRoot));
+    const { api, execs } = await startTestBridge(makeHome("happy", goodRoot));
     const first = await (
       await api("/evals/surface/settle?from=2026-09-01&model=x")
     ).json();
@@ -362,7 +365,7 @@ describe("the api child", () => {
   });
 
   test("concurrent first requests start one child", async () => {
-    const { api, execs } = await use(makeHome("burst", goodRoot));
+    const { api, execs } = await startTestBridge(makeHome("burst", goodRoot));
     const bodies = await Promise.all(
       [1, 2, 3, 4].map(async () => (await api("/evals/health")).json()),
     );
@@ -371,14 +374,16 @@ describe("the api child", () => {
   });
 
   test("a POST with a body that is not JSON is 400 before the child", async () => {
-    const { api, execs } = await use(makeHome("badjson", goodRoot));
+    const { api, execs } = await startTestBridge(makeHome("badjson", goodRoot));
     const res = await api("/evals/bisect", { method: "POST", body: "{nope" });
     expect(res.status).toBe(400);
     expect(execs()).toEqual([]);
   });
 
   test("a crashed child answers 502 with its stderr, and the next request restarts it", async () => {
-    const { bridge, api, execs } = await use(makeHome("crash", goodRoot));
+    const { bridge, api, execs } = await startTestBridge(
+      makeHome("crash", goodRoot),
+    );
     const ok = await (await api("/evals/health")).json();
     const res = await api("/evals/overview?crash=1");
     expect(res.status).toBe(502);
@@ -395,9 +400,12 @@ describe("the api child", () => {
   });
 
   test("inside the crash backoff the crash comes back without a fresh exec", async () => {
-    const { api, execs } = await use(makeHome("backoff", goodRoot), {
-      crashBackoffMs: 600_000,
-    });
+    const { api, execs } = await startTestBridge(
+      makeHome("backoff", goodRoot),
+      {
+        crashBackoffMs: 600_000,
+      },
+    );
     expect((await api("/evals/overview?crash=1")).status).toBe(502);
     const res = await api("/evals/health");
     expect(res.status).toBe(502);
@@ -408,7 +416,7 @@ describe("the api child", () => {
   });
 
   test("the child is killed after the idle window, and a later request starts a new one", async () => {
-    const { bridge, api } = await use(makeHome("idle", goodRoot), {
+    const { bridge, api } = await startTestBridge(makeHome("idle", goodRoot), {
       idleMs: 150,
     });
     const { pid } = await (await api("/evals/health")).json();
@@ -420,13 +428,15 @@ describe("the api child", () => {
   });
 
   test("a request in flight holds off the idle kill", async () => {
-    const { api } = await use(makeHome("busy", goodRoot), { idleMs: 100 });
+    const { api } = await startTestBridge(makeHome("busy", goodRoot), {
+      idleMs: 100,
+    });
     const res = await api("/evals/health?slow=400");
     expect(res.status).toBe(200);
   });
 
   test("a child that never answers gets a 504 at the request timeout", async () => {
-    const { api } = await use(makeHome("timeout", goodRoot), {
+    const { api } = await startTestBridge(makeHome("timeout", goodRoot), {
       requestTimeoutMs: 150,
     });
     const res = await api("/evals/health?slow=5000");
@@ -434,7 +444,9 @@ describe("the api child", () => {
   });
 
   test("an answer over the size cap is refused by its id, and the child keeps serving", async () => {
-    const { api } = await use(makeHome("huge", goodRoot), { answerMax: 4096 });
+    const { api } = await startTestBridge(makeHome("huge", goodRoot), {
+      answerMax: 4096,
+    });
     const { pid } = await (await api("/evals/health")).json();
     const res = await api("/evals/commit/abc1234?big=200000");
     expect(res.status).toBe(500);
@@ -443,7 +455,7 @@ describe("the api child", () => {
   });
 
   test("stop ends the child", async () => {
-    const { bridge, api } = await use(makeHome("stop", goodRoot));
+    const { bridge, api } = await startTestBridge(makeHome("stop", goodRoot));
     const { pid } = await (await api("/evals/health")).json();
     bridge.stop();
     expect(await waitFor(() => !alive(pid))).toBe(true);
@@ -454,7 +466,7 @@ describe("a checkout.json that moves under a running child", () => {
   test("concurrent requests all restart once on the new root", async () => {
     const home = makeHome("moved", goodRoot);
     const other = makeCheckout("other");
-    const { api, execs } = await use(home);
+    const { api, execs } = await startTestBridge(home);
     const first = await (await api("/evals/health")).json();
     expect(first.cwd).toBe(goodRoot);
     pointAt(home, other);
@@ -471,7 +483,7 @@ describe("a checkout.json that moves under a running child", () => {
 
   test("a pointer to a checkout that cannot serve keeps the running child", async () => {
     const home = makeHome("stale-live", goodRoot);
-    const { api, execs } = await use(home);
+    const { api, execs } = await startTestBridge(home);
     const first = await (await api("/evals/health")).json();
     pointAt(home, makeCheckout("old-live", { api: false }));
     const next = await api("/evals/health");
@@ -490,7 +502,7 @@ describe("a checkout.json that moves under a running child", () => {
       PATH: agentSpawnPath(path.dirname(process.execPath)),
       FAKE_MARKER: path.join(tmp, "execs-memo.log"),
     };
-    const { api } = await use(home, {
+    const { api } = await startTestBridge(home, {
       log: (m) => logs.push(m),
       env: () => {
         envs++;
@@ -513,7 +525,7 @@ describe("a checkout.json that moves under a running child", () => {
 
   test("with no child running, such a pointer falls back to the last checkout that served", async () => {
     const home = makeHome("stale-idle", goodRoot);
-    const { bridge, api, execs } = await use(home);
+    const { bridge, api, execs } = await startTestBridge(home);
     const first = await (await api("/evals/health")).json();
     bridge.stop();
     expect(await waitFor(() => !alive(first.pid))).toBe(true);
@@ -540,7 +552,7 @@ describe("a checkout.json that moves under a running child", () => {
     const wt = path.join(tmp, "wt-line");
     git(main, "worktree", "add", "-q", wt);
     const home = makeHome("wt", fs.realpathSync(wt));
-    const { bridge, api } = await use(home);
+    const { bridge, api } = await startTestBridge(home);
     const first = await (await api("/evals/health")).json();
     expect(first.cwd).toBe(fs.realpathSync(wt));
     fs.rmSync(wt, { recursive: true, force: true });
@@ -553,7 +565,7 @@ describe("a checkout.json that moves under a running child", () => {
 
   test("a child whose own checkout is gone, with nothing to fall back to, is ended rather than left running", async () => {
     const lone = makeCheckout("lone");
-    const { bridge, api } = await use(makeHome("lone", lone));
+    const { bridge, api } = await startTestBridge(makeHome("lone", lone));
     const first = await (await api("/evals/health")).json();
     fs.rmSync(lone, { recursive: true, force: true });
     const next = await api("/evals/health");
@@ -566,7 +578,7 @@ describe("a checkout.json that moves under a running child", () => {
   test("a child that ends while the pointer is read is replaced, not dereferenced", async () => {
     let bridge!: EvalsBridge;
     let endMidRead = false;
-    ({ bridge } = await use(makeHome("midread", null), {
+    ({ bridge } = await startTestBridge(makeHome("midread", null), {
       repoRootOverride: () => {
         if (endMidRead) {
           endMidRead = false;
@@ -596,7 +608,7 @@ describe("a checkout.json that moves under a running child", () => {
 
 describe("the handler never blocks", () => {
   test("a fast request overtakes a slow one, and the loop keeps turning", async () => {
-    const { api } = await use(makeHome("async", goodRoot));
+    const { api } = await startTestBridge(makeHome("async", goodRoot));
     await api("/evals/health");
     const order: string[] = [];
     const slow = api("/evals/health?slow=2000").then(() => order.push("slow"));

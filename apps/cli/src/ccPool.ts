@@ -33,7 +33,7 @@ import {
   readLaunchRecord,
   removeAccountToken,
   storeCredentialFile,
-  useFileStore,
+  shouldUseFileStore,
   writeAccountToken,
   writeProfileIndex,
 } from "./ccAccounts.js";
@@ -170,7 +170,7 @@ export async function vacateFleetStore(
   const state = await moveFleetToFallback(name, now);
   if (state) return `moved the ${describeFleetWrite(state)}`;
   const dir = fleetStoreDir();
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     try {
       fs.rmSync(storeCredentialFile(dir), { force: true });
     } catch {}

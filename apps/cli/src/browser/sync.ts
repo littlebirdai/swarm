@@ -7,7 +7,7 @@
  * daemon (cloud.requestBrowserSync -> the `cloud_browser_sync` command) to
  * carry the login through an SSH port forward into this host's Chrome, then
  * polls for the outcome. Either side may be on either driver (a host runs
- * the built-in one until the engine is installed there, cli.ts useEngine),
+ * the built-in one until the engine is installed there, cli.ts shouldUseEngine),
  * which is why the body lives here and each driver registers the verb with
  * its own ensure-browser.
  *

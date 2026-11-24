@@ -117,7 +117,7 @@ export function assertValidProfileName(name: string): void {
   }
 }
 
-export function useFileStore(): boolean {
+export function shouldUseFileStore(): boolean {
   return (
     process.platform !== "darwin" || process.env.CC_ACCOUNTS_FORCE_FILE === "1"
   );
@@ -284,12 +284,12 @@ export function readActiveCredential(): string | null {
   // hit the SAME place. Without this the file-store gate (non-darwin, or
   // CC_ACCOUNTS_FORCE_FILE) would write the file while reads still probed the
   // keychain — the source of the sandbox reading the machine's real login.
-  return useFileStore() ? readCredentialFile() : readLocalCredential();
+  return shouldUseFileStore() ? readCredentialFile() : readLocalCredential();
 }
 
 /** The same read for the daemon's timers, with the keychain call off the loop. */
 export async function readActiveCredentialAsync(): Promise<string | null> {
-  return useFileStore()
+  return shouldUseFileStore()
     ? readCredentialFileAsync()
     : readLocalCredentialAsync();
 }
@@ -312,7 +312,7 @@ function keychainAcct(item: CcKeychainItem): string {
 }
 
 export function writeActiveCredential(credentialJson: string): void {
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     // 0600 is stated, not defaulted: the shared helper keeps whatever mode the
     // file already has, so an existing world-readable credential file would
     // stay world-readable. This is an OAuth token — narrow it on every write.
@@ -354,7 +354,7 @@ export function writeActiveCredential(credentialJson: string): void {
  * something else rewrote. Returns true when a job was submitted.
  */
 export function adoptPushedCredential(now = Date.now()): boolean {
-  if (!isRemoteDevice() || useFileStore()) return false;
+  if (!isRemoteDevice() || shouldUseFileStore()) return false;
   const file = readCredentialFile()?.trim() ?? null;
   if (!file || !credentialHealth(file).pushable) return false;
   return submitAdoptJob(
@@ -456,7 +456,7 @@ export function patchOauthAccount(oauthAccount: Record<string, any>): void {
 /** The snapshot item alone. Readers want readProfileSecret, which also
  *  consults the profile's store (a session may have rotated the grant). */
 function readProfileSecretRaw(name: string): string | null {
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     const f = profileSecretFile(name);
     if (!fs.existsSync(f)) return null;
     return fs.readFileSync(f, "utf-8");
@@ -485,7 +485,7 @@ async function readProfileSecretRawAsync(
   name: string,
   strict = false,
 ): Promise<string | null> {
-  if (useFileStore())
+  if (shouldUseFileStore())
     return fs.promises
       .readFile(profileSecretFile(name), "utf-8")
       .catch((error) => credentialReadFailed(error, strict));
@@ -528,7 +528,7 @@ function profileSecretFile(name: string): string {
 }
 
 function deleteProfileSecret(name: string): void {
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     fs.rmSync(profileSecretFile(name), { force: true });
   } else {
     try {
@@ -547,7 +547,7 @@ function deleteProfileSecret(name: string): void {
 /** Every profile write lands in the snapshot AND the profile's store, so a
  *  session launched on the store always starts from the freshest pair. */
 function writeProfileSecret(name: string, content: string): void {
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     // Same reason as writeActiveCredential: a saved profile holds the same
     // token, so the mode is stated rather than inherited from the old file.
     atomicWriteFile(profileSecretFile(name), content, { mode: 0o600 });
@@ -1209,7 +1209,7 @@ export function readProfileStoreCredentials(name: string): string | null {
   } catch {
     return null;
   }
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     try {
       return fs.readFileSync(storeCredentialFile(dir), "utf-8");
     } catch {
@@ -1240,7 +1240,7 @@ export async function readProfileStoreCredentialsAsync(
   } catch {
     return null;
   }
-  if (useFileStore())
+  if (shouldUseFileStore())
     return fs.promises
       .readFile(storeCredentialFile(dir), "utf-8")
       .catch((error) => credentialReadFailed(error, strict));
@@ -1264,7 +1264,7 @@ export function writeProfileStoreCredentials(
 ): string {
   const dir = profileStoreDir(name);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     atomicWriteFile(storeCredentialFile(dir), credentialJson, { mode: 0o600 });
   } else {
     execFileSync("security", [
@@ -1311,7 +1311,7 @@ export async function writeProfileStoreCredentialsAsync(
 ): Promise<string> {
   const dir = profileStoreDir(name);
   await fs.promises.mkdir(dir, { recursive: true, mode: 0o700 });
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     atomicWriteFile(storeCredentialFile(dir), credentialJson, { mode: 0o600 });
   } else {
     const { stdout: username } = await execFileAsync("/usr/bin/id", ["-un"], {
@@ -1349,7 +1349,7 @@ export function deleteProfileStore(name: string): boolean {
   }
   const existed =
     fs.existsSync(dir) || fs.existsSync(accountLaunchFilePath(name));
-  if (!useFileStore()) {
+  if (!shouldUseFileStore()) {
     try {
       execFileSync(
         "security",
@@ -1377,7 +1377,7 @@ export async function deleteProfileStoreAsync(name: string): Promise<boolean> {
       () => true,
       () => false,
     ));
-  if (!useFileStore()) {
+  if (!shouldUseFileStore()) {
     await execFileAsync(
       "/usr/bin/security",
       ["delete-generic-password", "-s", profileStoreKeychainService(dir)],
@@ -2014,7 +2014,7 @@ async function fleetLoginFor(
 
 async function readFleetStoreBlob(): Promise<string | null> {
   const dir = fleetStoreDir();
-  if (useFileStore())
+  if (shouldUseFileStore())
     return fs.promises
       .readFile(storeCredentialFile(dir), "utf-8")
       .catch(() => null);
@@ -2036,7 +2036,7 @@ export function readFleetCredential(now = Date.now()): string | null {
   if (!fleetStoreReady(now)) return null;
   const dir = fleetStoreDir();
   try {
-    if (useFileStore())
+    if (shouldUseFileStore())
       return fs.readFileSync(storeCredentialFile(dir), "utf-8") || null;
     return (
       execFileSync(
@@ -2059,7 +2059,7 @@ export async function readFleetCredentialAsync(
 async function writeFleetStoreBlob(blob: string): Promise<void> {
   const dir = fleetStoreDir();
   await fs.promises.mkdir(dir, { recursive: true, mode: 0o700 });
-  if (useFileStore()) {
+  if (shouldUseFileStore()) {
     atomicWriteFile(storeCredentialFile(dir), blob, { mode: 0o600 });
   } else {
     await execFileAsync(
@@ -2677,7 +2677,7 @@ export interface SwitchResult {
   keptLive?: boolean;
 }
 
-export function useProfile(name: string): SwitchResult {
+export function activateProfile(name: string): SwitchResult {
   assertValidProfileName(name);
   const raw = readProfileSecret(name);
   if (!raw) {
@@ -2775,7 +2775,7 @@ export function switchModeFor(
 }
 
 /** Switch this machine's fleet to a saved profile: through the keychain when
- *  its login is usable (useProfile), else onto its minted setup-token (the
+ *  its login is usable (activateProfile), else onto its minted setup-token (the
  *  launch record; the keychain login stays put). Throws with the fix in hand
  *  when the profile can carry nothing. */
 export function switchProfile(
@@ -2784,7 +2784,7 @@ export function switchProfile(
 ): SwitchResult & { mode: SwitchMode } {
   const mode = switchModeFor(name, now);
   if (mode === "keychain") {
-    const result = useProfile(name);
+    const result = activateProfile(name);
     clearLaunchProfile();
     return { ...result, mode };
   }
@@ -2798,8 +2798,8 @@ export function switchProfile(
     );
     return { from: null, to: name, toEmail: meta.email, mode };
   }
-  // Neither: let useProfile name the exact reason (no profile, unusable login).
-  useProfile(name);
+  // Neither: let activateProfile name the exact reason (no profile, unusable login).
+  activateProfile(name);
   throw new CcAccountError(
     `Profile "${name}" has no usable login and no live setup-token`,
   );

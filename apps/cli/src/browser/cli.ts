@@ -315,7 +315,7 @@ function pageLine(url: string, title: string): string {
  * uninstalling anything, and as the honest answer for a machine that cannot
  * install it at all.
  */
-function useEngine(): boolean {
+function shouldUseEngine(): boolean {
   if (process.env.CAST_BROWSER_LEGACY === "1") return false;
   const fit = engineFitness();
   if (fit.ok) return true;
@@ -441,7 +441,7 @@ export function registerBrowserCommand(
   // the same verb cannot both be registered and a per-call decision would make
   // the help text lie about what is going to run.
 
-  if (useEngine()) {
+  if (shouldUseEngine()) {
     registerEngineCommands(br, deps);
     return;
   }

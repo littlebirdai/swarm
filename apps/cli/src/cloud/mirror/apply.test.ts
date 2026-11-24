@@ -51,10 +51,10 @@ import {
   seedHost,
   source,
   write,
-  useHostHome,
+  installHostHomeHooks,
 } from "./apply.testkit";
 
-useHostHome();
+installHostHomeHooks();
 
 test("a clean legacy hook file acquires field ownership before stale hooks are removed", async () => {
   const entry: BundleInput = {

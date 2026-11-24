@@ -1,5 +1,5 @@
 // The open hook end to end against a stand-in Chrome (Storage, Target, Fetch,
-// Page and Runtime as useVaultSignin drives them) and a stand-in backend.
+// Page and Runtime as applyVaultSignin drives them) and a stand-in backend.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -12,7 +12,7 @@ import type {
 } from "@codecast/shared/contracts/secrets";
 import {
   bridgeBrowserConn,
-  useVaultSignin,
+  applyVaultSignin,
   type BrowserConn,
 } from "./signinBrowser";
 import {
@@ -163,7 +163,7 @@ function run(
   lines: string[] = [],
   conversation = "jx7abc",
 ) {
-  return useVaultSignin(url, {
+  return applyVaultSignin(url, {
     port: 9222,
     endpoint: () => ({ siteUrl: "https://backend.test", apiToken: "tok" }),
     conversation: () => conversation,
