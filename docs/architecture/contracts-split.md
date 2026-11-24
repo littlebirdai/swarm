@@ -1,6 +1,6 @@
 # Split `contracts` and the shared core into packages
 
-Status: adopted, and in progress. The section "Progress" gives the state of each package.
+Status: complete on the stacked implementation branches. The section "Progress" records the pull requests and the remaining branches.
 
 This document records the plan to move the former shared package into small domain packages. Paths under `shared/` in the original measurements refer to that former package.
 
@@ -23,23 +23,35 @@ The numbers show the size of each move. They do not show the current state of `m
 
 ## Progress
 
-This table shows the state on 2026-11-24, at `main` commit `fbb596aec`.
+The table records how the extraction reached completion.
 
-| Stage | Package or part                                                            | State          |
-| ----- | -------------------------------------------------------------------------- | -------------- |
-| 1     | `hash`, the test split, the deletion of the root barrel                    | Merged, PR #55 |
-| 2     | `pull-requests`, `convex-errors`, `keyboard`, `network`, `ratchet`, `ship` | Merged, PR #56 |
-| 2     | `capabilities`, `policy`                                                   | Merged, PR #57 |
-| 2     | `browser`, `pages`, `provider-keys`, `daemon`, `evals-api`                 | Merged, PR #58 |
-| 2     | `cloud-hosts`, `flows`                                                     | Merged, PR #59 |
-| 2     | the first part of `calls`                                                  | Merged, PR #60 |
-| 2     | `render`, the first part of `triggers`, the first part of `decisions`      | Merged, PR #61 |
-| 2     | the first part of `agent-clients`, `changes`, `signals`                    | Merged, PR #63 |
-| 2     | the first part of `sessions`                                               | Merged, PR #64 |
-| 2     | `fence`, the first part of `org`                                           | Not started    |
-| 3 - 9 | all parts                                                                  | Not started    |
-
-Several small parts of one stage can merge in one PR, with one commit for each package.
+| Package or change                                                          | State          |
+| -------------------------------------------------------------------------- | -------------- |
+| Plan and measurement scripts                                               | Merged, PR #54 |
+| Hash functions, test split, and root barrel removal                        | Merged, PR #55 |
+| `pull-requests`, `convex-errors`, `keyboard`, `network`, `ratchet`, `ship` | Merged, PR #56 |
+| `capabilities`, `policy`                                                   | Merged, PR #57 |
+| `browser`, `pages`, `provider-keys`, `daemon`, `evals-api`                 | Merged, PR #58 |
+| `cloud-hosts`, `flows`                                                     | Merged, PR #59 |
+| `calls` (first part)                                                       | Merged, PR #60 |
+| `render`, `triggers` (first part), `decisions` (first part)                | Merged, PR #61 |
+| Root barrel documentation                                                  | Merged, PR #62 |
+| `agent-clients` (first part), `changes`, `signals`                         | Merged, PR #63 |
+| `sessions` (first part)                                                    | Merged, PR #64 |
+| `fence`, `org` (first part)                                                | Open, PR #74   |
+| `machines`, `mods`, `search`, `sessions` (second part)                     | Open, PR #75   |
+| `org` (second part), `projects`, `deploys`                                 | Open, PR #76   |
+| `agent-clients` (second part)                                              | Open, PR #77   |
+| `agent-clients` (third part), `agents`, `hosted-assistant`, `usage`        | Open, PR #78   |
+| `replay`, `calls` (second part), `entities`, `ingest`                      | Open, PR #79   |
+| `connectors`, `goals`                                                      | Branch         |
+| `org` (third part), `org-templates`                                        | Branch         |
+| `messages`, `snippets`                                                     | Branch         |
+| `inbox`, `secrets`, `triggers` (second part), `decisions` (second part)    | Branch         |
+| `tasks`, `calls` (last part), `agent-clients` (last part)                  | Branch         |
+| `judges`, `vault`, `line` (first part)                                     | Branch         |
+| `line` (second part)                                                       | Branch         |
+| Contracts barrel and shared package removal                                | Branch         |
 
 ## Scripts
 
@@ -230,7 +242,7 @@ A folder barrel is the `index.ts` of a folder that re-exports the modules of tha
 
 ## 2. Target packages
 
-Each package depends only on other packages in this list, or on packages that existed before the plan (`@codecast/chat`, `@codecast/team`, `@platform/*`). **No package in the list depends on `@codecast/shared`.** On `main` today, the apps depend on it. The packages `agents`, `artifacts`, `blame`, `comments`, `mods` and `vault` also depend on it.
+Each package depends only on other packages in this list, or on packages that existed before the plan (`@codecast/chat`, `@codecast/team`, `@platform/*`). **No package in the list depends on the former shared package.** At the measured commit, the apps and several workspace libraries still depended on it.
 
 How to read the table:
 
@@ -627,7 +639,7 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
   | ------------ | --- | --- | --- | --- | --- | --- | --------------------- | --- |
   | Modules left | 50  | 30  | 25  | 17  | 17  | 12  | 1 (`decisionAnswers`) | 0   |
 
-  In stage 9, the second part of `decisions` removes the last module from the barrel. That part also deletes `contracts/index.ts` and the `./contracts` export.
+  In stage 9, the second part of `decisions` removes the last module from the barrel. The cleanup branch deletes `contracts/index.ts` and the `./contracts` export.
 
   The number of barrel modules in each target package is as follows. sessions 17, agent-clients 14, calls 10, daemon 5, inbox 5, cloud-hosts 5, machines 5, pages 5, capabilities 5, snippets 4, messages 4, provider-keys 3, policy 3, triggers 3, browser 2, vault 2, connectors 2. Eleven more packages have 1 each.
 
@@ -637,7 +649,7 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
   - The two calls in `apps/cli/src/index.ts` change in the first part of `agent-clients` (stage 2, `claudeBackend`) and in the second part of `sessions` (stage 3, `sessionAsk`).
   - After stage 4, the daemon does not load the barrel when it runs.
 - **Folder barrels** (`tasks/index`, `render/index`, `replay/index`, `search/index`, `changes/index`) become the `"."` export of their package. The move still rewrites each importer to the subpath of the module that defines its names. The exception is the names that `tasks/index.ts` defines (418 lines of code). These names stay at `@codecast/tasks`. This rewrite adds no work, because the move changes each of these lines.
-- **At the end**, `shared` has only `devShutdown.test.ts` and `package.json`. First, move `devShutdown.test.ts` next to the dev script that it tests. Then delete the package, and the `"@codecast/shared"` lines in each manifest: `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and `packages/comments`, `blame`, `artifacts`, `mods`, `vault`, `agents`.
+- **Final removal.** The repository moves `devShutdown.test.ts` to `scripts/ci/`, deletes the empty contracts barrel and the shared package, and removes the old workspace dependency.
 
 ## 5. Risks
 
@@ -685,14 +697,6 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
 
 - Make these files again with their tools (`bun install`, `bun run lint:prune`, `RATCHET_WRITE=prune bun test` in `packages/ratchet`). Do not merge them by hand.
 - Rebase each PR onto the last merge. Do not stack PRs.
-
-**Imports in older packages that wait for a move.**
-
-- `packages/agents/src/index.ts` imports from the `contracts` barrel. The moves of `agent-clients` and `agents` rewrite it.
-- `packages/comments/src/reviewBatch.ts` imports `@codecast/fence/fence`.
-- `packages/artifacts`, `packages/blame` and `packages/vault` import `@codecast/shared/entities`. The `entities` move rewrites them.
-- `packages/vault` also imports `@codecast/shared/contracts/vaultProtocol` and `@codecast/shared/search/tokenize`. The `vault` and `search` moves rewrite them.
-- `packages/mods` imports `@codecast/shared/contracts/mods` in `src/inspect.ts`, `src/sdk.ts` and two tests. The `mods` move rewrites them.
 
 **Names that the plan does not use.**
 
