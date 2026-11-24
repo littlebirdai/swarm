@@ -189,6 +189,7 @@ export async function sweepScratchTrees(
 const STEP_READ_MS = 500;
 const STEP_TRACK_MS = 1_000;
 const STEP_STOP_POLL_MS = 250;
+const START_TIME_ERROR_MS = 1_000;
 
 type Step = {
   child: ChildProcess;
@@ -280,7 +281,10 @@ function readStep(
         step.signalled.has(key) ||
         !bornBeforeCaptureSecond(row) ||
         (!step.known.get(row.pid)?.beforeStop &&
-          !bornBeforeCaptureSecond({ ...row, capturedAtMs: stopAt }))
+          !bornBeforeCaptureSecond({
+            ...row,
+            capturedAtMs: stopAt - START_TIME_ERROR_MS,
+          }))
       )
         continue;
       step.signalled.add(key);

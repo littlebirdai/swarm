@@ -266,6 +266,7 @@ if (!existsSync("stopped")) {
   console.log("700000000", group, "700000000 0 ? Wed Jan 1 00:00:02 2020 same-second");
   console.log("700000001", group, "700000001 0 ? Wed Jan 1 00:00:03 2020 later");
   console.log("700000002", group, "700000002 0 ? Wed Jan 1 00:00:00 2020 earlier");
+  console.log("700000004", group, "700000004 0 ? Wed Jan 1 00:00:01 2020 previous-second");
   console.log("700000003", group, group, "0 ? Wed Jan 1 00:00:00 2020 group-member");
 } else {
   console.log("1 0 1 0 ? Wed Jan 1 00:00:00 2020 init");
@@ -280,7 +281,7 @@ Date.now = () => start + (existsSync("stopped") ? 4_000 + Math.floor(performance
 writeFileSync("parent", String(process.pid));
 process.kill = (pid, signal) => {
   if (pid < 0 && signal === "SIGTERM") writeFileSync("stopped", "");
-  if (pid >= 700000000 && pid <= 700000003) {
+  if (pid >= 700000000 && pid <= 700000004) {
     signals.push(pid);
     return true;
   }
