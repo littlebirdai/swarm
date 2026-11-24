@@ -1,4 +1,4 @@
-import { MIN_LINE_MATCH_LEN } from "../blame";
+import { MIN_LINE_MATCH_LEN } from "@codecast/shared/blame";
 
 // A comment on prose (a block of an assistant message, a paragraph or bullet of
 // a doc or plan) is written against one version of the text, and the text

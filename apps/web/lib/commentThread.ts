@@ -6,7 +6,7 @@
 // teammate (or the agent) chats in.
 
 import { agentDisplayName } from "@codecast/shared/contracts";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 
 // The server's thread identity (thread_reads root keys) and the one normalizer
 // from its anchor key to this file's thread key, shared with the Threads page.
@@ -15,7 +15,7 @@ export {
   commentThreadRootKey,
   parseCommentThreadRootKey,
   webThreadKeyFromAnchor,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 export type CommentUser = {
   _id?: string;

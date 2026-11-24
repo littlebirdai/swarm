@@ -18,7 +18,7 @@ import {
 
 // The phone reads a check's outcome from here, as it always has; the rule lives in shared/contracts/prRefs.
 export { checkOutcome, type CheckOutcome };
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 import {
   diffLineKey,
   normalizeDiffSide,

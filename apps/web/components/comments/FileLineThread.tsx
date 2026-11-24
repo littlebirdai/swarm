@@ -11,7 +11,7 @@ import {
 } from "../../lib/commentThread";
 import { CommentThread } from "./CommentThread";
 import { AnchorPlacementNote } from "./AnchorPlacementNote";
-import type { AnchorPlacement } from "@codecast/shared/comments";
+import type { AnchorPlacement } from "@codecast/comments";
 
 // A durable code-anchored comment thread, rendered inline under its diff line.
 // These are real `comments` rows (file_path + line_number anchor) — visible to

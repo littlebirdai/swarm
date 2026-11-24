@@ -14,6 +14,7 @@
     "@codecast/analytics": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/chat": "workspace:*",
+    "@codecast/comments": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/policy": "workspace:*",

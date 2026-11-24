@@ -7,7 +7,7 @@
 // comments the diff reads; the rail only arranges them.
 import { useMemo, useState } from "react";
 import { CheckCircle2, FileCode2, MessageSquare } from "lucide-react";
-import { codeThreadRootKey } from "@codecast/shared/comments";
+import { codeThreadRootKey } from "@codecast/comments";
 import { PRComposer, PRLineThread } from "../pr/PRThread";
 import type { LineComments } from "../../hooks/useLineComments";
 import {

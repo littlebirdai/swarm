@@ -3,7 +3,7 @@ import {
   buildReviewBatchPrompt,
   formatReviewNote,
   reviewNoteLocation,
-} from "./reviewBatch";
+} from "../src/reviewBatch";
 
 /** The fence carries a per-call nonce, so a golden has to normalise it. */
 function stable(text: string): string {

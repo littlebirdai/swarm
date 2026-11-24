@@ -50,7 +50,7 @@ import {
   crawlWatermarkScope,
 } from "../hooks/syncMetaKeys";
 import type { SharedObjectKind } from "@codecast/shared/entities";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 import type { GraphRefStatus, TaskWait } from "@codecast/shared/tasks";
 import {
   derivePlanState,

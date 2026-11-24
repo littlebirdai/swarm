@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { placeRelocatedThreads, placeSidedThreads } from "./DiffView";
-import { captureAnchor } from "@codecast/shared/comments";
+import { captureAnchor } from "@codecast/comments";
 
 describe("placeRelocatedThreads", () => {
   const ctx = (oldNum: number, newNum: number, content = "x") => ({

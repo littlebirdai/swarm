@@ -14,7 +14,7 @@ import {
   FOREIGN_TEXT_CAPS,
   fenceForeignText,
   inlineForeignText,
-} from "../contracts/fence";
+} from "@codecast/shared/contracts/fence";
 
 export type ReviewNoteLike = {
   file_path: string;

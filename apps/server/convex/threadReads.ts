@@ -15,7 +15,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { isSilentAgentRow } from "@codecast/chat";
-import { commentThreadRootKey } from "@codecast/shared/comments";
+import { commentThreadRootKey } from "@codecast/comments";
 import { isHumanOrigin } from "@codecast/shared/tasks";
 
 export type ThreadKind =

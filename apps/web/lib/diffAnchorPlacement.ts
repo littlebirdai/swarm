@@ -11,7 +11,7 @@ import {
   placeAnchor,
   type AnchorPlacement,
   type CodeAnchorText,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 type DiffRow = {
   type: string;

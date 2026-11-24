@@ -16,7 +16,7 @@ import {
   type CodeCommentRow,
 } from "../lib/prView";
 import { diffLineKey, type DiffLineAnchor } from "../lib/patchParser";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 
 const api = _api as any;
 

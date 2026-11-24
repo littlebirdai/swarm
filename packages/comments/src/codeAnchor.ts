@@ -1,4 +1,4 @@
-import { MIN_LINE_MATCH_LEN } from "../blame";
+import { MIN_LINE_MATCH_LEN } from "@codecast/shared/blame";
 
 // A comment on a line of code is stored at a file and line, but a line number
 // only means something in the version of the file it was read from. Once the

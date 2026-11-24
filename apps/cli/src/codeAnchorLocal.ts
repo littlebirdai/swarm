@@ -13,7 +13,7 @@ import {
   placeAnchor,
   type AnchorPlacement,
   type CodeAnchorText,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 const LARGEST_FILE = 4 * 1024 * 1024;
 

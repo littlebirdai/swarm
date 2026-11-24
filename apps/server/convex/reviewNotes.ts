@@ -36,7 +36,7 @@ import {
   deliveredOutcome,
   type ReviewVerdict,
   type SendOutcome,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { sessionWaiting } from "./lib/sendOutcome";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
 

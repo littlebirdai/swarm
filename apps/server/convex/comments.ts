@@ -1,7 +1,7 @@
 import { mutation, query, internalMutation } from "./functions";
 import { v } from "convex/values";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
-import type { CodeAnchorText } from "@codecast/shared/comments";
+import type { CodeAnchorText } from "@codecast/comments";
 import { pullRequestsLinkedToConversation } from "./lib/prSessions";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { type Doc, Id } from "./_generated/dataModel";
@@ -15,10 +15,7 @@ import {
 import { canAccessConversation, canAccessPullRequest } from "./lib/access";
 import { requireUser } from "./lib/auth";
 import { hasMentionReadGrant, isConversationOwner } from "./privacy";
-import {
-  commentAnchorKey,
-  commentThreadRootKey,
-} from "@codecast/shared/comments";
+import { commentAnchorKey, commentThreadRootKey } from "@codecast/comments";
 import { touchThread } from "./threadReads";
 import {
   echoedCommandIdsForView,

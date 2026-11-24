@@ -38,7 +38,7 @@ import {
 import { webBaseUrl } from "./lib/slackOAuth";
 import { touchThread } from "./threadReads";
 import type { MutationCtx } from "./_generated/server";
-import { codeThreadRootKey } from "@codecast/shared/comments";
+import { codeThreadRootKey } from "@codecast/comments";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
 import { isQuoteRow } from "./lib/quoteRows";
 import {

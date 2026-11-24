@@ -11221,7 +11221,7 @@ export default defineSchema(
       ),
       // chat: root chat_messages id. comment: `${conversation_id}:${anchorKey}`
       // where anchorKey is `msg:<message_id>` | `file:<path>:<line>` | `global`
-      // (commentAnchorKey in @codecast/shared/comments). task: task id.
+      // (commentAnchorKey in @codecast/comments). task: task id.
       // page: artifact id (one card per page discussion). code:
       // `${repository}@${ref}#${anchorKey}` (codeThreadRootKey), one thread of
       // review_comments on a commit, a pull request head or a line of either.

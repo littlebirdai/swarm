@@ -28603,6 +28603,33 @@
   "packages/chat/test/timeline.test.ts": {
     "swarm/no-comments": 21
   },
+  "packages/comments/src/anchorKey.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/comments/src/codeAnchor.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/comments/src/proseAnchor.ts": {
+    "swarm/no-comments": 32
+  },
+  "packages/comments/src/reviewBatch.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/comments/src/sendOutcome.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/comments/test/anchorKey.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/comments/test/codeAnchor.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/comments/test/reviewBatch.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/comments/test/sendOutcome.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -28899,33 +28926,6 @@
   },
   "packages/shared/changes/week.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/comments/anchorKey.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/comments/anchorKey.ts": {
-    "swarm/no-comments": 19
-  },
-  "packages/shared/comments/codeAnchor.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/comments/codeAnchor.ts": {
-    "swarm/no-comments": 19
-  },
-  "packages/shared/comments/proseAnchor.ts": {
-    "swarm/no-comments": 32
-  },
-  "packages/shared/comments/reviewBatch.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/comments/reviewBatch.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/comments/sendOutcome.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/comments/sendOutcome.ts": {
-    "swarm/no-comments": 12
   },
   "packages/shared/contracts/__fixtures__/capabilityResolverGolden.ts": {
     "swarm/no-comments": 17

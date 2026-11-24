@@ -3,7 +3,7 @@ import {
   type AnchorPlacement,
   type CodeAnchorText,
   type ProsePlacement,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 
 // What a line thread says when the code under it moved on
 // (shared/comments/codeAnchor.ts). A moved thread names the line it was

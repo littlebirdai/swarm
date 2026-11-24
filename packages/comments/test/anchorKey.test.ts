@@ -7,7 +7,7 @@ import {
   commentThreadRootKey,
   parseCommentThreadRootKey,
   webThreadKeyFromAnchor,
-} from "./anchorKey";
+} from "../src/anchorKey";
 
 describe("comment anchor keys", () => {
   test("one key per anchor kind", () => {

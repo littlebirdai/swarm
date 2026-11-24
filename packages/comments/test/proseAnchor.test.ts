@@ -6,7 +6,7 @@ import {
   proseSimilarity,
   resolveProseAnchor,
   type ProseAnchor,
-} from "./proseAnchor";
+} from "../src/proseAnchor";
 
 const DOC = [
   "# Rollout plan",

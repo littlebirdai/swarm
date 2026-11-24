@@ -37,7 +37,7 @@ import {
   placementLabel,
   type AnchorPlacement,
   type CodeAnchorText,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import {
   captureLocalAnchor,
   placeComments,

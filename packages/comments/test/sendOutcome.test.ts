@@ -4,7 +4,7 @@ import {
   describeSendOutcome,
   failedOutcome,
   outcomeDelivered,
-} from "./sendOutcome";
+} from "../src/sendOutcome";
 
 describe("deliveredOutcome", () => {
   test("an idle session reads it now: sent", () => {

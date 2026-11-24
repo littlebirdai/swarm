@@ -15,7 +15,7 @@ import {
   codeThreadRootKey,
   placeAnchor,
   type AnchorPlacement,
-} from "@codecast/shared/comments";
+} from "@codecast/comments";
 import { useRepoLocation } from "./useRepoFamily";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 import { PRLineThread } from "../pr/PRThread";

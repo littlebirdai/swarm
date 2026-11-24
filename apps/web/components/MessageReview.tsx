@@ -28,10 +28,7 @@ import { useInboxStore } from "../store/inboxStore";
 import type { PendingComment, ReviewVerdict } from "../lib/quoteFormat";
 import { VerdictLabel } from "./ReviewVerdictLabel";
 import { ProsePlacementChip } from "./comments/AnchorPlacementNote";
-import {
-  resolveProseAnchor,
-  type ProsePlacement,
-} from "@codecast/shared/comments";
+import { resolveProseAnchor, type ProsePlacement } from "@codecast/comments";
 import { AvatarImg } from "../lib/avatarCache";
 import { getQuoteUnits, quoteUnitAt, unitTop } from "../lib/quoteUnits";
 import {

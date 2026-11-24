@@ -5,7 +5,7 @@ import {
   HEARTBEAT_ALIVE_MS,
   MID_TURN_AGENT_STATUSES,
 } from "@codecast/shared/contracts";
-import type { SendWaiting } from "@codecast/shared/comments";
+import type { SendWaiting } from "@codecast/comments";
 import type { Id } from "../_generated/dataModel";
 
 /**

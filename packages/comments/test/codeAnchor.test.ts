@@ -5,7 +5,7 @@ import {
   placeAnchor,
   placementLabel,
   relocateAnchor,
-} from "./codeAnchor";
+} from "../src/codeAnchor";
 
 const FILE = [
   "import { run } from './run';",

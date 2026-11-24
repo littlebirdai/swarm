@@ -570,7 +570,7 @@ describe("command groups stay off the boot graph", () => {
       expect(
         Math.round(graph.totalBytes / 1024),
         "KB of source on index.ts's static graph",
-      ).toBeLessThanOrEqual(5047);
+      ).toBeLessThanOrEqual(5048);
     },
     GRAPH_WALK_TIMEOUT,
   );

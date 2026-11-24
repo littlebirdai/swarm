@@ -17,7 +17,7 @@ import {
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { codeThreadRootKey } from "@codecast/shared/comments";
+import { codeThreadRootKey } from "@codecast/comments";
 import {
   Check,
   ChevronLeft,

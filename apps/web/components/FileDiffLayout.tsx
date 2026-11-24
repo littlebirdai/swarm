@@ -50,10 +50,7 @@ import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import { useFollowSurface } from "../hooks/useFollowSurface";
 import { landOn } from "../hooks/useDiffAddress";
 import { notifyFollowView } from "../lib/follow";
-import type {
-  AnchorPlacement,
-  CodeAnchorText,
-} from "@codecast/shared/comments";
+import type { AnchorPlacement, CodeAnchorText } from "@codecast/comments";
 
 export interface DiffFile {
   filename: string;

@@ -75,7 +75,7 @@ import {
   shortSha,
 } from "./lib/gitRefs";
 import { committedSessionIds } from "./lib/prSessions";
-import { anchorFromDiffHunk } from "@codecast/shared/comments";
+import { anchorFromDiffHunk } from "@codecast/comments";
 
 const MERGE_STATE_DELAY_MS = 15 * 1000;
 // A finished check changes whether GitHub will let the branch merge, but it

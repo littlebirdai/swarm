@@ -23,6 +23,7 @@
     "@codecast/agents": "workspace:*",
     "@codecast/async": "workspace:*",
     "@codecast/capabilities": "workspace:*",
+    "@codecast/comments": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",

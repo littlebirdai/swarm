@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { Command } from "commander";
-import { captureAnchor } from "@codecast/shared/comments";
+import { captureAnchor } from "@codecast/comments";
 import { placeComments } from "./codeAnchorLocal";
 import {
   fileDiffIdentity,

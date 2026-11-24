@@ -23,7 +23,7 @@ import { useRepoFamily } from "./useRepoFamily";
 import { SessionBlameCell } from "./SessionBlame";
 import { StampTime } from "../StampTime";
 import { AnchorGutterMark } from "../comments/AnchorPlacementNote";
-import type { AnchorPlacement } from "@codecast/shared/comments";
+import type { AnchorPlacement } from "@codecast/comments";
 
 export function BlobView({
   repository,
