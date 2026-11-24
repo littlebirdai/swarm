@@ -19,13 +19,13 @@ describe("backend switch hold in the daemon", () => {
     const hold = fn.indexOf("backendSwitchHeld(sessionId, conversationId)");
     expect(hold).toBeGreaterThan(-1);
     expect(fn.slice(hold - 60, hold)).toContain("!opts?.duringBackendSwitch");
-    expect(hold).toBeLessThan(fn.indexOf("claudeSdkBackend.ensure("));
+    expect(hold).toBeLessThan(fn.search(/claudeSdkBackend\s*\.ensure\(/));
     expect(hold).toBeLessThan(fn.indexOf("resumeInFlight.get(sessionId)"));
   });
 
   test("the SDK backend's own resume asks the hold", () => {
     expect(src).toMatch(
-      /mayResume: async \(convId, sessionId, userInitiated\) => !backendSwitchHeld\(convId, sessionId\) && resumeAllowed/,
+      /mayResume: async \(convId, sessionId, userInitiated\) =>\s*!backendSwitchHeld\(convId, sessionId\) &&\s*resumeAllowed/,
     );
   });
 
@@ -37,7 +37,7 @@ describe("backend switch hold in the daemon", () => {
     const stop = fn.slice(fn.indexOf("stop: async"), fn.indexOf("startSdk:"));
     expect(stop).not.toContain("clearConversationDeliveryAndResumeState");
     expect(fn).toContain(
-      'requeue: () => clearConversationDeliveryAndResumeState(conversationId, sessionId, "BACKEND-SWITCH")',
+      'requeue: () =>\n        clearConversationDeliveryAndResumeState(\n          conversationId,\n          sessionId,\n          "BACKEND-SWITCH",\n        )',
     );
   });
 
@@ -47,7 +47,7 @@ describe("backend switch hold in the daemon", () => {
     );
     // Held, not failed: retried at its own pace without spending the retry budget.
     expect(src).toMatch(
-      /err instanceof TerminalHoldError \|\| err instanceof BackendSwitchHoldError\) \{/,
+      /err instanceof TerminalHoldError \|\|\s*err instanceof BackendSwitchHoldError\s*\) \{/,
     );
     const repair = block("async function repairAndResumeSession(");
     expect(
@@ -57,8 +57,8 @@ describe("backend switch hold in the daemon", () => {
 
   test("delivery on a cloud host near its run limit is held, not failed, ahead of every fallback", () => {
     const fn = block("async function deliverMessageIntoSession(");
-    const hold = fn.indexOf(
-      'if (isRemoteDevice()) {\n    const runLimitHold = (await import("./cloud/hostReadiness.js")).runLimitHold(Date.now(), undefined, logDelivery);\n    if (runLimitHold) throw runLimitHold;',
+    const hold = fn.search(
+      /if \(isRemoteDevice\(\)\) \{\s*const runLimitHold = \(\s*await import\("\.\/cloud\/hostReadiness\.js"\)\s*\)\.runLimitHold\(Date\.now\(\), undefined, logDelivery\);\s*if \(runLimitHold\) throw runLimitHold;/,
     );
     expect(hold).toBeGreaterThan(
       fn.indexOf("if (backendSwitchHeld(conversationId)) throw"),
@@ -67,7 +67,7 @@ describe("backend switch hold in the daemon", () => {
       fn.indexOf("planHandoffTarget(planHandoffChildren, conversationId)"),
     );
     expect(src).toMatch(
-      /err instanceof SwapHeldError \|\| err instanceof RunLimitHoldError \|\| err instanceof ForeignWriterHoldError/,
+      /err instanceof SwapHeldError \|\|\s*err instanceof RunLimitHoldError \|\|\s*err instanceof ForeignWriterHoldError/,
     );
   });
 
@@ -96,7 +96,9 @@ describe("backend switch hold in the daemon", () => {
     );
     expect(hold).toBeGreaterThan(-1);
     expect(hold).toBeLessThan(
-      resume.indexOf("claudeSdkBackend?.owns(conversationId) && !parsed.fork"),
+      resume.search(
+        /claudeSdkBackend\?\.owns\(conversationId\) &&\s*!parsed\.fork/,
+      ),
     );
     expect(hold).toBeLessThan(resume.indexOf("force_reconstitute"));
     expect(src).toMatch(

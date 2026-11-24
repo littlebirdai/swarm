@@ -54,8 +54,8 @@ describe("delivery into a session that can never resume", () => {
     const cancel = deliver.indexOf(
       "fatal && unresumableConversations.has(conversationId)",
     );
-    const fresh = deliver.indexOf(
-      "unresumableConversations.has(conversationId) && !findSessionFile(sessionId)",
+    const fresh = deliver.search(
+      /unresumableConversations\.has\(conversationId\) &&\s*!findSessionFile\(sessionId\)/,
     );
     const exhausted = deliver.indexOf("DELIVERY FAILED: all methods exhausted");
     expect(fresh).toBeGreaterThan(cancel);

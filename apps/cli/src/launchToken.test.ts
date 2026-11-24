@@ -285,8 +285,8 @@ describe("the daemon fences hook posts where both transports land", () => {
   });
 
   test("every status is admitted before anything is done with it", () => {
-    const handlerAt = src.indexOf(
-      "function handleStatusData(sessionId: string",
+    const handlerAt = src.search(
+      /function handleStatusData\(\s*sessionId: string/,
     );
     expect(handlerAt).toBeGreaterThan(-1);
     const admitAt = src.indexOf("admitHookPost(sessionId, data)", handlerAt);

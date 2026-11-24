@@ -862,8 +862,8 @@ describe("shared checkout helpers (ct-49428)", () => {
       cli.indexOf("const gitAccess = ("),
       cli.indexOf('if (mode === "shared") {'),
     );
-    expect(report).toContain(
-      "hostAccessPath(git.access, git.app, prepared.cloud.forwardAgent === true)",
+    expect(report).toMatch(
+      /hostAccessPath\(\s*git\.access,\s*git\.app,\s*prepared\.cloud\.forwardAgent === true,?\s*\)/,
     );
     expect(report).toContain("path,");
   });

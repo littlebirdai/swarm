@@ -524,7 +524,7 @@ describe("the wiring that has no other witness", () => {
   test("the ingest path records subagent appends", () => {
     const wrapper = functionBlock(src, "processSessionFile").text;
     expect(wrapper).toContain(
-      "runTranscriptPass(args[1], path.resolve(args[0]), () => processSessionFilePass(...args))",
+      "runTranscriptPass(args[1], path.resolve(args[0]), () =>\n    processSessionFilePass(...args),\n  )",
     );
     const serialized = functionBlock(src, "runTranscriptPass").text;
     expect(serialized).toContain(

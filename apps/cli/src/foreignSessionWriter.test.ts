@@ -143,7 +143,7 @@ describe("the resume path checks before it touches the transcript or a pane", ()
     expect(at).toBeLessThan(inner.indexOf("awaitRecentSessionFile"));
     expect(at).toBeLessThan(inner.indexOf('"new-session"'));
     expect(inner).toContain(
-      "if (opts?.delivery) throw new ForeignWriterHoldError(writer, foreignWriterScreen(writer, rows));",
+      "if (opts?.delivery)\n        throw new ForeignWriterHoldError(\n          writer,\n          foreignWriterScreen(writer, rows),\n        );",
     );
   });
   test("Send anyway and a resume the person asked for go ahead", () => {

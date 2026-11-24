@@ -373,7 +373,7 @@ describe("discovery binds the assigned session id at prompt readiness", () => {
     const at = daemonSource.indexOf("const tryStartedTmux = async");
     const delivery = daemonSource.slice(at, at + 4000);
     expect(delivery).toContain(
-      "probeStartedPane(entry, parsePollMessage(content) ? undefined : assertPromptAbsent)",
+      "probeStartedPane(\n            entry,\n            parsePollMessage(content) ? undefined : assertPromptAbsent,\n          )",
     );
     expect(delivery).not.toContain("trustPromptPatterns");
   });
@@ -404,7 +404,7 @@ describe("discovery binds the assigned session id at prompt readiness", () => {
     );
     const fn = daemonSource.slice(fnAt, daemonSource.indexOf("\n}\n", fnAt));
     expect(fn).toContain(
-      "discoverAndLinkSession(conversationId, entry.tmuxSession, entry.projectPath)",
+      "discoverAndLinkSession(\n      conversationId,\n      entry.tmuxSession,\n      entry.projectPath,\n    )",
     );
     expect(fn).toContain("reverse[conversationId]");
   });

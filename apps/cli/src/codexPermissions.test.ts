@@ -59,10 +59,10 @@ describe("configured Codex permissions", () => {
       )
         continue;
       const source = readFileSync(join(import.meta.dir, file), "utf8");
-      for (const call of source.matchAll(/\.threadResume\s*\(([^\n]*)/g))
+      for (const call of source.matchAll(/\.threadResume\s*\(\s*([^\n]*)/g))
         calls.push(`${file}:${call[1]}`);
     }
-    expect(calls).toEqual(["daemon.ts:codexResumeParams(record, policy));"]);
+    expect(calls).toEqual(["daemon.ts:codexResumeParams(record, policy),"]);
   });
 
   test("ordinary configured launches default to full access independently of approval policy", () => {

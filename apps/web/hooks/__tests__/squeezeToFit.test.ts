@@ -61,7 +61,7 @@ describe("conversation header squeeze", () => {
     );
     expect(max).toBeGreaterThan(0);
     const deepest = new RegExp(
-      `\\[data-squeeze~="${max}"\\] \\.cc-panel__title \\{ min-width: 0; \\}`,
+      `\\[data-squeeze~="${max}"\\] \\.cc-panel__title \\{\\s*min-width: 0;\\s*\\}`,
     );
     expect(css).toMatch(deepest);
   });

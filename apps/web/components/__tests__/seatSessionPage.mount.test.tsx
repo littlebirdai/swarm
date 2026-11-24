@@ -1,3 +1,4 @@
+import { topLevelSelectors } from "../../lib/__tests__/sourceWalk";
 // The role page is the session page (docs/architecture/
 // initiatives-projects-role-page.md I3). The WHOLE inbox page is mounted over
 // the real store, because the contract is about where every way of opening a
@@ -476,14 +477,14 @@ test("the fold only hides at rest", async () => {
   ).replace(/\/\*[\s\S]*?\*\//g, "");
   const rules = [
     ...css.matchAll(/([^{}]*\[data-seat-head[^{}]*)\{([^}]*)\}/g),
-  ].map((m) => ({ sel: m[1], body: m[2] }));
+  ].map((m) => ({ sel: m[1].replace(/\s+/g, " "), body: m[2] }));
   expect(rules.length).toBeGreaterThan(0);
   for (const r of rules.filter((x) => /display:\s*none/.test(x.body))) {
-    for (const sel of r.sel.split(/,\s*\n/)) {
+    for (const sel of topLevelSelectors(r.sel)) {
       // Open hides only what the role's header already says: the title and the face before it.
       const repeatsTheRoleHeader =
         /\[data-seat-head="open"\].*(\.cq-squeeze-row > h1|\.cq-squeeze-row > :has\(\+ h1\))\s*$/.test(
-          sel.trim(),
+          sel.trim().replace(/\s+/g, " "),
         );
       expect(
         /\[data-seat-head="rest"\]/.test(sel) || repeatsTheRoleHeader,

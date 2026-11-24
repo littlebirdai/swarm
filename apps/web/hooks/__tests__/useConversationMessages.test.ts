@@ -220,7 +220,7 @@ describe("share-link guests open at the beginning", () => {
       page.indexOf("useConversationMessages(", at),
       page.indexOf(";", page.indexOf("useConversationMessages(", at)),
     );
-    expect(call).toMatch(/,\s*true\)$/);
+    expect(call).toMatch(/,\s*true,?\s*\)$/);
   });
 
   it("the start is a target centered on timestamp 0, so target mode is on from the first render", () => {

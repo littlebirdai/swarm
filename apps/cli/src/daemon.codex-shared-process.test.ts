@@ -409,8 +409,14 @@ describe("the guards are actually wired into the kill sites", () => {
       for (let i = 0; i < lines.length; i++) {
         if (!killPattern.test(lines[i])) continue;
         checked++;
-        const preceding = lines.slice(Math.max(0, i - 6), i).join("\n");
-        expect(preceding).toContain("killCachedResumeTmux");
+        const preceding = lines.slice(0, i).join("\n");
+        const directGate =
+          /\b(?:teardownPlan|plan)\.killCachedResumeTmux\s*\)\s*\{\s*$/;
+        const elseGate =
+          /^([ \t]+)if \([^{}]*!teardownPlan\.killCachedResumeTmux\s*\) \{[\s\S]*?^\1\} else if \([^{}\n]*\) \{\s*(?![\s\S])/m;
+        expect(directGate.test(preceding) || elseGate.test(preceding)).toBe(
+          true,
+        );
       }
       // A zero-iteration loop must FAIL, not pass vacuously. Each site kills the
       // cached tmux exactly once; if that call is gone or reached via an alias,

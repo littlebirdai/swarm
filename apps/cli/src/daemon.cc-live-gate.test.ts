@@ -94,7 +94,7 @@ describe("maintainActiveCcToken", () => {
   // The read back. When the gate defers, this is the only thing that folds the
   // rotation a live claude performed into its saved profile.
   it("always re-snapshots, deferred or not, and reports a refusal", () => {
-    expect(body).toContain("await resnapshotIfActiveFresher({ warn:");
+    expect(body).toContain("await resnapshotIfActiveFresher({\n      warn:");
     const gateAt = body.indexOf("hasLiveClaudeOnActiveCredential()");
     expect(body.indexOf("resnapshotIfActiveFresher")).toBeGreaterThan(gateAt);
   });

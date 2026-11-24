@@ -135,14 +135,14 @@ test("background.js still sends the two hot messages with the payload last", () 
     "utf-8",
   );
   expect(src).toContain(
-    'send({ op: "event", tabId, session: source.sessionId, method, params: params || {} });',
+    'send({\n      op: "event",\n      tabId,\n      session: source.sessionId,\n      method,\n      params: params || {},\n    });',
   );
   expect(src).toContain("send({ id: msg.id, ok: true, ...result });");
-  expect(src).toContain(
-    "return { result: (await cdpPastForeignFrames(m.tabId, m.method, m.params || {})) || {} };",
+  expect(src).toMatch(
+    /return \{\s*result:\s*\(await cdpPastForeignFrames\(m\.tabId, m\.method, m\.params \|\| \{\}\)\) \|\|\s*\{\},?\s*\};/,
   );
-  expect(src).toContain(
-    "return { result: (await boundedCdp(m.tabId, m.method, m.params || {}, m.sessionId)) || {} };",
+  expect(src).toMatch(
+    /return \{\s*result:\s*\(await boundedCdp\(\s*m\.tabId,\s*m\.method,\s*m\.params \|\| \{\},\s*m\.sessionId,?\s*\)\) \|\| \{\},?\s*\};/,
   );
 });
 

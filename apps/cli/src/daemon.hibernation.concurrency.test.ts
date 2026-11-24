@@ -385,10 +385,10 @@ test("actual hook dispatcher gates expected stops before publishing status or co
   const end = source.indexOf("  function handleStatusFile(", start);
   const body = source.slice(start, end);
   expect(body).toContain(
-    "deferHibernationHookStop(sessionId, data.status, () => handleStatusData",
+    "deferHibernationHookStop(sessionId, data.status, () =>\n          handleStatusData",
   );
-  expect(body).toContain(
-    "publishHookStatus(syncService, convId, sessionId, data, statusChanged",
+  expect(body).toMatch(
+    /publishHookStatus\(\s*syncService,\s*convId,\s*sessionId,\s*data,\s*statusChanged/,
   );
   expect(body.indexOf("deferHibernationHookStop")).toBeLessThan(
     body.indexOf("lastHookStatus.set"),

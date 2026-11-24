@@ -78,10 +78,10 @@ describe("chat list scrolling", () => {
   test("a tail target does not center-scroll", () => {
     expect(list).toMatch(/if \(holdTarget\) \{/);
     expect(list).toMatch(
-      /scrollToIndex\(targetIndexRef\.current, \{ align: "center" \}\)/,
+      /scrollToIndex\(\s*targetIndexRef\.current,\s*\{\s*align: "center",?\s*\},?\s*\)/,
     );
     expect(list).toMatch(
-      /useLayoutEffect\(\(\) => \{\n {4}if \(!targetMessageId/,
+      /useLayoutEffect\(\s*\(\) => \{\s*if \(\s*!targetMessageId/,
     );
   });
 

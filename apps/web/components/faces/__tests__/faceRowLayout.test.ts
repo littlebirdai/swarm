@@ -246,12 +246,14 @@ describe("a face keeps its presence while its card is open", () => {
     expect(cssVar(".face-seat[data-card] .face {", "filter")).toBe(
       "var(--drain,) brightness(1.06)",
     );
-    expect(presence).toMatch(/\.pres-av-away \{ --drain: grayscale\(60%\); \}/);
     expect(presence).toMatch(
-      /\.pres-av-offline \{ --drain: grayscale\(100%\);/,
+      /\.pres-av-away \{\s*--drain: grayscale\(60%\);\s*\}/,
     );
     expect(presence).toMatch(
-      /\.pres-av-away,\n\.pres-av-offline \{ filter: var\(--drain\); \}/,
+      /\.pres-av-offline \{\s*--drain: grayscale\(100%\);/,
+    );
+    expect(presence).toMatch(
+      /\.pres-av-away,\n\.pres-av-offline \{\s*filter: var\(--drain\);\s*\}/,
     );
   });
 });
@@ -298,10 +300,10 @@ describe("an offline face keeps the presence weight in the row", () => {
       "var(--drain-opacity, 1)",
     );
     expect(presence).toMatch(
-      /\.pres-av-offline \{ --drain: grayscale\(100%\); --drain-opacity: 0\.45; \}/,
+      /\.pres-av-offline \{\s*--drain: grayscale\(100%\);\s*--drain-opacity: 0\.45;\s*\}/,
     );
     expect(presence).toMatch(
-      /\.pres-av-offline \{ opacity: var\(--drain-opacity\); \}/,
+      /\.pres-av-offline \{\s*opacity: var\(--drain-opacity\);\s*\}/,
     );
   });
 });

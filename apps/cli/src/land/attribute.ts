@@ -90,7 +90,7 @@ export const CACHE_VERSION = 4;
  * The hash of the code that decides what a cached line credits (attributeCacheRules.test.ts). A change that moves it
  * bumps CACHE_VERSION, or, when it cannot change a credit, only this pin.
  */
-export const CACHE_RULES_HASH = "7a75b9e76ba50a8c";
+export const CACHE_RULES_HASH = "83b893684f559ce5";
 
 export function isMidTurn(s: Pick<SessionEdits, "status">): boolean {
   return !!s.status && MID_TURN.has(s.status);

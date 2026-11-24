@@ -331,12 +331,10 @@ test("a recorded refusal never reads as an approval", () => {
   expect(src).not.toContain("!refuseTarget(");
   const clear = functionBlock(src, "hibernationChildHistoryIsClear").text;
   expect(clear).toContain("refuseTarget(");
-  // Every refusal inside the boolean gate says false in the same statement.
-  for (const line of clear
-    .split("\n")
-    .filter((l) => l.includes("refuseTarget("))) {
-    expect(line, line.trim()).toContain("return false;");
-  }
+  // Every refusal inside the boolean gate must immediately return false.
+  const refusals = clear.match(/refuseTarget\([^;]+;/g) ?? [];
+  const refused = clear.match(/refuseTarget\([^;]+;\s*return false;/g) ?? [];
+  expect(refused.length).toBe(refusals.length);
 });
 
 // The pane process is not always the agent: the daemon starts an agent inside a

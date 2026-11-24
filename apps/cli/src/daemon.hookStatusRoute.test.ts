@@ -64,7 +64,8 @@ describe("hook status session ids", () => {
   // ordered writer is what keeps a Stop from landing before the PostToolUse
   // that preceded it, and keeps two writes off one file.
   test("one ordered writer owns the agent status directory", () => {
-    const writes = src.match(/writeFile\(path\.join\(AGENT_STATUS_DIR/g) ?? [];
+    const writes =
+      src.match(/writeFile\(\s*path\.join\(\s*AGENT_STATUS_DIR/g) ?? [];
     expect(
       writes.length,
       "every agent status write goes through queueAgentStatusWrite",
@@ -73,9 +74,9 @@ describe("hook status session ids", () => {
       "agentStatusWriteChain = agentStatusWriteChain",
     );
     expect(chainAt).toBeGreaterThan(-1);
-    expect(src.indexOf("writeFile(path.join(AGENT_STATUS_DIR")).toBeGreaterThan(
-      chainAt,
-    );
+    expect(
+      src.search(/writeFile\(\s*path\.join\(\s*AGENT_STATUS_DIR/),
+    ).toBeGreaterThan(chainAt);
   });
 });
 

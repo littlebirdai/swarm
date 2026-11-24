@@ -62,7 +62,9 @@ describe("a live agent outside tmux is never given a second copy", () => {
       inner.indexOf("const refuseSecondCopy"),
       inner.indexOf("// FAST PATH"),
     );
-    expect(refuse).toContain("if (opts?.delivery) throw new SwapHeldError(");
+    expect(refuse).toContain(
+      "if (opts?.delivery)\n      throw new SwapHeldError(",
+    );
   });
 });
 
@@ -79,7 +81,7 @@ describe("the swap hold", () => {
       "throw new SwapHeldError(",
     );
     expect(source).toContain(
-      "err instanceof CloudAgentHoldError || err instanceof SwapHeldError",
+      "err instanceof CloudAgentHoldError ||\n            err instanceof SwapHeldError",
     );
   });
 
@@ -278,7 +280,7 @@ describe("a take launches on the keychain login", () => {
     expect(tmux.resumeAccountPrefix).toBe(expected.prefix);
     expect(tmux.resumeAccount).toBe(expected.account);
     expect(functionBlock(source, "autoResumeSessionInner").text).toContain(
-      "buildClaudeResumeCommand({ sessionId, cwd, jsonlPath, jsonlContent, config, conversationId, permissionMode: opts?.permissionMode })",
+      "buildClaudeResumeCommand({\n        sessionId,\n        cwd,\n        jsonlPath,\n        jsonlContent,\n        config,\n        conversationId,\n        permissionMode: opts?.permissionMode,\n      })",
     );
     expect(functionBlock(source, "resumeLaunchLine").text).toContain(
       "`${a.resumeAccountPrefix}${providerKeySourcePrefix(a.agentType, CONFIG_DIR)}${disclaimPrefix()}${env} ${a.resumeCmd}`",
@@ -299,7 +301,7 @@ describe("killing a tmux session whose server the reap already ended", () => {
   test("is logged as already gone, not as a failed kill", () => {
     const kill = functionBlock(source, "killTmuxSessionAndTree").text;
     expect(kill).toContain(
-      "if (isTmuxSessionMissingError(err)) log(`[KILL] tmux=${tmuxSession} already gone",
+      "if (isTmuxSessionMissingError(err))\n      log(\n        `[KILL] tmux=${tmuxSession} already gone",
     );
   });
 });

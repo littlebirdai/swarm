@@ -547,8 +547,8 @@ await program.parseAsync(process.argv);
       src.indexOf("export function refreshRemoteCheckout("),
       src.indexOf("function validateRelativePath("),
     );
-    expect(body).toContain(
-      "const hostOrigin = hostProbeOrigin(origin, { appToken: opts.appToken === true }).origin ?? origin;",
+    expect(body).toMatch(
+      /const hostOrigin =\s*hostProbeOrigin\(origin, \{ appToken: opts\.appToken === true \}\)\.origin \?\?\s*origin;/,
     );
     // The two spellings, from the one rule the host git step proved.
     expect(hostProbeOrigin("https://github.com/o/r.git").origin).toBe(

@@ -12,14 +12,13 @@ test("the accent-on-tint rules skip elements with their own Modern text colour",
     join(import.meta.dir, "..", "..", "app", "globals.css"),
     "utf8",
   );
-  const rules = css
-    .split("\n")
-    .filter((line) =>
-      /^\.modern-style\S* \.text-sol-\w+\[class\*="bg-sol-\w+\/"\]/.test(line),
-    );
+  const rules =
+    css.match(
+      /^\.modern-style\S*\s+\.text-sol-\w+\[class\*="bg-sol-\w+\/"\][^{]+/gm,
+    ) ?? [];
   expect(rules.length).toBe(10);
   for (const rule of rules)
-    expect(rule).toContain(':not([class*="modern:text-sol-"]');
+    expect(rule).toMatch(/:not\(\s*\[class\*="modern:text-sol-"\]/);
   expect(css).not.toMatch(
     /:is\(\.text-sol-\w+, \.modern\\:text-sol-\w+\)\[class\*="bg-sol-/,
   );

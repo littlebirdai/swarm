@@ -53,9 +53,13 @@ describe("the level sweep's clock", () => {
     );
     expect(sweep).not.toContain("/cli/messages/send");
     // The stuck level's ask (checkoutReport.ts) rides the same send.
-    expect(sweep).toMatch(/reportCheckoutsAfterSweep\(outcomes, send \?\?/);
+    expect(sweep).toMatch(
+      /reportCheckoutsAfterSweep\(\s*outcomes,\s*send \?\?/,
+    );
     const report = functionBlock(source, "reportCheckoutsAfterSweep").text;
-    expect(report).toMatch(/reportCheckouts\(outcomes, \{ post, sendBrief,/);
+    expect(report).toMatch(
+      /reportCheckouts\(outcomes, \{\s*post,\s*sendBrief,/,
+    );
     expect(report).not.toContain("/cli/messages/send");
   });
 

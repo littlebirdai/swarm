@@ -65,7 +65,9 @@ describe("usage chip never leaves the bar", () => {
   });
 
   test("an unresolved chip holds its slot instead of returning null", () => {
-    const branch = chip.match(/if \(!resolved \|\| !device\) return ([^;]+);/);
+    const branch = chip.match(
+      /if \(!resolved \|\| !device\)\s*return ([^;]+);/,
+    );
     expect(branch).toBeTruthy();
     expect(branch![1]).toContain("AccountChipEmpty");
   });

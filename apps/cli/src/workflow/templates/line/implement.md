@@ -3,10 +3,9 @@ Implement task $task_id: $task_title
 You are building the one change that makes the failing check pass. The person who decides on it sees the proof (that check red before, green after), the eval verdicts and the review, so a change that does more than the cause needs, or less, costs them the decision.
 
 Facts
-
 - Task: $task_id. Read `cast task context $task_id` first: the steps are the acceptance criteria, the plan, when the cause was planned first, is in the comments, and review comments hold the verdict from the last round.
 - You are in this run's dedicated git worktree on branch $branch; work there.
-- The failing check (category $category): `$run_dir/repro.sh`for code; for a prompt, the project's prove command`$line.commands.prove` and what it wrote in `$run_dir`.
+- The failing check (category $category): `$run_dir/repro.sh` for code; for a prompt, the project's prove command `$line.commands.prove` and what it wrote in `$run_dir`.
 - The project's check command, which the flow runs after you: `$line.commands.check`
 - The principles, which the reviewer cites by id: $line.principles
 - The prompting standard a prompt change follows, by P-section: $line.prompting
@@ -21,7 +20,7 @@ When an earlier fix for this cause shipped and the problem came back, building t
 
 Write the code, run the project's check command and the failing check, commit on this branch, and push it. Then end your turn with a structured handoff, never a bare summary:
 
-cast task handoff $task_id --status done --evidence - --guide - --files a,b [--pr <url>]
+  cast task handoff $task_id --status done --evidence - --guide - --files a,b [--pr <url>]
 
 Stdin holds the evidence, a line containing only ---, then the change guide: the reviewer's tour of your change in the order that explains it best, one heading per step with its file:start-end on the heading line and why that piece exists under it. The hunks are captured for you.
 

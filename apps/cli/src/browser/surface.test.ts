@@ -92,18 +92,18 @@ const TARGET_FLAGS = ["--real"];
 export function readSurface(src: string): Surface {
   const out: Surface = {};
   for (const m of src.matchAll(
-    /br\.command\("([a-z0-9-]+)[^"]*"\)((?:.|\n)*?)\.action/g,
+    /br\s*\.command\(\s*"([a-z0-9-]+)[^"]*",?\s*\)((?:.|\n)*?)\.action/g,
   )) {
     out[m[1]] = new Set(
-      [...m[2].matchAll(/\.option\("(--[a-z-]+)/g)].map((o) => o[1]),
+      [...m[2].matchAll(/\.option\(\s*"(--[a-z-]+)/g)].map((o) => o[1]),
     );
   }
   for (const m of src.matchAll(
-    /targetFlags\(br\.command\("([a-z0-9-]+)[^"]*"\)\)/g,
+    /targetFlags\(\s*br\s*\.command\(\s*"([a-z0-9-]+)[^"]*",?\s*\)\)/g,
   )) {
     for (const f of TARGET_FLAGS) (out[m[1]] ??= new Set()).add(f);
   }
-  for (const m of src.matchAll(/\{ verb: "([a-z0-9-]+)"/g)) {
+  for (const m of src.matchAll(/\{\s*verb: "([a-z0-9-]+)"/g)) {
     if (!(m[1] in out)) out[m[1]] = new Set();
   }
   return out;

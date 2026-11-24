@@ -505,7 +505,7 @@ describe("what a list answer is authoritative for", () => {
     );
     expect(src).toMatch(/pruneAbsentScope: proposalListScope\(teamId\)/);
     expect(src).toMatch(
-      /"orgProposalChanges", changes \?\? \[\], \{ pruneAbsentScope/,
+      /"orgProposalChanges",\s*changes \?\? \[\],\s*\{\s*pruneAbsentScope/,
     );
   });
 });

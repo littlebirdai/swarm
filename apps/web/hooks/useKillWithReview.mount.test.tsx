@@ -131,7 +131,7 @@ describe("a set-aside card's Kill", () => {
       "utf8",
     );
     expect(src).toMatch(
-      /const handleKillStashed = useCallback\(\(id: string\) => closedKillOf\(\[id\]\), \[closedKillOf\]\);/,
+      /const handleKillStashed = useCallback\(\s*\(id: string\) => closedKillOf\(\[id\]\),\s*\[closedKillOf\],?\s*\);/,
     );
     expect(src).not.toMatch(/const handleKillStashed = killWithNotice/);
   });

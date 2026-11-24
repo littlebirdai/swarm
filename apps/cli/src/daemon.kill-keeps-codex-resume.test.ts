@@ -21,7 +21,7 @@ test("kill tears down with the Codex record kept", () => {
   );
   const live = functionBlock(source, "teardownConversationBackendsLive").text;
   expect(live).toContain(
-    "forgetPersisted: opts.keepCodexResume ? settlePersistedAppServerConversation : forgetPersistedAppServerConversation",
+    "forgetPersisted: opts.keepCodexResume\n      ? settlePersistedAppServerConversation\n      : forgetPersistedAppServerConversation",
   );
 });
 

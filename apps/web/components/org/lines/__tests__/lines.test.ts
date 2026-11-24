@@ -143,7 +143,9 @@ describe("the words a line says", () => {
 });
 
 describe("the grid", () => {
-  const css = readFileSync(join(import.meta.dir, "..", "lines.css"), "utf8");
+  const css = readFileSync(join(import.meta.dir, "..", "lines.css"), "utf8")
+    .replace(/\s+/g, " ")
+    .replace(/\(\s+|\s+\)/g, (part) => part.trim());
   test("answers to its container, never the window", () => {
     expect(css).toMatch(/\.ol-scope \{ container: ol \/ inline-size; \}/);
     expect(css).not.toMatch(/@media \((min|max)-width/);

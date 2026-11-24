@@ -92,7 +92,7 @@ describe("grow: what a candidate may be", () => {
     expect(
       staticCheck(
         original,
-        original.replace("from './world';", "from '../capture';"),
+        original.replace('from "./world";', 'from "../capture";'),
       ),
     ).toMatch(/imports differ/);
   });

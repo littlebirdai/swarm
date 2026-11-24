@@ -72,7 +72,7 @@ function resolved(): Record<string, Record<string, string>> {
   for (const el of doc.querySelectorAll("[data-k]")) {
     const cs = dom.window.getComputedStyle(el);
     out[el.getAttribute("data-k")!] = Object.fromEntries(
-      PROPS.map((p) => [p, cs.getPropertyValue(p)]),
+      PROPS.map((p) => [p, cs.getPropertyValue(p).replace(/\s+/g, " ")]),
     );
   }
   return out;

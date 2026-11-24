@@ -127,11 +127,11 @@ const daemonSource = fs.readFileSync(
 describe("double-start fix invariants", () => {
   test("normal resumes retain the conversation stamp across daemon restarts", () => {
     const start = daemonSource.indexOf("async function autoResumeSessionInner");
-    const end = daemonSource.indexOf("logDelivery(`Auto-resumed", start);
+    const end = daemonSource.indexOf("`Auto-resumed", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
-    expect(daemonSource.slice(start, end)).toContain(
-      'setTmuxSessionOption(tmuxSession, "@codecast_conversation_id", conversationId)',
+    expect(daemonSource.slice(start, end)).toMatch(
+      /setTmuxSessionOption\(\s*tmuxSession,\s*"@codecast_conversation_id",\s*conversationId,?\s*\)/,
     );
   });
 
@@ -155,9 +155,14 @@ describe("double-start fix invariants", () => {
       "[REMOTE] Started fresh session ${tmuxSession} for conversation",
     );
     expect(anchor).toBeGreaterThan(-1);
-    const region = daemonSource.slice(anchor - 2000, anchor);
-    expect(region).toContain(
-      'setTmuxSessionOption(tmuxSession, "@codecast_conversation_id", conversationId)',
+    const start = daemonSource.lastIndexOf(
+      "const existingStarted = startedSessionTmux.get(conversationId);",
+      anchor,
+    );
+    expect(start).toBeGreaterThan(-1);
+    const region = daemonSource.slice(start, anchor);
+    expect(region).toMatch(
+      /setTmuxSessionOption\(\s*tmuxSession,\s*"@codecast_conversation_id",\s*conversationId,?\s*\)/,
     );
   });
 
@@ -171,7 +176,7 @@ describe("double-start fix invariants", () => {
     // moved to the wrapper, so the call is its last argument. The step is the
     // backend one: a cloud agent first, and the app-server when none owns it.
     expect(waitLoop).toMatch(
-      /if \(await deliveryStep\([^)]*?,\s*tryBackendDelivery\)\) return true/,
+      /if \(\s*await deliveryStep\([^)]*?,\s*tryBackendDelivery\)\s*\)\s*return true/,
     );
     expect(waitLoop.indexOf("tryBackendDelivery")).toBeLessThan(
       waitLoop.indexOf("deliverViaFreshStart()"),
@@ -215,7 +220,7 @@ describe("double-start fix invariants", () => {
       "throw new BlankStartHoldError(declaredAgentType)",
     );
     const holdBranch = daemonSource.slice(
-      daemonSource.indexOf("} else if (err instanceof CloudAgentHoldError"),
+      daemonSource.indexOf("err instanceof CloudAgentHoldError ||"),
     );
     expect(holdBranch.slice(0, holdBranch.indexOf("{"))).toContain(
       "err instanceof BlankStartHoldError",
@@ -287,13 +292,18 @@ describe("startedSessionGuard", () => {
     const anchor = source.indexOf(
       "[REMOTE] Started fresh session ${tmuxSession} for conversation",
     );
-    const region = source.slice(anchor - 4500, anchor + 600);
+    const start = source.lastIndexOf(
+      "const existingStarted = startedSessionTmux.get(conversationId);",
+      anchor,
+    );
+    expect(start).toBeGreaterThan(-1);
+    const region = source.slice(start, anchor);
     expect(region).not.toContain("60_000");
     expect(region).toContain(
       'startedSessionGuard(existingStarted, false) === "skip_booting"',
     );
-    expect(region).toContain(
-      'clearConversationDeliveryAndResumeState(conversationId, undefined, "resume_session_blank")',
+    expect(region).toMatch(
+      /clearConversationDeliveryAndResumeState\(\s*conversationId,\s*undefined,\s*"resume_session_blank",?\s*\)/,
     );
   });
 });
@@ -316,7 +326,7 @@ describe("autoResumeSession transcript lookup", () => {
     expect(start).toBeGreaterThan(-1);
     const body = source.slice(start, end);
     expect(body).toContain(
-      "await awaitRecentSessionFile(forkFromSessionId ?? sessionId)",
+      "await awaitRecentSessionFile(\n    forkFromSessionId ?? sessionId,\n  )",
     );
     expect(body).toContain("await awaitRecentSessionFile(reconId)");
     expect(body).not.toMatch(/sessionFile = findSessionFile\(/);
@@ -340,13 +350,19 @@ describe("adopted panes keep their tmux creation time", () => {
         find.indexOf("async function recoverBlankCodexForDelivery"),
       ),
     ).toContain("startedAt: await tmuxSessionCreatedAtMs(match)");
+    const warmStart = source.indexOf(
+      "const cachedSessionId = findCachedSessionIdForConversation(",
+    );
+    expect(warmStart).toBeGreaterThan(-1);
     const warm = source.slice(
+      warmStart,
       source.indexOf(
-        "const cachedSessionId = findCachedSessionIdForConversation(conversationCache, tmuxConvId);",
+        "ensureManagedSessionHeartbeat(recoveredTmuxSession)",
+        warmStart,
       ),
     );
-    expect(warm.slice(0, 1200)).toContain(
-      "startedAt: await tmuxSessionCreatedAtMs(recoveredTmuxSession)",
+    expect(warm).toContain(
+      "startedAt:\n                      await tmuxSessionCreatedAtMs(recoveredTmuxSession)",
     );
   });
 });

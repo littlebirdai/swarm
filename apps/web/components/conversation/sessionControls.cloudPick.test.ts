@@ -13,7 +13,10 @@ const source = readFileSync(
 const start = source.indexOf("function ProjectSwitcher(");
 const end =
   source.indexOf("\n}\n", source.indexOf("<SessionModeToggles", start)) + 3;
-const switcher = source.slice(start, end);
+const switcher = source
+  .slice(start, end)
+  .replace(/\s+/g, " ")
+  .replace(/\(\s+|,?\s+\)|,?\s+\}/g, (part) => part.replace(/[\s,]/g, ""));
 const between = (from: string, to: string) => {
   const a = switcher.indexOf(from);
   expect(a).toBeGreaterThan(-1);
@@ -41,10 +44,10 @@ test("cloud mode is derived from the routed machine, never read from the store",
   expect(switcher).not.toContain("useInboxStore((s) => s.cloudSessionMode)");
   // The store flag is a write-only mirror, reset when the composer unmounts.
   expect(switcher).toContain(
-    "useWatchEffect(() => { setCloudSessionMode(cloudMode); }, [cloudMode, setCloudSessionMode]);",
+    "useWatchEffect(() => { setCloudSessionMode(cloudMode);}, [cloudMode, setCloudSessionMode]);",
   );
   expect(switcher).toContain(
-    "useWatchEffect(() => () => { setCloudSessionMode(false); }, [setCloudSessionMode]);",
+    "useWatchEffect(() => () => { setCloudSessionMode(false);}, [setCloudSessionMode]);",
   );
 });
 
@@ -56,7 +59,7 @@ test("handleSwitch decides placement and builds its payload with the pure helper
   // Both decisions live in lib/sessionMachines and are tested there with
   // inputs and outputs; the composer only feeds them.
   expect(handleSwitch).toContain(
-    "cloudParkNeeded({ target, locals, path: trimmed })",
+    "cloudParkNeeded({ target, locals, path: trimmed})",
   );
   expect(handleSwitch).toContain("switchReconfigureArgs({");
   expect(switcher).not.toContain("cloudPlacementFor(");
@@ -66,7 +69,7 @@ test("handleSwitch decides placement and builds its payload with the pure helper
     "const cloudShared = useInboxStore.getState().cloudSharedCheckout;",
   );
   expect(handleSwitch).toContain(
-    "cloudStartFrom: resolveCloudStartFrom(useInboxStore.getState().clientState.ui),",
+    "cloudStartFrom: resolveCloudStartFrom(useInboxStore.getState().clientState.ui)",
   );
   // The shared toggle re-parks an existing row (only when the folder would park) so the
   // isolated cloud_spawn in flight is superseded rather than left to build a worktree.
@@ -77,14 +80,14 @@ test("handleSwitch decides placement and builds its payload with the pure helper
   expect(toggle).toContain("setCloudSharedCheckout(isolated)");
   expect(toggle).toContain('storeSession?.cloud_placement === "pending"');
   expect(toggle).toContain(
-    "handleSwitch(currentPath, undefined, routedMachine.device_id, { onlyCloudPark: true })",
+    "handleSwitch(currentPath, undefined, routedMachine.device_id, { onlyCloudPark: true})",
   );
   // The start-from pick re-parks a pending row the same way (ct-49433).
   const startFrom = between("onSetStartFrom: (v) => {", "const pickPlacement");
   expect(startFrom).toContain("setCloudStartFrom(v)");
   expect(startFrom).toContain('storeSession?.cloud_placement === "pending"');
   expect(startFrom).toContain(
-    "handleSwitch(currentPath, undefined, routedMachine.device_id, { onlyCloudPark: true })",
+    "handleSwitch(currentPath, undefined, routedMachine.device_id, { onlyCloudPark: true})",
   );
   // Nothing in the composer spells the payload's cloud fields by hand.
   expect(switcher).not.toContain("cloud_device_id:");
@@ -106,9 +109,9 @@ test("leaving cloud mode never ships the cloud-locked isolated value, and the ro
   // With more than one cloud host the folder pick re-targets the one the
   // dropdown routes to, not the first host on the roster.
   expect(handleSwitch).toContain(
-    "const routedHostId = routedMachine && isCloudHost(routedMachine) ? routedMachine.device_id : cloudHost?.device_id ?? null;",
+    "const routedHostId = routedMachine && isCloudHost(routedMachine) ? routedMachine.device_id : (cloudHost?.device_id ?? null);",
   );
-  expect(handleSwitch).toContain("(cloudMode ? routedHostId : scopedDeviceId)");
+  expect(handleSwitch).toContain("cloudMode ? routedHostId : scopedDeviceId");
 });
 
 test("the agent-box special case and the inline chip row are gone", () => {

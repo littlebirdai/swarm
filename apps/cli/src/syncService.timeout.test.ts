@@ -554,9 +554,7 @@ describe("SyncService mutation queue bypass (skipQueue)", () => {
     const src = await Bun.file(
       new URL("./syncService.ts", import.meta.url),
     ).text();
-    const direct = src
-      .split("\n")
-      .filter((line) => line.includes("this.client.mutation("));
+    const direct = src.match(/\bthis\.client\s*\.mutation\([^\n]*/g) ?? [];
     // Exactly one: the body of mutate(), which pins skipQueue on every mutation.
     expect(direct).toHaveLength(1);
     expect(direct[0]).toContain("skipQueue: true");

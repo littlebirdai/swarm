@@ -161,14 +161,14 @@ describe("a cloud agent mirror across a restart", () => {
     "utf8",
   );
   test("a delta pass commits its ledger in signatures, whatever its client", () => {
-    expect(daemon).toMatch(/const unit = signatureState \? "signatures"/);
+    expect(daemon).toMatch(/const unit = signatureState\s*\? "signatures"/);
   });
   test("the pass keeps a known mirror's session before it returns on an empty delta", () => {
     const pass = daemon.slice(
       daemon.indexOf("async function processTranscriptDeltaSessionPass("),
     );
-    const keep = pass.indexOf(
-      "const hostedHere = keptConversation ? await cloudAgents.keepSession(",
+    const keep = pass.search(
+      /const hostedHere = keptConversation\s*\? await cloudAgents\.keepSession\(/,
     );
     // Nothing new, or another live device hosts the mirror and syncs it: return.
     const emptyReturn = pass.indexOf(
@@ -177,8 +177,8 @@ describe("a cloud agent mirror across a restart", () => {
     expect(keep).toBeGreaterThan(0);
     expect(keep).toBeLessThan(emptyReturn);
     // A conversation this pass created is kept once, after it exists; a known one is not kept twice.
-    expect(pass).toContain(
-      "if (mirror && conversationId !== keptConversation) await cloudAgents.keepSession(",
+    expect(pass).toMatch(
+      /if \(mirror && conversationId !== keptConversation\)\s*await cloudAgents\.keepSession\(/,
     );
   });
 
@@ -236,7 +236,7 @@ describe("a cloud agent mirror across a restart", () => {
       daemon.indexOf("async function processTranscriptDeltaSessionPass("),
     );
     expect(pass).toContain(
-      "(mirror ? withMirrorSynced(restored ?? null, filePath, conversationCache[sessionId]) : restored)",
+      "(mirror\n        ? withMirrorSynced(\n            restored ?? null,\n            filePath,\n            conversationCache[sessionId],\n          )\n        : restored)",
     );
     expect(pass).toContain(
       "writeMirrorSynced(filePath, conversationId, finalSynced.keys())",

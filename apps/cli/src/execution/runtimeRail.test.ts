@@ -367,10 +367,11 @@ describe("fenced daemon runtime rail", () => {
     const guard = daemonSource.indexOf(
       "assertLegacyDeliveryEnvelope(pendingMsg)",
     );
-    const legacyClaim = daemonSource.indexOf(
-      "claimPendingMessageForDelivery(pendingMsg._id)",
-      guard,
-    );
+    const legacyClaim =
+      daemonSource
+        .slice(guard)
+        .search(/claimPendingMessageForDelivery\(\s*pendingMsg\._id,?\s*\)/) +
+      guard;
     expect(guard).toBeGreaterThan(-1);
     expect(legacyClaim).toBeGreaterThan(guard);
   });

@@ -32,6 +32,7 @@
     "apps/mobile/build-output/",
     "apps/mobile/lib/vendor/*Source.ts",
     "apps/cli/src/daemonBuildId.ts",
+    "apps/cli/src/workflow/templates/**/*.md",
     "apps/cli/src/__fixtures__/install-golden/",
     "packages/shared/contracts/__fixtures__/changeCard/card.json",
     "packages/shared/contracts/__fixtures__/changeCard/card*.html",

@@ -145,7 +145,7 @@ describe("minting is never automatic", () => {
     // The definition and the one call in the command handler.
     expect(calls).toHaveLength(2);
     expect(daemonSource).toMatch(
-      /parsed\.mint[\s\S]{0,200}startMintFlow\(parsed\.mint/,
+      /if \(typeof parsed\.mint === "string" && parsed\.mint\) \{\s*try \{\s*result = await startMintFlow\(\s*parsed\.mint,/,
     );
   });
 });

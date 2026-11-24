@@ -21,7 +21,7 @@ describe("codex panes record the account they launched on", () => {
     expect(calls.length).toBe(4);
     for (const anchor of [
       "await stampCodexPaneAccount(agentType, tmuxSession, conversationId);",
-      "await stampCodexPaneAccount(blankAgentType, tmuxSession, conversationId);",
+      "await stampCodexPaneAccount(\n                blankAgentType,\n                tmuxSession,\n                conversationId,\n              );",
     ]) {
       expect(src).toContain(anchor);
     }
@@ -31,7 +31,7 @@ describe("codex panes record the account they launched on", () => {
     const body = functionBlock(src, "stampCodexPaneAccount").text;
     expect(body).toContain('if (agentType !== "codex") return;');
     expect(body).toContain(
-      'setTmuxSessionOption(tmuxSession, "@codecast_codex_account", account)',
+      'setTmuxSessionOption(\n      tmuxSession,\n      "@codecast_codex_account",\n      account,\n    )',
     );
     expect(body).toContain(
       "markCodexPaneLive(tmuxSession, { account, conversationId })",

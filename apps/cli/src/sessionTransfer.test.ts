@@ -752,7 +752,9 @@ describe("daemon wiring", () => {
   const src = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf-8");
 
   test("export_session is detached and resolves the transcript from the server-named id", () => {
-    expect(src).toMatch(/DETACHED_COMMANDS[^\n]*"export_session"/);
+    expect(src).toMatch(
+      /DETACHED_COMMANDS: ReadonlySet<string> = new Set\(\[[^\]]*"export_session"/,
+    );
     const handler = src.slice(
       src.indexOf('case "export_session"'),
       src.indexOf('case "cap_publish"'),
@@ -763,7 +765,10 @@ describe("daemon wiring", () => {
   test("the resume hook maps the session before it lands and resumes the landed file itself", () => {
     const hook = src.slice(
       src.indexOf("fetchSessionForResume({"),
-      src.indexOf("if (mayReconstituteResumeTranscript("),
+      src.indexOf(
+        "mayReconstituteResumeTranscript(",
+        src.indexOf("fetchSessionForResume({"),
+      ),
     );
     expect(hook).toContain(
       "bind: () => mapSessionToConversation(sessionId, conversationId)",

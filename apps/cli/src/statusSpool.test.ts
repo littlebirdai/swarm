@@ -366,7 +366,7 @@ describe("the boot gate's deferral", () => {
     // Watcher: a .jsonl event drains that spool through handleStatusData, the
     // same funnel a pushed status goes through.
     expect(src.slice(main)).toContain(
-      "if (filePath.endsWith(SPOOL_EXT)) { handleStatusSpoolFile(filePath); return; }",
+      "if (filePath.endsWith(SPOOL_EXT)) {\n      handleStatusSpoolFile(filePath);\n      return;\n    }",
     );
     expect(src.slice(main)).toContain("sweepStatusSpools(AGENT_STATUS_DIR)");
   });

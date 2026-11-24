@@ -873,14 +873,14 @@ describe("org intents", () => {
       "utf8",
     );
     const permanent = src.indexOf("if (isPermanentDispatchError(error)");
-    const drop = src.indexOf(
-      "dropRejectedOrgIntent(useInboxStore.getState(), action, args, error)",
+    const drop = src.search(
+      /dropRejectedOrgIntent\(\s*useInboxStore\.getState\(\),\s*action,\s*args,\s*error,?\s*\)/,
     );
     expect(permanent).toBeGreaterThan(0);
     expect(drop).toBeGreaterThan(permanent);
     expect(src.slice(permanent, drop)).not.toMatch(/\n\s{2}}\n/); // no block closes between them
     expect(src).toMatch(
-      /for \(const text of dropRejectedOrgIntent\(.*\)\) toast\.error\(text\)/,
+      /for \(const text of dropRejectedOrgIntent\([\s\S]*?\)\)\s*toast\.error\(text\)/,
     );
   });
 

@@ -78,13 +78,13 @@ test("both compact worktree rows and full cards render the same location chip", 
   expect(card).toContain("const isSubagent = drawsNested(session, subRow);");
   expect(card).not.toContain("!!session.worktree_name");
   // The one chip both shapes render.
-  expect(source.slice(0, compact)).toContain(
-    'const worktreeChip = (session.worktree_name || session.cloud_placement === "pending" || session.cloud_workspace === "shared" || session.migration_batch_id)',
+  expect(source.slice(0, compact)).toMatch(
+    /const worktreeChip =\s*session\.worktree_name \|\|\s*session\.cloud_placement === "pending" \|\|\s*session\.cloud_workspace === "shared" \|\|\s*session\.migration_batch_id \? \(/,
   );
   expect(source.slice(compact).match(/\{worktreeChip\}/g)).toHaveLength(2);
   // The compact row's location line carries the chip, then the fleet chip.
-  expect(source.slice(compact)).toContain(
-    '<div className="flex min-w-0 gap-1.5 pl-[18px] mt-0.5">{worktreeChip}{fleetChip}</div>',
+  expect(source.slice(compact)).toMatch(
+    /<div className="flex min-w-0 gap-1\.5 pl-\[18px\] mt-0\.5">\s*\{worktreeChip\}\s*\{fleetChip\}\s*<\/div>/,
   );
   expect(source.slice(compact).indexOf("{worktreeChip}")).toBeGreaterThan(
     source.slice(compact).indexOf("{showBlockedBadge"),

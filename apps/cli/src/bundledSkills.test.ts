@@ -143,8 +143,8 @@ describe("index.ts installs from the bundle", () => {
   test("skills are one catalog snippet: behavior entry, refresh gate, headless default, both disable paths", () => {
     // The behavior table is what the wizard, --all, `cast install skills` and
     // the web toggle (daemon apply_snippet → cast install skills) all run.
-    expect(indexSrc).toContain(
-      'skills: { getVersion: getSkillsVersion, install: installSkillsSnippet, reEnable: "cast install skills" }',
+    expect(indexSrc).toMatch(
+      /skills: \{\s*getVersion: getSkillsVersion,\s*install: installSkillsSnippet,\s*reEnable: "cast install skills",?\s*\}/,
     );
     const refresh = indexSrc.slice(
       indexSrc.indexOf("async function refreshEnabledSnippets("),
@@ -160,7 +160,7 @@ describe("index.ts installs from the bundle", () => {
     // Off means gone from disk, on the single-slug path and the --disable-all path.
     expect(
       indexSrc.match(
-        /else if \((entry|s)\.enabledKey === "skills_enabled"\) uninstallSkillsSnippet\(\);/g,
+        /else if \((entry|s)\.enabledKey === "skills_enabled"\)\s*uninstallSkillsSnippet\(\);/g,
       )?.length,
     ).toBe(2);
   });

@@ -13,7 +13,7 @@ describe("answer keys have one owner", () => {
   test("the queue passes keys to one group, and inside it to the first row only", () => {
     const src = read("DecisionQueueList.tsx");
     expect(src).toMatch(
-      /const keysGroup = \(groups\.find\(\(g\) => g\.kind === "stack" \|\| g\.kind === "scope"\) \?\? groups\[0\]\)\?\.key;/,
+      /const keysGroup =\s*\(\s*groups\.find\(\s*\(g\) => g\.kind === "stack" \|\| g\.kind === "scope",?\s*\)\s*\?\? groups\[0\]\s*\)\?\.key;/,
     );
     expect(src).toMatch(/keys=\{g\.key === keysGroup\}/);
     // Every compact card in the queue takes keys only as the group's first row.

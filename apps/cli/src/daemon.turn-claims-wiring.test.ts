@@ -312,10 +312,10 @@ test("the status sink, teardown, the CC-FLEET restart and the warm pool keep the
   );
   // A claimed session is the pass's in the sweep whatever its file says (a death mid auto-compaction is not completed).
   expect(source).toMatch(
-    /if \(turnClaims\(\)\.get\(sessionId\)\) continue;\s*if \(claimTransition\(data\.status/,
+    /if \(turnClaims\(\)\.get\(sessionId\)\) continue;\s*if \(\s*claimTransition\(data\.status/,
   );
   // The sweep opens from a status file only what a live status would open (no manual /compact).
-  expect(source).toContain(
-    'claimTransition(data.status ?? "") === "open" && turnClaims().open(sessionId, convId, data.ts * 1000)',
+  expect(source).toMatch(
+    /claimTransition\(data\.status \?\? ""\) === "open" &&\s*turnClaims\(\)\.open\(sessionId, convId, data\.ts \* 1000\)/,
   );
 });

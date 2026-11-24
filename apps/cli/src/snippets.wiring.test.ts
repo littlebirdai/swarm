@@ -81,8 +81,8 @@ describe("every catalog snippet is wired into the CLI", () => {
     // no error anywhere. `decide` shipped in exactly that state. Deriving the
     // map from the catalog makes the omission impossible, so what is pinned
     // here is the derivation itself.
-    expect(indexSource).toContain(
-      "SNIPPET_CATALOG.filter((d) => d.section).map((d) => [d.enabledKey, d.section!.spec])",
+    expect(indexSource).toMatch(
+      /SNIPPET_CATALOG\s*\.filter\(\(d\) => d\.section\)\s*\.map\(\(d\) => \[\s*d\.enabledKey,\s*d\.section!\.spec,?\s*\]\)/,
     );
 
     // And the catalog really does carry a section for everything that has one.
@@ -110,8 +110,8 @@ describe("every catalog snippet is wired into the CLI", () => {
     // re-check. Browser has both. (Not asserted for the whole catalog — forks,
     // for one, relies on the refresh path alone and never writes its version
     // key, so a blanket rule here would encode an invariant that is not real.)
-    expect(indexSource).toContain(
-      "config.browser_enabled && config.browser_version",
+    expect(indexSource).toMatch(
+      /config\.browser_enabled &&\s*config\.browser_version/,
     );
     expect(indexSource).toContain(
       "if (config.browser_enabled) installBrowserSnippet(true)",

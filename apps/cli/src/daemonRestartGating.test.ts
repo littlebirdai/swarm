@@ -277,10 +277,10 @@ describe("daemon restart gating", () => {
   test("the split brain sweeps match off the process table, not pgrep", () => {
     const daemon = src("daemon.ts");
     expect(functionBody(index, "stopDaemon")).toContain(
-      "ownDaemonPids(snapshotProcessTable(",
+      "ownDaemonPids(\n        snapshotProcessTable(",
     );
-    expect(functionBody(daemon, "sweepOrphanDaemons")).toContain(
-      "findOtherDaemonRows(await snapshotProcessTableAsync(",
+    expect(functionBody(daemon, "sweepOrphanDaemons")).toMatch(
+      /findOtherDaemonRows\(\s*await snapshotProcessTableAsync\(/,
     );
     for (const source of [index, daemon]) {
       expect(source).not.toContain("pgrep -f 'daemon");
@@ -332,7 +332,7 @@ describe("daemon restart gating", () => {
     const daemon = src("daemon.ts");
     const body = functionBody(daemon, "clearDaemonStampsIfUnheld");
     expect(body).toContain(
-      "if (stampHolder && stampHolder !== process.pid && isProcessRunning(stampHolder)) return;",
+      "if (\n    stampHolder &&\n    stampHolder !== process.pid &&\n    isProcessRunning(stampHolder)\n  )\n    return;",
     );
     expect(body).toContain("fs.unlinkSync(VERSION_FILE)");
     expect(body).toContain("fs.unlinkSync(BUILD_FILE)");
@@ -405,7 +405,7 @@ describe("daemon restart gating", () => {
     // Serial: every command waits for the one before it, except the few that
     // wait minutes on a provider and report their own result.
     expect(body).toContain(
-      "if (DETACHED_COMMANDS.has(cmd.command)) void run.catch(",
+      "if (DETACHED_COMMANDS.has(cmd.command))\n        void run.catch(",
     );
     expect(body).toContain("else await run;");
     // The bypass is pinned by name. A command added here runs unordered with
@@ -416,7 +416,7 @@ describe("daemon restart gating", () => {
         daemon,
       );
     expect(detached, "DETACHED_COMMANDS is one Set literal").not.toBeNull();
-    expect(JSON.parse(detached![1])).toEqual([
+    expect(JSON.parse(detached![1].replace(/,\s*\]$/, "]"))).toEqual([
       "cloud_agent_action",
       "switch_claude_backend",
       "export_folder",

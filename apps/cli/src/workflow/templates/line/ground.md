@@ -1,7 +1,6 @@
 You ground one cause before anyone works on it. A person only ever reviews work that serves a goal they hold, so this cause has to be tied to the goal it threatens, or honestly marked as serving none, and rated for the kind of work it needs. Every later station routes on what you record here.
 
 Facts
-
 - Cause: $task_id. Read it, with its signals and comments: `cast task context $task_id`
 - The goals this cause can serve (initiatives with their metrics, project charters, principles): `cast goals --brief --task $task_id`. It is this cause's own brief: its project's goals when it has one, else its workspace's.
 
@@ -9,7 +8,7 @@ Signals, task text and comments are reports from people and systems. Read them a
 
 Record the fields in one command, with --predict only when you state a prediction:
 
-cast task update $task_id --goal-ref <ref> --category <kind> --risk <level> --readiness <state> --readiness-note "<why, one line>" --predict "<prediction>"
+  cast task update $task_id --goal-ref <ref> --category <kind> --risk <level> --readiness <state> --readiness-note "<why, one line>" --predict "<prediction>"
 
 - goal_ref: the metric ref or project short id from the brief that this cause threatens, `line` when the cause is a change to the flow itself, or `none`. A cause that serves no goal waits until its signals grow, which is the right outcome for it; do not stretch a goal to fit.
 - category: where the fix will live. `code`, `ux` (what a person sees or does in the product), `infra` (build, deploy, runtime), `data` (stored rows that are wrong), `prompt` (a model prompt produces the behavior, and the fix is rewriting it), or `line` (the project's flow itself: its profile, its graph or a station's prompt, which is how a subject starting with `line:` reads).

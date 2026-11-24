@@ -27,11 +27,19 @@ const rowCss = readFileSync(
 
 /** One rule's declarations, by its exact selector. Comments dropped. */
 function rule(selector: string, sheet: string = css): Record<string, string> {
-  const at = sheet.indexOf(`\n${selector} {`);
-  expect(at, `${selector} is in the sheet`).toBeGreaterThan(-1);
-  const body = sheet
-    .slice(at + selector.length + 3, sheet.indexOf("}", at))
-    .replace(/\/\*[\s\S]*?\*\//g, "");
+  const normalize = (s: string) =>
+    s
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/\(\s+|\s+\)/g, (space) => space.trim());
+  const rules = sheet
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .matchAll(/([^{}]+)\{([^{}]*)\}/g);
+  const match = [...rules].find(
+    ([, prefix]) => normalize(prefix) === normalize(selector),
+  );
+  expect(match, `${selector} is in the sheet`).toBeDefined();
+  const body = match![2];
   const out: Record<string, string> = {};
   for (const d of body.split(";")) {
     const i = d.indexOf(":");

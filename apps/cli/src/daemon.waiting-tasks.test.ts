@@ -1466,7 +1466,9 @@ describe("hook idle settle: the tail read off the loop is the one the settle use
     }).text;
     expect(body.length).toBeGreaterThan(5000);
     expect(body).toContain("readFileTailAsync(transcript)");
-    expect(body).toContain("{ primed: true, tail }");
+    expect(body).toContain(
+      "{\n                primed: true,\n                tail,\n              }",
+    );
     expect(body).toContain("opts?.tail)");
     // The settle reads the transcript the Stop hook named (ct-59925), checked
     // to be this session's own, before it falls back to the file index.
@@ -1577,7 +1579,7 @@ describe("hook path off the loop: async readers and the persist chain", () => {
     const statusFile = functionBlock(src, "handleStatusFile", {
       from: main,
     }).text;
-    expect(statusFile).toContain("fs.promises.readFile(");
+    expect(statusFile).toMatch(/fs\.promises\s*\.readFile\(/);
     expect(statusFile).not.toContain("readFileSync");
     // The replay of on disk status files at boot goes through the shared
     // async reader, not a readdirSync loop.

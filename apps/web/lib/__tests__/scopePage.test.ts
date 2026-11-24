@@ -255,7 +255,7 @@ describe("the panel answers who acts next (F4.3)", () => {
       Dormant: "dormant",
     };
     const rendered = [
-      ...src.matchAll(/renderSection\("(Needs You|Done|Working|Dormant)"/g),
+      ...src.matchAll(/renderSection\(\s*"(Needs You|Done|Working|Dormant)"/g),
     ].map((m) => STATE[m[1].replace(" ", "")]);
     expect(rendered).toEqual(
       HAND_GROUPS.filter((g) => g.state !== "idle").map((g) => g.state),

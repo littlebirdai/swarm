@@ -1,3 +1,4 @@
+import { topLevelSelectors } from "../../../lib/__tests__/sourceWalk";
 import { afterAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -87,21 +88,6 @@ const text = (el: Element | null | undefined) =>
   el?.textContent?.trim() ?? null;
 
 /** A selector list split on its own commas, not the ones inside :is(…). */
-function topLevelSelectors(list: string): string[] {
-  const out: string[] = [];
-  let depth = 0;
-  let cur = "";
-  for (const ch of list) {
-    if (ch === "(") depth++;
-    if (ch === ")") depth--;
-    if (ch === "," && depth === 0) {
-      out.push(cur);
-      cur = "";
-    } else cur += ch;
-  }
-  out.push(cur);
-  return out.map((s) => s.trim()).filter(Boolean);
-}
 
 let n = 0;
 function tool(
@@ -274,10 +260,10 @@ describe("Modern header", () => {
     );
     // Live pills (the status among them) share one round 22px shape.
     expect(modern).toMatch(
-      /\.modern-style \[data-sv-convhead\] :is\(\[data-cc-conv-status\][^)]*\) \{[^}]*height: 22px;[^}]*border-radius: 9999px;/,
+      /\.modern-style\s+\[data-sv-convhead\]\s+:is\(\s*\[data-cc-conv-status\][^)]*\) \{[^}]*height: 22px;[^}]*border-radius: 9999px;/,
     );
     expect(modern).toMatch(
-      /\[data-cc-conv-actions\] > :is\(button, a\)[^{]*\{[^}]*min-height: 28px;/,
+      /\[data-cc-conv-actions\]\s+>\s+:is\(button, a\)[^{]*\{[^}]*min-height: 28px;/,
     );
     expect(modern).not.toMatch(/cq-squeeze-row[^{]*\{[^}]*flex-wrap:\s*wrap/);
     // Every Modern rule is scoped to the style.
@@ -433,7 +419,7 @@ describe("Modern row words", () => {
     );
     expect(view).toContain('${modernStyle ? ":m" : ""}');
     expect(view).toMatch(
-      /\[feedDensity, foldWorkingTurns, foldTurns, timeline, turnAggregates, expandedGroups, modernStyle\]/,
+      /\[\s*feedDensity,\s*foldWorkingTurns,\s*foldTurns,\s*timeline,\s*turnAggregates,\s*expandedGroups,\s*modernStyle,?\s*\]/,
     );
   });
 

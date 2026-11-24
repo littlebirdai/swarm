@@ -52,17 +52,23 @@ test("daemon GC is opt-in for retirement, never account or agent recycling", () 
   );
   expect(kill).toContain("retireWorkspace = false");
   expect(kill).toContain(
-    "if (retireWorkspace && gcCwd && (teardown.killedAppServer || teardown.killedSdk || teardownPlan.reapPidTree)",
+    "if (\n    retireWorkspace &&\n    gcCwd &&\n    (teardown.killedAppServer ||\n      teardown.killedSdk ||\n      teardownPlan.reapPidTree)",
   );
   // Only the explicit kill command retires, and a kill that says the worktree is
   // someone else's (a workflow station's, shared by its run) keeps it.
   expect(
-    source.match(/killConversationBackends\(\w+, \w+, [^\n]*?\)(?=;)/g),
+    source
+      .match(/killConversationBackends\(\s*\w+,\s*\w+,\s*[^)]*?\)(?=;)/g)
+      ?.map((call) =>
+        call
+          .replace(/\s+/g, " ")
+          .replace(/\( |, \)/g, (part) => (part.includes("(") ? "(" : ")")),
+      ),
   ).toEqual([
     "killConversationBackends(conversationId, sessionIdHint, parsed.keep_workspace !== true)",
   ]);
-  expect(source).toContain(
-    "killConversationBackends(convId, sessionIds[convId])",
+  expect(source).toMatch(
+    /killConversationBackends\(\s*convId,\s*sessionIds\[convId\],?\s*\)/,
   );
 });
 
@@ -900,7 +906,9 @@ describe("releaseSessionMadeWorktrees", () => {
     for (const body of [kill, reap]) {
       const made = body.indexOf("releaseSessionMadeWorktrees(");
       expect(made).toBeGreaterThan(-1);
-      expect(made).toBeLessThan(body.indexOf("releaseSessionWorktree(gcCwd"));
+      expect(made).toBeLessThan(
+        body.search(/releaseSessionWorktree\(\s*gcCwd/),
+      );
     }
   });
 
