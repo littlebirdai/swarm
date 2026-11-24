@@ -6,10 +6,7 @@
   "scripts": {
     "test": "bun test"
   },
-  "main": "./index.ts",
-  "types": "./index.ts",
   "exports": {
-    ".": "./index.ts",
     "./contracts": "./contracts/index.ts",
     "./contracts/vaultProtocol": "./contracts/vaultProtocol.ts",
     "./contracts/resourceOffloadIntent": "./contracts/resourceOffloadIntent.ts",
