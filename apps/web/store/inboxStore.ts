@@ -367,7 +367,7 @@ import {
 } from "@codecast/policy/permissionRules";
 import type { BrowserPaneOffer } from "@codecast/browser/browserPaneOffer";
 import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
-import { escalationTargetIds } from "@codecast/shared/contracts/decisionEscalation";
+import { escalationTargetIds } from "@codecast/decisions/decisionEscalation";
 import {
   isAgentSpawnedConversation,
   isAgentTeamWorker,

@@ -24,7 +24,7 @@ import { v } from "convex/values";
 import { verifyApiToken } from "./apiTokens";
 import { isTeamMember } from "./privacy";
 import { isHostedAgentType } from "@codecast/shared/contracts";
-import { escalationTargetIds } from "@codecast/shared/contracts/decisionEscalation";
+import { escalationTargetIds } from "@codecast/decisions/decisionEscalation";
 import type { Doc, Id } from "./_generated/dataModel";
 import { emitNotification } from "./notificationRouter";
 import { userCanAccessRole } from "./lib/orgAccess";

@@ -110,7 +110,7 @@ import {
   JUDGE_CASE_SOURCE,
   isJudgeProblem,
 } from "@codecast/shared/contracts/judgeReview";
-import { ASK_LINE, personAskDue } from "@codecast/shared/contracts/personAsk";
+import { ASK_LINE, personAskDue } from "@codecast/decisions/personAsk";
 
 export { SIGNAL_KINDS, type SignalKind };
 export type SignalAttach =

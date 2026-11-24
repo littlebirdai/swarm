@@ -37,6 +37,7 @@
         "@codecast/comments": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
+        "@codecast/decisions": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/evals-api": "workspace:*",
@@ -247,6 +248,7 @@
         "@codecast/comments": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
+        "@codecast/decisions": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/flows": "workspace:*",
@@ -318,6 +320,7 @@
         "@codecast/convex": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
+        "@codecast/decisions": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/evals-api": "workspace:*",
@@ -589,6 +592,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/decisions": {
+      "name": "@codecast/decisions",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/diff": {
       "name": "@codecast/diff",
       "version": "0.0.1",
@@ -738,6 +748,7 @@
         "@codecast/chat": "workspace:*",
         "@codecast/cloud-hosts": "workspace:*",
         "@codecast/daemon": "workspace:*",
+        "@codecast/decisions": "workspace:*",
         "@codecast/docs": "workspace:*",
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
@@ -1178,6 +1189,8 @@
     "@codecast/convex-errors": ["@codecast/convex-errors@workspace:packages/convex-errors"],
 
     "@codecast/daemon": ["@codecast/daemon@workspace:packages/daemon"],
+
+    "@codecast/decisions": ["@codecast/decisions@workspace:packages/decisions"],
 
     "@codecast/diff": ["@codecast/diff@workspace:packages/diff"],
 

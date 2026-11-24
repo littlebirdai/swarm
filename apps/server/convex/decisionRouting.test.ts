@@ -14,7 +14,7 @@ import {
 import { passCore } from "./decisionHandoff";
 import { shareOutCore, shareOutPreviewCore } from "./decisionShareOut";
 import { AREAS_RECHECK_MS, askForAreas } from "./decisionAreas";
-import { AREAS_CARD_QUESTION } from "@codecast/shared/contracts/decisionAreas";
+import { AREAS_CARD_QUESTION } from "@codecast/decisions/decisionAreas";
 
 const HOST = "users_host" as any; // admin, owns the asking session, covers nothing
 const SAM = "users_sam" as any;

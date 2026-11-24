@@ -8,7 +8,7 @@
 
 import { approvesSecretRead } from "./secrets";
 import { shellArg, shellWords } from "@codecast/daemon/shellWords";
-import { APPROVAL_ANSWERS } from "./approvalAnswers";
+import { APPROVAL_ANSWERS } from "@codecast/decisions/approvalAnswers";
 
 /** The answers are an approval's, so every surface draws the card as one. */
 export const RUN_OPTION = APPROVAL_ANSWERS.approve;

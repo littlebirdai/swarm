@@ -6,8 +6,8 @@ import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
 import {
   decisionOwnerOf,
   type DecisionOwnerRef,
-} from "@codecast/shared/contracts/decisionAreas";
-import { byImpact } from "@codecast/shared/contracts/decisionImpact";
+} from "@codecast/decisions/decisionAreas";
+import { byImpact } from "@codecast/decisions/decisionImpact";
 import type { SessionDecisionItem } from "../../store/inboxStore";
 
 type Row = Pick<

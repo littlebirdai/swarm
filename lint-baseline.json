@@ -28870,6 +28870,27 @@
   "packages/daemon/src/terminalStream.ts": {
     "swarm/no-comments": 59
   },
+  "packages/decisions/src/approvalAnswers.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/decisions/src/decisionAreas.ts": {
+    "swarm/no-comments": 29
+  },
+  "packages/decisions/src/decisionCategory.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/decisions/src/decisionEscalation.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/decisions/src/decisionImpact.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/decisions/src/personAsk.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/decisions/test/personAsk.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -29257,9 +29278,6 @@
   "packages/shared/contracts/appSurfaces.ts": {
     "swarm/no-comments": 11
   },
-  "packages/shared/contracts/approvalAnswers.ts": {
-    "swarm/no-comments": 3
-  },
   "packages/shared/contracts/assistant.replyAsks.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29364,18 +29382,6 @@
   },
   "packages/shared/contracts/decisionAnswers.ts": {
     "swarm/no-comments": 36
-  },
-  "packages/shared/contracts/decisionAreas.ts": {
-    "swarm/no-comments": 29
-  },
-  "packages/shared/contracts/decisionCategory.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/decisionEscalation.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/decisionImpact.ts": {
-    "swarm/no-comments": 4
   },
   "packages/shared/contracts/deliveryFailed.test.ts": {
     "swarm/no-comments": 1
@@ -29763,12 +29769,6 @@
   },
   "packages/shared/contracts/peerTransport.ts": {
     "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/personAsk.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/personAsk.ts": {
-    "swarm/no-comments": 12
   },
   "packages/shared/contracts/pipeline.test.ts": {
     "swarm/no-comments": 1

@@ -18,7 +18,7 @@ import {
   areasText,
   takesDecisions,
   type AreaAssignment,
-} from "@codecast/shared/contracts/decisionAreas";
+} from "@codecast/decisions/decisionAreas";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   Dialog,

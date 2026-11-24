@@ -8,7 +8,7 @@ import {
   planShareOut,
   proposeSplit,
   type AreaMember,
-} from "./decisionAreas";
+} from "../src/decisionAreas";
 
 const m = (
   user_id: string,

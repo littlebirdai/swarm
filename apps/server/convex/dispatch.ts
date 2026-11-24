@@ -28,7 +28,7 @@ import {
 } from "./decisionHandoff";
 import { applyAreasCore } from "./decisionAreas";
 import { shareOutCore } from "./decisionShareOut";
-import type { AreaAssignment } from "@codecast/shared/contracts/decisionAreas";
+import type { AreaAssignment } from "@codecast/decisions/decisionAreas";
 import {
   createStackWithCore,
   removeFromStackCore,

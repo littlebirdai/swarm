@@ -36,7 +36,7 @@ import {
   isStackedAsk,
 } from "@codecast/shared/contracts";
 import { APPROVAL_ANSWERS } from "@codecast/shared/contracts/assistant";
-import { byImpact } from "@codecast/shared/contracts/decisionImpact";
+import { byImpact } from "@codecast/decisions/decisionImpact";
 import { nestParentIdOf } from "@codecast/convex/convex/ccAccountsShared";
 import type {
   DecisionKind,

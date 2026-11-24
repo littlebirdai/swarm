@@ -16,7 +16,7 @@ import {
   pickAreaOwner,
   takesDecisions,
   type AreaMember,
-} from "@codecast/shared/contracts/decisionAreas";
+} from "@codecast/decisions/decisionAreas";
 import { isProtectedCategory } from "./lib/decisionCategory";
 import { sessionWork, taskWork } from "./lib/orgOwnership";
 import { emitNotification } from "./notificationRouter";
