@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { MentionItem } from "../lib/mentionItem";
-import { matchHandle, memberHandle } from "@codecast/shared/chat";
+import { matchHandle, memberHandle } from "@codecast/chat";
 import { isTerminalTaskStatus } from "@codecast/shared/tasks";
 import { useInboxStore, convBucketMap, isConvexId } from "../store/inboxStore";
 import { agentStatusAt, sessionAwakeAt } from "../lib/liveness";

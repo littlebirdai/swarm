@@ -125,7 +125,7 @@ import {
   hostedAsks,
   type HostedApprovalState,
 } from "../lib/hostedApproval";
-import { GROUP_WINDOW_MS } from "@codecast/shared/chat";
+import { GROUP_WINDOW_MS } from "@codecast/chat";
 import { useNowWhen } from "../hooks/useCoarseNow";
 import { isAskTool } from "@codecast/shared/render";
 import { resolveSessionSkills } from "../lib/sessionSkills";

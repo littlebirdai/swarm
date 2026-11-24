@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { memberHandle } from "@codecast/shared/chat";
+import { memberHandle } from "@codecast/chat";
 import { Text } from "@/components/Themed";
 import {
   Spacing,

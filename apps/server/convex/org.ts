@@ -1,5 +1,5 @@
 import { query } from "./functions";
-import { memberHandle } from "@codecast/shared/chat";
+import { memberHandle } from "@codecast/chat";
 import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
 import { sessionProjectId } from "@codecast/shared/contracts/sessionProject";
 import { v } from "convex/values";

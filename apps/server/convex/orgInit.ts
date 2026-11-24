@@ -14,7 +14,7 @@ import {
   looseSessionsOf,
 } from "./lib/orgSessionFiling";
 import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
-import { matchHandle } from "@codecast/shared/chat";
+import { matchHandle } from "@codecast/chat";
 import { movedFields } from "@codecast/shared/contracts/orgChange";
 import { action, mutation, query } from "./functions";
 import { api, internal } from "./_generated/api";

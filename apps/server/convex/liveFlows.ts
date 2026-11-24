@@ -12,7 +12,7 @@ import { internalMutation, mutation, query } from "./functions";
 import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
 import { requireTeamAdmin, resolveSessionConversation } from "./lib/access";
-import { SESSION_SHORT_ID_RE } from "@codecast/shared/chat";
+import { SESSION_SHORT_ID_RE } from "@codecast/chat";
 import { atCap } from "@codecast/shared/contracts/orgCapacity";
 import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
 import { utcDay } from "./lib/orgCaps";

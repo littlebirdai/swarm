@@ -81,7 +81,7 @@ import { FlowExplorer } from "../../../widgets/FlowStationPanel";
 import { FlowRunCard } from "../../../widgets/FlowFence";
 import { ConsequentialSwitch } from "../../../../consequential/ConsequentialSwitch";
 import { EntityIdPill } from "../../../../EntityIdPill";
-import { SESSION_SHORT_ID_RE } from "@codecast/shared/chat";
+import { SESSION_SHORT_ID_RE } from "@codecast/chat";
 import type { LineViewProps } from "../types";
 import "./flows.css";
 

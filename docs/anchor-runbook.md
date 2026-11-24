@@ -136,5 +136,5 @@ the scope so `cast anchor create` can seat a new one. Only an admin or the host 
 - **Briefing.** `bootstrapMessage` frames a general agent that states its scope, owns its
   routines via `cast trigger` (bound to its own session), reaches people with `cast anchor say`,
   and passes in group threads. `cast anchor brief [--team]` re-sends it to a running agent.
-- **Silent rows never leave the server.** `isSilentAgentRow` (`packages/shared/chat/agent.ts`) is
+- **Silent rows never leave the server.** `isSilentAgentRow` (`packages/chat/src/agent.ts`) is
   applied in getThread, listMessages, thread summaries, unread counts, search and participants.

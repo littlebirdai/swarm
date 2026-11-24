@@ -1,6 +1,6 @@
 // Rounds: a room's agent members answering a line one at a time.
 //
-// The turn model is @codecast/shared/chat rounds.ts; this file does the IO.
+// The turn model is @codecast/chat rounds.ts; this file does the IO.
 // A person's line in a room with agent members (or an agent's new root there)
 // opens a round on its thread. One member holds the floor and is handed the
 // whole thread so far; when it answers there, ends its turn without answering
@@ -29,7 +29,7 @@ import {
   type ChatRound,
   type RoundMember,
   type RoundMemberSeed,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import {
   enqueuePendingMessage,
   getAuthenticatedUserId,

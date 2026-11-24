@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { isSilentAgentRow } from "@codecast/shared/chat";
+import { isSilentAgentRow } from "@codecast/chat";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { ProjectPathPicker } from "../ProjectPathPicker";
 import { DeviceDot, deviceDisplayName } from "../DeviceBadge";

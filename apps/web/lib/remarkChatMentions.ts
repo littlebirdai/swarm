@@ -1,5 +1,5 @@
 import { findAndReplace } from "mdast-util-find-and-replace";
-import type { ChatRoleMention, ChatSlackMention } from "@codecast/shared/chat";
+import type { ChatRoleMention, ChatSlackMention } from "@codecast/chat";
 import { SLACK_MARK_PATHS, SLACK_MARK_VIEWBOX } from "./slackLogo";
 import { objectHref } from "./entityLinks";
 
@@ -13,7 +13,7 @@ import { objectHref } from "./entityLinks";
 // this product, is most of what people paste.
 //
 // The character class MUST equal the server's mention vocabulary
-// (@codecast/shared/chat/handles): no dots, 39 chars max. A wider class here
+// (@codecast/chat handles.ts): no dots, 39 chars max. A wider class here
 // once made "@maya.x" notify maya on the server (its regex stops at the dot)
 // while the web showed no highlight at all — this capture included the dot,
 // failed the known-handle lookup, and the two halves of the feature disagreed

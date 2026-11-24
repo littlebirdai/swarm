@@ -75,7 +75,7 @@ import {
   dmKeyFor,
   extractMentionHandles,
   memberHandle,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import {
   markdownToSlack,
   hasStandalonePreviewLink,

@@ -14,7 +14,7 @@ import { isConversationComment } from "./lib/conversationCommentRows";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { isSilentAgentRow } from "@codecast/shared/chat";
+import { isSilentAgentRow } from "@codecast/chat";
 import { commentThreadRootKey } from "@codecast/shared/comments";
 import { isHumanOrigin } from "@codecast/shared/tasks";
 

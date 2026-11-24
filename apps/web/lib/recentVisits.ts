@@ -9,7 +9,7 @@ import { staleNavTitle } from "./navRegistry";
 import { isModernStyle } from "./visualStyle";
 import { placeTitle } from "./placeTitle";
 import { channelDisplayName } from "./chatViews";
-import { dmOtherIds } from "@codecast/shared/chat";
+import { dmOtherIds } from "@codecast/chat";
 import { cleanTitle } from "./conversationProcessor";
 import { sessionCardTitle } from "./sessionCard";
 import {

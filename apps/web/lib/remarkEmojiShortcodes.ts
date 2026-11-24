@@ -1,4 +1,4 @@
-import { replaceShortcodes } from "@codecast/shared/chat";
+import { replaceShortcodes } from "@codecast/chat";
 
 // Slack (and GitHub) write emoji as :names:. Inbound conversion turns the ones
 // we know into unicode at ingest, but history imported against a thinner table

@@ -61,7 +61,7 @@ import {
 // Hermes-safe). Mobile used to carry its own narrower copy in session/[id].tsx
 // which silently missed most real-world insight forms — one parser, one truth.
 import { parseInsightBlocks } from "@codecast/web/components/insightBlocks";
-import { replaceShortcodes } from "@codecast/shared/chat";
+import { replaceShortcodes } from "@codecast/chat";
 import { resolveDateDisplay } from "@codecast/web/lib/dateMention";
 
 import { LinkText, HighlightedCodeText, useLinkLongPress } from "./CodeText";

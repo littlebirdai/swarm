@@ -20,7 +20,7 @@ export const CALL_KNOCK_TTL_MS = 45_000;
 // because a group thread and the huddle of its members are the same room.
 // Nine Convex ids of 32 characters plus separators is ~300 characters, hence
 // the key length cap below.
-import { MAX_DM_MEMBERS } from "../chat/dm";
+import { MAX_DM_MEMBERS } from "@codecast/chat";
 export const MAX_ROOM_MEMBERS = MAX_DM_MEMBERS;
 export const CHANNEL_HUDDLE_WARNING_SIZE = 7;
 

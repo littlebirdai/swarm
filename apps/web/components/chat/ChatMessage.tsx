@@ -23,7 +23,7 @@ import {
   mentionSlack,
   type ChatRoleMention,
   type ChatSlackMention,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { openForwardToChat } from "../../lib/forwardToChat";
 import { remarkSanitizeInvisibleUnicode } from "../../lib/markdownPlugins";
 import { remarkEmojiShortcodes } from "../../lib/remarkEmojiShortcodes";

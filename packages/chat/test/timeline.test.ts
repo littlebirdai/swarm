@@ -12,7 +12,7 @@ import {
   shouldToastChatMessage,
   tallyUnread,
   type TimelineMessage,
-} from "./timeline";
+} from "../src/timeline";
 
 // The chat timeline is shared verbatim by web and mobile, and mobile runs no CI,
 // so these tests are the only thing standing behind the grouping and unread rules

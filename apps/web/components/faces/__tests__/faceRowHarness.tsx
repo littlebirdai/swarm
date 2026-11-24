@@ -130,7 +130,7 @@ export const { faceRowSize, floatingRowSize } =
 export const { EngagementCard } = await import("../EngagementCard");
 export const { walkieStageWords } = await import("../../../hooks/useWalkie");
 export const { useInboxStore } = await import("../../../store/inboxStore");
-export const { dmKeyFor } = await import("@codecast/shared/chat");
+export const { dmKeyFor } = await import("@codecast/chat");
 export const { activeTeamIdOf } = await import("../../../lib/activeTeam");
 export const faceChat = await import("../../../lib/chat/faceChat");
 

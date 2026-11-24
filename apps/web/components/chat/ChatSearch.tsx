@@ -15,7 +15,7 @@ import { KeyCap } from "../KeyboardShortcutsHelp";
 import { ChatModalLegend } from "./ChatModalLegend";
 import { highlightMatch } from "../GlobalSearch";
 import { isConvexId } from "../../lib/entityLinks";
-import { dmOtherIds, startOfDay } from "@codecast/shared/chat";
+import { dmOtherIds, startOfDay } from "@codecast/chat";
 import {
   channelDisplayName,
   lineAuthorFor,
@@ -135,7 +135,7 @@ function parseGrammar(
 
 /** Compact stamp for a hit row: a time today, "Yesterday" + time, else a short
  *  date — with the year once it differs, so two Augusts never read the same.
- *  Day boundaries come from startOfDay (shared/chat/timeline), not from
+ *  Day boundaries come from startOfDay (@codecast/chat timeline.ts), not from
  *  now - 24h, which misses "yesterday" across a DST change. */
 function hitStamp(ts: number, now: number): string {
   const d = new Date(ts);

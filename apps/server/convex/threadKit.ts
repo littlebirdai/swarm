@@ -8,7 +8,7 @@ import type {
 } from "./threadsTypes";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { extractMentionHandles } from "@codecast/shared/chat";
+import { extractMentionHandles } from "@codecast/chat";
 import { UNREAD_CAP } from "./chatText";
 import type { ConversationComment } from "./lib/conversationCommentRows";
 import { matchHandle } from "./lib/mentionResolve";

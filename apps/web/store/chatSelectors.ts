@@ -6,7 +6,7 @@ import {
   isSettledLine,
   isThreadMuted,
   plainPreview,
-} from "@codecast/shared/chat";
+} from "@codecast/chat";
 import { mirrorState } from "@codecast/convex/convex/lib/slackMirror";
 import { isConvexId } from "../lib/entityLinks";
 import { tallyUnread } from "../lib/chatTimeline";

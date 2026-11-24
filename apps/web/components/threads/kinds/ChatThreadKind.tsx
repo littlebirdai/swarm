@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { Hash, Lock, Users } from "lucide-react";
-import { authorGroupKey, buildChatTimeline } from "@codecast/shared/chat";
+import { authorGroupKey, buildChatTimeline } from "@codecast/chat";
 import { useInboxStore } from "../../../store/inboxStore";
 import type { ChatAttachment } from "../../../store/chatSlice";
 import { useThreadMessages, useThreadSync } from "../../../hooks/useChatSync";

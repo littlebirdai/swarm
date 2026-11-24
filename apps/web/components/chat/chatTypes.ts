@@ -1,4 +1,4 @@
-import type { ChatRound } from "@codecast/shared/chat";
+import type { ChatRound } from "@codecast/chat";
 import type { SlackMirrorState } from "@codecast/convex/convex/lib/slackMirror";
 // View models for the chat surface.
 //
@@ -7,7 +7,7 @@ import type { SlackMirrorState } from "@codecast/convex/convex/lib/slackMirror";
 // fixture, from an optimistic stub and from a synced server row — and so the
 // whole surface can be designed and screenshot-verified before the store exists.
 
-import type { ChatMentionRef, ChatVoiceStatus } from "@codecast/shared/chat";
+import type { ChatMentionRef, ChatVoiceStatus } from "@codecast/chat";
 import type { IdentityRow } from "../../lib/sessionIdentity";
 
 export type ChatAuthor = {
