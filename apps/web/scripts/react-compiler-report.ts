@@ -25,7 +25,7 @@
 //    depth). A helper call is the dangerous form: `timeAgo(ts)` compiles to
 //    "recompute when ts changes", so the label stops moving. Each line needs a
 //    decision before the file ships compiled: pass the value in from a hook,
-//    or put `"use no memo"` in the function with the reason. The script exits
+//    or put `"use no memo"` in the function and give the reason in the change. The script exits
 //    1 while any read is neither.
 //
 // A read can also hide behind a function a hook hands back:
@@ -529,7 +529,7 @@ for (const file of targets) {
     if (!hasNoMemo(p.node)) continue;
     // The reason is the comment the directive carries on its line.
     const directive = (p.node.body as t.BlockStatement).directives.find((d) => /^use no (memo|forget)$/.test(d.value.value))!;
-    const why = code.split("\n")[directive.loc!.start.line - 1].split("//")[1]?.trim() ?? "(no reason given)";
+    const why = code.split("\n")[directive.loc!.start.line - 1].split("//")[1]?.trim() ?? "(reason in the change that added it)";
     optedOut.push({ file: rel(file), line: p.node.loc!.start.line, name, why });
   }
 

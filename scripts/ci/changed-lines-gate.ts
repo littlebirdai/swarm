@@ -3,27 +3,13 @@
 // real checkers over whole files, then keeps a finding only when the line it
 // sits on was added since the merge base.
 //
-// Why: both checkers carry legacy debt that a whole-repo gate cannot hold.
-// `eslint .` in apps/web passes only because a 57-entry baseline
-// (apps/web/eslint-suppressions.json) forgives what already existed, and
-// apps/cli's typecheck has carried pre-existing errors, which is why
-// ci.yml's typecheck job leaves it out of the strict filter. Neither fact should
-// let NEW debt through, and neither should turn a pull request red for code it
-// never touched (ct-49564).
-//
-// This gate ignores the eslint baseline on purpose: a per-file, per-rule count
-// forgives whichever occurrence it likes, so adding a second violation to a
-// file that already had one can be reported against either line. Line overlap
-// is exact, so the gate asks eslint for every finding and does the filtering
-// itself.
-//
 // Mechanism borrowed from stablyai/orca (MIT):
 // config/scripts/check-changed-code-quality.mjs and git-pull-request-diff-base.mjs.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { lintLocation, oxlintCommand, parseOxlintReport } from "../lib/oxlint";
 
 /** An inclusive, 1-based line range. */
 export type LineRange = { start: number; end: number };
@@ -40,7 +26,6 @@ export type Finding = {
   message: string;
 };
 
-// eslint and tsc only ever speak about these.
 const SOURCE_FILE = /\.(?:[cm]?[jt]sx?)$/;
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");
@@ -109,7 +94,7 @@ export function isAddedLine(line: number, ranges: LineRange[]): boolean {
  * Why the anchor line rather than the finding's whole span: a rule that matches
  * a construct spans it from its first line to its last, so an existing
  * `useEffect` would be blamed the moment someone adds a line inside its body.
- * apps/web carries 57 suppressed call sites of exactly that shape, so a
+ * apps/web carries baselined call sites of exactly that shape, so a
  * span test would turn every edit near one red — the debt this gate exists to
  * step around. A checker anchors a finding at the construct's first line; when
  * that line is untouched, the construct predates the change.
@@ -126,35 +111,11 @@ export function selectNewFindings(findings: Finding[], added: AddedLines): Findi
 // Checker output parsing
 // ---------------------------------------------------------------------------
 
-/** eslint `--format json`, with paths rewritten relative to the repo root. */
-export function parseEslintFindings(stdout: string, cwd: string): Finding[] {
-  const results = JSON.parse(stdout) as Array<{
-    filePath: string;
-    messages: Array<{
-      severity: number;
-      ruleId: string | null;
-      message: string;
-      line?: number;
-      fatal?: boolean;
-    }>;
-  }>;
-
-  const findings: Finding[] = [];
-  for (const result of results) {
-    const file = repoRelative(result.filePath, cwd);
-    for (const message of result.messages) {
-      // Warnings are advice; only errors block. A parse error (fatal, no rule)
-      // has no honest line filter, so it reports as a whole-file failure.
-      if (message.severity !== 2) continue;
-      findings.push({
-        file: message.fatal && message.line === undefined ? null : file,
-        line: message.line ?? 1,
-        code: message.ruleId ?? "eslint",
-        message: message.message,
-      });
-    }
-  }
-  return findings;
+export function parseOxlintFindings(stdout: string): Finding[] {
+  return parseOxlintReport(stdout).diagnostics
+    .map(lintLocation)
+    .filter(({ severity }) => severity === "error")
+    .map(({ file, line, rule, message }) => ({ file, line, code: rule, message }));
 }
 
 /** tsc `--pretty false` diagnostics, with paths relative to the repo root. */
@@ -216,31 +177,16 @@ function git(args: string[]): string {
   return result.stdout;
 }
 
-function runEslint(files: string[]): Finding[] {
-  const cwd = path.join(REPO_ROOT, "apps/web");
-  // An empty baseline in a temp file: eslint reads `eslint-suppressions.json`
-  // by default, and a suppressed finding never reaches us to be line-filtered.
-  const empty = path.join(mkdtempSync(path.join(tmpdir(), "changed-lines-")), "none.json");
-  writeFileSync(empty, "{}\n");
-
-  const result = spawnSync(
-    "bunx",
-    [
-      "eslint",
-      "--format",
-      "json",
-      "--suppressions-location",
-      empty,
-      "--no-warn-ignored",
-      ...files.map((file) => path.relative(cwd, path.join(REPO_ROOT, file))),
-    ],
-    { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 },
+function runOxlint(files: string[]): Finding[] {
+  const result = Bun.spawnSync(
+    oxlintCommand(["--no-error-on-unmatched-pattern", "--", ...files]),
+    { cwd: REPO_ROOT },
   );
-  const stdout = result.stdout?.trim() ?? "";
-  if (!stdout.startsWith("[")) {
-    throw new Error(`eslint produced no JSON (exit ${result.status}):\n${result.stderr}`);
+  const stdout = result.stdout.toString();
+  if ((result.exitCode !== 0 && result.exitCode !== 1) || !stdout.trim()) {
+    throw new Error(`Oxlint failed (exit ${result.exitCode}):\n${result.stderr}`);
   }
-  return parseEslintFindings(stdout, cwd);
+  return parseOxlintFindings(stdout);
 }
 
 function runTsc(pkg: string, project: string): (files: string[]) => Finding[] {
@@ -265,10 +211,10 @@ function runTsc(pkg: string, project: string): (files: string[]) => Finding[] {
 
 export const CHECKS: Check[] = [
   {
-    id: "eslint-web",
-    label: "eslint (apps/web)",
+    id: "oxlint-web",
+    label: "oxlint (apps/web)",
     scope: "apps/web/",
-    run: runEslint,
+    run: runOxlint,
   },
   {
     id: "tsc-cli",

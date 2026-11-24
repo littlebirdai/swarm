@@ -8,7 +8,7 @@ import { describe, expect, test } from "bun:test";
 import {
   isAddedLine,
   parseAddedLines,
-  parseEslintFindings,
+  parseOxlintFindings,
   parseTscFindings,
   resolveDiffBase,
   selectNewFindings,
@@ -166,38 +166,33 @@ describe("selectNewFindings", () => {
   });
 });
 
-describe("parseEslintFindings", () => {
-  const cwd = `${import.meta.dir}/../../apps/web`;
-
-  test("keeps errors, drops warnings, and carries the rule id", () => {
-    const stdout = JSON.stringify([
-      {
-        filePath: `${cwd}/components/A.tsx`,
-        messages: [
-          // endLine reaches past the construct; the gate anchors on `line`.
-          { severity: 2, ruleId: "no-restricted-syntax", message: "no useEffect", line: 12, endLine: 40 },
-          { severity: 1, ruleId: "no-unused-vars", message: "unused", line: 3 },
-        ],
-      },
-    ]);
-    expect(parseEslintFindings(stdout, cwd)).toEqual([
-      {
-        file: "apps/web/components/A.tsx",
-        line: 12,
-        code: "no-restricted-syntax",
-        message: "no useEffect",
-      },
+describe("parseOxlintFindings", () => {
+  test("keeps errors, drops warnings, and uses the first label for the line", () => {
+    const filename = "apps/web/components/A.tsx";
+    const stdout = JSON.stringify({
+      number_of_files: 1,
+      diagnostics: [
+        {
+          filename,
+          severity: "error",
+          code: "swarm(no-direct-use-effect)",
+          message: "no useEffect",
+          labels: [{ span: { line: 12 } }, { span: { line: 40 } }],
+        },
+        { filename, severity: "warning", code: "react(refs)", message: "ref access" },
+      ],
+    });
+    expect(parseOxlintFindings(stdout)).toEqual([
+      { file: filename, line: 12, code: "swarm/no-direct-use-effect", message: "no useEffect" },
     ]);
   });
 
-  test("a parse error with no location reports as unattributable", () => {
-    const stdout = JSON.stringify([
-      {
-        filePath: `${cwd}/components/B.tsx`,
-        messages: [{ severity: 2, ruleId: null, message: "Parsing error", fatal: true }],
-      },
-    ]);
-    expect(parseEslintFindings(stdout, cwd)[0]!.file).toBeNull();
+  test("an error without a filename is unattributable", () => {
+    const stdout = JSON.stringify({
+      number_of_files: 0,
+      diagnostics: [{ severity: "error", message: "Configuration error" }],
+    });
+    expect(parseOxlintFindings(stdout)[0]!.file).toBeNull();
   });
 });
 
@@ -271,7 +266,7 @@ describe("resolveDiffBase", () => {
 
 describe("checks", () => {
   test("each check has a unique id and a package scope that exists", () => {
-    expect(CHECKS.map((check) => check.id)).toEqual(["eslint-web", "tsc-cli", "tsc-convex"]);
+    expect(CHECKS.map((check) => check.id)).toEqual(["oxlint-web", "tsc-cli", "tsc-convex"]);
     for (const check of CHECKS) {
       expect(check.scope.endsWith("/"), `${check.id} scope is a directory prefix`).toBe(true);
     }
