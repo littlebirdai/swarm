@@ -126,12 +126,7 @@ afterAll(() => {
   }
 });
 
-test("a joining follower applies the host snapshot without writing to IndexedDB", async () => {
-  holdHostLock();
-  const rows = cachedSessions();
-  await sessions.bulkPut(rows);
-  await bootCache();
-  const hostRows = [{ ...rows[0], title: "From the host" }, ...rows.slice(1)];
+function connectHost(hostRows: ReturnType<typeof cachedSessions>) {
   const transport = replicationTransport(replicationChannelName(TEST_PRINCIPAL), "previous-host");
   const host = createReplicationHost({
     hostId: "previous-host",
@@ -142,6 +137,15 @@ test("a joining follower applies the host snapshot without writing to IndexedDB"
     applyUpdates: () => {},
   });
   cleanups.push(() => { host.stop(); transport.close(); });
+}
+
+test("a joining follower applies the host snapshot without writing to IndexedDB", async () => {
+  holdHostLock();
+  const rows = cachedSessions();
+  await sessions.bulkPut(rows);
+  await bootCache();
+  const hostRows = [{ ...rows[0], title: "From the host" }, ...rows.slice(1)];
+  connectHost(hostRows);
 
   mutations = [];
   startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
@@ -155,6 +159,24 @@ test("a joining follower applies the host snapshot without writing to IndexedDB"
 
   expect(mutations).toEqual([]);
   expect(await sessions.toArray()).toEqual(rows);
+});
+
+test("a follower caches the transcript and navigator for a conversation only it opened", async () => {
+  holdHostLock();
+  await bootCache();
+  connectHost([]);
+  startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
+  await waitFor(() => state().syncRole === "follower");
+
+  const id = "follower-conversation";
+  const message = { _id: "follower-message", role: "user" as const, timestamp: Date.now(), content: "Only in this window" };
+  state().setMessages(id, [message]);
+  state().setUserMessages(id, [message]);
+  await drainWrites();
+
+  expect(state().syncRole).toBe("follower");
+  expect((await db.conversationMessageRows.where("convId").equals(id).first())?.message).toEqual(message);
+  expect((await db.conversationUserMessages.get(id))?.userMessages).toEqual([message]);
 });
 
 test("a window elected when the previous host closes persists only changed rows", async () => {

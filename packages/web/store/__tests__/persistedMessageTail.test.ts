@@ -4,6 +4,7 @@ import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../inboxStore";
 import { MESSAGE_PAGE_SIZE } from "../cacheRetention";
+import { db } from "../persistence/db";
 import Dexie from "dexie";
 import { _reopenForTests, flushConversationMessages, loadConversationMessages, setHydrating } from "../idbCache";
 
@@ -25,11 +26,15 @@ const many = (n: number) => Array.from({ length: n }, (_, i) => msg(i + 1));
 // write landed. (Reading through loadConversationMessages while a write is
 // pending hands back the store's own array, whose draft proxies are revoked.)
 async function settled(firstId: string) {
-  const table = (Dexie.connections.find((db) => db.name === "codecast-store") as any).conversationMessages;
   const deadline = Date.now() + 10_000;
   for (;;) {
-    const row = await table.get(CONV);
-    if (row?.messages[0]?._id === firstId || Date.now() > deadline) return row;
+    const row = await db.transaction("r", db.conversationMessageMeta, db.conversationMessageRows, async () => {
+      const meta = await db.conversationMessageMeta.get(CONV);
+      if (!meta) return undefined;
+      const rows = await db.conversationMessageRows.where("convId").equals(CONV).sortBy("position");
+      return { ...meta, messages: rows.map((row) => row.message) };
+    });
+    if (row.messages[0]?._id === firstId || Date.now() > deadline) return row;
     await Bun.sleep(10);
   }
 }
@@ -47,7 +52,7 @@ describe("persisted message tail", () => {
     expect(cached?.messages).toHaveLength(MESSAGE_PAGE_SIZE);
     expect(cached?.messages[0]._id).toBe("m51");
     expect(cached?.messages[MESSAGE_PAGE_SIZE - 1]._id).toBe(`m${MESSAGE_PAGE_SIZE + 50}`);
-    expect(cached?.pagination.hasMoreAbove).toBe(true);
+    expect(cached?.pagination?.hasMoreAbove).toBe(true);
   });
 
   it("persists a short conversation whole, with its own pagination", async () => {
@@ -55,7 +60,7 @@ describe("persisted message tail", () => {
     flushConversationMessages();
     const cached = await loadConversationMessages(CONV);
     expect(cached?.messages.map((m) => m._id)).toEqual(["m1", "m2", "m3"]);
-    expect(cached?.pagination.hasMoreAbove).toBe(false);
+    expect(cached?.pagination?.hasMoreAbove).toBe(false);
   });
 
   it("applies the cap on the merge and tail paths too", async () => {
@@ -69,6 +74,6 @@ describe("persisted message tail", () => {
     const cached = await settled("m3");
     expect(cached?.messages).toHaveLength(MESSAGE_PAGE_SIZE);
     expect(cached?.messages[0]._id).toBe("m3");
-    expect(cached?.pagination.hasMoreAbove).toBe(true);
+    expect(cached?.pagination?.hasMoreAbove).toBe(true);
   });
 });

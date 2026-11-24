@@ -3,6 +3,7 @@ import { stampCacheOwner } from "./fixtures/signedInPrincipal";
 import { describe, expect, it } from "bun:test";
 import Dexie from "dexie";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
+import { db } from "../persistence/db";
 import {
   _reopenForTests,
   flushConversationMessages,
@@ -26,7 +27,7 @@ async function waitFor(check: () => Promise<boolean> | boolean) {
 }
 
 function conversationTable(): Dexie.Table {
-  return (Dexie.connections.find((db) => db.name === "codecast-store") as any).conversationMessages;
+  return (Dexie.connections.find((db) => db.name === "codecast-store") as any).conversationMessageMeta;
 }
 
 function holdWrites(ids: string[]) {
@@ -38,7 +39,7 @@ function holdWrites(ids: string[]) {
   table.put = function (row: any) {
     if (!ids.includes(row.convId)) return put.call(table, row);
     writes.push(row);
-    return Dexie.Promise.resolve(gate).then(() => put.call(table, row));
+    return Dexie.waitFor(gate).then(() => put.call(table, row));
   };
   return { table, writes, release, restore: () => { table.put = put; } };
 }
@@ -54,7 +55,7 @@ describe("conversation cache backpressure", () => {
         writeConversationMessages(id, [message(n)], { page: n });
         flushConversationMessages();
       }
-      expect(held.writes).toHaveLength(1);
+      await waitFor(() => held.writes.length === 1);
       expect((await loadConversationMessages(id))?.messages[0].content).toBe("revision 24");
       held.release();
       await waitFor(async () => (await held.table.get(id))?.pagination.page === 24);
@@ -90,10 +91,11 @@ describe("conversation cache backpressure", () => {
       flushConversationMessages();
       writeConversationMessages(first, [message(2)], { page: 2 });
       flushConversationMessages();
-      expect(held.writes).toHaveLength(2);
+      await waitFor(() => held.writes.length === 1);
       held.release();
       await waitFor(async () => (await held.table.get(first))?.pagination.page === 2);
       expect((await held.table.get(second)).pagination.page).toBe(1);
+      expect(held.writes).toHaveLength(3);
     } finally {
       held.release();
       held.restore();
@@ -117,6 +119,7 @@ describe("conversation cache backpressure", () => {
       flushConversationMessages();
       await Bun.sleep(350);
       expect(attempts).toBe(1);
+      expect(await db.conversationMessageRows.where("convId").equals(id).count()).toBe(0);
       expect((await loadConversationMessages(id))?.pagination).toEqual({ page: 1 });
       flushConversationMessages();
       await waitFor(async () => !!(await table.get(id)));

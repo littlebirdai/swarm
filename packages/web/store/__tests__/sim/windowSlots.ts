@@ -123,6 +123,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/persistence/db.ts:closeExpected": IDB,
   "store/persistence/db.ts:cacheServed": IDB,
   "store/persistence/db.ts:purgeInProgress": IDB,
+  "store/persistence/messageCache.ts:_messageShadows": IDB,
   "store/persistence/messageCache.ts:_msgWriteTimer": IDB,
   "store/persistence/messageCache.ts:_lastPruneAt": IDB,
   "store/persistence/purge.ts:purging": IDB,
