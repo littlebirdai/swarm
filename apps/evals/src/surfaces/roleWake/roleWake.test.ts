@@ -15,7 +15,7 @@ import {
   formatSessionMessage,
   parseScheduledTask,
 } from "@codecast/messages/machineMessages";
-import { triggerRunFrame } from "@codecast/shared/contracts";
+import { triggerRunFrame } from "@codecast/triggers/triggerLifecycle";
 import { stripAnsi } from "@platform/cli-kit/render";
 
 import { ROLE_CHECK_PROMPT } from "../../../../../apps/server/convex/lib/orgRoutine";

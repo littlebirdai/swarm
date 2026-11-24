@@ -53,7 +53,7 @@ import {
   scopedWrite,
   shortRef,
 } from "./externalDataCli.js";
-import { fenceProductText } from "@codecast/shared/contracts";
+import { fenceProductText } from "@codecast/triggers/triggerLifecycle";
 import { INGEST_SHORT_ID_PREFIX } from "@codecast/ingest/ingest";
 import {
   REPLAY_BACKFILL_WINDOWS,

@@ -10,9 +10,15 @@
   },
   "exports": {
     "./triggerEvents": "./src/triggerEvents.ts",
+    "./triggerLifecycle": "./src/triggerLifecycle.ts",
     "./triggerPrecheck": "./src/triggerPrecheck.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/fence": "workspace:*",
+    "@codecast/messages": "workspace:*",
+    "@codecast/org": "workspace:*"
   }
 }

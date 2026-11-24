@@ -6,7 +6,7 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { formatScheduledTask } from "@codecast/messages/machineMessages";
-import { STASHED_RUN_NOTE } from "@codecast/shared/contracts";
+import { STASHED_RUN_NOTE } from "@codecast/triggers/triggerLifecycle";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "https://local.codecast.sh",
