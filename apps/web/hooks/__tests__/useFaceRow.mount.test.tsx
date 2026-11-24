@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../useWatchEffect";
 import type { Root } from "react-dom/client";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { act } from "react";
@@ -46,7 +47,10 @@ let renders = 0;
 let latest: FaceRow;
 function Probe() {
   renders++;
-  latest = useFaceRow();
+  const row = useFaceRow();
+  useWatchEffect(() => {
+    latest = row;
+  });
   return null;
 }
 

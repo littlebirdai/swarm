@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../useWatchEffect";
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import { replaceGlobals } from "../../test-helpers/globals";
 // Loaded before the DOM globals: the store boots its cache hydrate when it
@@ -50,9 +51,12 @@ const prior = useInboxStore.getState();
 let jump: (() => Promise<boolean>) | null = null;
 let at = "";
 function Probe() {
-  jump = useJumpToDecisionAsk(CONV, DECISION, "Ship it?");
-  const loc = useLocation();
-  at = loc.pathname + loc.search;
+  const jumpToAsk = useJumpToDecisionAsk(CONV, DECISION, "Ship it?");
+  const { pathname, search } = useLocation();
+  useWatchEffect(() => {
+    jump = jumpToAsk;
+    at = pathname + search;
+  });
   return null;
 }
 

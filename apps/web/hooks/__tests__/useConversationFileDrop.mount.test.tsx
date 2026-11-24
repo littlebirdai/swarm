@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../useWatchEffect";
 import type { Root } from "react-dom/client";
 import { afterAll, afterEach, expect, test } from "bun:test";
 import { act } from "react";
@@ -28,7 +29,10 @@ afterAll(() => {
 type Drop = ReturnType<typeof useConversationFileDrop>;
 let latest: Drop;
 function Probe() {
-  latest = useConversationFileDrop();
+  const drop = useConversationFileDrop();
+  useWatchEffect(() => {
+    latest = drop;
+  });
   return null;
 }
 

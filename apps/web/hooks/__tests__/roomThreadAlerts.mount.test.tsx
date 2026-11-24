@@ -3,6 +3,7 @@
 // while the thread is open in a focused window. An agent's line plays the
 // agent chime instead, every time, thread open or not.
 
+import { useWatchEffect } from "../useWatchEffect";
 import type { Root } from "react-dom/client";
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "react";
@@ -165,7 +166,10 @@ describe("the stage with the thread open", () => {
   // rail, where nobody watching faces saw it.
   let seen: ThreadRow | null = null;
   function OpenRail({ roomKey }: { roomKey: string }) {
-    seen = useRoomThreadUnread(roomKey, true).arrived;
+    const { arrived } = useRoomThreadUnread(roomKey, true);
+    useWatchEffect(() => {
+      seen = arrived;
+    });
     return null;
   }
 

@@ -5,6 +5,7 @@
 //
 // jsdom's user agent names the platform (darwin, linux) but never "Mac", so
 // the catalog resolves its non-mac chords and the walk modifier is Control.
+import { useWatchEffect } from "../../useWatchEffect";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../test-helpers/globals";
@@ -57,7 +58,10 @@ function Page() {
     diffs += 1;
   });
   useUndoWalk();
-  dispatch = useShortcuts().dispatchAction;
+  const { dispatchAction } = useShortcuts();
+  useWatchEffect(() => {
+    dispatch = dispatchAction;
+  });
   return null;
 }
 

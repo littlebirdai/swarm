@@ -1,5 +1,6 @@
 // A share read at 1:1 is one share pixel per screen pixel, pans by dragging,
 // and goes back to fitted on the same button.
+import { useWatchEffect } from "../useWatchEffect";
 import { afterAll, expect, test } from "bun:test";
 import { act, useRef } from "react";
 import { JSDOM } from "jsdom";
@@ -30,16 +31,19 @@ function Probe({ enabled }: { enabled: boolean }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  zoom = useShareZoom(
+  const currentZoom = useShareZoom(
     boxRef,
     scrollRef,
     { width: 2560, height: 1440 },
     enabled,
     videoRef,
   );
+  useWatchEffect(() => {
+    zoom = currentZoom;
+  });
   return (
     <div ref={boxRef}>
-      <div ref={scrollRef} data-scroller {...zoom.panHandlers}>
+      <div ref={scrollRef} data-scroller {...currentZoom.panHandlers}>
         <video ref={videoRef} />
       </div>
     </div>

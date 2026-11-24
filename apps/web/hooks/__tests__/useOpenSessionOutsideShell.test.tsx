@@ -1,3 +1,4 @@
+import { useWatchEffect } from "../useWatchEffect";
 import { afterAll, describe, expect, it } from "bun:test";
 import { replaceGlobals } from "../../test-helpers/globals";
 // Loaded before the DOM globals: the store boots its cache hydrate when it
@@ -35,8 +36,12 @@ const prior = useInboxStore.getState();
 let open: ((id: string) => void) | null = null;
 let at = "";
 function Probe() {
-  open = useOpenSession();
-  at = useLocation().pathname + useLocation().search;
+  const openSession = useOpenSession();
+  const { pathname, search } = useLocation();
+  useWatchEffect(() => {
+    open = openSession;
+    at = pathname + search;
+  });
   return null;
 }
 

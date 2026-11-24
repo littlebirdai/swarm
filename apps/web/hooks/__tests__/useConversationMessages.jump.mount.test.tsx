@@ -4,6 +4,7 @@
 // the message jump must start clean, or its around-window query never runs
 // and the thread sits in a loading state (review flow-R2).
 // Run: bun test --timeout 240000 hooks/__tests__/useConversationMessages.jump.mount.test.tsx
+import { useWatchEffect } from "../useWatchEffect";
 import { afterAll, expect, mock, test } from "bun:test";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
@@ -120,11 +121,20 @@ const { createRoot } = await import("react-dom/client");
 
 let api_: ReturnType<typeof useConversationMessages> | null = null;
 function Probe({ messageId, nonce }: { messageId?: string; nonce?: number }) {
-  api_ = useConversationMessages(CONV, messageId, undefined, undefined, nonce);
+  const api = useConversationMessages(
+    CONV,
+    messageId,
+    undefined,
+    undefined,
+    nonce,
+  );
+  useWatchEffect(() => {
+    api_ = api;
+  });
   return h("div", {
-    "data-loading-older": String(api_.isLoadingOlder),
-    "data-rows": api_.conversation?.messages.length ?? 0,
-    "data-target-mode": String(api_.targetMode),
+    "data-loading-older": String(api.isLoadingOlder),
+    "data-rows": api.conversation?.messages.length ?? 0,
+    "data-target-mode": String(api.targetMode),
   });
 }
 const root = createRoot(document.getElementById("root")!);
