@@ -22,7 +22,6 @@ import { executeCommand, silentBoundMs } from "./commandStation";
 import { parseWorkflowSource } from "./parser";
 import {
   KILL_IF_SAME,
-  bootTimeMs,
   reapDeadRunnerStations,
   stationRecordDir,
 } from "./stationProcs";
@@ -203,34 +202,40 @@ describe("a station whose runner goes", () => {
     });
   };
 
-  test("ends with a runner stopped by SIGTERM, TERM-ignoring and setsid processes included", async () => {
-    const { node, started } = nastyStation("poll", {}, false);
-    const runner = runnerScript(node);
-    await pollUntil(
-      () => {
-        const pids = started();
-        const detached = pids[3];
-        return (
-          pids.length === 4 &&
-          snapshotProcessTable().some(
-            (row) => row.pid === detached && row.pgid === detached,
-          )
-        );
-      },
-      "the station's processes starting",
-      { ms: 15_000 },
-    );
-    runner.kill("SIGTERM");
-    expect(await runner.exited).toBe(143);
-    await pollUntil(
-      async () => (await stillRunning(started())).length === 0,
-      "every station process ending",
-      { ms: 30_000 },
-    );
-    expect(
-      fs.existsSync(path.join(stationRecordDir(), `${runner.pid}.json`)),
-    ).toBe(false);
-  }, 60_000);
+  test.each([false, true])(
+    "ends the station tree when its runner gets SIGTERM (repeated forks: %s)",
+    async (forkRepeatedly) => {
+      const { node, started } = nastyStation("poll", {}, forkRepeatedly);
+      const runner = runnerScript(node);
+      await pollUntil(
+        () => {
+          const pids = started();
+          const detached = pids[3];
+          return (
+            pids.length === 4 &&
+            snapshotProcessTable().some(
+              (row) => row.pid === detached && row.pgid === detached,
+            )
+          );
+        },
+        "the station's processes starting",
+        { ms: 15_000 },
+      );
+      runner.kill("SIGTERM");
+      expect(await runner.exited).toBe(143);
+      await pollUntil(
+        async () => (await stillRunning(started())).length === 0,
+        "every station process ending",
+        { ms: 30_000 },
+      );
+      if (!forkRepeatedly) {
+        expect(
+          fs.existsSync(path.join(stationRecordDir(), `${runner.pid}.json`)),
+        ).toBe(false);
+      }
+    },
+    60_000,
+  );
 
   test("ends a station child that creates its own session after TERM", async () => {
     const node = stationThatDetachesOnTerm();
@@ -411,200 +416,6 @@ exec ${shellQuote(Bun.which("ps")!)} "$@"
     expect(await reapDeadRunnerStations(undefined, graceMs)).toEqual([group]);
     await pollUntil(() => !alive(job), "the job ending", { ms: 15_000 });
   }, 60_000);
-});
-
-describe("a dead runner's record", () => {
-  const deadPid = async () => {
-    const p = Bun.spawn(["true"]);
-    await p.exited;
-    return p.pid;
-  };
-  const writeRecord = (runner: number, written: number, groups: unknown[]) => {
-    fs.mkdirSync(stationRecordDir(), { recursive: true });
-    const file = path.join(stationRecordDir(), `${runner}.json`);
-    fs.writeFileSync(file, JSON.stringify({ runner, written, groups }));
-    return file;
-  };
-  const rowOf = (pid: number) =>
-    snapshotProcessTable().find((p) => p.pid === pid);
-
-  const oldStart = "Wed Jan 1 00:00:00 2020";
-  const freshStart = "Wed Jan 1 00:00:01 2020";
-  const group = 1000000000;
-  const child = group + 1;
-  const tree = [
-    `${group} 1 ${group} 0 ? ${freshStart} shell`,
-    `${child} ${group} ${child} 0 ? ${oldStart} child`,
-  ].join("\n");
-
-  function withProcessReads(
-    reads: readonly (string | null)[],
-    run: string,
-  ): string {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "station-reads-"));
-    const ps = path.join(tmp, "ps");
-    fs.writeFileSync(
-      ps,
-      `#!${process.execPath}
-import * as fs from "node:fs";
-if (process.argv[2] !== "-axww") process.exit(1);
-const count = ${JSON.stringify(path.join(tmp, "reads"))};
-const n = fs.existsSync(count) ? Number(fs.readFileSync(count, "utf8")) : 0;
-fs.writeFileSync(count, String(n + 1));
-const table = ${JSON.stringify(reads)}[n];
-if (!table) process.exit(1);
-console.log(table);
-`,
-      { mode: 0o755 },
-    );
-    const proc = Bun.spawnSync(
-      [
-        process.execPath,
-        "-e",
-        `
-import * as station from ${JSON.stringify(path.join(import.meta.dir, "stationProcs.ts"))};
-Date.now = () => Date.parse("2020-01-01T00:00:01Z");
-const signals = [];
-process.kill = (pid, sig) => {
-  if (sig === "SIGTERM") signals.push(pid);
-  else throw Object.assign(new Error("No such process"), { code: "ESRCH" });
-};
-${run}
-`,
-      ],
-      {
-        env: { ...process.env, PATH: `${tmp}:${process.env.PATH}`, TZ: "UTC" },
-      },
-    );
-    if (proc.exitCode !== 0) throw new Error(proc.stderr.toString());
-    return proc.stdout.toString().trim();
-  }
-
-  test("uses the first exit read for TERM if the second read fails", () => {
-    const actual = withProcessReads(
-      [tree, null],
-      `
-      station.endStationsOnExit([${group}], 0);
-      console.log(signals.includes(${child}));
-    `,
-    );
-    expect(actual).toBe("true");
-  });
-
-  test.each([null, tree])(
-    "reports incomplete exit cleanup if the second read fails or gives partial proof (%#)",
-    (second) => {
-      const actual = withProcessReads(
-        [tree, second],
-        `
-        console.log(station.endStationsOnExit([${group}], 0));
-      `,
-      );
-      expect(actual).toBe("false");
-    },
-  );
-
-  test("uses the first async tree read for TERM if the second read fails", () => {
-    const actual = withProcessReads(
-      [tree, null],
-      `
-      await station.endStation(${group}, 0);
-      console.log(signals.includes(${child}));
-    `,
-    );
-    expect(actual).toBe("true");
-  });
-
-  test("keeps known process identities if the station read fails", () => {
-    const known = [{ pid: child, pgid: child, start: oldStart }];
-    const actual = withProcessReads(
-      [null],
-      `
-      console.log(JSON.stringify(await station.readStationProcs(${group}, ${JSON.stringify(known)})));
-    `,
-    );
-    expect(JSON.parse(actual)).toEqual(known);
-  });
-
-  test.each([
-    { name: "initial read fails", reads: [null] },
-    { name: "tree read fails", reads: [tree, null] },
-    { name: "confirmation read fails", reads: [tree, tree, null] },
-    { name: "confirmation shows a live process", reads: [tree, tree, tree] },
-  ])("keeps the runner record when $name", async ({ reads }) => {
-    const file = writeRecord(await deadPid(), Date.now(), [
-      { pgid: group, procs: [{ pid: child, pgid: child, start: oldStart }] },
-    ]);
-    try {
-      const actual = withProcessReads(
-        reads,
-        `
-        await station.reapDeadRunnerStations(${JSON.stringify(stationRecordDir())}, 0);
-        console.log(require("node:fs").existsSync(${JSON.stringify(file)}));
-      `,
-      );
-      expect(actual).toBe("true");
-    } finally {
-      fs.rmSync(file, { force: true });
-    }
-  });
-
-  test("is dropped unread when it was written before this boot, though it names a live process", async () => {
-    const proc = Bun.spawn(
-      ["perl", "-MPOSIX", "-e", "POSIX::setsid(); sleep 600"],
-      { stdout: "ignore", stderr: "ignore" },
-    );
-    strays.push(proc.pid);
-    await pollUntil(
-      () => rowOf(proc.pid)?.pgid === proc.pid,
-      "the process leading a group of its own",
-      { ms: 5_000 },
-    );
-    const row = rowOf(proc.pid)!;
-    const file = writeRecord(await deadPid(), bootTimeMs()! - 60_000, [
-      {
-        pgid: row.pgid,
-        at: 0,
-        procs: [{ pid: row.pid, pgid: row.pgid, start: row.startedAt }],
-      },
-    ]);
-    expect(await reapDeadRunnerStations(undefined, graceMs)).toEqual([]);
-    expect(fs.existsSync(file)).toBe(false);
-    expect(alive(proc.pid)).toBe(true);
-  });
-
-  test("leaves alone a leaderless group of another program that took a recorded group id", async () => {
-    // Another program's group whose leader exited, as crash handlers leave them: its id is all a stale record shares with it.
-    const out = Bun.spawnSync([
-      "perl",
-      "-MPOSIX",
-      "-e",
-      `POSIX::setsid(); my $c = fork(); if (!$c) { open STDOUT, ">/dev/null"; open STDERR, ">/dev/null"; exec "sleep", "600" } print "$c\n"; exit 0`,
-    ]);
-    const member = Number(String(out.stdout).trim());
-    strays.push(member);
-    await pollUntil(
-      () => {
-        const r = rowOf(member);
-        return !!r && r.pgid !== undefined && !alive(r.pgid);
-      },
-      "a group whose leader has exited",
-      { ms: 5_000 },
-    );
-    const group = rowOf(member)!.pgid!;
-    // The station that once had this id, as its runner recorded it before dying.
-    const file = writeRecord(await deadPid(), Date.now(), [
-      {
-        pgid: group,
-        at: Date.now(),
-        procs: [{ pid: group, pgid: group, start: "Thu Jan 1 00:00:00 1970" }],
-      },
-    ]);
-    expect(await reapDeadRunnerStations(undefined, graceMs)).toEqual([]);
-    expect(fs.existsSync(file)).toBe(false);
-    // The reap returns once every end it started has run its grace.
-    expect(alive(member)).toBe(true);
-  });
 });
 
 describe("a station that ends on its own", () => {

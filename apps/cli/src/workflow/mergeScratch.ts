@@ -10,7 +10,12 @@
 // of the checkout shares it.
 
 import type { ChildProcess } from "../proc.js";
-import { snapshotProcessTableAsync } from "../processTable.js";
+import {
+  bornBeforeCaptureSecond,
+  processGroupTree,
+  snapshotProcessTableAsync,
+  type ProcRow,
+} from "../processTable.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -181,64 +186,184 @@ export async function sweepScratchTrees(
   }
 }
 
-/** The steps running now, each in a process group of its own (runShell's onChild). */
-const running = new Set<ChildProcess>();
+const STEP_READ_MS = 500;
+const STEP_TRACK_MS = 1_000;
+const STEP_STOP_POLL_MS = 250;
 
-export function trackStep(child: ChildProcess): void {
-  running.add(child);
-  child.once("close", () => running.delete(child));
+type Step = {
+  child: ChildProcess;
+  group: number | undefined;
+  exitedAt?: number;
+  stopping?: boolean;
+  groupTermAt?: number;
+  known: Map<number, string>;
+  signalled: Set<string>;
+};
+
+const running = new Set<Step>();
+let tracking: ReturnType<typeof setTimeout> | undefined;
+let reading: Promise<void> | undefined;
+
+const shellRunning = ({ child }: Step) =>
+  child.exitCode === null && child.signalCode === null;
+const identity = ({ pid, startedAt }: ProcRow) => `${pid} ${startedAt}`;
+const zombie = (row: ProcRow) => row.command.trimEnd().endsWith("<defunct>");
+const term = (pid: number) => {
+  try {
+    return process.kill(pid, "SIGTERM");
+  } catch {
+    return false;
+  }
+};
+
+function readStep(step: Step, rows: ProcRow[], shellWasRunning: boolean) {
+  const { group } = step;
+  const leader = rows.find((row) => row.pid === group);
+  const groups = new Set(
+    rows
+      .filter(
+        (row) =>
+          !zombie(row) &&
+          row.startedAt &&
+          step.known.get(row.pid) === row.startedAt,
+      )
+      .map((row) => row.pgid),
+  );
+  if (
+    leader &&
+    shellWasRunning &&
+    leader.ppid === process.pid &&
+    leader.pgid === group
+  )
+    groups.add(group);
+
+  const unclaimed =
+    groups.has(group) || leader || step.exitedAt === undefined
+      ? []
+      : rows.filter((row) => row.pgid === group && !zombie(row));
+  if (
+    unclaimed.some((row) =>
+      bornBeforeCaptureSecond({ ...row, capturedAtMs: step.exitedAt }),
+    )
+  )
+    groups.add(group);
+
+  for (const id of groups) {
+    if (id === undefined) continue;
+    for (const row of processGroupTree(rows, id)) {
+      if (row.startedAt) step.known.set(row.pid, row.startedAt);
+    }
+  }
+  const live = rows.filter(
+    (row) =>
+      !zombie(row) &&
+      step.known.has(row.pid) &&
+      (!row.startedAt || step.known.get(row.pid) === row.startedAt),
+  );
+  if (step.stopping) {
+    for (const row of live) {
+      const key = identity(row);
+      if (
+        step.signalled.has(key) ||
+        !bornBeforeCaptureSecond(row) ||
+        (row.pgid === group &&
+          step.groupTermAt !== undefined &&
+          (row.pid === group ||
+            bornBeforeCaptureSecond({
+              ...row,
+              capturedAtMs: step.groupTermAt,
+            })))
+      )
+        continue;
+      step.signalled.add(key);
+      term(row.pid);
+    }
+  }
+  return (
+    (step.known.size > 0 || step.groupTermAt !== undefined) &&
+    live.length === 0 &&
+    !unclaimed.some(
+      (row) =>
+        !row.startedAt ||
+        Date.parse(row.startedAt) ===
+          Math.floor(step.exitedAt! / 1_000) * 1_000,
+    )
+  );
 }
 
-/** Stop every running step's whole process group with SIGTERM (deploy.sh's launchd job boots itself out on it) and
- *  wait for each to end. False when one is still running after the grace: its tree must stay. */
+function trackProcesses(): void {
+  const steps = [...running].filter((step) => !step.stopping);
+  if (reading || !steps.length) return;
+  const reads = steps.map((step) => ({ step, live: shellRunning(step) }));
+  reading = snapshotProcessTableAsync({ timeout: STEP_READ_MS })
+    .then((rows) => {
+      if (!rows.length) return;
+      for (const { step, live } of reads) readStep(step, rows, live);
+    })
+    .finally(() => {
+      reading = undefined;
+      if ([...running].some((step) => !step.stopping)) {
+        tracking = setTimeout(() => {
+          tracking = undefined;
+          trackProcesses();
+        }, STEP_TRACK_MS);
+        tracking.unref();
+      }
+    });
+}
+
+export function trackStep(child: ChildProcess): void {
+  const step: Step = {
+    child,
+    group: child.pid,
+    known: new Map(),
+    signalled: new Set(),
+  };
+  running.add(step);
+  child.once("exit", () => {
+    step.exitedAt = Date.now();
+  });
+  child.once("close", () => {
+    running.delete(step);
+    if (!running.size) {
+      clearTimeout(tracking);
+      tracking = undefined;
+    }
+  });
+  clearTimeout(tracking);
+  tracking = undefined;
+  trackProcesses();
+}
+
 export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
   const steps = [...running];
-  const activeGroups = () =>
-    new Set(
-      steps.flatMap((step) =>
-        step.pid && step.exitCode === null && step.signalCode === null
-          ? [step.pid]
-          : [],
-      ),
-    );
+  if (!steps.length) return true;
   const deadline = Date.now() + graceMs;
-  const first = activeGroups().size
-    ? await snapshotProcessTableAsync({ timeout: Math.max(1, graceMs) })
-    : [];
-  const groups = activeGroups();
-  const members = new Map(
-    first
-      .filter((row) => row.pgid !== undefined && groups.has(row.pgid))
-      .map((row) => [row.pid, row]),
-  );
-  for (const group of groups) {
-    try {
-      process.kill(-group, "SIGTERM");
-    } catch {}
+  for (const step of steps) {
+    step.stopping = true;
+    const { group } = step;
+    if (!group || !shellRunning(step)) continue;
+    const sentAt = Date.now();
+    if (term(-group)) step.groupTermAt = sentAt;
   }
+
+  await reading;
   for (;;) {
     const remaining = deadline - Date.now();
-    if (!steps.some((step) => running.has(step))) {
-      if (!groups.size) return true;
-      if (remaining <= 0 || !first.length) return false;
-      const current = await snapshotProcessTableAsync({ timeout: remaining });
-      if (
-        current.length &&
-        !current.some((row) => {
-          const member = members.get(row.pid);
-          return (
-            member &&
-            row.startedAt === member.startedAt &&
-            row.pgid === member.pgid &&
-            !row.command.trimEnd().endsWith("<defunct>")
-          );
-        })
-      )
-        return true;
+    if (remaining <= 0) return false;
+    const reads = steps.map((step) => ({ step, live: shellRunning(step) }));
+    const rows = await snapshotProcessTableAsync({
+      timeout: Math.min(STEP_READ_MS, remaining),
+    });
+    if (rows.length) {
+      const proofs = reads.map(
+        ({ step, live }) =>
+          readStep(step, rows, live) && !live && !running.has(step),
+      );
+      if (proofs.every(Boolean)) return true;
     }
-    const delay = Math.min(250, deadline - Date.now());
-    if (delay <= 0) return false;
-    await new Promise((resolve) => setTimeout(resolve, delay));
+    const delay = Math.min(STEP_STOP_POLL_MS, deadline - Date.now());
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }
 

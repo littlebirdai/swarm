@@ -344,6 +344,7 @@ export function setup(
     originMain,
     originBranch,
     trees,
+    scratch,
     exec,
     main: () => mainSha,
     done: () => rmSync(root, { recursive: true, force: true }),

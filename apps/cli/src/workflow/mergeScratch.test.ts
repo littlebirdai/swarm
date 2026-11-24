@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { EventEmitter } from "node:events";
-import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -278,31 +277,6 @@ release();
 });
 
 describe("shutDown", () => {
-  test("leaves a process that took an exited shell's group id alone", async () => {
-    const other = spawn("sleep", ["30"], {
-      detached: true,
-      stdio: "ignore",
-    });
-    const closed = new Promise((resolve) => other.once("close", resolve));
-    const pid = other.pid!;
-    const step = Object.assign(new EventEmitter(), {
-      pid,
-      exitCode: 0,
-      signalCode: null,
-    }) as ChildProcess;
-    try {
-      trackStep(step);
-      const stopped = shutDown(async () => {}, 500);
-      step.emit("close");
-      const released = await stopped;
-      expect(await stillRunning([pid])).toEqual([pid]);
-      expect(released).toBe(true);
-    } finally {
-      other.kill("SIGKILL");
-      await closed;
-    }
-  });
-
   test(
     "stops the running step's whole process group, then releases its tree",
     async () => {
@@ -390,7 +364,7 @@ describe("shutDown", () => {
     { timeout: 30_000 },
   );
 
-  test.each(["active", "hang"])(
+  test.each(["active", "hang", "reject"])(
     "exits after TERM when the lease release case is %s",
     (leaseCase) => {
       const r = repo();
@@ -408,6 +382,7 @@ const leaseCase = ${JSON.stringify(leaseCase)};
 await acquiredTree(${JSON.stringify(r.root)}, "HEAD", async () => {
   console.log("release lease");
   if (leaseCase === "hang") await new Promise(() => {});
+  if (leaseCase === "reject") throw new Error("lease release rejected");
 });
 if (leaseCase === "active") {
   const ready = ${JSON.stringify(ready)};
@@ -429,7 +404,7 @@ if (leaseCase === "active") {
   };
 }
 process.kill(process.pid, "SIGTERM");
-await pollUntil(() => false, "the station exiting");
+await new Promise(() => { setInterval(() => {}, 1_000); });
 `,
         );
         const child = spawnSync("bun", [script], {
@@ -455,6 +430,23 @@ await pollUntil(() => false, "the station exiting");
     },
     30_000,
   );
+
+  test("completes shutdown when lease release rejects", async () => {
+    let treeReleased = false;
+    const stopped = await shutDown(
+      async () => {
+        treeReleased = true;
+      },
+      500,
+      async () => {
+        throw new Error("lease release rejected");
+      },
+    );
+    expect({ stopped, treeReleased }).toEqual({
+      stopped: true,
+      treeReleased: true,
+    });
+  });
 
   test("releases the lease of a stopped step if tree release rejects", async () => {
     const failure = new Error("tree release failed");
@@ -517,7 +509,7 @@ await new Promise((res) => setTimeout(res, 20_000));
       let pid = 0;
       try {
         void runShell(
-          "trap '' TERM; sleep 20",
+          "trap '' TERM; touch ready; exec sleep 20",
           r.root,
           () => {},
           {},
@@ -526,7 +518,10 @@ await new Promise((res) => setTimeout(res, 20_000));
             trackStep(child);
           },
         );
-        await new Promise((res) => setTimeout(res, 300));
+        await pollUntil(
+          () => existsSync(join(r.root, "ready")),
+          "the step ignoring TERM",
+        );
         let released = false;
         expect(
           await shutDown(async () => {

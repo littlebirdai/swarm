@@ -75,20 +75,47 @@ async function endTree(
   group: number | null,
   pick: (procs: ProcRow[]) => ProcRow[],
   graceMs: number,
+  ownsGroup?: (rows: ProcRow[]) => boolean,
 ): Promise<ProcRow[] | null> {
-  const rows = await readTree(pick);
-  // The group as a whole too: a member forked after the read takes the TERM.
-  if (group !== null)
+  let signalledGroup = false;
+  const signalGroup = () => {
+    if (group === null || signalledGroup) return;
     try {
-      process.kill(-group, "SIGTERM");
-    } catch {
-      /* gone */
-    }
-  if (rows) await killProcessTree(rows, graceMs);
+      signalledGroup = process.kill(-group, "SIGTERM");
+    } catch {}
+  };
+  const rows = await readTree(
+    ownsGroup
+      ? (procs) => {
+          const found = pick(procs);
+          if (ownsGroup(found)) signalGroup();
+          return found;
+        }
+      : pick,
+  );
+  if (!ownsGroup) signalGroup();
+  if (rows) {
+    await killProcessTree(
+      rows,
+      graceMs,
+      ownsGroup
+        ? {
+            readTable: async () => {
+              const current = await snapshotProcessTableAsync({
+                timeout: PS_TIMEOUT_MS,
+              });
+              if (current.length) pick(current);
+              return current;
+            },
+          }
+        : {},
+    );
+  }
   // What forked into the group during the grace, read and checked the same way.
-  if (group !== null && groupAlive(group)) {
+  if (group !== null && (ownsGroup ? signalledGroup : groupAlive(group))) {
     const leftovers = await readTree(pick);
     if (leftovers) await killProcessTree(leftovers, 0);
+    else if (ownsGroup) return null;
   }
   return rows;
 }
@@ -352,21 +379,51 @@ export async function reapDeadRunnerStations(
   const dead: Array<{ file: string; rec: StationRecord }> = [];
   for (const f of files) {
     const file = path.join(dir, f);
-    let rec: StationRecord;
+    let raw: string;
     try {
-      rec = JSON.parse(fs.readFileSync(file, "utf-8"));
+      raw = fs.readFileSync(file, "utf-8");
     } catch {
-      fs.rmSync(file, { force: true });
       continue;
     }
-    const stale =
-      !(rec.written > boot) ||
-      Date.now() - rec.written > RECORD_MAX_AGE_MS ||
-      !Array.isArray(rec.groups);
-    if (!stale && (rec.runner === process.pid || isPidAlive(rec.runner)))
-      continue;
-    if (stale) fs.rmSync(file, { force: true });
-    else dead.push({ file, rec });
+    let rec: StationRecord | undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      if (
+        Number.isSafeInteger(parsed?.runner) &&
+        parsed.runner > 1 &&
+        Number.isFinite(parsed.written) &&
+        Array.isArray(parsed.groups) &&
+        parsed.groups.every(
+          (g: StationRecord["groups"][number] | null) =>
+            g &&
+            Number.isSafeInteger(g.pgid) &&
+            g.pgid > 1 &&
+            Array.isArray(g.procs) &&
+            g.procs.every(
+              (p) =>
+                p &&
+                Number.isSafeInteger(p.pid) &&
+                p.pid > 1 &&
+                Number.isSafeInteger(p.pgid) &&
+                p.pgid > 1 &&
+                typeof p.start === "string" &&
+                p.start.length > 0,
+            ),
+        )
+      )
+        rec = parsed;
+    } catch {}
+    if (
+      !rec ||
+      rec.written <= boot ||
+      Date.now() - rec.written > RECORD_MAX_AGE_MS
+    ) {
+      try {
+        if (fs.readFileSync(file, "utf-8") === raw) fs.unlinkSync(file);
+      } catch {}
+    } else if (rec.runner !== process.pid && !isPidAlive(rec.runner)) {
+      dead.push({ file, rec });
+    }
   }
   if (!dead.length) return [];
   const procs = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
@@ -378,12 +435,35 @@ export async function reapDeadRunnerStations(
         rec.groups.map(async ({ pgid, procs: known = [] }) => {
           const first = provenTree(procs, known);
           if (!first.length) return true;
-          const pick = (now: ProcRow[]) => provenTree(now, known);
-          const rows = await endTree(null, pick, graceMs);
-          if (!rows) return false;
-          const targets = new Set(
-            [...first, ...rows].map((row) => `${row.pid} ${row.startedAt}`),
+          const targets = new Map<string, StationProc>();
+          const key = (row: ProcRow) => `${row.pid} ${row.startedAt}`;
+          const remember = (rows: ProcRow[]) => {
+            for (const row of rows) {
+              if (row.startedAt && row.pgid !== undefined)
+                targets.set(key(row), {
+                  pid: row.pid,
+                  pgid: row.pgid,
+                  start: row.startedAt,
+                });
+            }
+            return rows;
+          };
+          remember(first);
+          const pick = (now: ProcRow[]) =>
+            provenTree(now, [...known, ...targets.values()]);
+          const rows = await endTree(
+            pgid,
+            (now) => remember(pick(now)),
+            graceMs,
+            (found) =>
+              found.some(
+                (row) =>
+                  row.pid === pgid &&
+                  row.pgid === pgid &&
+                  !row.command.trimEnd().endsWith("<defunct>"),
+              ),
           );
+          if (!rows) return false;
           const deadline = Date.now() + graceMs;
           for (;;) {
             const current = await snapshotProcessTableAsync({
@@ -392,9 +472,7 @@ export async function reapDeadRunnerStations(
             if (!current.length) return false;
             const live = [
               ...pick(current),
-              ...current.filter((row) =>
-                targets.has(`${row.pid} ${row.startedAt}`),
-              ),
+              ...current.filter((row) => targets.has(key(row))),
             ];
             if (
               live.every((row) => row.command.trimEnd().endsWith("<defunct>"))
@@ -412,7 +490,8 @@ export async function reapDeadRunnerStations(
       );
       if (results.every(Boolean)) {
         try {
-          fs.unlinkSync(file);
+          const current = JSON.parse(fs.readFileSync(file, "utf-8"));
+          if (current.written === rec.written) fs.unlinkSync(file);
         } catch {}
       }
     }),
