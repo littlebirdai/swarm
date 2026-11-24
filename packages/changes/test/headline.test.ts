@@ -11,7 +11,7 @@ import {
   statsHeadline,
   storyDek,
   storyHeadline,
-} from "./headline";
+} from "../src/headline";
 
 describe("cleanSubject", () => {
   test("strips the conventional prefix and capitalizes", () => {

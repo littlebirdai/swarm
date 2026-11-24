@@ -10,7 +10,7 @@ import type {
   DeployReach,
   ReachState,
 } from "@codecast/shared/contracts/deployReach";
-import { prNumberOf } from "@codecast/shared/changes";
+import { prNumberOf } from "@codecast/changes/cluster";
 import { deploysOf, type DeployTargetRow, type TeamDeployRow } from "./targets";
 import {
   PICKABLE_GROUPS,

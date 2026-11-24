@@ -13,7 +13,7 @@ import {
   sortReplayEvents,
   urlPath,
 } from "./events";
-import { clip } from "../changes/headline";
+import { clip } from "@codecast/changes/headline";
 
 export interface ReplayMoment {
   /** The asked time, held to the recording (replay clock, ms). */

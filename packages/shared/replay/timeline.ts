@@ -5,7 +5,7 @@
 // glance. It must fit REPLAY_LIMITS.timeline_md_max_chars, and when it does
 // not, the lines kept are the ones around the failure an agent is there for.
 import { REPLAY_LIMITS, type ReplayEvent } from "../contracts/replay";
-import { clip } from "../changes/headline";
+import { clip } from "@codecast/changes/headline";
 import {
   formatReplayTime,
   isFailedRequest,

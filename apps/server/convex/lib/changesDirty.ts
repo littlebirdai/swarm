@@ -17,7 +17,8 @@
 import type { Scheduler } from "convex/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import { isoWeekOf, sliceDek, statsHeadline } from "@codecast/shared/changes";
+import { isoWeekOf } from "@codecast/changes/week";
+import { sliceDek, statsHeadline } from "@codecast/changes/headline";
 import { teamHasFeature } from "./teamFeatureGuard";
 import { addDays, dayBounds, localDate, teamTimezone } from "./teamDay";
 import { isHarnessScratch, normalizeRepository } from "./gitRefs";

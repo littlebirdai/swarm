@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@codecast/async": "workspace:*",
+    "@codecast/changes": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",

@@ -49,7 +49,7 @@ import {
 import { markCommitDirty } from "./lib/changesDirty";
 import { claimDrain, releaseDrain, renewDrain } from "./lib/drainMarker";
 import { checkLabel, repositoryOwner } from "@codecast/pull-requests/prRefs";
-import { parseReleaseTag } from "@codecast/shared/changes";
+import { parseReleaseTag } from "@codecast/changes/classify";
 import {
   patchPullRequest,
   firePrTrigger as fireTrigger,

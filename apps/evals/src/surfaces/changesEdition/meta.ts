@@ -10,7 +10,7 @@ export const meta: SurfaceMeta = {
     "changes-edition",
     "apps/server/convex/changesProse.ts",
     "apps/server/convex/lib/anthropic.ts",
-    "packages/shared/changes",
+    "packages/changes",
     "apps/evals/src/surfaces/changesCommon.ts",
   ),
   reps: { check: 5 },

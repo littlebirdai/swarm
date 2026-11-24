@@ -23,18 +23,20 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   DEK_MAX,
   HEADLINE_MAX,
-  areaOf,
   cleanSubject,
   clip,
   clipToSentence,
-  splitArea,
   fitProse,
   splitSentences,
-  hash64,
+} from "@codecast/changes/headline";
+import {
+  areaOf,
+  splitArea,
   subjectKind,
-  type ChangeCommit,
   type ChangeKind,
-} from "@codecast/shared/changes";
+} from "@codecast/changes/classify";
+import { hash64 } from "@codecast/changes/keys";
+import { type ChangeCommit } from "@codecast/changes/types";
 import {
   callModel,
   modelCost,

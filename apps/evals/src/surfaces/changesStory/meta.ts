@@ -6,14 +6,14 @@ export const meta: SurfaceMeta = {
   title: "Changes page: one story from its commits and gated sessions",
   route: "call",
   model: PROSE_MODEL,
-  // changesProse.ts builds and parses the request; shared/changes holds the
+  // changesProse.ts builds and parses the request; the Changes package holds the
   // length limits, clip and the skip rule's subject parsing; changesCommon.ts
   // holds the leak and em dash gates.
   sources: surfaceSources(
     "changes-story",
     "apps/server/convex/changesProse.ts",
     "apps/server/convex/lib/anthropic.ts",
-    "packages/shared/changes",
+    "packages/changes",
     "apps/evals/src/surfaces/changesCommon.ts",
   ),
   reps: { check: 5 },

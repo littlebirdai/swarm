@@ -3,7 +3,7 @@
 // commit. Each commit is projected the way buildDay projects a commits row
 // (spec 7.1 step 1), with the Codecast-Session trailer as its conversation.
 //
-//   bun packages/shared/changes/__fixtures__/genCodecastDays.ts
+//   bun packages/changes/src/__fixtures__/genCodecastDays.ts
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";

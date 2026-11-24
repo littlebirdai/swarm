@@ -11,7 +11,11 @@
 import Link from "next/link";
 import { ChevronRight, Link2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { areaOf, isGeneratedPath, pathInArea } from "@codecast/shared/changes";
+import {
+  areaOf,
+  isGeneratedPath,
+  pathInArea,
+} from "@codecast/changes/classify";
 import {
   useStoryEvidence,
   useStorySessions,

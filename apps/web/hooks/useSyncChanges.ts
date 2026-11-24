@@ -32,7 +32,7 @@ import type {
   WorksRow,
 } from "@codecast/convex/convex/changesQueries";
 import { addDays } from "@codecast/convex/convex/lib/teamDay";
-import { isoWeekOf } from "@codecast/shared/changes";
+import { isoWeekOf } from "@codecast/changes/week";
 import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 import { useCallback, useMemo } from "react";
 import { isConvexId } from "../store/inboxStore";

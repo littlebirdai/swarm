@@ -14,7 +14,7 @@ import {
 } from "./desktopHandoff";
 import { changesDayLabel } from "./changesDay";
 import { modTabLabel, objectTabLabel } from "./mods/label";
-import { weekMonday } from "@codecast/shared/changes";
+import { weekMonday } from "@codecast/changes/week";
 import { codecastEvalsPaths } from "../components/evals/evalsPaths";
 import { isOpsPath, opsTabLabel } from "../components/ops/opsPaths";
 import { currentPagePath } from "./renamedPages";

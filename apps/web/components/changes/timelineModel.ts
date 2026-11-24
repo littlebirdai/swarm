@@ -2,7 +2,7 @@
 // first, with a finished week's notes where the timeline enters that week.
 // The week in progress has none: its notes only restate its newest day.
 // Pure, so the page and its tests share it.
-import { isoWeekOf, topWeekStories, weekDates } from "@codecast/shared/changes";
+import { isoWeekOf, topWeekStories, weekDates } from "@codecast/changes/week";
 import type { EditionRow, StoryRow } from "../../hooks/useSyncChanges";
 import {
   byWeight,

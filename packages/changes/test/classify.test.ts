@@ -10,7 +10,7 @@ import {
   splitMessage,
   subjectKind,
   summarizeFiles,
-} from "./classify";
+} from "../src/classify";
 
 describe("areaOf", () => {
   test("names the package, app or backend child", () => {

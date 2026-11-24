@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { commit, MIN, T0 } from "./__fixtures__/commit";
-import { dedupeCommits, resolveDefaultBranch } from "./dedupe";
-import { computeRisks } from "./risks";
+import { commit, MIN, T0 } from "../src/__fixtures__/commit";
+import { dedupeCommits, resolveDefaultBranch } from "../src/dedupe";
+import { computeRisks } from "../src/risks";
 import {
   RELEASE_SURFACE,
   assignRelease,
@@ -11,8 +11,8 @@ import {
   surfaceCoversArea,
   waitingStories,
   withoutShadowedReleases,
-} from "./surfaces";
-import type { ShipEvent } from "./types";
+} from "../src/surfaces";
+import type { ShipEvent } from "../src/types";
 
 describe("dedupe", () => {
   test("the default branch copy wins, then the newest row", () => {

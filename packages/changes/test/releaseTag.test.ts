@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseRelease, parseReleaseTag } from "./classify";
+import { parseRelease, parseReleaseTag } from "../src/classify";
 
 describe("parseReleaseTag", () => {
   test("a bare version is the catch-all release surface", () => {

@@ -9,7 +9,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import type { ChangeCommit } from "@codecast/shared/changes";
+import type { ChangeCommit } from "@codecast/changes/types";
 import { editionStats } from "./changes";
 
 setDefaultTimeout(60_000);

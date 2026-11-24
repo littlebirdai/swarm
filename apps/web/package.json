@@ -22,6 +22,7 @@
     "@codecast/browser": "workspace:*",
     "@codecast/calls": "workspace:*",
     "@codecast/capabilities": "workspace:*",
+    "@codecast/changes": "workspace:*",
     "@codecast/chat": "workspace:*",
     "@codecast/cloud-hosts": "workspace:*",
     "@codecast/comments": "workspace:*",
