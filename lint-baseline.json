@@ -11517,7 +11517,7 @@
     "swarm/no-comments": 86
   },
   "apps/server/convex/pendingMessages.ts": {
-    "swarm/no-comments": 623
+    "swarm/no-comments": 621
   },
   "apps/server/convex/permissionRules.test.ts": {
     "swarm/no-comments": 6
@@ -29792,7 +29792,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 35
+    "swarm/no-comments": 29
   },
   "packages/shared/contracts/initiative.test.ts": {
     "swarm/no-comments": 2
