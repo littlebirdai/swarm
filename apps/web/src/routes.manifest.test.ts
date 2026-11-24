@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import ts from "typescript";
 import {
   ROUTES,
   routeHref,
@@ -48,72 +49,55 @@ const manifestByHref = new Map(
 // absolute path = parent path prefix (when the parent carries a `path`) + child path. Layout
 // routes that use `element` with no `path` (DashboardShell, TransparentWindowLayout, MarketingLayout)
 // contribute no prefix; the only path-carrying parent is SettingsLayout (`path="settings"`).
-// We walk the JSX line by line, tracking a stack of (path-prefix, brace-depth) frames.
+// Walk the JSX tree so opening tags and attributes can span several lines.
 
 // Each route also says whether it renders nothing (`element={null}`), which the manifest
 // records as `component: null`.
 function parseAppRoutePaths(
   src: string,
 ): { path: string; rendersNothing: boolean }[] {
-  const lines = src.split("\n");
+  const source = ts.createSourceFile(
+    "App.tsx",
+    src,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TSX,
+  );
   const paths: { path: string; rendersNothing: boolean }[] = [];
-  // Stack of path prefixes contributed by ancestor <Route> elements that are still open.
-  const prefixStack: string[] = [];
-  // Parallel stack of the running brace/paren depth at which each prefix was pushed, so we
-  // can pop it when its enclosing element closes.
-  const depthStack: number[] = [];
-  let depth = 0;
 
-  const join2 = (a: string, b: string) => (a ? `${a}/${b}` : b);
-
-  for (const raw of lines) {
-    const line = raw.trim();
-
-    // A <Route ...> opener. It is a parent-with-prefix if it has BOTH a path and children
-    // (i.e. not self-closed on this line). It is a leaf if it is self-closed (`/>`).
-    const routeOpen = /^<Route\b/.test(line);
-    if (routeOpen) {
-      const pathMatch = line.match(/\bpath="([^"]*)"/);
-      const indexRoute = /\bindex\b/.test(line) && !pathMatch;
-      const selfClosed = /\/>\s*$/.test(line);
-
-      if (pathMatch || indexRoute) {
-        const prefix = prefixStack.length
-          ? prefixStack[prefixStack.length - 1]
-          : "";
-        const seg = indexRoute ? "" : pathMatch![1];
-        const abs = indexRoute ? prefix : join2(prefix, seg);
+  function visit(node: ts.Node, prefix: string) {
+    const tag = ts.isJsxElement(node) ? node.openingElement : node;
+    if (
+      (ts.isJsxOpeningElement(tag) || ts.isJsxSelfClosingElement(tag)) &&
+      tag.tagName.getText(source) === "Route"
+    ) {
+      const attributes = tag.attributes.properties.filter(ts.isJsxAttribute);
+      const prop = (name: string) =>
+        attributes.find((attribute) => attribute.name.getText(source) === name);
+      const pathAttr = prop("path")?.initializer;
+      const path =
+        pathAttr && ts.isStringLiteral(pathAttr) ? pathAttr.text : undefined;
+      if (path !== undefined || prop("index")) {
+        const segment = path ?? "";
+        prefix = prefix && segment ? `${prefix}/${segment}` : prefix || segment;
+        const element = prop("element")?.initializer;
         paths.push({
-          path: abs,
-          rendersNothing: /\belement=\{null\}/.test(line),
+          path: prefix,
+          rendersNothing:
+            !!element &&
+            ts.isJsxExpression(element) &&
+            element.expression?.kind === ts.SyntaxKind.NullKeyword,
         });
-        if (!selfClosed) {
-          // Path-carrying parent (e.g. <Route path="settings" element=...>): becomes a prefix.
-          prefixStack.push(abs);
-          depthStack.push(depth);
-        }
-      } else if (!selfClosed) {
-        // Layout route with `element` but no `path` (no prefix contribution) — push an empty
-        // frame so its closing tag bookkeeping stays balanced via the inherited prefix.
-        prefixStack.push(
-          prefixStack.length ? prefixStack[prefixStack.length - 1] : "",
-        );
-        depthStack.push(depth);
       }
-      // Track nesting depth for openers that aren't self-closed.
-      if (!selfClosed) depth += 1;
-      continue;
-    }
-
-    // Closing </Route> for a previously-opened parent/layout frame.
-    if (/^<\/Route>/.test(line)) {
-      depth -= 1;
-      if (depthStack.length && depthStack[depthStack.length - 1] === depth) {
-        depthStack.pop();
-        prefixStack.pop();
+      if (ts.isJsxElement(node)) {
+        for (const child of node.children) visit(child, prefix);
       }
+      return;
     }
+    ts.forEachChild(node, (child) => visit(child, prefix));
   }
+
+  visit(source, "");
   return paths;
 }
 
@@ -133,22 +117,16 @@ const appEmptyHrefs = new Set(
 
 function parseTabContentPatterns(src: string): { tab: string }[] {
   const out: { tab: string }[] = [];
-  // Parse ONE entry per source line: `{ pattern: /^...$/, paramNames: [...], component: X }`.
-  // Matching per-line (not across the whole file) keeps the regex-body capture from greedily
-  // swallowing newlines and collapsing all entries into one.
-  const entryRe = /pattern:\s*\/\^(.*?)\$\/\s*,\s*paramNames:\s*\[([^\]]*)\]/;
-  for (const line of src.split("\n")) {
-    const m = line.match(entryRe);
+  const entryRe =
+    /^pattern:\s*\/\^([^\r\n]*?)\$\/\s*,\s*paramNames:\s*\[([^\]]*)\]/;
+  for (const entry of src.matchAll(/\bpattern:\s*\//g)) {
+    const m = entryRe.exec(src.slice(entry.index));
     if (!m) {
-      // A pattern line the strict parser can't read would otherwise be silently
-      // skipped and escape every parity check below (this is how /anchor's
-      // `(\/|$)` pattern drifted unguarded). Anchored `^...$` patterns only.
-      if (/pattern:\s*\//.test(line)) {
-        throw new Error(
-          `Unparseable TabContent pattern (must be /^...$/ with paramNames on one line): ${line.trim()}`,
-        );
-      }
-      continue;
+      // Reject malformed route patterns so they cannot silently skip the parity checks.
+      const line = src.slice(entry.index).split("\n", 1)[0];
+      throw new Error(
+        `Unparseable TabContent pattern (expected /^...$/ and paramNames): ${line}`,
+      );
     }
     const rawBody = m[1]; // regex body between ^ and $, still escaped
     const paramNames = m[2]
