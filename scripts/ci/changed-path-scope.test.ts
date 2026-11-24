@@ -22,7 +22,7 @@ describe("areaOf", () => {
     expect(areaOf("apps/evals/src/x.ts")).toBe("evals");
     expect(areaOf("apps/web/components/DiffView.tsx")).toBe("web");
     expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
-    expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
+    expect(areaOf("packages/agent-clients/src/agentClients.ts")).toBe("shared");
     expect(areaOf("packages/new-library/src/index.ts")).toBe("shared");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
@@ -187,7 +187,7 @@ describe("classifyChangedPaths", () => {
     );
     expect(flags(["apps/cli/src/daemon.ts"]).run_test_platform).toBe(false);
     expect(
-      flags(["packages/shared/contracts/agentClients.ts"]).run_test_platform,
+      flags(["packages/agent-clients/src/agentClients.ts"]).run_test_platform,
     ).toBe(false);
     expect(flags(["docs/architecture/sync-host.md"]).run_test_platform).toBe(
       false,
@@ -254,7 +254,7 @@ describe("classifyChangedPaths", () => {
       false,
     );
     expect(
-      flags(["packages/shared/contracts/agentClients.ts"]).run_test_electron,
+      flags(["packages/agent-clients/src/agentClients.ts"]).run_test_electron,
     ).toBe(false);
   });
 
@@ -371,7 +371,7 @@ describe("injection suite scope", () => {
     for (const file of [
       "apps/cli/src/daemon.ts",
       "apps/cli/src/tmuxPaste.ts",
-      "packages/shared/contracts/agentClients.ts",
+      "packages/agent-clients/src/agentClients.ts",
     ])
       expect(touchesInjection(file)).toBe(true);
   });
