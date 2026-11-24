@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { permissionsSig, secretFor, validateManifest } from "../contracts/mods";
-import { inspectModSource } from "./inspect";
+import {
+  permissionsSig,
+  secretFor,
+  validateManifest,
+} from "@codecast/shared/contracts/mods";
+import { inspectModSource } from "../src/inspect";
 
 describe("mods contract guards", () => {
   test("a mod cannot claim a programming language's fence (its code would reach the mod past its grants)", () => {

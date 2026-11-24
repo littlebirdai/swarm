@@ -28549,6 +28549,21 @@
   "packages/files/test/index.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/mods/src/authoring.d.ts": {
+    "swarm/no-comments": 86
+  },
+  "packages/mods/src/inspect.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/mods/src/localSdk.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/mods/src/sdk.ts": {
+    "swarm/no-comments": 24
+  },
+  "packages/mods/test/contract.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/network/src/index.ts": {
     "swarm/no-comments": 1
   },
@@ -29967,21 +29982,6 @@
   },
   "packages/shared/memory/index.ts": {
     "swarm/no-comments": 36
-  },
-  "packages/shared/mods/authoring.d.ts": {
-    "swarm/no-comments": 86
-  },
-  "packages/shared/mods/contract.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/mods/inspect.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/mods/localSdk.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/mods/sdk.ts": {
-    "swarm/no-comments": 24
   },
   "packages/shared/ratchet/docRefs.guard.test.ts": {
     "swarm/no-comments": 35

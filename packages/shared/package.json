@@ -182,8 +182,7 @@
     "./contracts/teamHosts": "./contracts/teamHosts.ts",
     "./contracts/secretRules": "./contracts/secretRules.ts",
     "./contracts/secretShapes": "./contracts/secretShapes.ts",
-    "./contracts/theme": "./contracts/theme.ts",
-    "./mods/inspect": "./mods/inspect.ts"
+    "./contracts/theme": "./contracts/theme.ts"
   },
   "dependencies": {
     "@codecast/team": "workspace:*",

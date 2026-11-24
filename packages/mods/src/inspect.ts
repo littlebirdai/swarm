@@ -9,7 +9,7 @@ import {
   canRead,
   canWrite,
   type ModManifest,
-} from "../contracts/mods";
+} from "@codecast/shared/contracts/mods";
 
 export type ModInspection = {
   hooks: string[];

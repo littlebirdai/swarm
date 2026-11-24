@@ -29,6 +29,7 @@
         "@codecast/async": "workspace:*",
         "@codecast/diff": "workspace:*",
         "@codecast/files": "workspace:*",
+        "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/team": "workspace:*",
@@ -417,6 +418,16 @@
     "packages/files": {
       "name": "@codecast/files",
       "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/mods": {
+      "name": "@codecast/mods",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/shared": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },
@@ -831,6 +842,8 @@
     "@codecast/evals": ["@codecast/evals@workspace:apps/evals"],
 
     "@codecast/files": ["@codecast/files@workspace:packages/files"],
+
+    "@codecast/mods": ["@codecast/mods@workspace:packages/mods"],
 
     "@codecast/network": ["@codecast/network@workspace:packages/network"],
 

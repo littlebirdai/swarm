@@ -1,0 +1,23 @@
+{
+  "name": "@codecast/mods",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./authoring.d.ts": "./src/authoring.d.ts",
+    "./inspect": "./src/inspect.ts",
+    "./localSdk": "./src/localSdk.ts",
+    "./sdk": "./src/sdk.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/shared": "workspace:*"
+  }
+}

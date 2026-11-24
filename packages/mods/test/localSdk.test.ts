@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { start } from "./localSdk";
+import { start } from "../src/localSdk";
 
 test("a burst of publishes goes out one write at a time, in order", async () => {
   let inFlight = 0;

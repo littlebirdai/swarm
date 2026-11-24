@@ -23,6 +23,7 @@
     "@codecast/async": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/files": "workspace:*",
+    "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",
