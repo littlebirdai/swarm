@@ -39,8 +39,18 @@ const producerPath = path.join(workerDir, "ingestJobs.ts");
 const producerPreimage = fs.readFileSync(producerPath, "utf8");
 let loadedProducer = producerPath;
 if (mode === "old-tail") {
-  const current =
-    "      checkpoint();\n      meta.summaryTitle = extractSummaryTitle(content);\n      checkpoint();\n      if (!meta.summaryTitle) meta.summaryTitle = await readMetadataTitle(job,before,checkpoint,meta.warnings);";
+  const current = [
+    "      checkpoint();",
+    "      meta.summaryTitle = extractSummaryTitle(content);",
+    "      checkpoint();",
+    "      if (!meta.summaryTitle)",
+    "        meta.summaryTitle = await readMetadataTitle(",
+    "          job,",
+    "          before,",
+    "          checkpoint,",
+    "          meta.warnings,",
+    "        );",
+  ].join("\n");
   const old =
     "      const tail = await optional(() => readPart(job.file,4096,true),meta.warnings,'title');\n      meta.summaryTitle = extractSummaryTitle(content+'\\n'+(tail ?? ''));";
   assert.equal(producerPreimage.split(current).length, 2);
