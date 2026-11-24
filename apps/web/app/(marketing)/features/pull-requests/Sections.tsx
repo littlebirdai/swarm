@@ -608,10 +608,23 @@ function lsTable() {
   const w = (i: number) => Math.max(...LS_ROWS.map((r) => r[i].length));
   return LS_ROWS.map((r, n) => (
     <span key={r[0]}>
-      {T.cyan(r[0].padStart(w(0)))} {T.green(r[1].padEnd(w(1)))}{" "}
-      {SHEPHERD_TONE[r[2]](r[2].padEnd(w(2)))} {r[3].padEnd(w(3))}{" "}
-      {T.dim(r[4].padEnd(w(4)))} {r[5].padEnd(w(5))} {r[6].padEnd(w(6))}{" "}
-      {T.magenta(r[7])} {T.dim(r[8])}
+      {T.cyan(r[0].padStart(w(0)))}
+      {"  "}
+      {T.green(r[1].padEnd(w(1)))}
+      {"  "}
+      {SHEPHERD_TONE[r[2]](r[2].padEnd(w(2)))}
+      {"  "}
+      {r[3].padEnd(w(3))}
+      {"  "}
+      {T.dim(r[4].padEnd(w(4)))}
+      {"  "}
+      {r[5].padEnd(w(5))}
+      {"  "}
+      {r[6].padEnd(w(6))}
+      {"  "}
+      {T.magenta(r[7])}
+      {"  "}
+      {T.dim(r[8])}
       {n < LS_ROWS.length - 1 ? "\n" : null}
     </span>
   ));
@@ -723,8 +736,15 @@ const TOUR: { key: string; title: string; body: ReactNode; note: ReactNode }[] =
           <Prompt>cast pr threads {PR_NUMBER}</Prompt>
           {NOTES.map((n) => (
             <span key={n.id}>
-              {T.cyan(n.id)} {T.yellow("·")} {T.dim(`${n.file}:${n.line}`)}{" "}
-              {REVIEWER} {n.text}
+              {T.cyan(n.id)}
+              {"  "}
+              {T.yellow("·")}
+              {"  "}
+              {T.dim(`${n.file}:${n.line}`)}
+              {"  "}
+              {REVIEWER}
+              {"  "}
+              {n.text}
               {"\n"}
             </span>
           ))}

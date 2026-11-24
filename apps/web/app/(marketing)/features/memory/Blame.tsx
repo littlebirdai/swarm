@@ -135,11 +135,22 @@ export function BlameLayer() {
           {t.dim("Sessions that shaped retry.ts (52/58 lines)")}
           {"\n\n"}
           {"  "}
-          {t.id("jx7m41c")} maya {t.dim("c07d5b1f8")} 12 lines{"\n"}
+          {t.id("jx7m41c")}
+          {"  maya  "}
+          {t.dim("c07d5b1f8")}
+          {"  12 lines"}
+          {"\n"}
           {"  "}
-          {t.id("jx7k2qa")} sam {t.dim("4b1c9e2a1")} 9 lines{"\n"}
+          {t.id("jx7k2qa")}
+          {"  sam   "}
+          {t.dim("4b1c9e2a1")}
+          {"   9 lines"}
+          {"\n"}
           {"  "}
-          {t.id("jx7f9de")} lee {t.dim("a91f03e2c")} 31 lines
+          {t.id("jx7f9de")}
+          {"  lee   "}
+          {t.dim("a91f03e2c")}
+          {"  31 lines"}
         </Pane>
       </div>
 
@@ -272,11 +283,17 @@ export function ImpactLayer() {
             Messages: 214{"\n\n"}
             {t.head("## Files Changed (3)")}
             {"\n"}
-            {t.y(" M")} src/webhooks/retry.ts {t.g("+18")} {t.o("-4")}
+            {t.y(" M")}
+            {" src/webhooks/retry.ts       "}
+            {t.g("+18")} {t.o("-4")}
             {"\n"}
-            {t.y(" M")} src/webhooks/retry.test.ts {t.g("+41")}
+            {t.y(" M")}
+            {" src/webhooks/retry.test.ts  "}
+            {t.g("+41")}
             {"\n"}
-            {t.y(" M")} docs/webhooks.md {t.g("+6")} {t.o("-2")}
+            {t.y(" M")}
+            {" docs/webhooks.md            "}
+            {t.g("+6")} {t.o("-2")}
             {"\n\n"}
             {t.head("## Commits (2)")}
             {"\n"}[{t.dim("4b1c9e2")}] Cap webhook retries at 5{"\n"}[

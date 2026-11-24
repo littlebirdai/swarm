@@ -154,8 +154,7 @@ function SnapshotDiagram() {
               fontSize="10"
               fill={SOL.base1}
             >
-              {" "}
-              .env.local
+              {"   .env.local"}
             </text>
             <text
               x="40"
@@ -234,8 +233,7 @@ function SnapshotDiagram() {
               fontSize="10"
               fill={SOL.base0}
             >
-              {" "}
-              .env.local
+              {"   .env.local"}
             </text>
             <text
               x="40"

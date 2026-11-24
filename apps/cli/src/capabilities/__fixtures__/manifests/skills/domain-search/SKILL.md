@@ -22,13 +22,13 @@ Grepping `whois` output for "no match" is the classic trap: registrar boilerplat
 
 ## Known endpoints and quirks
 
-| Registry         | TLDs                                                                   | Endpoint                                                   | Quirks                                                                                         |
-| ---------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Verisign         | .com .net                                                              | `https://rdap.verisign.com/com/v1/domain/X` (swap com→net) | Reliable, fast                                                                                 |
-| Google           | .app .dev .page .new                                                   | `https://pubapi.registry.google/rdap/domain/X`             | Aggressive rate limits — sleep 5s or more between queries; 429 means retry slower, not "taken" |
-| Identity Digital | .ai .studio .video .show .live .media .tools .pub .wtf and many ngTLDs | `https://rdap.identitydigital.services/rdap/domain/X`      | Reliable                                                                                       |
-| No RDAP          | .io .sh .so                                                            | `whois -h whois.nic.io` / `whois.nic.sh` / `whois.nic.so`  | rdap.org silently 404s these — never use it for them                                           |
-| .co              | .co                                                                    | `whois -h whois.registry.co`                               | Not whois.nic.co; rdap.org misroutes .co                                                       |
+| Registry | TLDs | Endpoint | Quirks |
+|---|---|---|---|
+| Verisign | .com .net | `https://rdap.verisign.com/com/v1/domain/X` (swap com→net) | Reliable, fast |
+| Google | .app .dev .page .new | `https://pubapi.registry.google/rdap/domain/X` | Aggressive rate limits — sleep 5s or more between queries; 429 means retry slower, not "taken" |
+| Identity Digital | .ai .studio .video .show .live .media .tools .pub .wtf and many ngTLDs | `https://rdap.identitydigital.services/rdap/domain/X` | Reliable |
+| No RDAP | .io .sh .so | `whois -h whois.nic.io` / `whois.nic.sh` / `whois.nic.so` | rdap.org silently 404s these — never use it for them |
+| .co | .co | `whois -h whois.registry.co` | Not whois.nic.co; rdap.org misroutes .co |
 
 Distinguish HTTP codes: 404 = available, 200 = taken, 429 = rate limited (retry slowly), 000 = connection failed. Only 404 on a validated route means available.
 

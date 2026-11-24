@@ -169,8 +169,9 @@ export function FeedWindowFigure() {
           className="bj-fade"
           style={t(3.2)}
         >
-          filled: in the feed · hollow: outside the window or past the cap · the
-          same project's sessions in every row
+          {
+            "filled: in the feed  ·  hollow: outside the window or past the cap  ·  the same project's sessions in every row"
+          }
         </text>
       </Sheet>
     </Stage>

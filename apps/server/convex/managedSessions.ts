@@ -495,12 +495,8 @@ async function applyHeartbeat(
   const patch = buildHeartbeatPatch(session, agentStatus, clientTs, now);
   // Expand keeps the original throttle and counts. Seed a missing side row
   // even when this beat falls within the legacy timestamp's refresh interval.
-  await writeSessionHeartbeat(
-    ctx,
-    session._id,
-    session.user_id,
-    patch?.last_heartbeat ?? session.last_heartbeat,
-  );
+  // oxfmt-ignore
+  await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);
   if (patch) await ctx.db.patch(session._id, patch);
   return patch;
 }

@@ -202,7 +202,7 @@ export function MirrorSection() {
           <P$ host>cast sync status</P$>
           <P$ host>cast sync pull .env.local ~/data/export.csv</P$>
           <P$ host>cast sync pull --ref feature-x</P$>
-          <Out tone={SOL.base01}> → laptop/feature-x</Out>
+          <Out tone={SOL.base01}>{"  → laptop/feature-x"}</Out>
           <P$ host>cast sync diff src/app.ts</P$>
           <P$ host>cast sync push</P$>
         </Term>

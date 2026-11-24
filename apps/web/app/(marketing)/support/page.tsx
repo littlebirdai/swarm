@@ -390,40 +390,49 @@ export default function SupportPage() {
             <Terminal label="first aid">
               <Cmd>cast status</Cmd>
               {"\n"}
-              <span style={{ color: SOL.base01 }}> Version </span>v1.1.132{"\n"}
-              <span style={{ color: SOL.base01 }}> Auth </span>
+              <span style={{ color: SOL.base01 }}>{"  Version   "}</span>
+              v1.1.132{"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Auth      "}</span>
               <span style={{ color: SOL.green }}>*</span> authenticated{"\n"}
-              <span style={{ color: SOL.base01 }}> Daemon </span>
+              <span style={{ color: SOL.base01 }}>{"  Daemon    "}</span>
               <span style={{ color: SOL.green }}>*</span> running (PID 23887)
               {"\n"}
-              <span style={{ color: SOL.base01 }}> Last sync </span>0 seconds
-              ago{"\n"}
-              <span style={{ color: SOL.base01 }}> Queue </span>empty{"\n"}
-              <span style={{ color: SOL.base01 }}> Convex </span>
+              <span style={{ color: SOL.base01 }}>{"  Last sync "}</span>0
+              seconds ago{"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Queue     "}</span>empty
+              {"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Convex    "}</span>
               <span style={{ color: SOL.green }}>*</span> connected{"\n"}
               {"\n"}
               <Cmd>cast doctor</Cmd>
               {"\n"}
               <span style={{ color: SOL.base01 }}>
-                {" "}
-                Codecast Doctor (v1.1.132)
+                {"  Codecast Doctor  (v1.1.132)"}
               </span>
               {"\n"}
               {"\n"}
-              <span style={{ color: SOL.green }}> ✓</span> auth authenticated
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" auth          authenticated"}
               {"\n"}
-              <span style={{ color: SOL.green }}> ✓</span> daemon running,
-              heartbeat 2s ago{"\n"}
-              <span style={{ color: SOL.green }}> ✓</span> convex connected
-              (last sync 2s ago){"\n"}
-              <span style={{ color: SOL.green }}> ✓</span> sync backlog clear
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" daemon        running, heartbeat 2s ago"}
               {"\n"}
-              <span style={{ color: SOL.yellow }}> !</span> guidance run `cast
-              install --all`{"\n"}
-              <span style={{ color: SOL.green }}> ✓</span> end-to-end round trip
-              1.4s{"\n"}
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" convex        connected (last sync 2s ago)"}
               {"\n"}
-              <span style={{ color: SOL.green }}> ✓ codecast is healthy</span>
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" sync backlog  clear"}
+              {"\n"}
+              <span style={{ color: SOL.yellow }}>{"  !"}</span>
+              {" guidance      run `cast install --all`"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" end-to-end    round trip 1.4s"}
+              {"\n"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>
+                {"  ✓ codecast is healthy"}
+              </span>
             </Terminal>
           </Reveal>
         </div>

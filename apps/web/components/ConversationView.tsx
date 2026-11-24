@@ -8439,7 +8439,8 @@ const ConversationViewInner = function ConversationView(
                                                   </div>
                                                 </>
                                               )}
-                                            </DropdownMenuContent>{" "}
+                                            </DropdownMenuContent>
+                                            {"                "}
                                           </DropdownMenu>
                                         </>
                                       )

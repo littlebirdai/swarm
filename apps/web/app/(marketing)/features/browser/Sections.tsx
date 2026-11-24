@@ -560,16 +560,16 @@ export function EvidenceSection() {
                 </div>
                 <div>console errors (newest first):</div>
                 <div className="truncate">
-                  {" "}
+                  {"  "}
                   <span style={{ color: SOL.base01 }}>+6.1s</span>{" "}
                   <span style={{ color: "#ff6f61" }}>ERR</span> TypeError:
                   Cannot read properties of undefined
                 </div>
                 <div>failed requests (newest first):</div>
                 <div className="truncate">
-                  {" "}
-                  <span style={{ color: "#ff6f61" }}>500</span> POST 812ms
-                  https://staging.acme.dev/api/orders
+                  {"  "}
+                  <span style={{ color: "#ff6f61" }}>500</span>
+                  {" POST  812ms https://staging.acme.dev/api/orders"}
                 </div>
               </div>
             </ThreadRow>

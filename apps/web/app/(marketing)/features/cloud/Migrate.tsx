@@ -374,7 +374,7 @@ export function MigrateSection() {
           <Out>
             {"  would move  "}
             <span style={{ color: SOL.base02 }}>
-              jx7k2pd port the v1 routes
+              {"jx7k2pd   port the v1 routes"}
             </span>
             {"  (" + LAPTOP + " → " + HOST + ")"}
           </Out>

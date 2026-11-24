@@ -123,7 +123,7 @@ export function SignInSteps({
         onPress={() => void WebBrowser.openBrowserAsync(flow.url!)}
         accessibilityRole="button"
       >
-        <RNText style={styles.primaryText}>1 Open sign-in page</RNText>
+        <RNText style={styles.primaryText}>{"1  Open sign-in page"}</RNText>
         <FontAwesome name="external-link" size={13} color={Theme.bg} />
       </TouchableOpacity>
       <RNText style={styles.hint}>Approve, then copy the code it shows.</RNText>

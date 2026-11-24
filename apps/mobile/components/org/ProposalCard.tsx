@@ -591,7 +591,10 @@ function Details({
           (f.op === "change" || f.op === "clear");
         return (
           <Text key={`${f.seq}:${f.key}`} style={styles.fieldLine}>
-            <Text style={styles.metaDim}>{f.label} </Text>
+            <Text style={styles.metaDim}>
+              {f.label}
+              {"  "}
+            </Text>
             {before ? (
               <Text
                 style={[
@@ -612,7 +615,7 @@ function Details({
       })}
       {reasons.length ? (
         <Text style={styles.fieldLine}>
-          <Text style={styles.metaDim}>Why </Text>
+          <Text style={styles.metaDim}>{"Why  "}</Text>
           <Text style={{ color: Theme.textSecondary }}>
             {reasons.join("\n")}
           </Text>

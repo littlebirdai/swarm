@@ -191,11 +191,8 @@ export async function inFlightFactsOnServer(
       now,
     );
     turnLive = !live.is_idle;
-    openBackgroundWork = openTasksVouchForWaiting(
-      managed.open_tasks_at,
-      managed.open_tasks?.length ?? 0,
-      rowHeartbeatAliveAt({ last_heartbeat: lastHeartbeat }, now),
-    );
+    // oxfmt-ignore
+    openBackgroundWork = openTasksVouchForWaiting(managed.open_tasks_at, managed.open_tasks?.length ?? 0, rowHeartbeatAliveAt({ last_heartbeat: lastHeartbeat }, now));
     awaitingInput =
       live.awaiting_input || managed.agent_status === "permission_blocked";
     if (!turnLive && !awaitingInput) {

@@ -9,7 +9,6 @@ See the root `CLAUDE.md` for typechecking, releases and prompt dry runs. This fi
 **The preloads in `bunfig.toml` are load-bearing.** `src/test-helpers/isolatedTmuxServer.ts` points every tmux client in the process, the daemon's included, at a private server, and it must evaluate before `daemon.ts` snapshots `process.env`. That ordering only holds as a preload, because about 74 unrelated test files import `daemon.ts` and whichever bun loads first wins. Don't move real-tmux setup into per-file imports.
 
 **Use the shared helpers in `src/test-helpers/` before writing your own.**
-
 - `strictStub(name, impl)`: a fake that throws on any method the test did not plan for. A partial object cast to the full type answers new calls with `undefined`, so code that grows a dependency keeps passing while it skips the work.
 - `pollUntil(check, what, opts)`: the one polling wait. Its budget stretches with machine load (`machineLoad.ts`) and, given `progress`, fails on a stall rather than on a slow machine. Never wait with a fixed sleep.
 - `messagingHarness.ts`, `tmuxPane.ts`, `fakeClaudeShim.ts`: real-pane and fake-agent drivers for delivery tests.

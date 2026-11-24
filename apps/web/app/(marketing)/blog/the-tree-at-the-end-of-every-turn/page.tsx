@@ -211,8 +211,9 @@ export default function TreeAtTheEndOfEveryTurnPost() {
 
         <Terminal label="git log">
           <Cmd>
-            git log --format=&apos;%h %ar parents: %p&apos; -4 $(cut -d&apos;
-            &apos; -f1 .git/codecast/wip.head)
+            {
+              "git log --format='%h  %ar  parents: %p' -4 $(cut -d' ' -f1 .git/codecast/wip.head)"
+            }
           </Cmd>
           {GIT_CHAIN}
         </Terminal>

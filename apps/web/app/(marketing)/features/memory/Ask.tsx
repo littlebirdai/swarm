@@ -198,7 +198,8 @@ export function AskLayer() {
             msg 141: MAX_ATTEMPTS becomes 5. The cap of 3 is history.
           </Bullet>
           {"\n"}
-          {t.y("read:")} {t.v("cast read jx7k2qa 88")}{" "}
+          {t.y("read:")} {t.v("cast read jx7k2qa 88")}
+          {"  "}
           {t.v("cast read jx7k2qa 139:141")}
           {"\n"}
           {t.dim(
@@ -250,7 +251,8 @@ export function ContextLayer() {
       <div className="space-y-4">
         <Pane label="before the first edit">
           <Run>
-            cast context --auto {t.dim("# on branch webhook-retry-jitter")}
+            {"cast context --auto   "}
+            {t.dim("# on branch webhook-retry-jitter")}
           </Run>
           {t.dim('<CONTEXT query="webhook retry jitter">')}
           {"\n"}

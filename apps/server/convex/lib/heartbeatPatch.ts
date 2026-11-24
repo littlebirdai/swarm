@@ -42,9 +42,8 @@ export function buildHeartbeatPatch(
 ): Record<string, any> | null {
   const patch: Record<string, any> = {};
   let statusChanged = false;
-  const heartbeatStale =
-    !session.last_heartbeat ||
-    now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;
+  // oxfmt-ignore
+  const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;
   if (agentStatus) {
     const tsStale = statusWriteIsStale(session, agentStatus, clientTs);
     const settledReassertion =

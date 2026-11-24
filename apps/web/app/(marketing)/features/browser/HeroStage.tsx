@@ -175,7 +175,8 @@ const LINES: Line[] = [
     node: (
       <>
         {dim("  ")}
-        {red("500")} POST 812ms https://staging.acme.dev/api/orders
+        {red("500")}
+        {" POST     812ms https://staging.acme.dev/api/orders"}
       </>
     ),
   },

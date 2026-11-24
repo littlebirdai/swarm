@@ -23,9 +23,9 @@ answered. Where to look:
 - calls (`cast calls --json`, then `cast call <id> --transcript` only where a
   summary names a ruling or a behavior the document covers),
 - team chat (`cast chat channels`, then `cast chat read --channel <id>
---json`, paging back with its cursor to the window's start),
+  --json`, paging back with its cursor to the window's start),
 - sessions, only where a task or decision links one (`cast read <id> --ask
-"<what was ruled>"`). Most of what sessions say relays a ruling made
+  "<what was ruled>"`). Most of what sessions say relays a ruling made
   elsewhere, so searching them costs a great deal and finds restatements.
 
 A source states how the system should behave, in the words of the person who

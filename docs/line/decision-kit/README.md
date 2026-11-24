@@ -5,7 +5,7 @@ A decision's report page (`cast decide --report page.html`) is where the person 
 Put one line in the page's `<head>`:
 
 ```html
-<link rel="stylesheet" href="cast:decision-kit" />
+<link rel="stylesheet" href="cast:decision-kit">
 ```
 
 `cast decide --report` and `cast publish` replace that line with the kit, inline, so the published page is one self-contained file. Write the body as plain HTML inside `<main>`, using the pieces below. `example.html` beside this file shows the pieces on invented data.
@@ -32,10 +32,7 @@ Nothing is cut. The text the decision turns on (the message at fault, every befo
     <h1>The headline: what happened to whom, plainly</h1>
     <p>The bottom line: what you would do, and what could make you wrong.</p>
   </header>
-  <section>
-    <h2>…</h2>
-    …
-  </section>
+  <section><h2>…</h2> …</section>
 </main>
 ```
 
@@ -47,27 +44,13 @@ The page continues the decision card above it: the card carries the question, th
 
 ```html
 <dk-thread who="Ines Okafor" role="Booked two seats" show="5">
-  <dk-msg
-    us
-    from="Harbor Books"
-    channel="Email"
-    time="Sep 12, 10:02"
-    subject="You're booked"
-  >
+  <dk-msg us from="Harbor Books" channel="Email" time="Sep 12, 10:02" subject="You're booked">
     The message, as sent. Line breaks are kept.
   </dk-msg>
-  <dk-msg from="Ines Okafor" channel="Email" time="Sep 12, 10:40"
-    >Their reply.</dk-msg
-  >
+  <dk-msg from="Ines Okafor" channel="Email" time="Sep 12, 10:40">Their reply.</dk-msg>
   <dk-event>We called, voicemail <time>Sep 18, 19:00</time></dk-event>
-  <dk-msg
-    us
-    miss
-    from="Harbor Books"
-    channel="Text"
-    time="Sep 18, 19:58"
-    note="One sentence on what is wrong with it."
-  >
+  <dk-msg us miss from="Harbor Books" channel="Text" time="Sep 18, 19:58"
+          note="One sentence on what is wrong with it.">
     Reminder: <mark>the words at fault.</mark> The rest of it.
   </dk-msg>
 </dk-thread>
@@ -79,12 +62,8 @@ The page continues the decision card above it: the card carries the question, th
 
 ```html
 <dk-pair>
-  <dk-side label="What she got, at 7:58 pm"
-    ><dk-msg from="…" channel="Text">…</dk-msg></dk-side
-  >
-  <dk-side label="With the change, at 5:30 pm"
-    ><dk-msg from="…" channel="Text">…</dk-msg></dk-side
-  >
+  <dk-side label="What she got, at 7:58 pm"><dk-msg from="…" channel="Text">…</dk-msg></dk-side>
+  <dk-side label="With the change, at 5:30 pm"><dk-msg from="…" channel="Text">…</dk-msg></dk-side>
 </dk-pair>
 ```
 
@@ -97,9 +76,7 @@ A side holds anything: a message, a `<dk-event>` for an outcome that is not a me
 ```html
 <dk-shots>
   <figcaption>Evals, Cases grid, the same 30 runs</figcaption>
-  <dk-shot label="Today" src="https://…" alt="What the screen shows"
-    >What to look at, in a line.</dk-shot
-  >
+  <dk-shot label="Today" src="https://…" alt="What the screen shows">What to look at, in a line.</dk-shot>
   <dk-shot label="With the change" src="https://…" alt="…">…</dk-shot>
 </dk-shots>
 <dk-shot label="The page a person lands on" src="https://…" alt="…"></dk-shot>
@@ -110,10 +87,7 @@ A shot opens full size in one tap. Its text, when it has any, says what to look 
 **Nothing on record.** The honest state of a slot that could not be filled, for a case the decision does not turn on. When the empty slot is the one the decision turns on, the gap is the question, asked on the card, not a box on the page.
 
 ```html
-<dk-gap
-  ><b>No rewritten email exists</b> What was and was not run, and what the
-  record does show.</dk-gap
->
+<dk-gap><b>No rewritten email exists</b> What was and was not run, and what the record does show.</dk-gap>
 ```
 
 **A diff.** Show a change as the words its reader meets: the sentences a model is given, the message a person gets. When those words come out of a template or code, diff the text as rendered for the case at hand (a rendered snapshot the repository keeps, or one you render), not the source that produces it. An unchanged line that still pulls against the change is part of what the founder decides. The paragraph touching each change stays in view (folded in its middle when long) and every other unchanged paragraph waits behind one button, so a sentence changed in a long prompt reads as that sentence, with the whole prompt a click away. Paste the whole text's diff and let the kit fold it. An unchanged line the page talks about anywhere else is quoted right under the diff.
@@ -132,10 +106,10 @@ Pasted `git diff` output works too, for files that are already the words themsel
 
 ```html
 <dk-diff>
-  <script type="text/plain">
-    diff --git a/jobs/reminders.ts b/jobs/reminders.ts
-    …the diff, untouched…
-  </script>
+<script type="text/plain">
+diff --git a/jobs/reminders.ts b/jobs/reminders.ts
+…the diff, untouched…
+</script>
 </dk-diff>
 ```
 
@@ -160,13 +134,8 @@ A case may hold a `<dk-msg>`, a `<dk-pair>`, a `<dk-gap>`, a `<dk-shot>` or `<dk
 
 ```html
 <dk-facts>
-  <dk-fact
-    ><b>41 of 41</b> September reminders arrived after the doors opened</dk-fact
-  >
-  <dk-fact
-    ><b>41 of 41</b> arrive before the doors open, the same reminders replayed
-    on the change</dk-fact
-  >
+  <dk-fact><b>41 of 41</b> September reminders arrived after the doors opened</dk-fact>
+  <dk-fact><b>41 of 41</b> arrive before the doors open, the same reminders replayed on the change</dk-fact>
 </dk-facts>
 ```
 
@@ -176,14 +145,8 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
 
 ```html
 <dk-board>
-  <dk-finding href="#late" count="41 of 41" state="fixed"
-    >Reminders arrive after the doors open<small
-      >The 7:58 pm text</small
-    ></dk-finding
-  >
-  <dk-finding href="#price" count="6 of 41" state="open"
-    >Reminders quote last season's price</dk-finding
-  >
+  <dk-finding href="#late" count="41 of 41" state="fixed">Reminders arrive after the doors open<small>The 7:58 pm text</small></dk-finding>
+  <dk-finding href="#price" count="6 of 41" state="open">Reminders quote last season's price</dk-finding>
 </dk-board>
 ```
 
@@ -205,14 +168,8 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
 ```html
 <dk-measures>
   <h3>The claim</h3>
-  <dk-measure today="55-64" change="4" of="120"
-    >Emails that claimed it in production<small
-      >60 emails, 2 draws each</small
-    ></dk-measure
-  >
-  <dk-measure today="47-54" change="37" of="200" effect="cost"
-    >Offers to make the introduction</dk-measure
-  >
+  <dk-measure today="55-64" change="4" of="120">Emails that claimed it in production<small>60 emails, 2 draws each</small></dk-measure>
+  <dk-measure today="47-54" change="37" of="200" effect="cost">Offers to make the introduction</dk-measure>
 </dk-measures>
 ```
 
@@ -226,8 +183,7 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
 
 ```html
 <dl>
-  <dt>Term</dt>
-  <dd>What it is.</dd>
+  <dt>Term</dt><dd>What it is.</dd>
 </dl>
 ```
 
@@ -238,9 +194,7 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
 ```html
 <dk-cells>
   <figcaption>Today: the 5 cases that flip most, newest 30 runs</figcaption>
-  <dk-row name="Search status, when the carrier answers late" note="8 flips"
-    >..P.F..PF</dk-row
-  >
+  <dk-row name="Search status, when the carrier answers late" note="8 flips">..P.F..PF</dk-row>
 </dk-cells>
 ```
 
@@ -249,9 +203,7 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
 **The thing itself, in the product.** A link that opens the product's own view of a record, whole: a conversation, a person, a call, a match, a need.
 
 ```html
-<dk-view ref="union:conversation/<contact uuid>@2026-10-08T00:56:00Z"
-  >Open her whole conversation in Union</dk-view
->
+<dk-view ref="union:conversation/<contact uuid>@2026-10-08T00:56:00Z">Open her whole conversation in Union</dk-view>
 ```
 
 `ref` is `<app>:<view>/<id>`, with `@<ISO time>` to show a conversation as it stood at that moment. The link opens codecast's `/view` page, which frames the app's screen for the signed-in reader. The same reference alone on a line of the decision's `--context` markdown draws the view inline there. `href` replaces the link with one of your own. Inside a sentence, a list item or a table cell a view is an inline link.
@@ -263,19 +215,12 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
   <dk-group>
     <h3>Named what was waiting on them</h3>
     <ul>
-      <li>
-        <dk-view ref="union:conversation/<uuid>@2026-10-01T14:48:00Z"
-          >Ines Okafor</dk-view
-        >
-        the dinner seating she asked about
-      </li>
+      <li><dk-view ref="union:conversation/<uuid>@2026-10-01T14:48:00Z">Ines Okafor</dk-view> the dinner seating she asked about</li>
     </ul>
   </dk-group>
   <dk-group>
     <h3>Still only said we called</h3>
-    <ul>
-      <li><dk-view ref="…">Tomas Reyes</dk-view> nothing was open</li>
-    </ul>
+    <ul><li><dk-view ref="…">Tomas Reyes</dk-view> nothing was open</li></ul>
   </dk-group>
 </dk-tally>
 ```
@@ -284,14 +229,8 @@ A number written as a count out of a whole (`57 of 300`) draws its share as a ba
 
 ```html
 <dk-answers>
-  <dk-answer lean
-    ><h3>Ship the timing and the wording</h3>
-    What happens if chosen.</dk-answer
-  >
-  <dk-answer
-    ><h3>Something else</h3>
-    Tell me what, and I rework it.</dk-answer
-  >
+  <dk-answer lean><h3>Ship the timing and the wording</h3> What happens if chosen.</dk-answer>
+  <dk-answer><h3>Something else</h3> Tell me what, and I rework it.</dk-answer>
 </dk-answers>
 ```
 

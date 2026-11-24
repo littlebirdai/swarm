@@ -404,7 +404,9 @@ function Steps({
           >
             <RNText style={[styles.endText, { color: Theme.green }]}>
               {model.end}
-              <RNText style={styles.endSub}> when every step passes</RNText>
+              <RNText style={styles.endSub}>
+                {"  when every step passes"}
+              </RNText>
             </RNText>
           </RNView>
         </RNView>

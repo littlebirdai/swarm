@@ -354,7 +354,7 @@ function ShiftRow({
         </RNView>
         {s.before || s.after ? (
           <RNText style={styles.line}>
-            <RNText style={styles.lineLabel}>Reports to </RNText>
+            <RNText style={styles.lineLabel}>{"Reports to  "}</RNText>
             {s.before ? (
               <RNText style={s.after ? styles.struckDim : undefined}>
                 {s.before}
@@ -377,7 +377,7 @@ function ShiftRow({
         ) : null}
         {after ? (
           <RNText style={styles.line} numberOfLines={3}>
-            <RNText style={styles.lineLabel}>Looks after </RNText>
+            <RNText style={styles.lineLabel}>{"Looks after  "}</RNText>
             {after}
           </RNText>
         ) : null}

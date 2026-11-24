@@ -630,11 +630,8 @@ export const expireOfflinePermissions = internalMutation({
       if (lapsed === undefined) {
         const conv = await ctx.db.get(p.conversation_id);
         const device = conv ? await runnerDeviceOf(ctx, conv) : null;
-        const lastBeat = device
-          ? device.last_seen
-          : conv
-            ? (await ctx.db.get(conv.user_id))?.last_heartbeat
-            : undefined;
+        // oxfmt-ignore
+        const lastBeat = device ? device.last_seen : conv ? (await ctx.db.get(conv.user_id))?.last_heartbeat : undefined;
         lapsed = !conv || now - (lastBeat ?? 0) > PERMISSION_DEVICE_LAPSE_MS;
         lapsedByConv.set(key, lapsed);
       }

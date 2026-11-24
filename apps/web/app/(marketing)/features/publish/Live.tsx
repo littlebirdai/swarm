@@ -144,7 +144,8 @@ export function Live() {
               </span>
               {"\n"}
               <span style={{ color: SOL.green }}>✓</span>{" "}
-              <span style={{ color: SOL.base2 }}>Pricing page proposal</span>{" "}
+              <span style={{ color: SOL.base2 }}>Pricing page proposal</span>
+              {"  "}
               <span style={{ color: SOL.yellow }}>v1</span> → published{"\n"}
               {"  "}
               <span style={{ color: CYAN }}>
@@ -164,7 +165,9 @@ export function Live() {
               {BEATS.map((b) => (
                 <span key={b.t} className="block">
                   {"  "}
-                  {b.t} {b.out}
+                  {b.t}
+                  {"  "}
+                  {b.out}
                 </span>
               ))}
             </Terminal>

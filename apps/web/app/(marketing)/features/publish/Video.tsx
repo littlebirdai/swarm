@@ -54,7 +54,7 @@ function Player() {
               checkout.test.ts
             </div>
             {chapter >= 2 ? (
-              <div style={{ color: SOL.green }}>✓ 14 pass 0 fail</div>
+              <div style={{ color: SOL.green }}>{"✓ 14 pass  0 fail"}</div>
             ) : (
               <div style={{ color: SOL.red }}>✗ applies the coupon once</div>
             )}

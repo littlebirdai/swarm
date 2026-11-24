@@ -237,7 +237,7 @@ export function YourKinds() {
             >
               <span style={{ color: SOL.green }}>$ </span>cast obj create inc
               "Refund webhooks retry with no cap" --set severity=sev-3{"\n"}
-              <span style={{ color: V }}> created inc-8</span>
+              <span style={{ color: V }}>{"  created inc-8"}</span>
               {"\n"}
               <span style={{ color: SOL.green }}>$ </span>cast obj set inc-7
               status=monitoring

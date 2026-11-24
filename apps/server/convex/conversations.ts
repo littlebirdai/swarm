@@ -3426,14 +3426,8 @@ export const getConversationWithMeta = query({
     const { available_skills: _convSkills, ...conversationLight } =
       conversationForAccess(conversation, access);
     if (args.strip_volatile) {
-      for (const k of [
-        "updated_at",
-        "message_count",
-        "last_message_at",
-        "last_metrics_at",
-        "last_active_at",
-        "last_heartbeat",
-      ]) {
+      // oxfmt-ignore
+      for (const k of ["updated_at", "message_count", "last_message_at", "last_metrics_at", "last_active_at", "last_heartbeat"]) {
         delete (conversationLight as any)[k];
       }
     }
@@ -12836,12 +12830,9 @@ export async function buildAskingParents(
   // child asks.
   const liftUntil = (pid: string): number | null => {
     if (!asking.has(pid)) return null;
+    // oxfmt-ignore
     const deadlines = (childrenByParent.get(pid) ?? []).flatMap((c) =>
-      rowLiveDeadlines({
-        updated_at: c.updated_at,
-        last_heartbeat: maps.lastHeartbeatMap?.get(c._id.toString()) ?? null,
-      }),
-    );
+      rowLiveDeadlines({ updated_at: c.updated_at, last_heartbeat: maps.lastHeartbeatMap?.get(c._id.toString()) ?? null }));
     const ahead = [
       ...new Set(deadlines.filter((d): d is number => d != null && d > now)),
     ].sort((a, b) => a - b);
@@ -12878,17 +12869,10 @@ export function ownAsk(
 // The liveness facts placeConversationRow reads off a row. Every row projection
 // it places carries each of them (conversationFields.guard.test.ts): a fact a
 // projection omits reads as absent, and an absent heartbeat reads as a dead one.
+// oxfmt-ignore
 export const PLACEMENT_LIVENESS_FIELDS = [
-  "agent_status",
-  "updated_at",
-  "is_idle",
-  "awaiting_input",
-  "is_unresponsive",
-  "agent_status_boundary",
-  "open_tasks",
-  "open_tasks_at",
-  "producing_until",
-  "last_heartbeat",
+  "agent_status", "updated_at", "is_idle", "awaiting_input", "is_unresponsive", "agent_status_boundary",
+  "open_tasks", "open_tasks_at", "producing_until", "last_heartbeat",
 ] as const satisfies ReadonlyArray<keyof LivenessFields>;
 
 export function placeConversationRow(

@@ -1364,9 +1364,8 @@ async function ingestReviewComment(ctx: any, payload: any): Promise<boolean> {
   const anchor = rangeStart ?? rangeEnd;
   const span =
     rangeStart != null && rangeEnd !== rangeStart ? `-${rangeEnd}` : "";
-  const where = comment.path
-    ? `${comment.path}${anchor ? `:${anchor}${span}` : ""}`
-    : "the pull request";
+  // oxfmt-ignore
+  const where = comment.path ? `${comment.path}${anchor ? `:${anchor}${span}` : ""}` : "the pull request";
 
   await recordExternalEvent(ctx, {
     source: "github",
