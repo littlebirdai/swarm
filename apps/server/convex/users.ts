@@ -70,13 +70,15 @@ import {
   type DirectoryMapping,
 } from "./privacy";
 import {
-  DAEMON_COMMAND_TTL_MS,
-  WORK_STARTING_DAEMON_COMMANDS,
   isReservedDevice,
   isUnattendedConversation,
   isTestArtifactPath,
 } from "@codecast/shared/contracts";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
+import {
+  DAEMON_COMMAND_TTL_MS,
+  WORK_STARTING_DAEMON_COMMANDS,
+} from "@codecast/daemon/daemonCommands";
 import {
   activeTeamMembershipFor,
   canAccessTask,

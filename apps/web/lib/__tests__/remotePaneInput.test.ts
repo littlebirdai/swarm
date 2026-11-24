@@ -6,7 +6,7 @@
 
 import { describe, expect, test, beforeEach, afterEach, mock } from "bun:test";
 import { connectRemotePane } from "../terminal/remotePane";
-import { hexToBytes } from "@codecast/shared/contracts";
+import { hexToBytes } from "@codecast/daemon/terminalStream";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Longer than the module's coalescing window, so a flush has certainly run. */

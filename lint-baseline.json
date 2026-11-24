@@ -28801,6 +28801,24 @@
   "packages/convex-errors/test/convexErrors.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/daemon/src/daemonCommands.ts": {
+    "swarm/no-comments": 244
+  },
+  "packages/daemon/src/fileAttachment.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/daemon/src/rewindFiles.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/daemon/src/shellWords.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/daemon/src/sshAttach.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/daemon/src/terminalStream.ts": {
+    "swarm/no-comments": 59
+  },
   "packages/diff/src/foldInputs.ts": {
     "swarm/no-comments": 16
   },
@@ -29206,9 +29224,6 @@
   "packages/shared/contracts/conversationFields.ts": {
     "swarm/no-comments": 62
   },
-  "packages/shared/contracts/daemonCommands.ts": {
-    "swarm/no-comments": 244
-  },
   "packages/shared/contracts/dataSync.ts": {
     "swarm/no-comments": 12
   },
@@ -29319,9 +29334,6 @@
   },
   "packages/shared/contracts/fence.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/fileAttachment.ts": {
-    "swarm/no-comments": 7
   },
   "packages/shared/contracts/flowEdit.ts": {
     "swarm/no-comments": 29
@@ -29752,9 +29764,6 @@
   "packages/shared/contracts/resourceOffloadPolicy.ts": {
     "swarm/no-comments": 4
   },
-  "packages/shared/contracts/rewindFiles.ts": {
-    "swarm/no-comments": 31
-  },
   "packages/shared/contracts/roleAutonomy.ts": {
     "swarm/no-comments": 17
   },
@@ -29845,9 +29854,6 @@
   "packages/shared/contracts/sessionRead.ts": {
     "swarm/no-comments": 43
   },
-  "packages/shared/contracts/shellWords.ts": {
-    "swarm/no-comments": 6
-  },
   "packages/shared/contracts/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
   },
@@ -29865,9 +29871,6 @@
   },
   "packages/shared/contracts/snippetsWorkflow.ts": {
     "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/sshAttach.ts": {
-    "swarm/no-comments": 3
   },
   "packages/shared/contracts/stableContext.ts": {
     "swarm/no-comments": 20
@@ -29889,9 +29892,6 @@
   },
   "packages/shared/contracts/teamHosts.ts": {
     "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/terminalStream.ts": {
-    "swarm/no-comments": 59
   },
   "packages/shared/contracts/testArtifacts.ts": {
     "swarm/no-comments": 17

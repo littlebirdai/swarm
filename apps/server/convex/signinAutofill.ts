@@ -11,7 +11,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, mutation, query } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { DAEMON_COMMAND_TTL_MS } from "@codecast/shared/contracts";
+import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 import {
   cleanSecretSites,
   keepsOwnLogin,

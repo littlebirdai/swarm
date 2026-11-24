@@ -17,7 +17,7 @@ import { isClosedSession } from "@codecast/shared/contracts";
  * devices.ts / conversations.ts / dispatch.ts can all import it.
  */
 import { v } from "convex/values";
-import { DAEMON_COMMAND_TTL_MS } from "@codecast/shared/contracts";
+import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 import { Id } from "./_generated/dataModel";
 import { DEVICE_ONLINE_MS, pathUnderRoot } from "./deviceRouting";
 import { releasePreviousOwner } from "./sessionRelease";

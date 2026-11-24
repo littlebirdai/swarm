@@ -36,7 +36,7 @@ import {
   targetSession,
   withTmuxSession,
 } from "../tmuxRoute.js";
-import { TMUX_SESSION_SOCKET_PREFIX } from "@codecast/shared/contracts";
+import { TMUX_SESSION_SOCKET_PREFIX } from "@codecast/daemon/sshAttach";
 import {
   PANE_CAPTURE_INTERVAL_MS,
   PANE_CLIPBOARD_MAINTAIN_MS,
@@ -51,7 +51,7 @@ import {
   PANE_TYPING_WINDOW_MS,
   hexToBytes,
   isValidPaneTarget,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/terminalStream";
 
 export interface PaneSnapshot {
   frame: string;

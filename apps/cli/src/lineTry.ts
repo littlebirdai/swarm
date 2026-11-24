@@ -15,7 +15,7 @@
 //  3. The answer: what the station pinned (`cast state ... ```json```), read
 //     from the run's stream, with the reply, the cost and every refused write.
 // Nothing ships from a try: the guard and the sandbox see to that.
-import { shellWords } from "@codecast/shared/contracts/shellWords";
+import { shellWords } from "@codecast/daemon/shellWords";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

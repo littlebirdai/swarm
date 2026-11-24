@@ -24,6 +24,7 @@
     "@codecast/comments": "workspace:*",
     "@codecast/convex": "workspace:*",
     "@codecast/convex-errors": "workspace:*",
+    "@codecast/daemon": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",

@@ -9,7 +9,7 @@ import type {
   RewindFilesOp,
   RewindFilesReply,
   RewindStagedMark,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/rewindFiles";
 import type {
   SwitchLedger,
   SwitchRow,

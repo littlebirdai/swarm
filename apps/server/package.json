@@ -19,6 +19,7 @@
     "@codecast/chat": "workspace:*",
     "@codecast/comments": "workspace:*",
     "@codecast/convex-errors": "workspace:*",
+    "@codecast/daemon": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/hash": "workspace:*",

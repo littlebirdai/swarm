@@ -98,7 +98,7 @@ import * as interactivePrompt from "./interactivePrompt";
 import { planSessionTeardown } from "./sessionProcessMatcher";
 import { planHandoffTarget } from "./planHandoff";
 import { waitForHandHost } from "./handHostGrace";
-import { materializeFileTags } from "../../../packages/shared/contracts/fileAttachment";
+import { materializeFileTags } from "@codecast/daemon/fileAttachment";
 import { createHibernationHarness } from "./test-helpers/hibernationHarness";
 
 // The fixture lifts delivery code out of daemon.ts by name; the pane classifiers

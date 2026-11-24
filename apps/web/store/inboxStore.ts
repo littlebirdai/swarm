@@ -26,11 +26,11 @@ import {
 import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
 import { captureError } from "../lib/analytics";
 import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
+import type { CloudPlacementProgress } from "@codecast/shared/contracts";
 import type {
-  CloudPlacementProgress,
   RewindFilesOp,
   RewindStagedMark,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/rewindFiles";
 import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
 import {
   cleanSecretEdit,

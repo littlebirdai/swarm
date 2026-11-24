@@ -21,7 +21,7 @@ import type { EnsureBindingRequest } from "./types.js";
 import {
   materializeFileTags,
   type AttachedFileRef,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/fileAttachment";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import { defaultConfigDir } from "../config/configDir.js";
 

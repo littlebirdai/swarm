@@ -45,7 +45,7 @@ import {
   gitTry,
   parseSnapshotTrailer,
 } from "./wipSnapshot.js";
-import { REWIND_ROWS_CAP } from "@codecast/shared/contracts";
+import { REWIND_ROWS_CAP } from "@codecast/daemon/rewindFiles";
 
 export type RewindRow = Pick<
   TurnSnapshotRow,

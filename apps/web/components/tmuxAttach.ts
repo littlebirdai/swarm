@@ -8,12 +8,12 @@
  * nothing.
  */
 
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import {
-  deviceDisplayName,
   localTmuxAttachCommand,
   sshTmuxAttachCommand,
   wslTmuxAttachCommand,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/sshAttach";
 import { tailnetShortName } from "@codecast/shared/contracts/peerTransport";
 import { visitorPlatform } from "../lib/visitorPlatform";
 

@@ -14,9 +14,9 @@
 
 import {
   isPollResponsePayload,
-  parseFileTags,
   stampDeliveryId,
 } from "@codecast/shared/contracts";
+import { parseFileTags } from "@codecast/daemon/fileAttachment";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { PendingDeliveryHeldError } from "./pendingDeliveryAdmission.js";

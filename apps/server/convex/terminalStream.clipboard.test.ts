@@ -11,7 +11,7 @@ import {
 import {
   PANE_CLIPBOARD_TTL_MS,
   PANE_MAX_CLIPBOARD_CHARS,
-} from "@codecast/shared/contracts";
+} from "@codecast/daemon/terminalStream";
 
 // The clipboard bridge's relay half: a daemon offers the text of a new tmux
 // buffer, the viewer reads it beside the frame. Only a pane someone is

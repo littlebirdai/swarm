@@ -7,9 +7,6 @@ export * from "./liveness";
 export * from "./hibernation";
 export * from "./openTasks";
 export * from "./pendingStatus";
-export * from "./daemonCommands";
-export * from "./rewindFiles";
-export * from "./sshAttach";
 export * from "./agentClients";
 export * from "./agentPins";
 export * from "./executionBinding";
@@ -57,7 +54,6 @@ export * from "./forkSeed";
 export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
-export * from "./terminalStream";
 export * from "./callRoomKeys";
 export * from "./recordingAudio";
 export * from "./transcribeLanguage";
@@ -74,7 +70,6 @@ export * from "./callGuests";
 // for the digest markdown and the <huddle-summary> wire tag, one parser back.
 export * from "./huddleDigest";
 export * from "./screenRecording";
-export * from "./fileAttachment";
 // Without these two lines every consumer reinvents the capability vocabulary:
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four
