@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib';
 
 import type { BisectStep, Candidate, CommitRef, SimFailureResult, SimMode, SimResult } from '@codecast/shared/contracts/evalsApi';
 
-import { readRuns, readSession, sessionsDir, SIM_SOURCES, simHome, treePatchPath } from '../../../../packages/web/store/__tests__/sim/history';
+import { readRuns, readSession, sessionsDir, SIM_SOURCES, simHome, treePatchPath } from '../../../../apps/web/store/__tests__/sim/history';
 import { dropBaseTree, prepareTreeAt } from '../commands/line';
 import { repoGit, type AttributionGit } from '../history/attribution';
 import { homePaths, writeJsonAtomic } from '../paths';
@@ -33,7 +33,7 @@ import { acquireRunLock, bisectPaths, bisectsDir, BISECT_ID_RE } from './state';
 // probed commit's.
 
 /** The harness a probe tree runs: the failing commit's, whatever the probed commit had. */
-export const SIM_HARNESS = ['packages/web/store/__tests__/sim', 'packages/web/scripts/sim.ts'];
+export const SIM_HARNESS = ['apps/web/store/__tests__/sim', 'apps/web/scripts/sim.ts'];
 
 /** A probe that has not finished in this long is killed and reads as a skip. */
 export const SIM_PROBE_MAX_MS = 10 * 60_000;
@@ -160,8 +160,8 @@ export function simTreeEnv(f: SimFailure, harness: string, o: { log?: (line: str
           console.log = say;
         }
         const out = join(work, 'out');
-        const argv = [process.execPath, join(wt, 'packages/web/scripts/sim.ts'), f.scenario, '--seed', String(f.seed), `--order=${f.order}`, '--out', out];
-        const child = Bun.spawn(argv, { cwd: join(wt, 'packages/web'), env: { ...withoutSimEnv(process.env), CODECAST_SIM_HOME: join(work, 'home') }, stdout: 'pipe', stderr: 'pipe' });
+        const argv = [process.execPath, join(wt, 'apps/web/scripts/sim.ts'), f.scenario, '--seed', String(f.seed), `--order=${f.order}`, '--out', out];
+        const child = Bun.spawn(argv, { cwd: join(wt, 'apps/web'), env: { ...withoutSimEnv(process.env), CODECAST_SIM_HOME: join(work, 'home') }, stdout: 'pipe', stderr: 'pipe' });
         const timer = setTimeout(() => child.kill(), SIM_PROBE_MAX_MS);
         let last = '';
         const pump = async (stream: ReadableStream<Uint8Array>) => {

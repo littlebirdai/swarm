@@ -9,7 +9,7 @@ const where = { localRoot: "/Users/me/src/app", remoteCwd: "/home/ubuntu/work/ap
 
 describe("where a pulled path lands", () => {
   test("repo paths map between the laptop checkout and the cloud folder", () => {
-    expect(mapPath("packages/web/.env.local", where)).toMatchObject({ from: "/Users/me/src/app/packages/web/.env.local", to: "/home/ubuntu/work/app/.codecast/worktrees/cloud-1/packages/web/.env.local", outside: false });
+    expect(mapPath("apps/web/.env.local", where)).toMatchObject({ from: "/Users/me/src/app/apps/web/.env.local", to: "/home/ubuntu/work/app/.codecast/worktrees/cloud-1/apps/web/.env.local", outside: false });
     expect(mapPath("/Users/me/src/app/assets/", where)).toMatchObject({ rel: "assets", outside: false });
   });
 
@@ -61,9 +61,9 @@ describe("credential stores never travel", () => {
 });
 
 describe("a path as the asking shell names it", () => {
-  const host = { cwd: "/home/ubuntu/work/app/.codecast/worktrees/cloud-1/packages/web", repoRoot: "/home/ubuntu/work/app/.codecast/worktrees/cloud-1", home: "/home/ubuntu" };
+  const host = { cwd: "/home/ubuntu/work/app/.codecast/worktrees/cloud-1/apps/web", repoRoot: "/home/ubuntu/work/app/.codecast/worktrees/cloud-1", home: "/home/ubuntu" };
   test("relative to where it runs becomes relative to the repo", () => {
-    expect(requestPath(".env.local", host)).toBe("packages/web/.env.local");
+    expect(requestPath(".env.local", host)).toBe("apps/web/.env.local");
     expect(requestPath("../../README.md", host)).toBe("README.md");
   });
   test("home paths stay home paths, on either machine", () => {

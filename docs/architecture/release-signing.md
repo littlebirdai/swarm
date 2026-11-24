@@ -28,7 +28,7 @@ ships this code:
 - the swap keeps the old binary until the new one is in place and restores it
   if the rename fails part way.
 
-The installer (`packages/web/public/install.sh`) reads the manifest, takes the
+The installer (`apps/web/public/install.sh`) reads the manifest, takes the
 binary URL only from `dl.codecast.sh`, and verifies the SHA-256 before the file
 lands in PATH.
 

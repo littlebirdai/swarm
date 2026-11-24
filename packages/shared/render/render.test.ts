@@ -158,7 +158,7 @@ describe("shortenUrl", () => {
 
 describe("getRelativePath", () => {
   const cases: Array<[string, string]> = [
-    ["/Users/ashot/src/codecast/packages/web/x.ts", "codecast/packages/web/x.ts"],
+    ["/Users/ashot/src/codecast/apps/web/x.ts", "codecast/apps/web/x.ts"],
     ["/Users/ashot/Documents/notes.md", "Documents/notes.md"],
     ["/home/me/projects/app/main.rs", "app/main.rs"],
     ["/home/me/scratch/file.txt", "scratch/file.txt"],
@@ -429,9 +429,9 @@ describe("shellLead", () => {
 
   it("skips setup words so the receipt names what actually ran", () => {
     expect(shellLead('cd /Users/me/src/codecast; echo "=== tabs"; cast browser tabs')).toBe("cast browser");
-    expect(shellLead("timeout 600 bun test packages/web")).toBe("bun test");
+    expect(shellLead("timeout 600 bun test apps/web")).toBe("bun test");
     expect(shellLead("mkdir -p /tmp/out && cat > /tmp/out/f")).toBe("cat");
-    expect(shellLead("cd packages/web && npx tsc --noEmit -p tsconfig.json")).toBe("npx tsc");
+    expect(shellLead("cd apps/web && npx tsc --noEmit -p tsconfig.json")).toBe("npx tsc");
     expect(shellLead("FOO=1 sudo time bun test")).toBe("bun test");
     expect(shellLead("/opt/homebrew/bin/node -e 1")).toBe("node");
     expect(shellLead("(cd repo && git status)")).toBe("git status");
@@ -452,9 +452,9 @@ describe("describeSmallToolGroup", () => {
   });
 
   it("spends a whole line on a lone subject, and splits it across a pair", () => {
-    const long = tc("Read", { file_path: "/Users/me/src/codecast/packages/web/components/ConversationViewHeader.tsx" });
+    const long = tc("Read", { file_path: "/Users/me/src/codecast/apps/web/components/ConversationViewHeader.tsx" });
     expect(describeSmallToolGroup([long])).toBe(
-      "read codecast/packages/web/components/ConversationViewHeader.tsx",
+      "read codecast/apps/web/components/ConversationViewHeader.tsx",
     );
     expect(describeSmallToolGroup([long, long])).toBe(
       "read ConversationViewHeader.tsx · ConversationViewHeader.tsx",
@@ -577,7 +577,7 @@ describe("activityLine", () => {
     ["NotebookEdit", { notebook_path: "/Users/me/src/app/nb.ipynb" }, "editing app/nb.ipynb"],
     ["Write", { file_path: "/Users/me/src/app/new.ts" }, "writing app/new.ts"],
     ["write", { filePath: "/home/me/code/x/b.ts" }, "writing x/b.ts"],
-    ["Bash", { command: "cd packages/web && npx tsc --noEmit" }, "running npx tsc"],
+    ["Bash", { command: "cd apps/web && npx tsc --noEmit" }, "running npx tsc"],
     ["shell_command", { cmd: "bun test" }, "running bun test"],
     ["run_terminal_command", { command: "ls -la" }, "running ls"],
     ["Grep", { pattern: "wakeSig" }, "searching for wakeSig"],

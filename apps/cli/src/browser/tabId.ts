@@ -4,7 +4,7 @@
  * One place, because two things must agree on it and neither can see the
  * other: every engine path (the built-in CDP driver, the agent-browser
  * adapter) prints it after acting on a tab, and the conversation view
- * (packages/web/lib/browserFocus.ts) reads it off the command row so "open
+ * (apps/web/lib/browserFocus.ts) reads it off the command row so "open
  * tab" can ask the daemon to raise that exact tab.
  *
  * It is the CDP target id, shortened — never an engine's own per-session

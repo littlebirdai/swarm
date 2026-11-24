@@ -93,7 +93,7 @@ describe("otherSessionInCheckout", () => {
   const at = (id: string, p: string, over: Partial<CheckoutOccupantRow> = {}) => row({ conversation_id: id, cloud_workspace: null, cloud_checkout_path: null, project_path: p, ...over });
   test("a session in the checkout or a folder of it counts; the departing one, its own worktrees and ended rows do not", () => {
     expect(otherSessionInCheckout([at("me", ROOT)], ROOT, "me")).toBeNull();
-    expect(otherSessionInCheckout([at("b", `${ROOT}/packages/web`)], ROOT, "me")?.conversation_id).toBe("b");
+    expect(otherSessionInCheckout([at("b", `${ROOT}/apps/web`)], ROOT, "me")?.conversation_id).toBe("b");
     expect(otherSessionInCheckout([at("b", `${ROOT}/.codecast/worktrees/x`)], ROOT, "me")).toBeNull();
     expect(otherSessionInCheckout([at("b", `${ROOT}-other`)], ROOT, "me")).toBeNull();
     expect(otherSessionInCheckout([at("b", ROOT, { inbox_killed_at: 1 })], ROOT, "me")).toBeNull();

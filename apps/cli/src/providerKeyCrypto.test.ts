@@ -81,7 +81,7 @@ describe("provider-key web→daemon crypto", () => {
     // The path is in a variable so the CLI tsconfig (rootDir: src) doesn't try to
     // compile the web module; bun still loads the real one at runtime, so the
     // interop round-trip below is against production web code, not a stub.
-    const webCryptoModule = "../../../packages/web/lib/providerKeyCrypto";
+    const webCryptoModule = "../../../apps/web/lib/providerKeyCrypto";
     const { encryptProviderKey } = await import(webCryptoModule);
     const dir = tmpDir();
     try {

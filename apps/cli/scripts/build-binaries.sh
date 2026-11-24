@@ -3,7 +3,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-OUTPUT_DIR="../../packages/web/binaries"
+OUTPUT_DIR="../../apps/web/binaries"
 mkdir -p "$OUTPUT_DIR"
 
 # Refuse to build if a stale src/*.js shadow is present — it would hijack

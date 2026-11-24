@@ -20,7 +20,7 @@ describe("areaOf", () => {
   test("maps each package to its area", () => {
     expect(areaOf("apps/cli/src/daemon.ts")).toBe("cli");
     expect(areaOf("apps/evals/src/x.ts")).toBe("evals");
-    expect(areaOf("packages/web/components/DiffView.tsx")).toBe("web");
+    expect(areaOf("apps/web/components/DiffView.tsx")).toBe("web");
     expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
     expect(areaOf("packages/shared/contracts/agentClients.ts")).toBe("shared");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
@@ -58,12 +58,12 @@ describe("touchesPlatform", () => {
   test("claims the mirror and the manifests the mirror is derived from", () => {
     expect(touchesPlatform("platform/packages/keys/src/index.ts")).toBe(true);
     expect(touchesPlatform("platform/vendor-manifest.txt")).toBe(true);
-    expect(touchesPlatform("packages/web/package.json")).toBe(true);
+    expect(touchesPlatform("apps/web/package.json")).toBe(true);
     expect(touchesPlatform("apps/cli/package.json")).toBe(true);
   });
 
   test("claims nothing else", () => {
-    expect(touchesPlatform("packages/web/components/DiffView.tsx")).toBe(false);
+    expect(touchesPlatform("apps/web/components/DiffView.tsx")).toBe(false);
     // Only a workspace root manifest declares an @platform dep; one nested
     // inside a package is a fixture or a bundled copy.
     expect(touchesPlatform("apps/cli/src/fixtures/package.json")).toBe(false);
@@ -95,7 +95,7 @@ describe("classifyChangedPaths", () => {
   // convex source imports web code. The cli test files that read web files
   // run in test-always instead.
   test("a web change runs lint and the web, convex and mobile tests", () => {
-    expect(ran(["packages/web/components/DiffView.tsx"])).toEqual(
+    expect(ran(["apps/web/components/DiffView.tsx"])).toEqual(
       ["build", "lint", "test-convex", "test-mobile", "test-web", "typecheck"],
     );
   });
@@ -121,7 +121,7 @@ describe("classifyChangedPaths", () => {
 
   // The vendored mirror is a dependency of every package, so a change to it
   // reaches every job that reads it, and the job that tests the mirror itself
-  // (ct-49675). Only packages/web has a lint script.
+  // (ct-49675). Only apps/web has a lint script.
   test("a vendored platform change runs every job but lint", () => {
     const result = flags(["platform/packages/engine/src/store.ts"]);
     expect(result.platform).toBe(true);
@@ -132,14 +132,14 @@ describe("classifyChangedPaths", () => {
   test("a workspace manifest re-checks the mirror it declares", () => {
     // The mirror's package set is read out of these files, so adopting or
     // dropping an @platform dep here is what makes the mirror wrong.
-    const result = flags(["packages/web/package.json"]);
+    const result = flags(["apps/web/package.json"]);
     expect(result.run_test_platform).toBe(true);
     expect(result.web).toBe(true);
     expect(result.run_lint).toBe(true);
   });
 
   test("changes that cannot touch the mirror leave its job alone", () => {
-    expect(flags(["packages/web/components/DiffView.tsx"]).run_test_platform).toBe(false);
+    expect(flags(["apps/web/components/DiffView.tsx"]).run_test_platform).toBe(false);
     expect(flags(["apps/cli/src/daemon.ts"]).run_test_platform).toBe(false);
     expect(flags(["packages/shared/contracts/agentClients.ts"]).run_test_platform).toBe(false);
     expect(flags(["docs/architecture/sync-host.md"]).run_test_platform).toBe(false);
@@ -182,7 +182,7 @@ describe("classifyChangedPaths", () => {
   test("the electron tests rerun for the vendored @platform/desktop they require", () => {
     expect(flags(["platform/packages/desktop/src/index.js"]).run_test_electron).toBe(true);
     expect(flags(["apps/desktop/package.json"]).run_test_electron).toBe(true);
-    expect(flags(["packages/web/components/DiffView.tsx"]).run_test_electron).toBe(false);
+    expect(flags(["apps/web/components/DiffView.tsx"]).run_test_electron).toBe(false);
     expect(flags(["packages/shared/contracts/agentClients.ts"]).run_test_electron).toBe(false);
   });
 
@@ -246,7 +246,7 @@ describe("computer test scope", () => {
   });
 
   test("does not run for unrelated CLI, web or documentation changes", () => {
-    for (const file of ["apps/cli/src/daemon.ts", "packages/web/index.ts", "docs/README.md", ""])
+    for (const file of ["apps/cli/src/daemon.ts", "apps/web/index.ts", "docs/README.md", ""])
       expect(touchesComputer(file)).toBe(false);
   });
 
@@ -306,7 +306,7 @@ describe("injection suite scope", () => {
       return stdout.trim();
     };
     expect(await run("\n")).toBe("run_test_injection=true");
-    expect(await run("packages/web/index.ts\n")).toBe("run_test_injection=false");
+    expect(await run("apps/web/index.ts\n")).toBe("run_test_injection=false");
     expect(await run("apps/cli/src/daemon.ts\n")).toBe("run_test_injection=true");
   });
 });

@@ -58,7 +58,7 @@ describe("dedupeCommits", () => {
   test("a small change is told by where it touched too: two one-line fixes under one subject stay two", () => {
     const fix = (sha: string, at: number, file: string) =>
       commit({ sha, subject: "fix typo", timestamp: at, paths: { [file]: 1 }, insertions: 1, deletions: 1 });
-    const r = dedupeCommits([fix("t1", T0, "packages/web/a.ts"), fix("t2", T0 + MIN, "apps/cli/b.ts")], "main");
+    const r = dedupeCommits([fix("t1", T0, "apps/web/a.ts"), fix("t2", T0 + MIN, "apps/cli/b.ts")], "main");
     expect(r.commits.map((c) => c.sha)).toEqual(["t1", "t2"]);
   });
 

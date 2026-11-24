@@ -11,13 +11,13 @@ const KEY = "phc_Qfq3Fhk6pyxB8vkDoUVqSKvAgiVkqR3ARoAtwaYqE6Z";
 let root: string;
 
 function writeWebDist(contents: string) {
-  mkdirSync(join(root, "packages/web/dist/assets"), { recursive: true });
-  writeFileSync(join(root, "packages/web/dist/assets/index-abc123.js"), contents);
+  mkdirSync(join(root, "apps/web/dist/assets"), { recursive: true });
+  writeFileSync(join(root, "apps/web/dist/assets/index-abc123.js"), contents);
 }
 
 function writeCliBinary(contents: string) {
-  mkdirSync(join(root, "packages/web/binaries"), { recursive: true });
-  writeFileSync(join(root, "packages/web/binaries/codecast-darwin-arm64"), contents);
+  mkdirSync(join(root, "apps/web/binaries"), { recursive: true });
+  writeFileSync(join(root, "apps/web/binaries/codecast-darwin-arm64"), contents);
 }
 
 beforeEach(() => {

@@ -96,12 +96,12 @@ describe("dev server detection", () => {
     return root;
   }
 
-  test("a vite app in packages/web with a dev script", () => {
+  test("a vite app in apps/web with a dev script", () => {
     const root = repo({
       "bun.lock": "", "package.json": "{}",
-      "packages/web/vite.config.ts": "", "packages/web/package.json": JSON.stringify({ scripts: { dev: "vite" } }),
+      "apps/web/vite.config.ts": "", "apps/web/package.json": JSON.stringify({ scripts: { dev: "vite" } }),
     });
-    expect(detectProject(root).services.web).toEqual({ mode: "isolated", start: `cd packages/web && bun run dev --port "$PORT_WEB"`, port: "web" });
+    expect(detectProject(root).services.web).toEqual({ mode: "isolated", start: `cd apps/web && bun run dev --port "$PORT_WEB"`, port: "web" });
   });
 
   test("a next app at the root under npm passes the port after --", () => {
@@ -234,8 +234,8 @@ describe("cast dev never calls another checkout's server its own", () => {
     expect(held.state).toBe("failed");
     if (held.state === "failed") expect(held.reason).toContain(other);
 
-    fs.mkdirSync(path.join(checkout, "packages/web"), { recursive: true });
-    await serve(path.join(checkout, "packages/web"), base + 1, "by hand");
+    fs.mkdirSync(path.join(checkout, "apps/web"), { recursive: true });
+    await serve(path.join(checkout, "apps/web"), base + 1, "by hand");
     expect((await ensure(web(base + 1, { PORT_WEB: String(base + 1) }), checkout, 10)).state).toBe("external");
   }, 60_000);
 

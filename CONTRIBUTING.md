@@ -20,7 +20,7 @@
 
 2. Copy environment files:
    ```bash
-   cp packages/web/.env.example packages/web/.env.local
+   cp apps/web/.env.example apps/web/.env.local
    cp apps/server/.env.example apps/server/.env.local
    cp apps/cli/.env.example apps/cli/.env.local
    ```
@@ -51,7 +51,7 @@ Codecast is a Bun monorepo with these packages:
 |---------|-------------|
 | `apps/cli` | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
 | `apps/server` | Convex backend: schema, queries, mutations, auth |
-| `packages/web` | React + Vite web app |
+| `apps/web` | React + Vite web app |
 | `apps/desktop` | Electron desktop app |
 | `apps/mobile` | Expo/React Native iOS app |
 | `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
@@ -69,7 +69,7 @@ Codecast is a Bun monorepo with these packages:
 
 ### React: No Direct useEffect
 
-`useEffect` is banned in `packages/web` (enforced by ESLint; existing violations are baselined in `eslint-suppressions.json`, so new ones fail). Two escape hatches:
+`useEffect` is banned in `apps/web` (enforced by ESLint; existing violations are baselined in `eslint-suppressions.json`, so new ones fail). Two escape hatches:
 
 - **`useMountEffect(fn)`** -- one-time external sync on mount
 - **`useEventListener(event, handler, target?, options?)`** -- event subscriptions with cleanup
@@ -84,7 +84,7 @@ Instead of useEffect, use these patterns:
 
 ### State Management
 
-All UI state lives in `inboxStore` (Zustand at `packages/web/store/inboxStore.ts`), not in local `useState`. Local state is only for transient, component-scoped concerns (e.g., controlled input mid-edit).
+All UI state lives in `inboxStore` (Zustand at `apps/web/store/inboxStore.ts`), not in local `useState`. Local state is only for transient, component-scoped concerns (e.g., controlled input mid-edit).
 
 All data mutations go through `inboxStore` actions (optimistic local-first updates), never via direct `useMutation` calls. The pattern:
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Writes the journey presenter's test graph (packages/web/lib/ship/__tests__/changeGraph.fixture.json) from a change
+// Writes the journey presenter's test graph (apps/web/lib/ship/__tests__/changeGraph.fixture.json) from a change
 // flow's source, parsed with its segments expanded as the web's shipped snapshot is (shippedFlows.ts), plus each
 // station's timeout, which the run card turns into a deadline, and whether an exit is the machine's.
 //
@@ -15,6 +15,6 @@ const FIELDS = ["id", "label", "shape", "type", "backend", "segment", "segment_f
 const graph = parseWorkflowSource(src);
 const nodes = [...graph.nodes.values()].map((n) => Object.fromEntries(FIELDS.filter((k) => n[k] !== undefined).map((k) => [k, n[k]])));
 const edges = graph.edges.map((e) => ({ from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}), ...(e.condition ? { condition: e.condition } : {}) }));
-const out = path.join(root, "packages/web/lib/ship/__tests__/changeGraph.fixture.json");
+const out = path.join(root, "apps/web/lib/ship/__tests__/changeGraph.fixture.json");
 fs.writeFileSync(out, `${JSON.stringify({ nodes, edges }, null, 2)}\n`);
 console.log(`wrote ${out}: ${nodes.length} nodes, ${edges.length} edges`);

@@ -9,7 +9,7 @@ import { closeInFlightReason, IN_FLIGHT_FACT_KEYS } from "@codecast/shared/contr
 import schema from "./schema";
 import { allModules } from "./testModules.testkit";
 import { inFlightFactsOnServer } from "./lib/closeAside";
-import { inFlightFactsOfRow } from "../../../packages/web/lib/sessionClose";
+import { inFlightFactsOfRow } from "../../../apps/web/lib/sessionClose";
 
 setDefaultTimeout(60_000);
 

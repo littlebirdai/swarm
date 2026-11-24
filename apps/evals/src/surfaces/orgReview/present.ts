@@ -29,7 +29,7 @@ export const DEV_URL = 'http://localhost:3200';
 export const BRIDGE_FILE = join(homedir(), '.codecast', 'browser', 'bridge.json');
 export const RUBRIC_DOC = join(REPO_ROOT, 'docs', 'architecture', 'org-eval.md');
 const PREVIEW = `${DEV_URL}/org?preview=1`;
-/** The product's tour layer and Tours panel (packages/web/tours): never part of what a capture grades. */
+/** The product's tour layer and Tours panel (apps/web/tours): never part of what a capture grades. */
 const TOUR_UI = '[data-tour-open],[data-tours-panel]';
 const SHOTS = ['desktop', 'fold', 'ask', 'phone', 'chart', 'chart-fit'] as const;
 

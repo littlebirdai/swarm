@@ -4,8 +4,8 @@
 // sits on was added since the merge base.
 //
 // Why: both checkers carry legacy debt that a whole-repo gate cannot hold.
-// `eslint .` in packages/web passes only because a 57-entry baseline
-// (packages/web/eslint-suppressions.json) forgives what already existed, and
+// `eslint .` in apps/web passes only because a 57-entry baseline
+// (apps/web/eslint-suppressions.json) forgives what already existed, and
 // apps/cli's typecheck has carried pre-existing errors, which is why
 // ci.yml's typecheck job leaves it out of the strict filter. Neither fact should
 // let NEW debt through, and neither should turn a pull request red for code it
@@ -109,7 +109,7 @@ export function isAddedLine(line: number, ranges: LineRange[]): boolean {
  * Why the anchor line rather than the finding's whole span: a rule that matches
  * a construct spans it from its first line to its last, so an existing
  * `useEffect` would be blamed the moment someone adds a line inside its body.
- * packages/web carries 57 suppressed call sites of exactly that shape, so a
+ * apps/web carries 57 suppressed call sites of exactly that shape, so a
  * span test would turn every edit near one red — the debt this gate exists to
  * step around. A checker anchors a finding at the construct's first line; when
  * that line is untouched, the construct predates the change.
@@ -217,7 +217,7 @@ function git(args: string[]): string {
 }
 
 function runEslint(files: string[]): Finding[] {
-  const cwd = path.join(REPO_ROOT, "packages/web");
+  const cwd = path.join(REPO_ROOT, "apps/web");
   // An empty baseline in a temp file: eslint reads `eslint-suppressions.json`
   // by default, and a suppressed finding never reaches us to be line-filtered.
   const empty = path.join(mkdtempSync(path.join(tmpdir(), "changed-lines-")), "none.json");
@@ -266,8 +266,8 @@ function runTsc(pkg: string, project: string): (files: string[]) => Finding[] {
 export const CHECKS: Check[] = [
   {
     id: "eslint-web",
-    label: "eslint (packages/web)",
-    scope: "packages/web/",
+    label: "eslint (apps/web)",
+    scope: "apps/web/",
     run: runEslint,
   },
   {

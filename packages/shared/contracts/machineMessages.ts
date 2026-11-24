@@ -36,7 +36,7 @@ export function isCompactionSummaryMessage(rawContent: string | null | undefined
 // injections, and team-chat anchor wakes.
 //
 // One definition, three consumers that must agree on what "human-typed" means:
-// the web/mobile preview surfaces (packages/web/components/sessionMessage.ts,
+// the web/mobile preview surfaces (apps/web/components/sessionMessage.ts,
 // which re-exports these and adds the parsers), the profile feed's Typed view
 // and the insert-time Sends counter (convex/lib/userSend.ts).
 

@@ -87,7 +87,7 @@ describe("getConversationMeta unfurl gate", () => {
 
 // The description prefers idle_summary (the one-sentence card summary) over
 // subtitle (a multi-bullet block); only subtitle's first bullet fits a link
-// preview. Mirrors sessionCardSummary in packages/web/lib/sessionSummary.ts.
+// preview. Mirrors sessionCardSummary in apps/web/lib/sessionSummary.ts.
 describe("getConversationMeta description derivation", () => {
   const desc = (convExtra: Record<string, any>) =>
     meta(OWNER, tables(convExtra)).then((r: any) => r?.description);

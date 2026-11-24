@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import type { CommitRef, SimFailureResult, SimResult } from '@codecast/shared/contracts/evalsApi';
 
-import { SIM_SOURCES } from '../../../../packages/web/store/__tests__/sim/history';
+import { SIM_SOURCES } from '../../../../apps/web/store/__tests__/sim/history';
 import type { AttributionGit } from '../history/attribution';
 import type { Tree } from './probe';
 import { lastPass, planSimBisect, readingOf, readSimBisect, readSimFailure, runSimBisect, simMaxProbes, type SimFailure, type SimProbeEnv } from './simProbe';

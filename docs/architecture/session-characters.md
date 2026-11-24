@@ -187,8 +187,8 @@ recognised rather than read.
 
 The mobile app draws the same characters from the same sources. It imports
 `sessionIdentity`, `identityLine`, `faceIdentity` and `identityRowOf` from
-`packages/web/lib/sessionIdentity.ts`, and the 24 WebP files from
-`packages/web/components/org/avatars/`. Metro bundles those files as assets,
+`apps/web/lib/sessionIdentity.ts`, and the 24 WebP files from
+`apps/web/components/org/avatars/`. Metro bundles those files as assets,
 so there is one copy of the art and one resolver for both clients.
 
 `apps/mobile/components/identity/` holds the React Native drawing:

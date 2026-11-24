@@ -1,6 +1,6 @@
 // The Modern look's palette: the web's default theme (Verdigris light, Fjord
 // dark) under the app's palette names. Under Modern the web paints it over Solarized
-// ("Modern was not drawn for Solarized", packages/web/components/ThemeProvider
+// ("Modern was not drawn for Solarized", apps/web/components/ThemeProvider
 // .tsx), so the phone does too. The values are imported, never copied: when
 // the web retunes its default, the phone follows on its next update.
 //

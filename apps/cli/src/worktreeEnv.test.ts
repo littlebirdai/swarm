@@ -6,7 +6,7 @@ describe("locateWorktree", () => {
     expect(locateWorktree("/home/ubuntu/work/codecast/.codecast/worktrees/cloud-1a2b3c")).toEqual({
       repoRoot: "/home/ubuntu/work/codecast", name: "cloud-1a2b3c",
     });
-    expect(locateWorktree("/Users/a/src/x/.codecast/worktrees/fix-auth/packages/web")).toEqual({
+    expect(locateWorktree("/Users/a/src/x/.codecast/worktrees/fix-auth/apps/web")).toEqual({
       repoRoot: "/Users/a/src/x", name: "fix-auth",
     });
   });
@@ -69,14 +69,14 @@ describe("the shared-checkout record: a cloud session in the main checkout (ct-4
   const exists = (p: string) => files.has(p);
 
   test("locateRootWorkspace walks up from a nested cwd to the repo root", () => {
-    expect(locateRootWorkspace("/r/packages/web", exists)).toEqual({ repoRoot: "/r", name: "shared-checkout" });
+    expect(locateRootWorkspace("/r/apps/web", exists)).toEqual({ repoRoot: "/r", name: "shared-checkout" });
     expect(locateRootWorkspace("/r", exists)).toEqual({ repoRoot: "/r", name: "shared-checkout" });
     expect(locateRootWorkspace("/elsewhere/x", exists)).toBeNull();
   });
 
   test("worktreeEnv(root) exports ports, the root path and the index from the root state, never BUN_INSTALL_*", () => {
     const seen: string[] = [];
-    const env = worktreeEnv("/r/packages/web", (p) => { seen.push(p); return rootState; }, exists);
+    const env = worktreeEnv("/r/apps/web", (p) => { seen.push(p); return rootState; }, exists);
     expect(seen).toEqual(["/r/.codecast/workspaces/shared-checkout/state.json"]);
     expect(env).toEqual({
       PORT_WEB: "45400", CODECAST_PORT_WEB: "45400", CODECAST_WORKTREE_NAME: "shared-checkout", CODECAST_WORKTREE_PATH: "/r",

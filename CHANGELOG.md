@@ -4,7 +4,7 @@ What we shipped, month by month. Newest first.
 
 The rendered version lives at **[/changelog](https://codecast.sh/changelog)**.
 Both this file and the page read from one curated source,
-`packages/web/app/(marketing)/changelog/changelogData.ts`. To refresh after a
+`apps/web/app/(marketing)/changelog/changelogData.ts`. To refresh after a
 release, run `node scripts/changelog-mine.mjs <YYYY-MM>` to see what shipped,
 then extend that file.
 

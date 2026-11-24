@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { formatTaskCommentMessage } from "@codecast/shared/contracts";
 import { isUserMessageNoise, sendText, stripMessageTags, turnOpener, turnOpenerPatch, actingPersonOf, typedWords } from "./userSend";
 import { AGENT_SETUP_CONTINUE_MESSAGE, HUDDLE_FEED_DISREGARD, formatDecisionAnswer, formatScheduledTask, formatSessionMessage, formatUserMessage, huddleFeedBriefing, transcriptChunkHeader } from "@codecast/shared/contracts";
-import { addToFlowsMessage, runThroughMessage } from "../../../../packages/web/lib/line/flowMessages";
+import { addToFlowsMessage, runThroughMessage } from "../../../../apps/web/lib/line/flowMessages";
 
 // The profile feed's Typed view and the Sends counter both run on this
 // classifier — anything machinery injects as a user-role turn must read as

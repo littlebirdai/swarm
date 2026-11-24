@@ -142,7 +142,7 @@ test("a read outside the project keeps nothing, so Claude's own scoped suggestio
 describe("project context", () => {
   test("a cd that leaves the project makes the line ask", () => {
     expect(shellRequest("cd ../other && git push", { cwd: "/repo", root: "/repo" }).opaque).toBe(true);
-    expect(shellRequest("cd packages/web && bun test", { cwd: "/repo", root: "/repo" }).patterns).toEqual(["bun test"]);
+    expect(shellRequest("cd apps/web && bun test", { cwd: "/repo", root: "/repo" }).patterns).toEqual(["bun test"]);
   });
 
   test("an edit keeps the project root, and nothing for a file outside it", () => {

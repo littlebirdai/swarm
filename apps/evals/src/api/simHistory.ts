@@ -20,9 +20,9 @@ import type {
   SimWorld,
 } from '@codecast/shared/contracts/evalsApi';
 
-import { readRuns, readSession, sessionsDir, simHome } from '../../../../packages/web/store/__tests__/sim/history';
-import { simGridOf } from '../../../../packages/web/store/__tests__/sim/grid';
-import { bisectCommand, parseOrder, replayCommands } from '../../../../packages/web/store/__tests__/sim/replay';
+import { readRuns, readSession, sessionsDir, simHome } from '../../../../apps/web/store/__tests__/sim/history';
+import { simGridOf } from '../../../../apps/web/store/__tests__/sim/grid';
+import { bisectCommand, parseOrder, replayCommands } from '../../../../apps/web/store/__tests__/sim/replay';
 import { REPO_ROOT, writeJsonAtomic } from '../paths';
 import { gitHead } from '../state';
 import { readJsonFile, tailLines } from './files';
@@ -161,7 +161,7 @@ export async function simRun(sessionId: string, run: string): Promise<SimRunResp
 
 // ── The catalog ────────────────────────────────────────────────────────────
 
-const simDir = (): string => join(REPO_ROOT, 'packages', 'web', 'store', '__tests__', 'sim');
+const simDir = (): string => join(REPO_ROOT, 'apps', 'web', 'store', '__tests__', 'sim');
 
 /** What the catalog depends on: HEAD plus the newest mtime among the files the runner reads statically. */
 function catalogKey(): string {

@@ -14,8 +14,8 @@
 //            runs after it shipped something the registries do not list)
 //
 // Data: app/(marketing)/changelog/changelogData.ts and app/(marketing)/blog/posts.ts.
-import { RELEASES } from "../packages/web/app/(marketing)/changelog/changelogData";
-import { POSTS } from "../packages/web/app/(marketing)/blog/posts";
+import { RELEASES } from "../apps/web/app/(marketing)/changelog/changelogData";
+import { POSTS } from "../apps/web/app/(marketing)/blog/posts";
 
 const SITE = "https://codecast.sh";
 const ANNOUNCEMENTS = process.env.COMMUNITY_ANNOUNCEMENTS_CHANNEL ?? "hx7h00k0d38g314mxedbjnz0ex8edh18";

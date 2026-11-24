@@ -26,7 +26,7 @@ export type FileSummary = {
 
 export type CommitFile = { filename: string; additions: number; deletions: number };
 
-/** Directories whose child names the area: `packages/web/x.ts` is `web`. */
+/** Directories whose child names the area: `apps/web/x.ts` is `web`. */
 const CONTAINER_DIRS = new Set(["packages", "apps", "backend"]);
 
 /** Files at the repository root (package.json, bun.lock) share one area. */

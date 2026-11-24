@@ -90,8 +90,8 @@ for (const platform of ['ios', 'android']) {
 const faceOrigins = [
   path.join(__dirname, 'components/identity/MobileSessionFace.tsx'),
   path.join(__dirname, 'components/AgentLogo.tsx'),
-  path.join(__dirname, '../../packages/web/components/org/avatars/index.tsx'),
-  path.join(__dirname, '../../packages/web/lib/sessionIdentity.ts'),
+  path.join(__dirname, '../../apps/web/components/org/avatars/index.tsx'),
+  path.join(__dirname, '../../apps/web/lib/sessionIdentity.ts'),
 ];
 for (const platform of ['ios', 'android']) {
   for (const pkg of packages) {
@@ -107,7 +107,7 @@ for (const platform of ['ios', 'android']) {
 
 test('the face art is an asset Metro bundles: all 24 WebP files, from the web package', () => {
   expect(config.resolver.assetExts).toContain('webp');
-  const art = path.join(__dirname, '../../packages/web/components/org/avatars');
+  const art = path.join(__dirname, '../../apps/web/components/org/avatars');
   expect(config.watchFolders.some(dir => art.startsWith(dir + path.sep))).toBe(true);
   expect(fs.readdirSync(art).filter(f => f.endsWith('.webp')).length).toBe(24);
 });

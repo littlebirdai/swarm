@@ -89,7 +89,7 @@ second paragraph is written into the letter's own shape sentence and the
 decision rule, at their sites. An initiative with no owner is a finding that
 names who to ask; the analyzer posts no change for it and never creates an
 initiative. The scope view's list is `roleInitiatives`
-(packages/web/lib/roleInitiatives.ts), mounted through lib/roleScope.
+(apps/web/lib/roleInitiatives.ts), mounted through lib/roleScope.
 
 ## I2. Projects are the unit of scope, and every piece of work has a lead
 

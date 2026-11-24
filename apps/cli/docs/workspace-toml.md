@@ -58,7 +58,7 @@ An entry is only shared when it:
 
 That last rule is why a monorepo's `node_modules` is usually **not** shared. A
 package manager links workspace packages relatively
-(`node_modules/@scope/web -> ../../packages/web`), and those links resolve from
+(`node_modules/@scope/web -> ../../apps/web`), and those links resolve from
 the real directory: inside a worktree they reach the MAIN checkout's source with
 no error, so a test run there mixes two trees at once. Codecast's own repo has
 that shape, so detection offers nothing there and each worktree installs its own
@@ -128,12 +128,12 @@ way.
 When no `[services.web]` is declared, detection supplies one for a web framework
 app (Vite, Next, Astro, Remix, SvelteKit, Nuxt, Angular, Vue CLI) at the root or
 under `packages/` or `apps/` whose `package.json` has a `dev` script:
-`cd packages/web && bun run dev --port "$PORT_WEB"`.
+`cd apps/web && bun run dev --port "$PORT_WEB"`.
 
 ```toml
 [services.web]
 mode = "isolated"
-start = "cd packages/web && bunx vite --port \"$PORT_WEB\" --strictPort"
+start = "cd apps/web && bunx vite --port \"$PORT_WEB\" --strictPort"
 port = "web"
 ready_timeout_sec = 180
 

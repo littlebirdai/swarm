@@ -997,7 +997,7 @@ export function checkoutOfMoveClone(root: string, exists: (p: string) => boolean
 export async function pushSession(sessionId: string, host: RemoteHost, opts: { skipTree?: boolean; pushedHead?: string; bring?: string[] } = {}): Promise<MoveResult> {
   const s = resolveLocalSession(sessionId);
   // The checkout moves whole, and the session lands in the same folder of it
-  // it ran in here (a session in packages/web resumes in packages/web).
+  // it ran in here (a session in apps/web resumes in apps/web).
   const repo = isWorktree(s.cwd);
   const root = repo ? gitRootOf(s.cwd) : s.cwd;
   const remoteRoot = remoteRepoPath(host, root);

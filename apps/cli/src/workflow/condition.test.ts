@@ -349,12 +349,12 @@ describe("evalCondition: the language", () => {
   });
 
   test("touches: a changed path matches a glob (a station's when=)", () => {
-    const files = { ...ctx, change_files: "landing/index.html packages/web/app.tsx README.md" };
+    const files = { ...ctx, change_files: "landing/index.html apps/web/app.tsx README.md" };
     expect(evalCondition('change_files touches "landing/**"', files)).toBe(true);
     expect(evalCondition('change_files touches "backend/**, docs/*.md"', files)).toBe(false);
     expect(evalCondition('change_files touches "backend/**, *.md"', files)).toBe(true);
-    expect(evalCondition('change_files touches "packages/web/"', files)).toBe(true);
-    expect(evalCondition('change_files touches "packages/web"', files)).toBe(true);
+    expect(evalCondition('change_files touches "apps/web/"', files)).toBe(true);
+    expect(evalCondition('change_files touches "apps/web"', files)).toBe(true);
     expect(evalCondition('change_files touches "packages/we"', files)).toBe(false);
     expect(evalCondition('not change_files touches "backend/**"', files)).toBe(true);
     expect(evalCondition('(outcome = success) and change_files touches "**/*.tsx"', files)).toBe(true);

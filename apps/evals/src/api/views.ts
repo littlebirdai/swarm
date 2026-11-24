@@ -6,7 +6,7 @@ import type { ConvoMessage, Freeze } from '@platform/evals';
 import { BadRequest, keptRead, NotFound } from '@platform/evals/query';
 import { diffRuns } from '@platform/evals/render';
 
-import { sessionsDir } from '../../../../packages/web/store/__tests__/sim/history';
+import { sessionsDir } from '../../../../apps/web/store/__tests__/sim/history';
 import { codecastFreezeStore } from '../adapters/freezes';
 import { PASS_AT } from '../adapters/judge';
 import { describeFreeze, freezeMeta, loadLabel, loadSnapshot, productionReplyOf, type LoadedSnapshot } from '../adapters/resolver';

@@ -11,7 +11,7 @@ import { surfaces } from '../registry';
 import { notComparedOf, simGrid, simReplay, simSessions } from './simHistory';
 import { guardEntriesOf } from './files';
 import { bisectPlanArgs, bisectStartArgs } from './bisects';
-import { bisectCommand } from '../../../../packages/web/store/__tests__/sim/replay';
+import { bisectCommand } from '../../../../apps/web/store/__tests__/sim/replay';
 
 // The api child driven the way the daemon drives it: one process, one JSON
 // request per stdin line, answers matched by id. The world is a scratch git
@@ -624,7 +624,7 @@ describe('POST routes build argv arrays only', () => {
     expect(r.job).toMatch(/^shrink-/);
     const argv = recordedArgv().at(-1)!;
     expect(argv.slice(0, 2)).toEqual(['tmux', 'respawn-pane']);
-    expect(argv.slice(-3)).toEqual([join(REPO_ROOT, 'packages', 'web', 'scripts', 'sim.ts'), '--shrink', join(simHome, 'sessions', SIM_SESSION, live)]);
+    expect(argv.slice(-3)).toEqual([join(REPO_ROOT, 'apps', 'web', 'scripts', 'sim.ts'), '--shrink', join(simHome, 'sessions', SIM_SESSION, live)]);
     // demoScenario is not in the suite: sim.ts --shrink would exit at once with no trace, so the child refuses before it spawns.
     const spawned = recordedArgv().length;
     const gone = await call('POST', '/sim/shrink', {}, { session: SIM_SESSION, run: SIM_RUN });

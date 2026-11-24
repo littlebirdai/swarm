@@ -381,7 +381,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Fonts are the host's job. The package names the families and ships no font files.
 - **No Tailwind in shared views.** Every utility class becomes an `ev-*` rule. `src/react/guards.test.ts` fails on any className token that does not start with `ev-`, and on React-19-only APIs (`use(`, `useActionState`, `useOptimistic`, `useFormStatus`, `ref` as a plain prop) so the `>=18` peer stays true.
 - **One stylesheet import per host.** Components import no CSS. Each host imports `@platform/evals/react/styles.css` and `tokens.css` once at its mount root.
-- **Drift test.** It lives in codecast, which owns `globals.css`: `packages/web/components/evals/tokens.drift.test.ts` reads the vendored `tokens.css` fallbacks and the `globals.css` `:root` and `.dark` values and fails when they differ.
+- **Drift test.** It lives in codecast, which owns `globals.css`: `apps/web/components/evals/tokens.drift.test.ts` reads the vendored `tokens.css` fallbacks and the `globals.css` `:root` and `.dark` values and fails when they differ.
 - Sim CSS (`sim.css`) keeps reading `--sol-*` directly and stays in codecast.
 - Union gets a written exception in `outreach/CLAUDE.md`: routes that mount the shared eval views use the codecast look, not `.paper-theme`, by founder decision. All other admin pages stay Paper.
 
@@ -393,7 +393,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
   - `commands/verdict.ts` exports `codecastVerdict = makeVerdict({ passed: repPassed, ruler: defaultRuler })` and `export const { batchVerdict, ... } = codecastVerdict`, plus its CLI parts. In `adapters/replay.ts`, `repPassed` becomes `statusPassRule(PASS_AT)` and `passesAt` becomes `passMarkRule(PASS_AT)`. The seams in `history/` and `bisect/` pass `codecastVerdict` to the core functions that need the policy.
   - `api/handlers.ts` becomes: codecast extras first (file, patch, search, POST bisect, sim), then `createEvalsHandler(codecastSources, codecastPolicy)`.
   - `api/sources.ts` wraps `indexedRuns`/`refreshRunIndex`, the resolver/labels freezes, `folderPromptReader`, `repoGit` + `codecastAttributionMeta`, and `listBisects`. Its slow reads (the freeze homes, the staleness words) are platform's `keptRead` with `staleWhileRevalidate`, the timed read every product's sources share (`@platform/evals/query`, beside `stableRows` for a source that reads its rows afresh).
-- **packages/web**
+- **apps/web**
   - `app/evals/page.tsx` mounts `<CodecastEvalsProvider>` (`host.tsx`: `EvalsProvider` with the store's transport while connected, `evalsResourceCache`, `codecastEvalsHost` and `onEvalsFailure`) around `<EvalsApp path pages={SIM_PAGES}>`. EvalsApp routes every view; codecast's lazy `pages/Sim*` are the `pages` it adds. The root imports `@platform/evals/react/tokens.css` and `styles.css`, then codecast's `host.css` and `runPanels.css`.
   - `components/evals/host.tsx` builds `codecastEvalsHost` (C2; since C10 the contract, `useEvalsHost` and `useCopy` are platform's, and outside a provider a view gets platform's plain defaults, so a codecast test mounts under `CodecastEvalsProvider`):
     - `useNavigate` over the compat router (`next/navigation` shim, pane-bound), `useSearchParams`, `useHash` and `useLandOn` via useRepoLocation/landOn
@@ -450,7 +450,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Every vendor run copies from a platform commit sha, never the live tree: `git -C ~/src/platform worktree add /tmp/pf-<sha> <sha>`, run with `PLATFORM_DIR=/tmp/pf-<sha>` (added by V1), then remove the worktree. This lets platform units and vendor units run in parallel safely.
 
 **Codecast**
-- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `apps/cli/package.json` and `packages/web/package.json`. `apps/evals` already has it.
+- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `apps/cli/package.json` and `apps/web/package.json`. `apps/evals` already has it.
 - Run `scripts/vendor-platform.sh` and commit `platform/packages/**`, `platform/vendor-manifest.txt` and `bun.lock` together. The vendor commit lands before any commit that imports a new subpath.
 - CI `test-platform` then installs inside the mirror and runs its React tests with no CI edit.
 - A running dev server needs `depsCacheGuard`, because vendoring purges `.vite`.
@@ -502,7 +502,7 @@ The rules for every unit:
     - `bun test` on `stats.test.ts`, `history/analysis.test.ts`, `bisect/bisect.test.ts`, `commands/check.test.ts`, `commands/line.test.ts`, `api/api.test.ts`
     - `cast check evals cli`
   - After C8: the five `core/` modules live in `@platform/evals/analysis` and codecast's seams import them from there, so `core/` holds `core.guard.test.ts` and C3's `query.ts`. `stats.test.ts` runs from platform (`packages/evals/src/analysis/stats.test.ts`, or the same file in codecast's mirror). `bisect/bisect.test.ts` drives a real runner per case and needs `--timeout` raised on a loaded machine.
-- **C2 (codecast/packages/web): host seam, tokens, shell.**
+- **C2 (codecast/apps/web): host seam, tokens, shell.**
   - Files: new `components/evals/host.tsx` and `tokens.css`; edits to `app/evals/page.tsx`, `components/evals/pages/*`, `EvalsShell.tsx`, `EvalsNav.tsx`, `parts.tsx`, `format.ts`, `evals.css`, `lib/evals/{client,hooks}.ts` (widen `kind` to string); delete `useCopy.ts`; edit `__tests__/EvalsFoundation.mount.test.tsx`.
   - Shell files switch to host slots, `ev-*` classes and `--ev-*` tokens. As built: the shell, nav, parts, format and pages import nothing of the app's (only react, lucide, the contract, `lib/evals/hooks` and the area's own files), use no utility class, and the mount root (`app/evals/page.tsx`) imports `tokens.css` and `evals.css` once. The foundation test holds those rules for the shell files (the `evb-*` bisect prefix is allowed until C7) and that `evals.css` reads only `--ev-*` tokens `tokens.css` declares. `.evb-stall-chip` is now `.ev-stall-chip`. The other groups' CSS (`run.css`, `surface.css`, `wall.css`, `bisect.css`) still reads `--sol-*` until C4 to C7.
   - Accept: mount tests; `cast check web`; screenshots before and after of Home and the three error states (`sessionStorage.EVALS_FIXTURE` = `1`, `no-daemon`, `no-checkout`, `child-crashed`) in light, dark and minimal on localhost:3200.

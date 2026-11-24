@@ -98,12 +98,12 @@ describe("copyFiles", () => {
   });
 
   test("nested paths create intermediate directories", () => {
-    writeMain("packages/web/.env.local", "NESTED=1");
-    const r = copyFiles(manifest(["packages/web/.env.local"]), mainDir, wtDir, {
+    writeMain("apps/web/.env.local", "NESTED=1");
+    const r = copyFiles(manifest(["apps/web/.env.local"]), mainDir, wtDir, {
       log: silent,
     });
-    expect(r.copied).toEqual(["packages/web/.env.local"]);
-    expect(readWt("packages/web/.env.local")).toBe("NESTED=1");
+    expect(r.copied).toEqual(["apps/web/.env.local"]);
+    expect(readWt("apps/web/.env.local")).toBe("NESTED=1");
   });
 
   test("directory copies recursively", () => {

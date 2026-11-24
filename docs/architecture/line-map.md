@@ -62,7 +62,7 @@ the world to a held fix, and lays the data over it.
   button that opens its panel.
 - **Derived locally.** The map is a pure function of rows the store already
   holds (signals, cause tasks, workflow runs, decisions, the project's
-  published profile and graph): `buildLineMap` in `packages/web/lib/line/`,
+  published profile and graph): `buildLineMap` in `apps/web/lib/line/`,
   tested on fixture rows. It never waits on a query to paint.
 
 ## LX3. Node panel

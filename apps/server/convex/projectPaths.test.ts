@@ -23,7 +23,7 @@ describe("normalizeProjectPath", () => {
 
   test("never guesses a repo from the folder layout", () => {
     expect(normalizeProjectPath("/Users/a/code/work.noindex/GitHub/slack-bot")).toBe("/Users/a/code/work.noindex/GitHub/slack-bot");
-    expect(normalizeProjectPath("/Users/ashot/src/codecast/packages/web/")).toBe("/Users/ashot/src/codecast/packages/web");
+    expect(normalizeProjectPath("/Users/ashot/src/codecast/apps/web/")).toBe("/Users/ashot/src/codecast/apps/web");
   });
 
   test("strips worktree suffixes", () => {
@@ -52,7 +52,7 @@ describe("conversationProjectRoot", () => {
 
   test("a bare cwd joins the deepest known checkout containing it, else stands as it is", () => {
     const known = ["/Users/a/src/app", "/Users/a/src/app/vendor/lib", "/Users/a/code/work/GitHub/bot"];
-    expect(conversationProjectRoot({ project_path: "/Users/a/src/app/packages/web" }, known)).toBe("/Users/a/src/app");
+    expect(conversationProjectRoot({ project_path: "/Users/a/src/app/apps/web" }, known)).toBe("/Users/a/src/app");
     expect(conversationProjectRoot({ project_path: "/Users/a/src/app/vendor/lib/x" }, known)).toBe("/Users/a/src/app/vendor/lib");
     expect(conversationProjectRoot({ git_root: "", project_path: "/Users/a/code/work/GitHub/bot" }, known)).toBe("/Users/a/code/work/GitHub/bot");
     expect(conversationProjectRoot({ project_path: "/Users/a/src/application" }, known)).toBe("/Users/a/src/application");
@@ -202,8 +202,8 @@ describe("projectContainingPath", () => {
   const p = (title: string, project_path?: string, isDefault?: boolean) => ({ title, project_path, ...(isDefault ? { line_profile: { default: true } } : {}) });
 
   test("the deepest path holding the directory wins; a sibling prefix does not hold it", () => {
-    const rows = [p("Repo", "/src/repo"), p("Web", "/src/repo/packages/web/"), p("Other", "/src/repo-two"), p("None")];
-    expect(projectContainingPath(rows, "/src/repo/packages/web/app")?.title).toBe("Web");
+    const rows = [p("Repo", "/src/repo"), p("Web", "/src/repo/apps/web/"), p("Other", "/src/repo-two"), p("None")];
+    expect(projectContainingPath(rows, "/src/repo/apps/web/app")?.title).toBe("Web");
     expect(projectContainingPath(rows, "/src/repo")?.title).toBe("Repo");
     expect(projectContainingPath(rows, "/src/repo-twofold")).toBeNull();
     expect(projectContainingPath(rows, undefined)).toBeNull();

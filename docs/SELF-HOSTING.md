@@ -160,12 +160,12 @@ This enables the admin dashboard (daemon logs, user management, system commands)
 
 ## Step 2: Deploy Web Dashboard
 
-The web app is a Vite + React SPA served by a small Hono server (`packages/web/server/index.ts`).
+The web app is a Vite + React SPA served by a small Hono server (`apps/web/server/index.ts`).
 
 ### 2a. Configure environment
 
 ```bash
-cd packages/web
+cd apps/web
 cp .env.example .env.local
 ```
 
@@ -191,17 +191,17 @@ Create a new Railway service from your repo. Railway will auto-detect the build:
 
 **Build command:**
 ```bash
-bun install --frozen-lockfile && cd packages/web && bun run build
+bun install --frozen-lockfile && cd apps/web && bun run build
 ```
 
 **Start command:**
 ```bash
-cd packages/web && bun run start
+cd apps/web && bun run start
 ```
 
 Or use the `Procfile` at the repo root which already defines:
 ```
-web: cd packages/web && bun run start
+web: cd apps/web && bun run start
 ```
 
 Add a custom domain (e.g., `yourdomain.com`) to this service.
@@ -317,7 +317,7 @@ To distribute pre-built binaries like the hosted version:
 
 This builds binaries for all 5 targets (macOS arm64/x64, Linux arm64/x64, Windows x64), uploads them to your bucket, and generates a `latest.json` manifest with SHA256 checksums. Its R2 bucket name (`codecast`) is set in the script. The hosted version cuts releases from CI instead (`.github/workflows/cut-cli-release.yml`), which signs the macOS binaries with a Developer ID certificate held in repo secrets; adapt that workflow if you want signed binaries.
 
-4. Point `DOWNLOAD_HOST` in `packages/web/public/install.sh` at your bucket's public URL. The Windows installer (`install.ps1`) installs inside WSL by fetching `https://codecast.sh/install`; change that URL to your web app's.
+4. Point `DOWNLOAD_HOST` in `apps/web/public/install.sh` at your bucket's public URL. The Windows installer (`install.ps1`) installs inside WSL by fetching `https://codecast.sh/install`; change that URL to your web app's.
 
 ### Supported agents
 
@@ -525,7 +525,7 @@ Once configured, users can install the GitHub App on their repos from **Settings
 
 Web:
 ```bash
-# packages/web/.env.local
+# apps/web/.env.local
 VITE_SENTRY_DSN=https://xxx@o123.ingest.sentry.io/456
 SENTRY_AUTH_TOKEN=sntrys_...          # For source map upload at build time
 SENTRY_ORG=your-sentry-org
@@ -541,7 +541,7 @@ EXPO_PUBLIC_SENTRY_DSN=https://xxx@o123.ingest.sentry.io/789
 
 Web:
 ```bash
-# packages/web/.env.local
+# apps/web/.env.local
 VITE_POSTHOG_KEY=phc_...
 VITE_POSTHOG_HOST=https://us.i.posthog.com    # or your self-hosted PostHog
 ```
@@ -621,7 +621,7 @@ The integrations in Step 8 add their own variables.
 
 The Caddy service needs `CONVEX_SITE_UPSTREAM` and `CONVEX_BACKEND_UPSTREAM` (Step 1b).
 
-### Web Dashboard (`packages/web/.env.local`)
+### Web Dashboard (`apps/web/.env.local`)
 
 | Variable | Required | Purpose |
 |----------|----------|---------|

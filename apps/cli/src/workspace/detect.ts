@@ -215,7 +215,7 @@ function detectWebApp(repoRoot: string): string | null {
   ];
   const isApp = (dir: string) => probes.some((p) => fs.existsSync(path.join(repoRoot, dir, p)));
   if (isApp("")) return "";
-  // Workspaces: check sub-packages too (codecast itself has packages/web/vite.config.ts).
+  // Workspaces: check sub-packages too (codecast itself has apps/web/vite.config.ts).
   for (const parent of ["packages", "apps"]) {
     const dir = path.join(repoRoot, parent);
     let subs: string[];

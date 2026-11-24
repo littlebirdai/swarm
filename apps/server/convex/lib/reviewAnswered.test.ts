@@ -22,7 +22,7 @@ describe("answeredNotes", () => {
   });
 
   test("file:line inside the note's lines answers it", () => {
-    const n = note({ content: "why?", file_path: "packages/web/lib/a.ts", line_number: 40, line_end: 44 });
+    const n = note({ content: "why?", file_path: "apps/web/lib/a.ts", line_number: 40, line_end: 44 });
     for (const reply of [
       "Fixed in `lib/a.ts:42`.", "See a.ts:38-41 for the change.", "a.ts#L44 now guards it",
       "1. **a.ts line 42**: now guarded", "In `a.ts` (lines 43 to 50) the loop stops early", "line 41 of lib/a.ts reads the cache",

@@ -14,7 +14,7 @@ import {
 
 describe("areaOf", () => {
   test("names the package, app or backend child", () => {
-    expect(areaOf("packages/web/components/x.tsx")).toBe("web");
+    expect(areaOf("apps/web/components/x.tsx")).toBe("web");
     expect(areaOf("apps/mobile/src/a.ts")).toBe("mobile");
     expect(areaOf("backend/lb/handler.go")).toBe("lb");
   });
@@ -31,11 +31,11 @@ describe("summarizeFiles", () => {
   test("collapses files to areas, top paths and schema paths", () => {
     const s = summarizeFiles([
       { filename: "apps/server/convex/schema.ts", additions: 4, deletions: 1 },
-      { filename: "packages/web/a.tsx", additions: 100, deletions: 20 },
-      { filename: "packages/web/b.tsx", additions: 1, deletions: 0 },
+      { filename: "apps/web/a.tsx", additions: 100, deletions: 20 },
+      { filename: "apps/web/b.tsx", additions: 1, deletions: 0 },
     ]);
     expect(s.areas).toEqual({ server: { touches: 1, insertions: 4, deletions: 1, generated: 0 }, web: { touches: 2, insertions: 101, deletions: 20, generated: 0 } });
-    expect(s.top_paths[0]).toBe("packages/web/a.tsx");
+    expect(s.top_paths[0]).toBe("apps/web/a.tsx");
     expect(s.schema_paths).toEqual(["apps/server/convex/schema.ts"]);
   });
 });
@@ -109,7 +109,7 @@ describe("narrowAreas", () => {
       { filename: "outreach/backend/src/a.ts", additions: 1, deletions: 0 },
       { filename: "outreach/web/b.tsx", additions: 1, deletions: 0 },
       { filename: "outreach/README.md", additions: 1, deletions: 0 },
-      { filename: "packages/web/c.ts", additions: 1, deletions: 0 },
+      { filename: "apps/web/c.ts", additions: 1, deletions: 0 },
     ]);
     expect(Object.keys(s.areas).sort()).toEqual(["outreach", "web"]);
     expect(Object.keys(s.subareas).sort()).toEqual(["outreach", "outreach/backend", "outreach/web", "web"]);

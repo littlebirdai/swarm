@@ -8,7 +8,7 @@ The simulator runs several people (principals), each with several browser window
 
 Phase 2 is done when all of the following hold:
 
-1. **One command runs everything.** `bun run sim` (in `packages/web`) runs 11 red-list scenarios plus the harness self-tests.
+1. **One command runs everything.** `bun run sim` (in `apps/web`) runs 11 red-list scenarios plus the harness self-tests.
    - A scenario either passes, or carries a red marker (`{ task, invariant }`) and fails on that named invariant. A run held to a marker that fails any other way (a harness error, a timeout, another invariant) fails the test.
    - No scenario fails on a harness error.
 2. **The legacy suites run on the new substrate.** `inboxConvergenceSim.test.ts` and `inboxMultiWindowSim.test.ts` use their pinned seeds (21-32 and 81-92). Every seed whose outcome changed is written down with its reason.
@@ -191,7 +191,7 @@ The classification below is the core. The full table, as the guard enforces it, 
 | `shared` | every `WeakMap` (keyed by per-instance objects, so it cannot cross windows); `channelFactory` (set once by the sim); `running` (syncReplication.ts; the sim never calls `startSyncReplication`); `_depChanges` (dev census); `navLog` (viewNav.ts audit ring, persisted to the one origin-wide localStorage in production too); `navListeners` (viewNav.ts follow-mode subscribers; the sim mounts no React) |
 
 **`sim/windowSlots.guard.test.ts`** is static and imports no store.
-- It uses `buildBootGraph` (apps/cli/src/bench/bootGraph.ts) from every `.ts` file under `sim/` with an `@/` alias resolver and `calls: true` (so `import()` and lazy `require` edges count), restricted to `packages/web/{store,hooks,lib}`.
+- It uses `buildBootGraph` (apps/cli/src/bench/bootGraph.ts) from every `.ts` file under `sim/` with an `@/` alias resolver and `calls: true` (so `import()` and lazy `require` edges count), restricted to `apps/web/{store,hooks,lib}`.
 - It extracts top-level `let`/`var` bindings, and `const` bindings whose line assigns `new Map|Set` (which also catches `= (globalThis.x ??= new Set())`).
 - It fails on any binding missing from `WINDOW_SLOTS`, and prints the classification line to add with one line saying how to choose the class. It also fails on a `WINDOW_SLOTS` entry whose binding no longer exists. This follows the frozen-baseline style of `nativeDeps.guard.test.ts`.
 
@@ -426,7 +426,7 @@ export function scenario(
 - `SIM_SELFTEST=0` skips the self-tests.
 - A missing `scenarios/` or `selftests/` directory is skipped. The file always registers one `sim files loaded: ...` test naming what it imported. Unfiltered, it requires at least one file from each group it loads, so a renamed suffix or a moved directory cannot pass by loading nothing; a filter's names are checked by the runner.
 
-**`packages/web/scripts/sim.ts`** turns flags into env vars and spawns `bun test store/__tests__/sim/ --isolate`, or with a filter only `sim.test.ts` (so the sim's other test files do not run with it), after refusing a filter that names no scenario or self-test file with the closest names:
+**`apps/web/scripts/sim.ts`** turns flags into env vars and spawns `bun test store/__tests__/sim/ --isolate`, or with a filter only `sim.test.ts` (so the sim's other test files do not run with it), after refusing a filter that names no scenario or self-test file with the closest names:
 - `bun run sim [filter]`
 - `--seed a,b`
 - `--sweep N`
@@ -465,15 +465,15 @@ The env vars remain the source of truth. The filter sets `SIM_SCENARIO`, `--seed
 ### 3.10 Typecheck, CI, budget
 
 **Typecheck**
-- `packages/web/store/__tests__/sim/tsconfig.json` extends `../../../tsconfig.json`.
-- It sets `include: ["./**/*.ts", "../inboxSimHarness.ts", "../inboxConvergenceSim.test.ts", "../inboxMultiWindowSim.test.ts", "../../../scripts/sim.ts"]` and `exclude: []`. The runner script is listed because no other program covers `packages/web/scripts`.
+- `apps/web/store/__tests__/sim/tsconfig.json` extends `../../../tsconfig.json`.
+- It sets `include: ["./**/*.ts", "../inboxSimHarness.ts", "../inboxConvergenceSim.test.ts", "../inboxMultiWindowSim.test.ts", "../../../scripts/sim.ts"]` and `exclude: []`. The runner script is listed because no other program covers `apps/web/scripts`.
 - It sets `compilerOptions.types: ["bun"]` and `typeRoots: ["../../../../cli/node_modules/@types"]`, because `@types/bun` resolves only under apps/cli today. The base list's `vite/client` cannot be kept: with that `typeRoots` it no longer resolves (TS2688). `@types/bun` brings the node types itself.
 - It sets `incremental: false`, so the watcher writes no `tsconfig.tsbuildinfo` beside it.
 - Fallback if the typeRoots path is not stable: add `@types/bun@1.3.13` as a web devDependency, with bun.lock in the same change.
-- `.codecast/check.toml` gains `sim = "packages/web/store/__tests__/sim/tsconfig.json"`.
+- `.codecast/check.toml` gains `sim = "apps/web/store/__tests__/sim/tsconfig.json"`.
 
 **CI**
-- `test-web` already runs `bun test --isolate` in packages/web, so `sim/sim.test.ts` and the two legacy suites run there.
+- `test-web` already runs `bun test --isolate` in apps/web, so `sim/sim.test.ts` and the two legacy suites run there.
 - The `ci.yml` change sets `SIM_OUT: ${{ runner.temp }}/sim` on the web unit step, and adds an `actions/upload-artifact` step with `if: failure()` for that directory.
 
 **Budget**
@@ -513,7 +513,7 @@ The Evals UI's Multiplayer sim pages (docs/architecture/evals-ui.md, sections 3.
 ```
 
 - `<home>` is `$CODECAST_SIM_HOME`, else `~/.local/share/codecast/sim`. The stamp is the UTC start to the millisecond, then the pid, so names sort by time.
-- The runner writes `session.json` before it spawns the tests, with `gitHead` and `dirty` (`treeState`: any tracked or untracked edit under `packages/web`, `apps/server`, `packages/shared` or `platform/packages`, through a shadow copy of the index so the real one is never touched). It passes the folder as `SIM_SESSION`. While the tests run it stores the patch (`storeTreePatch`: `git diff HEAD --binary` over the same paths, untracked files included as intent to add), then rewrites `session.json` with `treePatch`, `finishedAt` and `exit`. `gunzip` plus `git apply` of the patch on `gitHead` rebuilds the tree the session ran. Ctrl-C waits for the tests to exit, so the exit is recorded.
+- The runner writes `session.json` before it spawns the tests, with `gitHead` and `dirty` (`treeState`: any tracked or untracked edit under `apps/web`, `apps/server`, `packages/shared` or `platform/packages`, through a shadow copy of the index so the real one is never touched). It passes the folder as `SIM_SESSION`. While the tests run it stores the patch (`storeTreePatch`: `git diff HEAD --binary` over the same paths, untracked files included as intent to add), then rewrites `session.json` with `treePatch`, `finishedAt` and `exit`. `gunzip` plus `git apply` of the patch on `gitHead` rebuilds the tree the session ran. Ctrl-C waits for the tests to exit, so the exit is recorded.
 - The DSL appends one `runs.jsonl` row per run, whatever its end (`passed` false for a failure or a harness error). `dir` names the artifact folder when it was written inside the session; artifacts written to `--out` elsewhere get no `dir`.
 - Pruning runs after each session: the 200 newest are kept, and an older one survives only if a run in it failed or it exited nonzero. A session with no `finishedAt` is left alone for a day. Patches no remaining session names are removed with them.
 - A bare `bun test` (no runner) has no session: artifacts go to `<tmpdir>/codecast-sim` as before, and the Evals UI shows those folders read-only as "unsessioned".
@@ -540,36 +540,36 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 | apps/server/convex/simValidate.testing.ts | U1 |
 | apps/server/convex/simBackend.test.ts | U1 |
 | packages/shared/contracts/levenshtein.ts | U1 (edit distance moved out of cli/src/commandSuggestion.ts so the sim backend's suggestions reuse it) |
-| packages/web/lib/dispatchBinding.ts | U3 |
-| packages/web/lib/__tests__/dispatchBinding.test.ts | U3 |
+| apps/web/lib/dispatchBinding.ts | U3 |
+| apps/web/lib/__tests__/dispatchBinding.test.ts | U3 |
 | packages/shared/contracts/__fixtures__/teamWorldGen.ts | U4 |
 | packages/shared/contracts/__fixtures__/teamWorldGen.test.ts | U4 |
-| packages/web/store/__tests__/sim/tsconfig.json | U5 |
-| packages/web/scripts/sim.ts | U5 |
-| packages/web/store/__tests__/sim/net.ts | U6 |
-| packages/web/store/__tests__/sim/net.test.ts | U6 |
-| packages/web/store/__tests__/sim/realm.ts | U7 |
-| packages/web/store/__tests__/sim/windowSlots.ts | U7 |
-| packages/web/store/__tests__/sim/windowSlots.guard.test.ts | U7 |
-| packages/web/store/__tests__/sim/sim.test.ts | U7 |
-| packages/web/store/__tests__/sim/selftests/realm.selftest.ts | U7 |
-| packages/web/store/__tests__/sim/labels.ts | U8 |
-| packages/web/store/__tests__/sim/report.ts | U8 |
-| packages/web/store/__tests__/sim/report.test.ts | U8 |
-| packages/web/store/__tests__/sim/history.ts | evals-ui U11 (run history, section 3.12) |
-| packages/web/store/__tests__/sim/shrink.ts | evals-ui U11 |
-| packages/web/store/__tests__/sim/shrink.test.ts | evals-ui U11 |
-| packages/web/store/__tests__/sim/window.ts | U9 |
-| packages/web/store/__tests__/sim/device.ts | U9 |
-| packages/web/store/__tests__/sim/selftests/window.selftest.ts | U9 |
-| packages/web/store/__tests__/sim/world.ts | U10 |
-| packages/web/store/__tests__/sim/actors.ts | U10 |
-| packages/web/store/__tests__/sim/selftests/world.selftest.ts | U10 |
-| packages/web/store/__tests__/sim/invariants.ts | U11 |
-| packages/web/store/__tests__/sim/selftests/invariants.selftest.ts | U11 |
-| packages/web/store/__tests__/sim/dsl.ts | U12 |
-| packages/web/store/__tests__/sim/selftests/dsl.selftest.ts | U12 |
-| packages/web/store/__tests__/sim/scenarios/<11 files>.scenario.ts | U13a-k |
+| apps/web/store/__tests__/sim/tsconfig.json | U5 |
+| apps/web/scripts/sim.ts | U5 |
+| apps/web/store/__tests__/sim/net.ts | U6 |
+| apps/web/store/__tests__/sim/net.test.ts | U6 |
+| apps/web/store/__tests__/sim/realm.ts | U7 |
+| apps/web/store/__tests__/sim/windowSlots.ts | U7 |
+| apps/web/store/__tests__/sim/windowSlots.guard.test.ts | U7 |
+| apps/web/store/__tests__/sim/sim.test.ts | U7 |
+| apps/web/store/__tests__/sim/selftests/realm.selftest.ts | U7 |
+| apps/web/store/__tests__/sim/labels.ts | U8 |
+| apps/web/store/__tests__/sim/report.ts | U8 |
+| apps/web/store/__tests__/sim/report.test.ts | U8 |
+| apps/web/store/__tests__/sim/history.ts | evals-ui U11 (run history, section 3.12) |
+| apps/web/store/__tests__/sim/shrink.ts | evals-ui U11 |
+| apps/web/store/__tests__/sim/shrink.test.ts | evals-ui U11 |
+| apps/web/store/__tests__/sim/window.ts | U9 |
+| apps/web/store/__tests__/sim/device.ts | U9 |
+| apps/web/store/__tests__/sim/selftests/window.selftest.ts | U9 |
+| apps/web/store/__tests__/sim/world.ts | U10 |
+| apps/web/store/__tests__/sim/actors.ts | U10 |
+| apps/web/store/__tests__/sim/selftests/world.selftest.ts | U10 |
+| apps/web/store/__tests__/sim/invariants.ts | U11 |
+| apps/web/store/__tests__/sim/selftests/invariants.selftest.ts | U11 |
+| apps/web/store/__tests__/sim/dsl.ts | U12 |
+| apps/web/store/__tests__/sim/selftests/dsl.selftest.ts | U12 |
+| apps/web/store/__tests__/sim/scenarios/<11 files>.scenario.ts | U13a-k |
 | docs/architecture/sync-sim.md | U15 |
 
 **Change**
@@ -581,59 +581,59 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 | apps/cli/src/commandSuggestion.ts, commandSuggestion.test.ts | U1 | import `levenshtein` from `@codecast/shared/contracts/levenshtein` |
 | apps/cli/src/bench/bootGraph.guard.test.ts | U1 | index.ts ceiling up by one for levenshtein.ts |
 | packages/shared/package.json | U4 | `exports` entry for `contracts/__fixtures__/teamWorldGen`, so web's `sim/world.ts` can import it by package name |
-| packages/web/store/inboxStore.ts | U2 | `export const __createInboxStoreForTests = createInboxStore`; a local `freshInboxData()` built from `INITIAL_INBOX_DATA` via `cloneInitialValue`, which `clearProtectedInboxMemory` uses; `export const __inboxStoreWindowBindings`, whose `get()` returns the live `window` bindings by name (collections by reference) and whose `set()` reassigns the ones a window swaps by value. The copying (detached snapshots, refilling the const collections, `fresh()`) lives in `sim/windowSlots.ts`, so the store carries only the accessor |
-| packages/web/store/gestureBridge.ts | U2 | `__gestureBridgeSimSlots()` for `sourceToken` |
-| packages/web/store/syncTransaction.ts | U2 | `__syncTransactionIdleForTests(): boolean` |
-| packages/web/store/viewNav.ts | U2 | `__viewNavSimSlots()` for `pendingSource`, `appliedNavCount` |
-| packages/web/hooks/useEnsureDispatch.ts | U3 | calls `makeDispatchBinding(call, state)` and `applyDispatchFailure` from lib/dispatchBinding.ts (the `ackFlagSupported` latch moves into a `DispatchAckState` object; the hook shares one module-level object across mounts, as before). `store/__tests__/orgSlice.intents.test.ts` reads the failure handler's source, so its path points at lib/dispatchBinding.ts |
-| packages/web/hooks/useSyncInboxSessions.ts | U3 | extract the floor watch-effect body, including its `logStamped` gate, as `export function runInboxFloorStep(convex, flags): void`, with the gate inputs from `export function inboxFloorFlags(state, principalId)`; the hook subscribes to the same flags and calls it |
-| packages/web/hooks/useSyncTeamInboxSessions.ts | U3 | `export function applyTeamLivenessPayload(teamId, data)` and `teamInboxArgs(teamId)`; the hook calls them |
-| packages/web/hooks/useSyncCollection.ts | U3 | `export function applyCollectionFeed(key, data, select?, syncOpts?)`; the hook calls it |
-| packages/web/hooks/useBootstrapCollection.ts | U3 | `__bootstrapSimSlots()` for `done`. Like the U2 seams, it returns `{ get(), set(snapshot), fresh() }` over a snapshot keyed by binding name; `get` copies collections so the snapshot is detached, and `fresh()` is the state of a window that never ran |
-| packages/web/hooks/useSyncChangeFeed.ts | U3 | `__changeFeedSimSlots()` for `cargoSupported`, `applyTally`, `flushTimer`, `shadowApplied` |
-| packages/web/hooks/reconcileCrawl.ts | U3 | `__reconcileCrawlSimSlots()` for `states` (same shape) |
+| apps/web/store/inboxStore.ts | U2 | `export const __createInboxStoreForTests = createInboxStore`; a local `freshInboxData()` built from `INITIAL_INBOX_DATA` via `cloneInitialValue`, which `clearProtectedInboxMemory` uses; `export const __inboxStoreWindowBindings`, whose `get()` returns the live `window` bindings by name (collections by reference) and whose `set()` reassigns the ones a window swaps by value. The copying (detached snapshots, refilling the const collections, `fresh()`) lives in `sim/windowSlots.ts`, so the store carries only the accessor |
+| apps/web/store/gestureBridge.ts | U2 | `__gestureBridgeSimSlots()` for `sourceToken` |
+| apps/web/store/syncTransaction.ts | U2 | `__syncTransactionIdleForTests(): boolean` |
+| apps/web/store/viewNav.ts | U2 | `__viewNavSimSlots()` for `pendingSource`, `appliedNavCount` |
+| apps/web/hooks/useEnsureDispatch.ts | U3 | calls `makeDispatchBinding(call, state)` and `applyDispatchFailure` from lib/dispatchBinding.ts (the `ackFlagSupported` latch moves into a `DispatchAckState` object; the hook shares one module-level object across mounts, as before). `store/__tests__/orgSlice.intents.test.ts` reads the failure handler's source, so its path points at lib/dispatchBinding.ts |
+| apps/web/hooks/useSyncInboxSessions.ts | U3 | extract the floor watch-effect body, including its `logStamped` gate, as `export function runInboxFloorStep(convex, flags): void`, with the gate inputs from `export function inboxFloorFlags(state, principalId)`; the hook subscribes to the same flags and calls it |
+| apps/web/hooks/useSyncTeamInboxSessions.ts | U3 | `export function applyTeamLivenessPayload(teamId, data)` and `teamInboxArgs(teamId)`; the hook calls them |
+| apps/web/hooks/useSyncCollection.ts | U3 | `export function applyCollectionFeed(key, data, select?, syncOpts?)`; the hook calls it |
+| apps/web/hooks/useBootstrapCollection.ts | U3 | `__bootstrapSimSlots()` for `done`. Like the U2 seams, it returns `{ get(), set(snapshot), fresh() }` over a snapshot keyed by binding name; `get` copies collections so the snapshot is detached, and `fresh()` is the state of a window that never ran |
+| apps/web/hooks/useSyncChangeFeed.ts | U3 | `__changeFeedSimSlots()` for `cargoSupported`, `applyTally`, `flushTimer`, `shadowApplied` |
+| apps/web/hooks/reconcileCrawl.ts | U3 | `__reconcileCrawlSimSlots()` for `states` (same shape) |
 | .codecast/check.toml | U5 | `sim` entry |
-| packages/web/package.json | U5 | `"sim": "bun scripts/sim.ts"` |
-| packages/web/store/gestureBridge.ts, viewNav.ts | U7 | `fresh()` on the U2 seams, so every seam has the `{ get, set, fresh }` shape `windowSlots.ts` loads |
-| packages/web/store/inboxStore.ts | U7 | the U2 seam's `recentThawTimer` slot type spelled out (`typeof recentThawTimer` narrowed to `null` there, failing `cast check sim`) |
-| packages/web/hooks/useSyncChangeFeed.ts | U9 | `createCatchUpRunner(convex, { onError, onSettled })`: the hook's one-at-a-time catch-up guard (one queued rerun, the `range` in-flight gate), so the hook and a sim window run one copy |
-| packages/web/hooks/useBootstrapCollection.ts | U9 | the effect body becomes `startBootstrapFloor(run)`, plus `bootstrapFloorKey`, `floorScopesStamped` and `bootstrapFloorFor(state, ...)` (one read of a window's state); the hook calls the same function |
-| packages/web/store/syncReplication.ts | U9 | `followerActionTee(channel, selfId)` (the synced follower's mut tee) and `applyBridgedGesture(msg)` (the gesture receiver), extracted so production and the sim share them |
-| packages/web/src/providers.tsx | U9 | the gesture bridge receiver calls `applyBridgedGesture` |
+| apps/web/package.json | U5 | `"sim": "bun scripts/sim.ts"` |
+| apps/web/store/gestureBridge.ts, viewNav.ts | U7 | `fresh()` on the U2 seams, so every seam has the `{ get, set, fresh }` shape `windowSlots.ts` loads |
+| apps/web/store/inboxStore.ts | U7 | the U2 seam's `recentThawTimer` slot type spelled out (`typeof recentThawTimer` narrowed to `null` there, failing `cast check sim`) |
+| apps/web/hooks/useSyncChangeFeed.ts | U9 | `createCatchUpRunner(convex, { onError, onSettled })`: the hook's one-at-a-time catch-up guard (one queued rerun, the `range` in-flight gate), so the hook and a sim window run one copy |
+| apps/web/hooks/useBootstrapCollection.ts | U9 | the effect body becomes `startBootstrapFloor(run)`, plus `bootstrapFloorKey`, `floorScopesStamped` and `bootstrapFloorFor(state, ...)` (one read of a window's state); the hook calls the same function |
+| apps/web/store/syncReplication.ts | U9 | `followerActionTee(channel, selfId)` (the synced follower's mut tee) and `applyBridgedGesture(msg)` (the gesture receiver), extracted so production and the sim share them |
+| apps/web/src/providers.tsx | U9 | the gesture bridge receiver calls `applyBridgedGesture` |
 | apps/server/convex/simBackend.testing.ts | U9 | `sessionDecisions` in `MODULES` |
-| packages/web/store/__tests__/sim/windowSlots.ts | U9 | classifications for the 13 bindings the window's imports reach (message warming, the coarse-tick subscribers, the image URL cache, guest share tokens), each `shared` with its reason |
-| packages/web/store/__tests__/inboxSimHarness.ts | U7 | the virtual clock now comes from `sim/realm.ts` and is re-exported; two type errors it carried from before Phase 2 (the comparer's `platform` label, a nullable `set_digest`) fixed so `cast check sim` is green |
-| packages/web/hooks/useWorkspaceCollection.ts | U11 | `export function activeWorkspaceKeyOf(state)`, the active workspace key off store state; the hook's four call sites use it and INV-workspace-rows reads it |
+| apps/web/store/__tests__/sim/windowSlots.ts | U9 | classifications for the 13 bindings the window's imports reach (message warming, the coarse-tick subscribers, the image URL cache, guest share tokens), each `shared` with its reason |
+| apps/web/store/__tests__/inboxSimHarness.ts | U7 | the virtual clock now comes from `sim/realm.ts` and is re-exported; two type errors it carried from before Phase 2 (the comparer's `platform` label, a nullable `set_digest`) fixed so `cast check sim` is green |
+| apps/web/hooks/useWorkspaceCollection.ts | U11 | `export function activeWorkspaceKeyOf(state)`, the active workspace key off store state; the hook's four call sites use it and INV-workspace-rows reads it |
 | apps/server/convex/chat.ts | U11 | `MENTION_WAKES_PER_SENDER_HOUR` and `MENTION_WAKES_PER_TARGET_HOUR` exported, for INV-chat and INV-ping-pong |
 | packages/shared/contracts/__fixtures__/teamWorldGen.ts, teamWorldGen.test.ts | U11 | `agent_tasks`: one armed trigger behind each generated `armed_trigger_kind` (`triggerIdFor`), so INV-triggers holds from genesis |
-| packages/web/store/__tests__/sim/window.ts | U11 | `refeed()` (the read-your-writes loop now calls it) and a `feeds` getter (live feeds plus bootstrap floors) |
-| packages/web/store/__tests__/sim/world.ts | U11 | genesis inserts `gen.agent_tasks`; `sweepFindings()` delegates to `scopeSweep` |
-| packages/web/store/__tests__/sim/net.ts, world.ts | U12 | `afterDeliver` option (net) and its `WorldOptions` passthrough, awaited after each delivery: the DSL's always-mode checks |
-| packages/web/store/__tests__/sim/report.ts | U12 | `renderDeliveries` exported, so `SIM_TRACE` streams the report's own row format |
-| packages/web/store/__tests__/sim/invariants.ts | U12 | `MENTION_PREFIX`, `mentionTarget` and `windowContext(w)` exported (checkInvariants uses `windowContext` too), for `wokenTimes` and point-check reports |
-| packages/web/store/__tests__/sim/actors.ts | U13f | `agent(s).says` takes `{ thread }`, so agents can answer in a thread as the wake text tells them to |
-| packages/web/store/__tests__/sim/invariants.ts | U13f | `INV-ping-pong` also counts `chat-relay:` rows carrying an agent's line (the mention-reply relay), which it missed |
-| packages/web/store/__tests__/sim/window.ts | U13d | `tail(conversationId)` (the transcript tail, returning its channel) and `coverage()` (one pass of the pending-send coverage poll); `refeed()` skips held feeds |
-| packages/web/store/__tests__/sim/net.ts | U13d | `held(channel)`: lagged, or a channel of an offline window |
-| packages/web/hooks/usePendingMessageCoverage.ts | U13d | `reconcileStorePendingCoverage(query, isCurrent)`, the store-applying pass the hook and the sim window share |
-| packages/web/store/__tests__/sim/windowSlots.ts | U13d | `useConversationMessages.ts:LIVENESS_ONLY_CONV_FIELDS` classified (constant), reached through `mergeUnconfirmedMessages` |
-| packages/web/store/__tests__/inboxSimHarness.ts | U14 | thin adapter over sim/ |
-| packages/web/store/__tests__/inboxConvergenceSim.test.ts | U14 | imports; failures through report.ts |
-| packages/web/store/__tests__/inboxMultiWindowSim.test.ts | U14 | same; the heal check logs any seed that converged only through the heal and requires that none did |
-| packages/web/store/__tests__/sim/net.ts | U14 | `ChannelFilter`: `step(only)`, `drain({ only })`, `queued(only)`; a step scans only channels with queued deliveries, and scripted mode takes the first ready channel in one pass |
-| packages/web/store/__tests__/sim/realm.ts | U14 | `runInWindowSync`; a window's slots are saved, and the memo slots reset, only when another window takes a turn; a turn settles by draining the microtask queue; the facade's methods are getters over one target |
-| packages/web/store/__tests__/sim/window.ts | U14 | `catchUp()`; optional world hooks `settleBoot` and `holdCatchUp` |
-| packages/web/store/__tests__/sim/actors.ts | U14 | `makeActors` takes `ActorWorld`, the structural surface its verbs use |
-| packages/web/store/__tests__/sim/report.ts | U14 | optional `replay` lines in `FailureContext` |
-| packages/web/store/__tests__/sim/windowSlots.ts, packages/web/store/inboxStore.ts | U14 | `_lastParityCheckAt` and the placement caches are `window` slots (the U2 seam carries them), so the dev parity check keeps its per-window throttle and a window's next turn reuses its own caches; the memo resets and `syncTransaction` are loaded once with the seams |
+| apps/web/store/__tests__/sim/window.ts | U11 | `refeed()` (the read-your-writes loop now calls it) and a `feeds` getter (live feeds plus bootstrap floors) |
+| apps/web/store/__tests__/sim/world.ts | U11 | genesis inserts `gen.agent_tasks`; `sweepFindings()` delegates to `scopeSweep` |
+| apps/web/store/__tests__/sim/net.ts, world.ts | U12 | `afterDeliver` option (net) and its `WorldOptions` passthrough, awaited after each delivery: the DSL's always-mode checks |
+| apps/web/store/__tests__/sim/report.ts | U12 | `renderDeliveries` exported, so `SIM_TRACE` streams the report's own row format |
+| apps/web/store/__tests__/sim/invariants.ts | U12 | `MENTION_PREFIX`, `mentionTarget` and `windowContext(w)` exported (checkInvariants uses `windowContext` too), for `wokenTimes` and point-check reports |
+| apps/web/store/__tests__/sim/actors.ts | U13f | `agent(s).says` takes `{ thread }`, so agents can answer in a thread as the wake text tells them to |
+| apps/web/store/__tests__/sim/invariants.ts | U13f | `INV-ping-pong` also counts `chat-relay:` rows carrying an agent's line (the mention-reply relay), which it missed |
+| apps/web/store/__tests__/sim/window.ts | U13d | `tail(conversationId)` (the transcript tail, returning its channel) and `coverage()` (one pass of the pending-send coverage poll); `refeed()` skips held feeds |
+| apps/web/store/__tests__/sim/net.ts | U13d | `held(channel)`: lagged, or a channel of an offline window |
+| apps/web/hooks/usePendingMessageCoverage.ts | U13d | `reconcileStorePendingCoverage(query, isCurrent)`, the store-applying pass the hook and the sim window share |
+| apps/web/store/__tests__/sim/windowSlots.ts | U13d | `useConversationMessages.ts:LIVENESS_ONLY_CONV_FIELDS` classified (constant), reached through `mergeUnconfirmedMessages` |
+| apps/web/store/__tests__/inboxSimHarness.ts | U14 | thin adapter over sim/ |
+| apps/web/store/__tests__/inboxConvergenceSim.test.ts | U14 | imports; failures through report.ts |
+| apps/web/store/__tests__/inboxMultiWindowSim.test.ts | U14 | same; the heal check logs any seed that converged only through the heal and requires that none did |
+| apps/web/store/__tests__/sim/net.ts | U14 | `ChannelFilter`: `step(only)`, `drain({ only })`, `queued(only)`; a step scans only channels with queued deliveries, and scripted mode takes the first ready channel in one pass |
+| apps/web/store/__tests__/sim/realm.ts | U14 | `runInWindowSync`; a window's slots are saved, and the memo slots reset, only when another window takes a turn; a turn settles by draining the microtask queue; the facade's methods are getters over one target |
+| apps/web/store/__tests__/sim/window.ts | U14 | `catchUp()`; optional world hooks `settleBoot` and `holdCatchUp` |
+| apps/web/store/__tests__/sim/actors.ts | U14 | `makeActors` takes `ActorWorld`, the structural surface its verbs use |
+| apps/web/store/__tests__/sim/report.ts | U14 | optional `replay` lines in `FailureContext` |
+| apps/web/store/__tests__/sim/windowSlots.ts, apps/web/store/inboxStore.ts | U14 | `_lastParityCheckAt` and the placement caches are `window` slots (the U2 seam carries them), so the dev parity check keeps its per-window throttle and a window's next turn reuses its own caches; the memo resets and `syncTransaction` are loaded once with the seams |
 | apps/server/convex/simBackend.testing.ts | U14 | the wire pair in one pass, one wired copy per memo miss or hit, resolved functions cached per backend (section 3.2) |
-| packages/web/hooks/useInboxDigestCompare.ts | U14 | `startInboxDigestCompare(convex, subscribeTick, io?)` |
+| apps/web/hooks/useInboxDigestCompare.ts | U14 | `startInboxDigestCompare(convex, subscribeTick, io?)` |
 | docs/architecture/sync-convergence.md | U15 | Validation plan points at sync-sim.md |
 | docs/architecture/sync-host.md | U15 | Invariants section names `INV-followers`, `INV-fixpoint` |
 | .github/workflows/ci.yml | U15 | `SIM_OUT` plus failure artifact upload in `test-web` |
-| packages/web/hooks/useLiveInboxSessions.ts, useSyncInboxSessions.ts, useSyncTeamInboxSessions.ts, useInboxDigestCompare.ts | review | `applyInboxListPayload`, `applyMineLivenessPayload` and `applyTeamListPayload`, called by every subscription, recovery probe and the digest comparer's heal, and by the sim host, so no feeder keeps its own copy of an apply |
-| packages/web/store/syncReplication.ts | review | `replicationHostFor`, `replicationFollowerFor` and `promoteToHost` (the runtime options and the promotion order), shared by `startSyncReplication` and `sim/device.ts` |
-| packages/web/store/inboxStore.ts | review | the U2 seam shrinks to `__inboxStoreWindowBindings` (live bindings plus a by-value setter); the copying moves to `sim/windowSlots.ts`, `resetMemos` goes, `freshInboxData` is local again |
+| apps/web/hooks/useLiveInboxSessions.ts, useSyncInboxSessions.ts, useSyncTeamInboxSessions.ts, useInboxDigestCompare.ts | review | `applyInboxListPayload`, `applyMineLivenessPayload` and `applyTeamListPayload`, called by every subscription, recovery probe and the digest comparer's heal, and by the sim host, so no feeder keeps its own copy of an apply |
+| apps/web/store/syncReplication.ts | review | `replicationHostFor`, `replicationFollowerFor` and `promoteToHost` (the runtime options and the promotion order), shared by `startSyncReplication` and `sim/device.ts` |
+| apps/web/store/inboxStore.ts | review | the U2 seam shrinks to `__inboxStoreWindowBindings` (live bindings plus a by-value setter); the copying moves to `sim/windowSlots.ts`, `resetMemos` goes, `freshInboxData` is local again |
 | apps/cli/src/deliveryEchoLedger.ts | review | the daemon's pairing of echoes with deliveries; the sim daemon's `ack` stamps its echo with the delivered row's id the same way |
 | apps/server/convex/lib/chatWakeIds.ts, chat.ts | review | the chat wake client ids (`chatMentionClientId`, `chatRelayClientId`) and their parsers, written by chat.ts and read by the sim's invariants |
 
@@ -671,7 +671,7 @@ What it builds: the exports in section 4. There is no behaviour change. `clearPr
 
 Acceptance:
 - `cast check web` is green.
-- `bun test store/__tests__/inboxStore.test.ts store/__tests__/cacheOwnership.test.ts store/__tests__/gestureBridge.test.ts store/__tests__/hotReloadReset.test.ts` passes (from packages/web).
+- `bun test store/__tests__/inboxStore.test.ts store/__tests__/cacheOwnership.test.ts store/__tests__/gestureBridge.test.ts store/__tests__/hotReloadReset.test.ts` passes (from apps/web).
 - A new assertion in an existing file is not allowed (to keep units disjoint). So U2 adds `store/__tests__/storeSeams.test.ts`. It asserts that two `__createInboxStoreForTests()` instances hold distinct `_setDispatch` closures: binding one does not make the other's `_isDispatchWired()` true. It also asserts that a new instance starts from the module store's data floor with its own copy, and that the inbox window bindings round-trip through the sim seam as detached snapshots.
 
 **U3 Hook extractions.** `lib/dispatchBinding.ts` and its test, plus `useEnsureDispatch.ts`, `useSyncInboxSessions.ts`, `useSyncTeamInboxSessions.ts`, `useSyncCollection.ts`, `useBootstrapCollection.ts`, `useSyncChangeFeed.ts`, `reconcileCrawl.ts`.
@@ -684,7 +684,7 @@ What it builds: each extraction is called by its own hook with identical argumen
 Acceptance:
 - `cast check web` is green.
 - `bun test hooks/ lib/__tests__/dispatchBinding.test.ts` passes, with the same count as before plus the new tests.
-- `grep -n "__syncAckV1" packages/web/hooks packages/web/lib -r` hits only `lib/dispatchBinding.ts` and its test.
+- `grep -n "__syncAckV1" apps/web/hooks apps/web/lib -r` hits only `lib/dispatchBinding.ts` and its test.
 
 **U4 Team world generator.** `teamWorldGen.ts` and its test.
 
@@ -692,7 +692,7 @@ What it builds: section 3.6. The test pins `sha256(JSON.stringify(genWorld(s, n,
 
 Acceptance: `cd packages/shared && bun test contracts/__fixtures__/teamWorldGen.test.ts` passes, and `git diff --stat packages/shared/contracts/__fixtures__/inboxProjectionGen.ts` is empty.
 
-**U5 Tooling.** `sim/tsconfig.json`, `.codecast/check.toml`, `scripts/sim.ts`, `packages/web/package.json`.
+**U5 Tooling.** `sim/tsconfig.json`, `.codecast/check.toml`, `scripts/sim.ts`, `apps/web/package.json`.
 
 Acceptance:
 - `cast check sim` runs. It may report zero files until later units land, but the config must resolve `bun:test` types. Prove it by adding nothing: the legacy harness files it includes must typecheck, or their pre-existing errors are listed in the unit's report.
@@ -822,7 +822,7 @@ Acceptance:
 
 ### Final gate (orchestrator, after all units)
 
-Run these from `packages/web`:
+Run these from `apps/web`:
 - `bun run sim` (full);
 - `bun test --isolate store/__tests__/`;
 - `cast check` (all programs).
@@ -860,7 +860,7 @@ Then run `cd apps/server && bun test convex/`. Time `bun run sim` and the legacy
 | **Hook extractions change live behaviour.** | Each hook calls the extracted function with identical arguments. The hooks' existing tests and `cast check web` are the gate (U3). |
 | **The sim tsconfig pulls convex sources under web compiler options** and reports errors nobody wrote. | Suspect the config first. Mirror the needed convex options in the sim tsconfig. If a real incompatibility remains, record it in the unit report instead of excluding files. |
 | **The import cost exceeds the budget.** | One store-importing test file. `SIM_SCENARIO` narrows the imports. Cut CI seeds before cutting scenarios. |
-| **Shared checkout.** `inboxStore.ts` has other sessions' edits. | U2 adds exports only, near the end of the file, and never reverts or reformats other lines. It reruns `git diff packages/web/store/inboxStore.ts` before and after, and confirms that only its own additions appear. |
+| **Shared checkout.** `inboxStore.ts` has other sessions' edits. | U2 adds exports only, near the end of the file, and never reverts or reformats other lines. It reruns `git diff apps/web/store/inboxStore.ts` before and after, and confirms that only its own additions appear. |
 | **Deployment safety** (documented only). | The recipe forbids the main checkout and `cast ws` worktrees, and requires the scratch copy and the 127.0.0.1 assertion. No script ships in Phase 2. |
 
 ## 8. Decisions for the founder

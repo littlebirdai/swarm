@@ -12,7 +12,7 @@ const MATE = "u_mate";
 
 describe("path prefixes", () => {
   test("a monorepo package reads to its package; a flat repo to its top dir; a root file to the root", () => {
-    expect(pathPrefixOf("packages/web/components/Foo.tsx")).toBe("packages/web");
+    expect(pathPrefixOf("apps/web/components/Foo.tsx")).toBe("apps/web");
     expect(pathPrefixOf("src/index.ts")).toBe("src");
     expect(pathPrefixOf("src/lib/x.ts")).toBe("src/lib");
     expect(pathPrefixOf("README.md")).toBe("");
@@ -25,15 +25,15 @@ describe("path prefixes", () => {
     // Rows shaped like the three inserters: the transcript path (files with a
     // status and numbers), the push webhook (added/modified/removed names),
     // and the older rows that carried no file list at all.
-    const transcript = [{ filename: "packages/web/components/A.tsx", status: "modified", additions: 3, deletions: 1, changes: 4 }, { filename: "packages/web/lib/b.ts", status: "added", additions: 9, deletions: 0, changes: 9 }];
-    expect(commitAreaPrefixes(transcript)).toEqual(["packages/web"]);
+    const transcript = [{ filename: "apps/web/components/A.tsx", status: "modified", additions: 3, deletions: 1, changes: 4 }, { filename: "apps/web/lib/b.ts", status: "added", additions: 9, deletions: 0, changes: 9 }];
+    expect(commitAreaPrefixes(transcript)).toEqual(["apps/web"]);
     const webhook = [{ filename: "apps/server/convex/tasks.ts", status: "modified", additions: 0, deletions: 0, changes: 0 }, { filename: "apps/server/convex/schema.ts", status: "modified", additions: 0, deletions: 0, changes: 0 }];
     expect(commitAreaPrefixes(webhook)).toEqual(["apps/server"]);
     expect(commitAreaPrefixes(null)).toEqual([]);
     expect(commitAreaPrefixes([])).toEqual([]);
     // Spanning packages: the shared directory is the bare container, so the
     // commit is evidence for each seam it touched.
-    expect(commitAreaPrefixes([{ filename: "packages/web/a.tsx" }, { filename: "apps/server/b.ts" }])).toEqual(["apps/server", "packages/web"]);
+    expect(commitAreaPrefixes([{ filename: "apps/web/a.tsx" }, { filename: "apps/server/b.ts" }])).toEqual(["apps/server", "apps/web"]);
     // Spanning the root and a package: the same.
     expect(commitAreaPrefixes([{ filename: "docs/x.md" }, { filename: "apps/cli/src/y.ts" }])).toEqual(["apps/cli", "docs"]);
     // Files at different depths under one package share the package.
@@ -49,16 +49,16 @@ function inputs(over: Partial<ActivityInputs> = {}): ActivityInputs {
   return {
     now: NOW,
     commits: [
-      { repository: "acme/app", timestamp: NOW - 2 * D, author_name: "Me", files: [{ filename: "packages/web/a.tsx" }, { filename: "packages/web/b.tsx" }] },
-      { repository: "acme/app", timestamp: NOW - 3 * D, author_name: "Mate", files: [{ filename: "packages/web/c.tsx" }] },
+      { repository: "acme/app", timestamp: NOW - 2 * D, author_name: "Me", files: [{ filename: "apps/web/a.tsx" }, { filename: "apps/web/b.tsx" }] },
+      { repository: "acme/app", timestamp: NOW - 3 * D, author_name: "Mate", files: [{ filename: "apps/web/c.tsx" }] },
       { repository: "acme/app", timestamp: NOW - 4 * D, author_name: "Me", files: [{ filename: "apps/server/s.ts" }], task_ids: ["task_open_landed"] },
     ],
     sessions: [
-      { _id: "s1", state: "working", owner_user_id: ME, project_path: "/repo/acme/packages/web", repo: "acme/app" },
-      { _id: "s2", state: "done", owner_user_id: MATE, project_path: "/repo/acme/packages/web", repo: "acme/app" },
+      { _id: "s1", state: "working", owner_user_id: ME, project_path: "/repo/acme/apps/web", repo: "acme/app" },
+      { _id: "s2", state: "done", owner_user_id: MATE, project_path: "/repo/acme/apps/web", repo: "acme/app" },
     ],
     projects: [
-      { id: "p_web", title: "Web", status: "active", project_path: "/repo/acme/packages/web", updated_at: NOW - 2 * D },
+      { id: "p_web", title: "Web", status: "active", project_path: "/repo/acme/apps/web", updated_at: NOW - 2 * D },
     ],
     plans: [],
     tasks: [],
@@ -70,22 +70,22 @@ function inputs(over: Partial<ActivityInputs> = {}): ActivityInputs {
 describe("areas and people (S9)", () => {
   test("areas roll up commits by repository and prefix, with authors, sessions and a project", () => {
     const a = computeOrgActivity(inputs());
-    const web = a.areas.find((x) => x.path_prefix === "packages/web")!;
+    const web = a.areas.find((x) => x.path_prefix === "apps/web")!;
     expect(web).toMatchObject({ repository: "acme/app", commits_30d: 2, sessions_30d: 2, project_id: "p_web" });
     expect(web.authors).toEqual([{ name: "Me", commits: 1 }, { name: "Mate", commits: 1 }]);
     const convex = a.areas.find((x) => x.path_prefix === "apps/server")!;
     expect(convex).toMatchObject({ commits_30d: 1, sessions_30d: 0 });
     // A path two projects share names neither: the area says how many share it, and no project inherits its commits.
-    const shared = computeOrgActivity(inputs({ projects: [...inputs().projects, { id: "p_web2", title: "Web too", status: "active", project_path: "/repo/acme/packages/web", updated_at: NOW - D }] }));
-    const webShared = shared.areas.find((x) => x.path_prefix === "packages/web")!;
+    const shared = computeOrgActivity(inputs({ projects: [...inputs().projects, { id: "p_web2", title: "Web too", status: "active", project_path: "/repo/acme/apps/web", updated_at: NOW - D }] }));
+    const webShared = shared.areas.find((x) => x.path_prefix === "apps/web")!;
     expect(webShared.project_id).toBeUndefined();
     expect(webShared.project_shared_by).toBe(2);
     // The same directory on another machine is the same path: one project there and one here share it.
-    const twoMachines = computeOrgActivity(inputs({ projects: [...inputs().projects, { id: "p_web_samvit", title: "Web on Samvit's machine", status: "active", project_path: "/Users/samvit/dev/acme/packages/web", updated_at: NOW - D }] }));
-    expect(twoMachines.areas.find((x) => x.path_prefix === "packages/web")!.project_shared_by).toBe(2);
+    const twoMachines = computeOrgActivity(inputs({ projects: [...inputs().projects, { id: "p_web_samvit", title: "Web on Samvit's machine", status: "active", project_path: "/Users/samvit/dev/acme/apps/web", updated_at: NOW - D }] }));
+    expect(twoMachines.areas.find((x) => x.path_prefix === "apps/web")!.project_shared_by).toBe(2);
     // People by area: commits matched to a member by name, sessions by owner.
     const me = a.people.find((p) => p.user_id === ME)!;
-    expect(me.areas.find((r) => r.path_prefix === "packages/web")).toEqual({ path_prefix: "packages/web", commits: 1, sessions: 1 });
+    expect(me.areas.find((r) => r.path_prefix === "apps/web")).toEqual({ path_prefix: "apps/web", commits: 1, sessions: 1 });
     expect(me.areas.find((r) => r.path_prefix === "apps/server")).toEqual({ path_prefix: "apps/server", commits: 1, sessions: 0 });
     expect(a.commits).toEqual({ total: 3, with_files: 3, without_files: 0, spanning_areas: 0, landed: 0 });
   });
@@ -99,11 +99,11 @@ describe("areas and people (S9)", () => {
         // A transcript row with the full file shape.
         { repository: "acme/app", timestamp: NOW - D, author_name: "Me", files: [{ filename: "apps/cli/src/daemon.ts", status: "modified", additions: 4, deletions: 2, changes: 6 } as any] },
         // A spanning commit: convex and web, one row, both seams.
-        { repository: "acme/app", timestamp: NOW - D, author_name: "Mate", files: [{ filename: "apps/server/convex/x.ts" }, { filename: "packages/web/y.tsx" }] },
+        { repository: "acme/app", timestamp: NOW - D, author_name: "Mate", files: [{ filename: "apps/server/convex/x.ts" }, { filename: "apps/web/y.tsx" }] },
       ],
     }));
     expect(a.commits).toEqual({ total: 4, with_files: 2, without_files: 2, spanning_areas: 1, landed: 0 });
-    expect(a.areas.map((x) => [x.path_prefix, x.commits_30d])).toEqual([["", 2], ["packages/web", 1], ["apps/cli", 1], ["apps/server", 1]]);
+    expect(a.areas.map((x) => [x.path_prefix, x.commits_30d])).toEqual([["", 2], ["apps/web", 1], ["apps/cli", 1], ["apps/server", 1]]);
   });
 });
 
@@ -111,7 +111,7 @@ describe("a session's area is its path relative to its git root", () => {
   test("a session at the repository root shares the root row with commits that carry no file list; one inside a package lands on that package", async () => {
     const { sessionAreaPrefix } = await import("./orgActivity");
     expect(sessionAreaPrefix({ project_path: "/Users/me/src/codecast", git_root: "/Users/me/src/codecast" })).toBe("");
-    expect(sessionAreaPrefix({ project_path: "/Users/me/src/codecast/packages/web", git_root: "/Users/me/src/codecast" })).toBe("packages/web");
+    expect(sessionAreaPrefix({ project_path: "/Users/me/src/codecast/apps/web", git_root: "/Users/me/src/codecast" })).toBe("apps/web");
     expect(sessionAreaPrefix({ project_path: "/Users/me/src/codecast/docs", git_root: "/Users/me/src/codecast" })).toBe("docs");
     expect(sessionAreaPrefix({ project_path: "/repo/growth", git_root: null })).toBe("growth");
     expect(sessionAreaPrefix({ project_path: null, git_root: "/x" })).toBeNull();
@@ -119,13 +119,13 @@ describe("a session's area is its path relative to its git root", () => {
       commits: [{ repository: "acme/app", timestamp: NOW - D, author_name: "Me" }],
       sessions: [
         { _id: "root", state: "working", owner_user_id: ME, project_path: "/home/me/src/app", git_root: "/home/me/src/app", repo: "acme/app" },
-        { _id: "web", state: "working", owner_user_id: ME, project_path: "/home/me/src/app/packages/web", git_root: "/home/me/src/app", repo: "acme/app" },
+        { _id: "web", state: "working", owner_user_id: ME, project_path: "/home/me/src/app/apps/web", git_root: "/home/me/src/app", repo: "acme/app" },
       ],
     }));
     const root = a.areas.find((x) => x.path_prefix === "")!;
     expect(root).toMatchObject({ commits_30d: 1, sessions_30d: 2 });
     const me = a.people.find((p) => p.user_id === ME)!;
-    expect(me.areas).toEqual([{ path_prefix: "", commits: 1, sessions: 1 }, { path_prefix: "packages/web", commits: 0, sessions: 1 }]);
+    expect(me.areas).toEqual([{ path_prefix: "", commits: 1, sessions: 1 }, { path_prefix: "apps/web", commits: 0, sessions: 1 }]);
   });
 });
 
@@ -207,12 +207,12 @@ describe("stale tasks and projects (S9)", () => {
   test("a project nothing touched in 30 days is stale; a touched one is not", () => {
     const a = computeStale(inputs({
       projects: [
-        { id: "p_live", title: "Live", status: "active", project_path: "/repo/acme/packages/web", updated_at: NOW - 40 * D },
+        { id: "p_live", title: "Live", status: "active", project_path: "/repo/acme/apps/web", updated_at: NOW - 40 * D },
         { id: "p_stale", title: "Legacy", status: "active", project_path: "/repo/legacy", updated_at: NOW - 40 * D },
         { id: "p_done", title: "Shipped", status: "done", project_path: "/x", updated_at: NOW - 40 * D },
       ],
       tasks: [{ id: "tl", short_id: "ct-9", title: "recent", status: "open", project_id: "p_live", updated_at: NOW - 2 * D }],
-      sessions: [{ _id: "s1", state: "working", project_path: "/repo/acme/packages/web", repo: "acme/app" }],
+      sessions: [{ _id: "s1", state: "working", project_path: "/repo/acme/apps/web", repo: "acme/app" }],
     }));
     expect(a.projects.map((p) => [p.title, p.reason])).toEqual([["Legacy", "no activity 30d"]]);
   });

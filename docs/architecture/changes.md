@@ -105,7 +105,7 @@ the writer sessions, and links to the pull request, run and deploys.
 
 ## CH5. The rule and its facts
 
-`packages/web/lib/changes/lifecycle.ts` turns a change's facts into its
+`apps/web/lib/changes/lifecycle.ts` turns a change's facts into its
 stages and its now. It is pure with relative imports, so the phone's pill
 reads it as the web does, and it is the only place a lifecycle word or tone is
 chosen. `lib/changes/pullRequest.ts` reads a pull request into those facts for

@@ -69,7 +69,7 @@ async function setup(opts: { flag: boolean }) {
     t.run(async (ctx) => ctx.db.insert("commits", {
       sha, message, author_name: "Ana", author_email: "ana@acme.dev", timestamp,
       files_changed: 1, insertions: 10, deletions: 2, repository: REPO, team_id: ids.team, branch: "main",
-      files: [{ filename: "packages/web/line.tsx", status: "modified", additions: 10, deletions: 2, changes: 12 }],
+      files: [{ filename: "apps/web/line.tsx", status: "modified", additions: 10, deletions: 2, changes: 12 }],
       ...fields,
     } as any));
 
@@ -81,7 +81,7 @@ async function setup(opts: { flag: boolean }) {
       pusher: { name: "ana" },
       commits: shas.map((sha, i) => ({
         id: sha, message: `fix(web): line ${sha}`, timestamp: new Date(at("09:00", date) + i * 60_000).toISOString(),
-        author: { name: "Ana", email: "ana@acme.dev", username: "ana" }, modified: ["packages/web/line.tsx"], distinct: true,
+        author: { name: "Ana", email: "ana@acme.dev", username: "ana" }, modified: ["apps/web/line.tsx"], distinct: true,
       })),
     };
     const event_id = await t.run(async (ctx) => ctx.db.insert("github_webhook_events", {

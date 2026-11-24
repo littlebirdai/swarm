@@ -18,7 +18,7 @@ import { teamsHoldRegulatedData } from "@codecast/shared/contracts";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { watchRegulatedData } from "@codecast/web/lib/regulatedData";
 
-// Regulated health data (HIPAA), as on web (packages/web/lib/analytics.ts): a
+// Regulated health data (HIPAA), as on web (apps/web/lib/analytics.ts): a
 // person in a team whose policy sets regulated_data sends PostHog and Sentry
 // nothing. The teams list is persisted, so a returning launch knows before
 // init; one that learns it later shuts both down on the spot.

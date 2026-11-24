@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TYPE_SCALE, floorTextSize } from "./typeScale";
 
-const WEB = join(import.meta.dir, "..", "..", "web");
+const WEB = join(import.meta.dir, "..", "..", "..", "apps", "web");
 
 describe("type scale", () => {
   test("matches the web's tailwind fontSize steps and --fs-* variables", () => {

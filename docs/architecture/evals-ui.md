@@ -225,7 +225,7 @@ All paths are relative to `/evals`.
 ### 3.7 Multiplayer sim changes
 
 - **History** (`sim/history.ts`; details in multiplayer-sim-harness.md section 3.12). Every `bun run sim` that runs tests writes a session folder at `<home>/sessions/<stamp>/`, where `<home>` is `$CODECAST_SIM_HOME`, else `~/.local/share/codecast/sim`. `--list`, `--invariants`, `--help` and `--shrink` write none.
-  - `session.json` holds `{id, argv, gitHead, dirty, treePatch, startedAt, finishedAt, exit}`. `treePatch` is the sha256 of the uncommitted edits under `packages/web`, `apps/server`, `packages/shared` and `platform/packages` (untracked files included), stored gzipped at `<home>/trees/<sha>.patch.gz`; it is computed while the tests run, so it lands with `finishedAt`.
+  - `session.json` holds `{id, argv, gitHead, dirty, treePatch, startedAt, finishedAt, exit}`. `treePatch` is the sha256 of the uncommitted edits under `apps/web`, `apps/server`, `packages/shared` and `platform/packages` (untracked files included), stored gzipped at `<home>/trees/<sha>.patch.gz`; it is computed while the tests run, so it lands with `finishedAt`.
   - `runs.jsonl` gets one line per scenario run: `{scenario, mode, seed, passed, deliveries, ms, dir?}`.
   - Failure artifacts go into `<scenario>-<mode>-<seed>/` inside the session: the runner passes the folder as `SIM_SESSION`, and `artifactRoot` picks `SIM_OUT`, else `SIM_SESSION`, else the temp dir. The known check (a scenario's first run again with nothing left out) writes `<scenario>-<mode>-<seed>-known/`, so it never overwrites that run's folder.
   - Full artifacts for passes are written only with `--keep` (`SIM_KEEP=1`) or `SIM_OUT`, so a `--sweep` does not write a thousand folders. Artifacts sent to `--out` outside the session get no `dir`.
@@ -658,10 +658,10 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
 - **Shared contract:** `packages/shared/contracts/evalsApi.ts` (a barrel) over `contracts/evalsApi/{core, bisect, sim, endpoints, routes}.ts`, `evalsApi.test.ts`
 - **Daemon:** `apps/cli/src/evals/evalsServer.ts`, `evalsBridge.ts`, `evalsServer.test.ts`
 - **Web, foundation:**
-  - `packages/web/lib/evals/client.ts`, `lib/evals/fixtureTransport.ts`
-  - `packages/web/store/evalsStore.ts`, `store/__tests__/evalsStore.guard.test.ts`
-  - `packages/web/app/evals/page.tsx`
-- **Web, `packages/web/components/evals/`:**
+  - `apps/web/lib/evals/client.ts`, `lib/evals/fixtureTransport.ts`
+  - `apps/web/store/evalsStore.ts`, `store/__tests__/evalsStore.guard.test.ts`
+  - `apps/web/app/evals/page.tsx`
+- **Web, `apps/web/components/evals/`:**
   - Foundation:
     - `EvalsShell.tsx`, `EvalsNav.tsx`, `evalsPaths.ts`, `evalsPaths.test.ts`, `parts.tsx`, `evals.css`
     - `charts/ScoreStrip.tsx`, `charts/Well.tsx`, `charts/scale.ts`
@@ -678,7 +678,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
     - `AttributionView.tsx`, `BisectPlanPanel.tsx`, `BisectRuler.tsx`, `BisectView.tsx`, `BisectListView.tsx`, `CommitPanel.tsx`, `bisectModel.ts`, `bisect.css`
     - `SimCatalogView.tsx`, `SimRunView.tsx`, `DeliveryTimeline.tsx`, `OrderStrip.tsx`
   - Fixtures and tests: `__fixtures__/<view>.ts` and `__tests__/<View>.mount.test.tsx` per view unit.
-- **Multiplayer sim:** `packages/web/store/__tests__/sim/shrink.ts`, `shrink.test.ts`, `history.ts`, `history.test.ts`, `replay.ts` (the replay lines and order format, shared with the api child and the web pages), `grid.ts` (the catalog grid fold, shared with the api child and the fixture world)
+- **Multiplayer sim:** `apps/web/store/__tests__/sim/shrink.ts`, `shrink.test.ts`, `history.ts`, `history.test.ts`, `replay.ts` (the replay lines and order format, shared with the api child and the web pages), `grid.ts` (the catalog grid fold, shared with the api child and the fixture world)
 - **Docs:** `docs/architecture/evals-ui.md`
 
 ### Change
@@ -697,7 +697,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
   - `components/LocalDaemonUnreachable.tsx`
   - `components/decisions/ChangeCardView.tsx` (export `ExamplePair`)
   - `components/line/LinePage.tsx`
-- **Multiplayer sim:** `packages/web/store/__tests__/sim/report.ts`, `dsl.ts`, `net.ts` (re-exports the order format from `replay.ts`), `packages/web/scripts/sim.ts`.
+- **Multiplayer sim:** `apps/web/store/__tests__/sim/report.ts`, `dsl.ts`, `net.ts` (re-exports the order format from `replay.ts`), `apps/web/scripts/sim.ts`.
 - **Docs:** `docs/architecture/evals-home.md`, `docs/architecture/multiplayer-sim-harness.md`.
 
 ## 8. Work units and waves
@@ -866,7 +866,7 @@ Background-tab timers stall, so check end states, not mid-animation frames: run 
 **U10 Freeze.**
 - Owns: `pages/FreezePage.tsx`, `FreezeView.tsx`, plus its fixture and mount test.
 - Accept: screenshots of the moment pane, the rep strip, the default flip pair and the "prompt changed" banner.
-- As built: section 4.3. Re-verified 2026-10-04 at a load of 150 to 350, where the dev server on 3200 served 5 modules in minutes, so the browser check ran the props-only `FreezeView` over `__fixtures__/freeze.ts` in a static rig (`packages/web/__harness.u10.*`, gitignored) in the founder's Chrome. A cast tab is a background tab, and ResizeObserver never fires there (shrinking the rig's root left the layout wide), so a narrow-pane shot keeps the strip at its first measure; check the narrow layout in a foreground window.
+- As built: section 4.3. Re-verified 2026-10-04 at a load of 150 to 350, where the dev server on 3200 served 5 modules in minutes, so the browser check ran the props-only `FreezeView` over `__fixtures__/freeze.ts` in a static rig (`apps/web/__harness.u10.*`, gitignored) in the founder's Chrome. A cast tab is a background tab, and ResizeObserver never fires there (shrinking the rig's root left the layout wide), so a narrow-pane shot keeps the strip at its first measure; check the narrow layout in a foreground window.
 
 **U14 Bisect pages.**
 - Owns: `pages/Bisect*.tsx`, `AttributionView.tsx`, `BisectPlanPanel.tsx`, `BisectRuler.tsx`, `BisectView.tsx`, `BisectListView.tsx`, `CommitPanel.tsx`, `bisectModel.ts` (candidate order, bracket positions, probes left, status words), `bisect.css`, `__fixtures__/bisect.ts` and `__tests__/Bisect.mount.test.tsx`.

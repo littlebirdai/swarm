@@ -33,7 +33,7 @@ const reachOfJob = (job: string) => once(`reach:${job}`, () => reachOf(job));
 const crossingOf = (job: string) => once(`crossing:${job}`, () => crossingTests(job));
 
 describe("resolveImport", () => {
-  const from = join(ROOT, "packages/web/lib/x.ts");
+  const from = join(ROOT, "apps/web/lib/x.ts");
 
   test("resolves workspace packages through their manifests, without node_modules", () => {
     expect(resolveImport("@codecast/shared", from)).toBe(join(ROOT, "packages/shared/index.ts"));
@@ -95,20 +95,20 @@ describe("reach", () => {
   // Paths spelled as segments, join(dir, "..", "..", "..", "apps", "cli", "src"), reach as
   // far as a joined "../../../apps/cli/" does.
   test("finds a reach spelled as path segments", () => {
-    const desktop = crossingOf("test-web").find(({ file }) => file.endsWith("packages/web/lib/desktop.test.ts"));
+    const desktop = crossingOf("test-web").find(({ file }) => file.endsWith("apps/web/lib/desktop.test.ts"));
     expect(desktop?.areas.map(([area]) => area)).toEqual(expect.arrayContaining(["cli", "extension"]));
   }, 120_000);
 
   test("reads spelled as segments, from the file or from the repo root, count as reach", () => {
     const read = (path: string) => `import { readFileSync } from "node:fs";\nreadFileSync(${path});`;
     const areas = (file: string, text: string, own: string) => [...new Set(literalReach(file, text, own).map(([area]) => area))];
-    expect(areas("packages/web/lib/desktop.test.ts", read(`join(import.meta.dir, "..", "..", "cli", "src", "observe.ts")`), "web")).toEqual(["cli"]);
-    expect(areas("apps/evals/src/x.test.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual(["web"]);
+    expect(areas("apps/web/lib/desktop.test.ts", read(`join(import.meta.dir, "..", "..", "cli", "src", "observe.ts")`), "web")).toEqual(["cli"]);
+    expect(areas("apps/evals/src/x.test.ts", read(`join(ROOT, "apps", "web", "scripts", "sim.ts")`), "evals")).toEqual(["web"]);
     // A relative path through a workspace root is still this repository, from product code too.
     expect(areas("apps/cli/src/browser/hostExtension.ts", read(`join(import.meta.dir, "../../../../apps/browser-extension")`), "cli")).toEqual(["extension"]);
     expect(areas("apps/cli/src/x.ts", read(`join(import.meta.dir, "..", "..", "..", "apps", "browser-extension")`), "cli")).toEqual(["extension"]);
     // From product code a rooted path is usually someone else's checkout.
-    expect(areas("apps/evals/src/x.ts", read(`join(ROOT, "packages", "web", "scripts", "sim.ts")`), "evals")).toEqual([]);
+    expect(areas("apps/evals/src/x.ts", read(`join(ROOT, "apps", "web", "scripts", "sim.ts")`), "evals")).toEqual([]);
   });
 
   test("every area a job's files reach is that job's or reached only by files that always run", () => {

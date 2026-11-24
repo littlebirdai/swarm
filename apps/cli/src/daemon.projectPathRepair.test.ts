@@ -6,13 +6,13 @@ import { managedWorktreeName, projectPathRepairKey, projectPathRepairNeeded } fr
 describe("projectPathRepairNeeded", () => {
   const confirmed = {
     "sess-a": projectPathRepairKey("/Users/u/src/app", "/Users/u/src/app"),
-    "sess-b": projectPathRepairKey("/Users/u/src/app/packages/web", "/Users/u/src/app"),
+    "sess-b": projectPathRepairKey("/Users/u/src/app/apps/web", "/Users/u/src/app"),
     "sess-c": projectPathRepairKey("/tmp/scratch"),
   };
 
   test("an unchanged session is skipped", () => {
     expect(projectPathRepairNeeded(confirmed, "sess-a", "/Users/u/src/app", "/Users/u/src/app").send).toBe(false);
-    expect(projectPathRepairNeeded(confirmed, "sess-b", "/Users/u/src/app/packages/web", "/Users/u/src/app").send).toBe(false);
+    expect(projectPathRepairNeeded(confirmed, "sess-b", "/Users/u/src/app/apps/web", "/Users/u/src/app").send).toBe(false);
     expect(projectPathRepairNeeded(confirmed, "sess-c", "/tmp/scratch", undefined).send).toBe(false);
   });
 

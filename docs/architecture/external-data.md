@@ -140,7 +140,7 @@ alone. The web's Add source shows the same file (`codecastJsonFor`,
 verifier (X8) and Union's client. An explicit value or env var still wins
 over the file, as an override. `cast sources test` reads the key from the
 file before `$CODECAST_INGEST_KEY`. Codecast's own web reads the committed
-`packages/web/codecast.json`, with `VITE_CODECAST_INGEST_KEY` as the override.
+`apps/web/codecast.json`, with `VITE_CODECAST_INGEST_KEY` as the override.
 
 ## X2. The ingest door
 
@@ -714,7 +714,7 @@ answers `{ frames: [{ t_ms, png_base64, url, outline, width, height, error? }] }
 A full browser pool answers 429 with Retry-After. A recording is drawn at its
 own size, scaled down past 1600 px.
 
-**In codecast** one host embeds the player (`packages/web/hooks/useReplayPlayer.ts`
+**In codecast** one host embeds the player (`apps/web/hooks/useReplayPlayer.ts`
 and `components/ops/ReplayPlayerFrame.tsx`): `useReplayPlayerLink`
 mints a capability through `replays.playerLink` each time a player opens,
 `ReplayPlayerIframe` loads it sandboxed `allow-scripts allow-same-origin` (the

@@ -237,7 +237,7 @@ async function setup() {
     } as any));
 
   const seed = async () => {
-    await commit("m1", "feat(web): line pages", at("09:00", MON), ["packages/web/line.tsx", "packages/web/page.tsx"], { conversation_id: ids.vis });
+    await commit("m1", "feat(web): line pages", at("09:00", MON), ["apps/web/line.tsx", "apps/web/page.tsx"], { conversation_id: ids.vis });
     await commit("m2", "chore(cli): bump version to 1.1.157", at("15:00", MON), ["apps/cli/package.json"]);
     await commit("t1", `fix(cli): ${SECRET} upload`, at("10:00", TUE), ["apps/cli/upload.ts"], { conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev" });
     await commit("t2", "docs: refresh the guide", at("11:00", TUE), ["docs/guide.md"]);

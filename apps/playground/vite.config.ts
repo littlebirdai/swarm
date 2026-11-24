@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5317,
       strictPort: true,
-      // The avatar art and KeyCap are imported from packages/web, never copied.
+      // The avatar art and KeyCap are imported from apps/web, never copied.
       fs: { allow: ["../.."] },
     },
   };

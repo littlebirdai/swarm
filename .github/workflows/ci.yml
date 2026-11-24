@@ -248,7 +248,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (web package)
-        working-directory: packages/web
+        working-directory: apps/web
         # --isolate: a fresh global per file. bun otherwise runs the whole suite
         # in one process, where `mock.module` substitutions are permanent and a
         # jsdom window installed on globalThis outlives the file that made it.
@@ -271,10 +271,10 @@ jobs:
           done
           exit $status
 
-      # The exact counts behind the perf benches (packages/web/perf/README.md).
+      # The exact counts behind the perf benches (apps/web/perf/README.md).
       # Plain bun, not bun test: the test preload stands in for the diff viewer.
       - name: Perf budgets (web)
-        working-directory: packages/web
+        working-directory: apps/web
         run: scripts/perf-budgets.sh
 
       - name: Upload sim artifacts

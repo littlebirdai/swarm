@@ -97,7 +97,7 @@ const resolveApp = (context, moduleName, platform) => {
 // the fixture world. The flag module itself always resolves. The world and its
 // seed live in web's lib/acmeWorld, shared with the web docs shots; they are
 // gated the same way.
-const STORE_SHOTS_DIRS = [path.join(projectRoot, 'lib', 'storeShots') + path.sep, path.join(workspaceRoot, 'packages', 'web', 'lib', 'acmeWorld') + path.sep];
+const STORE_SHOTS_DIRS = [path.join(projectRoot, 'lib', 'storeShots') + path.sep, path.join(workspaceRoot, 'apps', 'web', 'lib', 'acmeWorld') + path.sep];
 const storeShotsOn = process.env.EXPO_PUBLIC_STORE_SHOTS === '1';
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const res = resolveApp(context, moduleName, platform);

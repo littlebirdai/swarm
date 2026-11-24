@@ -172,79 +172,79 @@ packages/shared/contracts/snippets.ts 1900
 packages/shared/entities/index.ts
 packages/shared/render/toolCall.ts 900
 packages/shared/tasks/graph.ts 950
-packages/web/app/(marketing)/compare/comparisons.ts 1100
-packages/web/app/(marketing)/documentation/page.tsx 900
-packages/web/app/(marketing)/features/browser/Sections.tsx 850
-packages/web/app/(marketing)/heroFly/timeline.ts 1000
-packages/web/app/admin/daemon-logs/page.tsx 900
-packages/web/app/calls/page.tsx 1350
-packages/web/app/chat/page.tsx 900
-packages/web/app/inbox/QueuePageClient.tsx 900
-packages/web/app/meet/[token]/page.tsx 900
-packages/web/app/sessions/page.tsx 950
-packages/web/app/settings/sync/page.tsx 1050
-packages/web/app/tasks/[id]/page.tsx 850
-packages/web/app/tasks/page.tsx 1500
-packages/web/app/triggers/page.tsx 1250
-packages/web/components/ActivityFeed.tsx 1000
-packages/web/components/CommandPalette.tsx
-packages/web/components/ComposeView.tsx 900
-packages/web/components/ConversationView.tsx
-packages/web/components/DashboardLayout.tsx 1600
-packages/web/components/EntityIdPill.references.test.tsx 850
-packages/web/components/EntityIdPill.tsx 1550
-packages/web/components/EntityObjectCard.tsx 950
-packages/web/components/FileDiffLayout.tsx 1500
-packages/web/components/GenericListView.tsx 1500
-packages/web/components/GlobalSessionPanel.tsx 3850
-packages/web/components/LabelChipsRow.tsx 1000
-packages/web/components/MessageInput.tsx
-packages/web/components/MessageReview.tsx 1050
-packages/web/components/PlanDetailPanel.tsx 1250
-packages/web/components/PublishedPageEmbed.tsx 950
-packages/web/components/TriggerContextPanel.tsx 900
-packages/web/components/calls/CallStage.tsx 1150
-packages/web/components/calls/RoomThread.tsx 1050
-packages/web/components/castCommand.test.ts
-packages/web/components/castCommand.ts 1000
-packages/web/components/chat/ChatMessage.tsx 850
-packages/web/components/conversation/blocks/castBlocks.tsx 1050
-packages/web/components/conversation/blocks/systemBlocks.tsx 1550
-packages/web/components/conversation/blocks/toolBlocks.tsx 1750
-packages/web/components/conversation/blocks/turnBlocks.tsx 1800
-packages/web/components/conversation/classify.ts 850
-packages/web/components/conversation/sessionChrome.tsx 950
-packages/web/components/conversation/sessionControls.tsx
-packages/web/components/decisions/ChangeCardView.tsx 1250
-packages/web/components/faces/FaceRow.tsx 1050
-packages/web/components/faces/__tests__/faceRow.mount.test.tsx 900
-packages/web/components/org/OrgGraph.tsx 850
-packages/web/components/org/OrgNodeCards.tsx 850
-packages/web/components/org/orgLayout.ts 850
-packages/web/hooks/useConversationMessages.ts 1100
-packages/web/hooks/useWalkie.ts 1000
-packages/web/lib/__tests__/walkieOrder.test.ts 1600
-packages/web/lib/calls/callManager.ts 1700
-packages/web/lib/calls/walkie.ts 1850
-packages/web/lib/desktop.test.ts
-packages/web/lib/desktop.ts
-packages/web/lib/faces/faceRow.ts 1000
-packages/web/lib/line/lineModel.ts 1350
-packages/web/lib/line/problemPage.ts 1150
-packages/web/lib/line/runReport.ts 1350
-packages/web/lib/lineFlow.ts 950
-packages/web/store/__tests__/capabilities.test.ts 1000
-packages/web/store/__tests__/chatSlice.test.ts 1000
-packages/web/store/__tests__/gestureBridge.test.ts 1500
-packages/web/store/__tests__/inboxSimHarness.ts 1000
-packages/web/store/__tests__/inboxStore.test.ts 5100
-packages/web/store/__tests__/outboxRetention.test.ts 1400
-packages/web/store/capabilities.ts 1300
-packages/web/store/chatSlice.ts 1650
-packages/web/store/clientSyncRegistry.ts
-packages/web/store/idbCache.native.ts 900
-packages/web/store/inboxStore.ts
-packages/web/store/orgSlice.ts 1600
-packages/web/store/strandedStub.test.ts 950
-packages/web/store/undo/policies/work.ts 950
-packages/web/store/vaultStore.ts 1450
+apps/web/app/(marketing)/compare/comparisons.ts 1100
+apps/web/app/(marketing)/documentation/page.tsx 900
+apps/web/app/(marketing)/features/browser/Sections.tsx 850
+apps/web/app/(marketing)/heroFly/timeline.ts 1000
+apps/web/app/admin/daemon-logs/page.tsx 900
+apps/web/app/calls/page.tsx 1350
+apps/web/app/chat/page.tsx 900
+apps/web/app/inbox/QueuePageClient.tsx 900
+apps/web/app/meet/[token]/page.tsx 900
+apps/web/app/sessions/page.tsx 950
+apps/web/app/settings/sync/page.tsx 1050
+apps/web/app/tasks/[id]/page.tsx 850
+apps/web/app/tasks/page.tsx 1500
+apps/web/app/triggers/page.tsx 1250
+apps/web/components/ActivityFeed.tsx 1000
+apps/web/components/CommandPalette.tsx
+apps/web/components/ComposeView.tsx 900
+apps/web/components/ConversationView.tsx
+apps/web/components/DashboardLayout.tsx 1600
+apps/web/components/EntityIdPill.references.test.tsx 850
+apps/web/components/EntityIdPill.tsx 1550
+apps/web/components/EntityObjectCard.tsx 950
+apps/web/components/FileDiffLayout.tsx 1500
+apps/web/components/GenericListView.tsx 1500
+apps/web/components/GlobalSessionPanel.tsx 3850
+apps/web/components/LabelChipsRow.tsx 1000
+apps/web/components/MessageInput.tsx
+apps/web/components/MessageReview.tsx 1050
+apps/web/components/PlanDetailPanel.tsx 1250
+apps/web/components/PublishedPageEmbed.tsx 950
+apps/web/components/TriggerContextPanel.tsx 900
+apps/web/components/calls/CallStage.tsx 1150
+apps/web/components/calls/RoomThread.tsx 1050
+apps/web/components/castCommand.test.ts
+apps/web/components/castCommand.ts 1000
+apps/web/components/chat/ChatMessage.tsx 850
+apps/web/components/conversation/blocks/castBlocks.tsx 1050
+apps/web/components/conversation/blocks/systemBlocks.tsx 1550
+apps/web/components/conversation/blocks/toolBlocks.tsx 1750
+apps/web/components/conversation/blocks/turnBlocks.tsx 1800
+apps/web/components/conversation/classify.ts 850
+apps/web/components/conversation/sessionChrome.tsx 950
+apps/web/components/conversation/sessionControls.tsx
+apps/web/components/decisions/ChangeCardView.tsx 1250
+apps/web/components/faces/FaceRow.tsx 1050
+apps/web/components/faces/__tests__/faceRow.mount.test.tsx 900
+apps/web/components/org/OrgGraph.tsx 850
+apps/web/components/org/OrgNodeCards.tsx 850
+apps/web/components/org/orgLayout.ts 850
+apps/web/hooks/useConversationMessages.ts 1100
+apps/web/hooks/useWalkie.ts 1000
+apps/web/lib/__tests__/walkieOrder.test.ts 1600
+apps/web/lib/calls/callManager.ts 1700
+apps/web/lib/calls/walkie.ts 1850
+apps/web/lib/desktop.test.ts
+apps/web/lib/desktop.ts
+apps/web/lib/faces/faceRow.ts 1000
+apps/web/lib/line/lineModel.ts 1350
+apps/web/lib/line/problemPage.ts 1150
+apps/web/lib/line/runReport.ts 1350
+apps/web/lib/lineFlow.ts 950
+apps/web/store/__tests__/capabilities.test.ts 1000
+apps/web/store/__tests__/chatSlice.test.ts 1000
+apps/web/store/__tests__/gestureBridge.test.ts 1500
+apps/web/store/__tests__/inboxSimHarness.ts 1000
+apps/web/store/__tests__/inboxStore.test.ts 5100
+apps/web/store/__tests__/outboxRetention.test.ts 1400
+apps/web/store/capabilities.ts 1300
+apps/web/store/chatSlice.ts 1650
+apps/web/store/clientSyncRegistry.ts
+apps/web/store/idbCache.native.ts 900
+apps/web/store/inboxStore.ts
+apps/web/store/orgSlice.ts 1600
+apps/web/store/strandedStub.test.ts 950
+apps/web/store/undo/policies/work.ts 950
+apps/web/store/vaultStore.ts 1450

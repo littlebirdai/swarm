@@ -7,7 +7,7 @@ import { EVALS_PATCH_SHA_RE, EVALS_SHA_RE, type CommitRef, type CommitResponse, 
 import { git, gitLog, onMainLine, resolveCommit, type LoggedCommit } from '../git';
 import { declaredPaths, repoGit } from '../history/attribution';
 import { homePaths, treeRoot } from '../paths';
-import { treePatchPath } from '../../../../packages/web/store/__tests__/sim/history';
+import { treePatchPath } from '../../../../apps/web/store/__tests__/sim/history';
 import { mainLineRefs, placeByHeads } from '../provenance';
 
 // The git the api child reads for the pages: one commit in full (the commit

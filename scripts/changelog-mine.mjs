@@ -7,7 +7,7 @@
  * that layer honest and easy to refresh — it pulls a period's real release
  * boundaries (version bumps) and clusters its feature/fix commits by area, so
  * you can see exactly what shipped and write or extend the matching entry in
- * `packages/web/app/(marketing)/changelog/changelogData.ts`.
+ * `apps/web/app/(marketing)/changelog/changelogData.ts`.
  *
  * Usage:
  *   node scripts/changelog-mine.mjs                 # current calendar month
@@ -151,7 +151,7 @@ for (const [scope, items] of orderedScopes) {
 console.log("");
 console.log(
   dim(
-    "→ Now write/extend the entry in packages/web/app/(marketing)/changelog/changelogData.ts.\n" +
+    "→ Now write/extend the entry in apps/web/app/(marketing)/changelog/changelogData.ts.\n" +
       "  Group these into a few topical sections, and say in plain language what each change does for the user."
   )
 );

@@ -602,7 +602,7 @@ metric fires when `loadCache` disables the cache so that noise is measurable.
   server projection. A cold replica case: fold rows present server side, empty client
   cache; assert the compare stays gated until the crawl completes and the heal then
   converges within one budget. Landed as
-  `packages/web/store/__tests__/inboxConvergenceSim.test.ts`: the real Convex compute
+  `apps/web/store/__tests__/inboxConvergenceSim.test.ts`: the real Convex compute
   functions over a fake db, the real store appliers and gestures, one virtual clock
   behind `Date.now` and `performance.now`, twelve seeded random schedules of sixty steps
   (replay one with `SIM_SEEDS=<seed>`), plus the dead subscription cases and the two

@@ -160,15 +160,15 @@ fi
 
 echo ""
 echo "[4/4] Updating web download URL and committing..."
-WEB_SERVER="$REPO_ROOT/packages/web/server/index.ts"
+WEB_SERVER="$REPO_ROOT/apps/web/server/index.ts"
 sed -i '' -E "s|Codecast-[0-9]+\\.[0-9]+\\.[0-9]+-arm64\\.dmg|Codecast-${NEW_VERSION}-arm64.dmg|g" "$WEB_SERVER"
 sed -i '' -E "s|MAC_DMG_VERSION = \"[0-9]+\\.[0-9]+\\.[0-9]+\"|MAC_DMG_VERSION = \"${NEW_VERSION}\"|g" "$WEB_SERVER"
 
 cd "$REPO_ROOT"
 if [ "$NO_GIT" = "1" ]; then
-  echo "  --no-git: commit apps/desktop/package.json and the MAC_DMG lines of packages/web/server/index.ts, then push"
+  echo "  --no-git: commit apps/desktop/package.json and the MAC_DMG lines of apps/web/server/index.ts, then push"
 else
-  git add apps/desktop/package.json packages/web/server/index.ts
+  git add apps/desktop/package.json apps/web/server/index.ts
   git commit -m "chore(electron): bump desktop to v${NEW_VERSION}"
   git push origin main
 fi

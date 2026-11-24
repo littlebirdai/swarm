@@ -7,7 +7,7 @@ import { buildBootGraph, importChain, type GraphOptions } from "../../../apps/cl
 // and without Metro. It exists because a production OTA export failed after a
 // 45 minute bundle (ct-50923): app/plan/[id].tsx imported the shared inbox
 // store, the store imported the desktop stage, and the stage pulled in
-// RoutePane, whose `@/app/tasks/page` import means "packages/web" to Next and
+// RoutePane, whose `@/app/tasks/page` import means "apps/web" to Next and
 // "apps/mobile" to Metro. Metro applies the MOBILE tsconfig paths to every
 // file it reads, so an `@/` import inside a shared web file either fails the
 // build or silently binds to a mobile file of the same name.
@@ -17,7 +17,7 @@ const repoRoot = path.resolve(mobileRoot, "../..");
 
 const ALIASES: [string, string][] = [
   ["@/", mobileRoot + "/"],
-  ["@codecast/web/", path.join(repoRoot, "packages/web") + "/"],
+  ["@codecast/web/", path.join(repoRoot, "apps/web") + "/"],
   ["@codecast/convex/", path.join(repoRoot, "apps/server") + "/"],
 ];
 
@@ -63,7 +63,7 @@ for (const platform of ["ios", "android"] as const) {
 
     test("no web route or desktop stage file reaches the native bundle", () => {
       const webOnly = [...graph.nodes.keys()].filter((f) =>
-        /packages\/web\/(app\/|components\/RoutePane|components\/stage\/)/.test(f),
+        /apps\/web\/(app\/|components\/RoutePane|components\/stage\/)/.test(f),
       );
       expect(webOnly.map(chainTo)).toEqual([]);
     });
@@ -97,7 +97,7 @@ for (const platform of ["ios", "android"] as const) {
     test("a shared web file never uses the @/ alias, which Metro points at mobile", () => {
       const offenders: string[] = [];
       for (const file of graph.nodes.keys()) {
-        if (!file.includes("/packages/web/")) continue;
+        if (!file.includes("/apps/web/")) continue;
         if (/from\s*["']@\/|(?:import|require)\(\s*["']@\//.test(fs.readFileSync(file, "utf8"))) offenders.push(rel(file));
       }
       expect(offenders).toEqual([]);

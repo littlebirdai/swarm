@@ -11,7 +11,7 @@ The engine undo stack (`~/src/platform/packages/engine/src/undoStack.ts`):
 - Pushing a new entry clears the redo stack.
 - Nothing can subscribe to it.
 
-Codecast installs sonner as its notifier (`packages/web/store/undoStack.ts`). The hand-written undos live in `packages/web/store/undoActions.ts`. Every one of them writes its local half with raw `useInboxStore.setState`. That bypasses `wrapAction` (`middleware.ts` ~1236), which is where pending locks, the view guard, IDB write-through, the replication tee and the outbox live, so each undo has to rebuild those by hand.
+Codecast installs sonner as its notifier (`apps/web/store/undoStack.ts`). The hand-written undos live in `apps/web/store/undoActions.ts`. Every one of them writes its local half with raw `useInboxStore.setState`. That bypasses `wrapAction` (`middleware.ts` ~1236), which is where pending locks, the view guard, IDB write-through, the replication tee and the outbox live, so each undo has to rebuild those by hand.
 
 Verified defects the design must remove:
 
@@ -31,7 +31,7 @@ Verified defects the design must remove:
 | Question | Decision | Why |
 |---|---|---|
 | What is recorded | **Cells**: `{store, id, field}` with before and after values, read from the two immutable states `wrapAction` already holds. Mutative's `inversePatches` are not used. | Inverse patches are positional on lists (`toggleBookmark` unshifts), so they corrupt a list once a sync reorders it. They also cannot detect drift, and they carry `pending` and view writes. Cells come from the same enumeration `generateAutoPending` uses, so locks and undo can never disagree about what an action touched. |
-| Where the specs live | **A registry keyed by action name**, `UNDO_POLICY` in `packages/web/store/undo/`, passed to the engine as `PlatformConfig.undo.specs`. A guard test requires every creator to be classified, and a second one (`lib/__tests__/storeActionMutations.guard.test.ts`) fails any surface that calls a mutation a classified action's dispatch side effect runs, so no gesture writes past the store where undo cannot see it. Not `action(fn, {undo})` inline. | `inboxStore.ts` is 13.7k lines and shared with other sessions. A registry keeps ownership disjoint, follows the `SIDE_EFFECTS` and `REPLICATION_CLASSIFICATION` pattern, and lets the guard make classification exhaustive. |
+| Where the specs live | **A registry keyed by action name**, `UNDO_POLICY` in `apps/web/store/undo/`, passed to the engine as `PlatformConfig.undo.specs`. A guard test requires every creator to be classified, and a second one (`lib/__tests__/storeActionMutations.guard.test.ts`) fails any surface that calls a mutation a classified action's dispatch side effect runs, so no gesture writes past the store where undo cannot see it. Not `action(fn, {undo})` inline. | `inboxStore.ts` is 13.7k lines and shared with other sessions. A registry keeps ownership disjoint, follows the `SIDE_EFFECTS` and `REPLICATION_CLASSIFICATION` pattern, and lets the guard make classification exhaustive. |
 | How undo writes locally | **A replay through the shared `runAction` pipeline**, with a synthetic recipe that writes the before values. | This gives locks, view guard, IDB, tee, outbox and refusal rollback with no extra code, and fixes B2 and B3 structurally. |
 | How undo reaches the server | **Decided by the store key.** Keys on the patch rail (`sessions`, `conversations`, `buckets`, `sessionDecisions`) ride one `applyUndoPatches` dispatch. Keys off the rail use a per-collection **writer** (`store/undo/writers.ts`) that names the existing action to dispatch. A spec may override this with an explicit **inverse**. | One registration per collection covers every action that writes it: `updateTask`, `updateTaskStatus`, `setTaskParent` and `closeTaskWithGuard` all share the tasks writer. The override is only for transitions a field diff cannot express: archive, a non-owner unhide, a server toggle. |
 | Redo | **Re-invoke the original action with its original args**, after checking that the cells still hold their before values. The fresh capture replaces the entry's cells. | Draft side effects and server side effects (sounds, broadcasts, hide-for-viewer) run with no extra code. Toggles are safe because the check guarantees the state is back at before. |
@@ -231,7 +231,7 @@ The notifier gains `onHistoryStep?(kind: "undo" | "redo", steps: number, entry)`
 
 ## 4. Codecast binding
 
-**Config** (`packages/web/store/mutativeMiddleware.ts`, `CODECAST_PLATFORM_CONFIG`):
+**Config** (`apps/web/store/mutativeMiddleware.ts`, `CODECAST_PLATFORM_CONFIG`):
 
 - `undo.specs = UNDO_SPECS`, built from `store/undo/policy.ts`.
 - `replayAction: "applyUndoPatches"`.

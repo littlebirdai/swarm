@@ -8,7 +8,7 @@ describe("fitWebhookPayload", () => {
   });
 
   test("an oversized push keeps its identifying fields and fits", () => {
-    const files = Array.from({ length: 30_000 }, (_, i) => `packages/web/components/generated/File${i}.tsx`);
+    const files = Array.from({ length: 30_000 }, (_, i) => `apps/web/components/generated/File${i}.tsx`);
     const raw = JSON.stringify({
       ref: "refs/heads/main", after: "f".repeat(40), repository: { full_name: "acme/app" },
       head_commit: { id: "f".repeat(40), message: "big refactor" },

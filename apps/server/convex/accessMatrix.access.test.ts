@@ -24,7 +24,7 @@ import { api } from "./_generated/api";
 import { allModules } from "./testModules.testkit";
 import { makeChangeTrackedDb } from "./changeLog";
 import { makeSyncAckCollector, teamScopeKey, userScopeKey } from "./syncLog";
-import { CLIENT_SYNC_REGISTRY, WORKSPACE_SCOPED_KEYS } from "../../../packages/web/store/clientSyncRegistry";
+import { CLIENT_SYNC_REGISTRY, WORKSPACE_SCOPED_KEYS } from "../../../apps/web/store/clientSyncRegistry";
 import { routerRoster } from "./orgRoute";
 import { gatherShipFacts } from "./ship";
 

@@ -2,7 +2,7 @@
 // L2, plan pl-838 step 3). The web has no DOT parser and no copy of the
 // template files, so this module renders the parsed template, through the
 // same serializer `cast workflow run` and `cast workflow push` send, into a
-// committed snapshot under packages/web/lib/line. `shippedLine.test.ts`
+// committed snapshot under apps/web/lib/line. `shippedLine.test.ts`
 // fails when the template moves and the snapshot did not; regenerate with
 //
 //   bun apps/cli/scripts/gen-shipped-line.ts
@@ -11,7 +11,7 @@ import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates";
 import { parseWorkflowSource } from "./parser";
 import { graphToPushPayload } from "./runner";
 
-export const SHIPPED_LINE_SNAPSHOT_PATH = "packages/web/lib/line/shippedLine.generated.ts";
+export const SHIPPED_LINE_SNAPSHOT_PATH = "apps/web/lib/line/shippedLine.generated.ts";
 
 /** The snapshot's data: the push payload of the builtin, the raw source (its
  *  graph attributes, the stack among them, which a pushed row reads back from

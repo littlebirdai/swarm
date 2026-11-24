@@ -20,7 +20,7 @@
   ],
   "exclude": [
     "node_modules",
-    // Same rule as packages/web: test files run under `bun test`, which supplies
+    // Same rule as apps/web: test files run under `bun test`, which supplies
     // the `bun:test` module and `import.meta.dir`. The app typecheck has no bun
     // types, so a full tsc flags every test file on its imports. Tests aren't app
     // code — bun type-checks them on its own.

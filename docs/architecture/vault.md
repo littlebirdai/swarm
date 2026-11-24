@@ -258,7 +258,7 @@ item; no path reads `team_id` for access.
   every local user) rather than reading them, never write one to a tracked file, and
   end the turn dormant on a request or an Ask first decision. `cast guide
   vault` serves the flags and rare paths. The user guide is
-  `packages/web/app/(marketing)/documentation/guides/content/vault.md`.
+  `apps/web/app/(marketing)/documentation/guides/content/vault.md`.
 
 ## Saved sign-ins
 

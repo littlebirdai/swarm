@@ -166,23 +166,23 @@ describe('borrowNodeModules', () => {
     put(root, 'apps/server/index.ts', 'convex today\n');
     put(root, 'apps/server/node_modules/convex/index.js', 'convex dependency\n');
     put(root, 'packages/fresh/index.ts', 'fresh today\n');
-    mkdirSync(join(root, 'packages/web/node_modules/@codecast'), { recursive: true });
-    symlinkSync('../../../../apps/server', join(root, 'packages/web/node_modules/@codecast/convex'));
-    symlinkSync(join(root, 'packages/shared'), join(root, 'packages/web/node_modules/@codecast/shared'));
-    symlinkSync('../../../fresh', join(root, 'packages/web/node_modules/@codecast/fresh'));
-    symlinkSync(join(root, 'node_modules/react'), join(root, 'packages/web/node_modules/react'));
+    mkdirSync(join(root, 'apps/web/node_modules/@codecast'), { recursive: true });
+    symlinkSync('../../../../apps/server', join(root, 'apps/web/node_modules/@codecast/convex'));
+    symlinkSync(join(root, 'packages/shared'), join(root, 'apps/web/node_modules/@codecast/shared'));
+    symlinkSync('../../../../packages/fresh', join(root, 'apps/web/node_modules/@codecast/fresh'));
+    symlinkSync(join(root, 'node_modules/react'), join(root, 'apps/web/node_modules/react'));
     // The tree at an old commit: its own shared and convex, no fresh.
     put(wt, 'packages/shared/index.ts', 'shared then\n');
     put(wt, 'apps/server/index.ts', 'convex then\n');
-    mkdirSync(join(wt, 'packages/web'), { recursive: true });
+    mkdirSync(join(wt, 'apps/web'), { recursive: true });
 
     borrowNodeModules(root, wt);
-    const read = (rel: string) => readFileSync(join(wt, 'packages/web/node_modules', rel), 'utf8');
+    const read = (rel: string) => readFileSync(join(wt, 'apps/web/node_modules', rel), 'utf8');
     expect(read('@codecast/convex/index.ts')).toBe('convex then\n');
     expect(readFileSync(join(wt, 'apps/server/node_modules/convex/index.js'), 'utf8')).toBe('convex dependency\n');
     expect(read('@codecast/shared/index.ts')).toBe('shared then\n');
     expect(read('@codecast/fresh/index.ts')).toBe('fresh today\n');
-    expect(realpathSync(join(wt, 'packages/web/node_modules/react'))).toBe(realpathSync(join(root, 'node_modules/react')));
+    expect(realpathSync(join(wt, 'apps/web/node_modules/react'))).toBe(realpathSync(join(root, 'node_modules/react')));
     // The root's node_modules is borrowed too; a package the tree lacks gets none.
     expect(read('react/index.js')).toBe('react\n');
     expect(existsSync(join(wt, 'node_modules/react/index.js'))).toBe(true);

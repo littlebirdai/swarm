@@ -47,7 +47,7 @@ bun install --frozen-lockfile
 
 # Build web (same as Railway). apps/server has no build step.
 echo "   Building web..."
-cd packages/web
+cd apps/web
 set -o pipefail
 if ! bun run build 2>&1 | tee /tmp/web-build.log; then
   echo ""
@@ -191,7 +191,7 @@ DESKTOP_BASE=$(git log -1 --format=%H -G'"version":' -- apps/desktop/package.jso
 if $FORCE_DESKTOP || ! git diff --quiet "$DESKTOP_BASE" HEAD -- apps/desktop ':!apps/desktop/package.json'; then
   ./apps/desktop/scripts/release.sh patch --no-git --no-floor
   DESKTOP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
-  git add apps/desktop/package.json packages/web/server/index.ts
+  git add apps/desktop/package.json apps/web/server/index.ts
   git commit -m "chore(electron): release desktop $DESKTOP_VERSION"
   git push origin main
   cast ship mark --surface desktop --sha "$(git rev-parse HEAD)" --version "$DESKTOP_VERSION" || echo "   ! desktop deploy not recorded in codecast"

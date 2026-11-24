@@ -386,7 +386,7 @@ per-client reality as merged; ✓ = supported, ✗ = not available.
 
 ```bash
 bun install
-cp packages/web/.env.example packages/web/.env.local
+cp apps/web/.env.example apps/web/.env.local
 cp apps/server/.env.example apps/server/.env.local
 cp apps/cli/.env.example apps/cli/.env.local
 ```

@@ -6,14 +6,14 @@
 # The CLI's own script widens rootDir here (tsconfig.json sets rootDir to src,
 # and the CLI imports the convex generated api, whose files sit outside it).
 cli = "apps/cli/tsconfig.typecheck.json"
-web = "packages/web/tsconfig.json"
+web = "apps/web/tsconfig.json"
 convex = "apps/server/convex/tsconfig.json"
 # The edge contract is checked before the daemon and server import it.
 contracts = "packages/shared/tsconfig.contracts.json"
 mobile = "apps/mobile/tsconfig.json"
 # The multiplayer sim harness plus the legacy store sims, with bun types
 # (docs/architecture/multiplayer-sim-harness.md section 3.10).
-sim = "packages/web/store/__tests__/sim/tsconfig.json"
+sim = "apps/web/store/__tests__/sim/tsconfig.json"
 # The eval home (docs/architecture/evals-home.md): its own code plus the
 # convex and cli files the surfaces import.
 evals = "apps/evals/tsconfig.json"

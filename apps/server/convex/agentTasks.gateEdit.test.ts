@@ -145,7 +145,7 @@ test("a teammate cannot change what a trigger runs or where", async () => {
 // schedule-only save goes through on a trigger whose stored agent the form
 // cannot show (none, or grok), and the owner's untouched save keeps the agent.
 test("the trigger form's schedule-only save is a teammate's to make, and restates nothing", async () => {
-  const { runValuesOf, triggerFormFields } = await import("../../../packages/web/app/triggers/triggerFormFields");
+  const { runValuesOf, triggerFormFields } = await import("../../../apps/web/app/triggers/triggerFormFields");
   const w = await world();
   for (const agent_type of [undefined, "grok"]) {
     await w.t.run((ctx: any) => ctx.db.patch(w.task, { agent_type, status: "scheduled" }));

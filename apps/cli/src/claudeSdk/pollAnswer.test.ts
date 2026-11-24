@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { askAnswerFromPoll, planAnswerFromPoll } from "./pollAnswer.js";
 import { parsePollMessage } from "../pollMessage.js";
 
-// Payloads exactly as the web builds them (packages/web/lib/pollPayload.ts).
+// Payloads exactly as the web builds them (apps/web/lib/pollPayload.ts).
 const poll = (o: object) => parsePollMessage(JSON.stringify({ __cc_poll: true, ...o }))!;
 const one = { questions: [{ question: "Which color?", header: "Color", multiSelect: false, options: [{ label: "Red" }, { label: "Blue" }] }] };
 const two = {

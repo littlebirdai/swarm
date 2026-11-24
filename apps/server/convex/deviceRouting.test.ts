@@ -122,7 +122,7 @@ describe("pickOwnerDevice — checkout match beats recency among locals", () => 
       local("L1", { last_seen: NOW - 90_000, local_project_roots: ["/Users/ashot/src/app"] }),
       local("L2", { last_seen: fresh, local_project_roots: ["/Users/ashot/src/other"] }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app/packages/web" }, NOW);
+    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app/apps/web" }, NOW);
     expect(r).toBe("L1");
   });
 
@@ -228,7 +228,7 @@ describe("pickOwnerDevice — an online remote with the checkout beats a sleepin
       local("L1", { last_seen: stale }),
       remote("r1", { local_project_roots: ["/Users/ashot/src/app"] }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app/packages/web" }, NOW);
+    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app/apps/web" }, NOW);
     expect(r).toBe("r1");
   });
 

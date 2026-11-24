@@ -1,7 +1,7 @@
 // Which look this phone wears: Classic or Modern (constants/Theme.ts `Look`).
 //
 // The phone follows the web. `ui.modern_style` is the web's Modern switch; it
-// is a per-device key (PER_DEVICE_UI_KEYS in packages/web/store/inboxStore.ts),
+// is a per-device key (PER_DEVICE_UI_KEYS in apps/web/store/inboxStore.ts),
 // so a device that never wrote it adopts whatever the server holds, which is
 // the last choice made in a browser; with none, Modern (the default). A phone
 // can still choose for itself:

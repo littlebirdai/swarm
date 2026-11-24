@@ -70,8 +70,8 @@ async function setup() {
       ...fields,
     } as any));
 
-  await commit("a1", "feat(web): line pages", "09:00", ["packages/web/line.tsx", "packages/web/page.tsx"], { conversation_id: ids.vis });
-  await commit("a2", "fix(web): line page scroll", "09:30", ["packages/web/line.tsx"], { conversation_id: ids.vis });
+  await commit("a1", "feat(web): line pages", "09:00", ["apps/web/line.tsx", "apps/web/page.tsx"], { conversation_id: ids.vis });
+  await commit("a2", "fix(web): line page scroll", "09:30", ["apps/web/line.tsx"], { conversation_id: ids.vis });
   await commit("b1", "fix(cli): retry the upload\n\nWhy it broke.\n\nCodecast-Session: jx7bbbb", "10:00", ["apps/cli/upload.ts"], {
     conversation_id: ids.priv, author_name: "Ben", author_email: "ben@acme.dev", pr_id: ids.privPr,
   });
@@ -79,9 +79,9 @@ async function setup() {
   await commit("r1", "chore(cli): bump version to 1.2.3", "12:00", ["apps/cli/package.json"]);
   // None of these belong to the day of acme/app in this team.
   await commit("x1", "feat: elsewhere", "09:10", ["src/a.ts"], { repository: "acme/other" });
-  await commit("x2", "wip: scratch", "09:20", ["packages/web/x.ts"], { branch: "worktree-agent-abc" });
-  await commit("x3", "feat(web): yesterday", "09:00", ["packages/web/y.ts"], { timestamp: at("09:00") - 24 * 3_600_000 });
-  await commit("x4", "feat(web): other team", "09:00", ["packages/web/z.ts"], { team_id: ids.other });
+  await commit("x2", "wip: scratch", "09:20", ["apps/web/x.ts"], { branch: "worktree-agent-abc" });
+  await commit("x3", "feat(web): yesterday", "09:00", ["apps/web/y.ts"], { timestamp: at("09:00") - 24 * 3_600_000 });
+  await commit("x4", "feat(web): other team", "09:00", ["apps/web/z.ts"], { team_id: ids.other });
 
   const build = () => t.action(internal.changes.buildDay, { team_id: ids.team, repository: REPO, date: DATE });
   const stories = () => t.run(async (ctx) => ctx.db
@@ -193,7 +193,7 @@ describe("changes.buildDay", () => {
       headline: "Line pages arrive", dek: "Prose dek", body: "Prose body.", why_source: "session", prose_status: "written", generated_at: at("10:00"),
     }));
 
-    await commit("a3", "fix(web): line page focus", "13:00", ["packages/web/page.tsx"], { conversation_id: ids.vis });
+    await commit("a3", "fix(web): line page focus", "13:00", ["apps/web/page.tsx"], { conversation_id: ids.vis });
     const result = await build();
     const grown = await byShas("a3");
     expect(grown._id).toBe(first._id);
@@ -223,7 +223,7 @@ describe("changes.buildDay", () => {
         started_at: at("08:00"), updated_at: at("08:00"), message_count: 3, is_private: false, status: "active", project_path: "/repo", active_task_id: task,
       } as any);
     });
-    await commit("c1", "feat(web): line page share", "14:00", ["packages/web/share.tsx"], { conversation_id: second });
+    await commit("c1", "feat(web): line page share", "14:00", ["apps/web/share.tsx"], { conversation_id: second });
     await build();
     const merged = await byShas("c1");
     expect(merged.commit_shas).toEqual(["a1", "a2", "c1"]);
@@ -314,7 +314,7 @@ describe("authors", () => {
       } as any);
       const edit = async (conv: any, key: string, time: string) => {
         const message = await ctx.db.insert("messages", { conversation_id: conv, message_uuid: key, role: "assistant", content: "edit", timestamp: at(time) } as any);
-        await ctx.db.insert("file_changes", { conversation_id: conv, change_key: key, message_id: message, seq: 0, file_path: "/repo/packages/web/line.tsx", change_type: "edit", timestamp: at(time) } as any);
+        await ctx.db.insert("file_changes", { conversation_id: conv, change_key: key, message_id: message, seq: 0, file_path: "/repo/apps/web/line.tsx", change_type: "edit", timestamp: at(time) } as any);
       };
       await edit(author, "e-author", "08:30");
       // The private session edited the same file: it never names a story.
@@ -358,11 +358,11 @@ describe("authors", () => {
       };
       const webAuthor = await make("jx7wwww", "06:00");
       const apiAuthor = await make("jx7pppp", "06:00");
-      for (let i = 0; i < 4; i++) await edit(webAuthor, `w${i}`, `packages/web/sweep${i}.tsx`, "07:30");
+      for (let i = 0; i < 4; i++) await edit(webAuthor, `w${i}`, `apps/web/sweep${i}.tsx`, "07:30");
       for (let i = 0; i < 4; i++) await edit(apiAuthor, `p${i}`, `packages/api/sweep${i}.ts`, "07:40");
       return { webAuthor, apiAuthor };
     });
-    const files = [...[0, 1, 2, 3].map((i) => `packages/web/sweep${i}.tsx`), ...[0, 1, 2, 3].map((i) => `packages/api/sweep${i}.ts`), "docs/sweep.md"];
+    const files = [...[0, 1, 2, 3].map((i) => `apps/web/sweep${i}.tsx`), ...[0, 1, 2, 3].map((i) => `packages/api/sweep${i}.ts`), "docs/sweep.md"];
     await commit("sw", "chore: sweep before the cut", "08:00", files);
     await build();
     const all = await stories();
@@ -388,7 +388,7 @@ describe("authors", () => {
       } as any);
       const worker = await session("jx7work", { is_subagent: true, parent_conversation_id: parent });
       const message = await ctx.db.insert("messages", { conversation_id: worker, message_uuid: "e-worker", role: "assistant", content: "edit", timestamp: at("08:30") } as any);
-      await ctx.db.insert("file_changes", { conversation_id: worker, change_key: "e-worker", message_id: message, seq: 0, file_path: "/repo/packages/web/line.tsx", change_type: "write", timestamp: at("08:30") } as any);
+      await ctx.db.insert("file_changes", { conversation_id: worker, change_key: "e-worker", message_id: message, seq: 0, file_path: "/repo/apps/web/line.tsx", change_type: "write", timestamp: at("08:30") } as any);
       return { parent, worker };
     });
     await build();
@@ -409,7 +409,7 @@ describe("authors", () => {
         summary: "Built line pages", headline: "Built line pages", outcome_type: "shipped", themes: [],
       } as any);
       const message = await ctx.db.insert("messages", { conversation_id: author, message_uuid: "e-author", role: "assistant", content: "edit", timestamp: at("08:30") } as any);
-      await ctx.db.insert("file_changes", { conversation_id: author, change_key: "e-author", message_id: message, seq: 0, file_path: "/repo-wt/packages/web/line.tsx", change_type: "edit", timestamp: at("08:30") } as any);
+      await ctx.db.insert("file_changes", { conversation_id: author, change_key: "e-author", message_id: message, seq: 0, file_path: "/repo-wt/apps/web/line.tsx", change_type: "edit", timestamp: at("08:30") } as any);
       // A busy week later, each session in a checkout of its own.
       for (let i = 0; i < 210; i++) {
         const later = at("00:00") + 7 * 86_400_000 + i * 60_000;

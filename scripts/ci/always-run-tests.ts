@@ -36,7 +36,7 @@ export const SUITES: Array<{ job: string; dir: string; roots: string[]; flags: s
   { job: "test-cli", dir: "apps/evals", roots: ["src"], flags: [] },
   // test-web and test-mobile run with --isolate: their mount tests replace
   // modules with mock.module, which is permanent within one process.
-  { job: "test-web", dir: "packages/web", roots: ["."], flags: ["--isolate"] },
+  { job: "test-web", dir: "apps/web", roots: ["."], flags: ["--isolate"] },
   { job: "test-mobile", dir: "apps/mobile", roots: ["."], flags: ["--isolate"] },
 ];
 

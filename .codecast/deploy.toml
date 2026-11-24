@@ -40,7 +40,7 @@ policy = "release"
 [[target]]
 name = "web"
 runs = "push"
-when = ["packages/web/**", "packages/shared/**", "platform/**"]
+when = ["apps/web/**", "packages/shared/**", "platform/**"]
 live = "github-status:codecast - web"
 
 # Cut in CI once CI on the commit is green; live once dl.codecast.sh/latest.json names
@@ -58,7 +58,7 @@ finish = "cast force-update $version"
 # shared and web code too, so those paths ship it.
 [[target]]
 name = "mobile"
-when = ["apps/mobile/**", "packages/shared/**", "packages/web/**", "platform/**"]
+when = ["apps/mobile/**", "packages/shared/**", "apps/web/**", "platform/**"]
 run = "apps/mobile/scripts/ota.sh $sha"
 policy = "release"
 after = ["backend"]

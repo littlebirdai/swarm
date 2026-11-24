@@ -13,7 +13,7 @@ copy = [
   ".env",
   ".env.local",
   "apps/server/.env.local",
-  "packages/web/.env.local",
+  "apps/web/.env.local",
   "apps/cli/.env.local",
 ]
 # A fresh worktree has its own (empty) node_modules — bun doesn't share them
@@ -23,7 +23,7 @@ install = ["bun install"]
 
 # Per-worktree web dev server port. `acquire` picks the first free port at/after
 # `base` and exposes it as PORT_WEB, so parallel worktrees never collide.
-# `cast dev` starts the web dev server on it (detected from packages/web's
+# `cast dev` starts the web dev server on it (detected from apps/web's
 # `dev` script); `cast dev logs` / `cast dev stop` manage it.
 [ports.web]
 base = 3201
@@ -55,12 +55,12 @@ check = "cast check --changed-since $CAST_SHIP_BASE"   # only the projects this 
 tests = false
 level = true
 
-# The composer typing budget (packages/web/scripts/typing-guard.sh): a change
+# The composer typing budget (apps/web/scripts/typing-guard.sh): a change
 # that makes typing slow again stops the ship here, before anything deploys.
 [[ship.deploy]]
 name = "typing-guard"
-when = ["packages/web/**", "packages/shared/**", "platform/**"]
-run = "packages/web/scripts/typing-guard.sh"
+when = ["apps/web/**", "packages/shared/**", "platform/**"]
+run = "apps/web/scripts/typing-guard.sh"
 stage = "before_push"
 
 # Convex: Swarm deploys its backend separately with scripts/deploy-backend.sh,

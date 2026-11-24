@@ -58,5 +58,5 @@ shared "$@"
 # (plugins/depsCacheGuard.ts) restarts itself when its cache disappears, and it
 # must rebuild against a finished node_modules, not one bun is still writing.
 (cd "$ROOT" && bun install --silent)
-rm -rf "$ROOT"/packages/web/node_modules/.vite "$ROOT"/packages/web/node_modules/.vite-smoke
+rm -rf "$ROOT"/apps/web/node_modules/.vite "$ROOT"/apps/web/node_modules/.vite-smoke
 echo "refreshed the @platform copies in place and cleared the vite caches"

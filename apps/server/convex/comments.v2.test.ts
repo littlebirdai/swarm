@@ -833,7 +833,7 @@ describe("comments write-choke coverage", () => {
       command_id: "create-line",
       conversation_id: CONVERSATION,
       content: "this null check is wrong",
-      file_path: "codecast/packages/web/foo.ts",
+      file_path: "codecast/apps/web/foo.ts",
       line_number: 42,
       client_id: "client-line",
     });
@@ -841,19 +841,19 @@ describe("comments write-choke coverage", () => {
       command_id: "create-other-line",
       conversation_id: CONVERSATION,
       content: "unrelated other-line note",
-      file_path: "codecast/packages/web/foo.ts",
+      file_path: "codecast/apps/web/foo.ts",
       line_number: 7,
       client_id: "client-other-line",
     });
     expect(commentsFor(ctx)[1]).toMatchObject({
-      file_path: "codecast/packages/web/foo.ts",
+      file_path: "codecast/apps/web/foo.ts",
       line_number: 42,
     });
 
     const receipt = await (askAgentInThreadV2 as any)._handler(ctx, {
       command_id: "ask-agent-line",
       conversation_id: CONVERSATION,
-      file_path: "codecast/packages/web/foo.ts",
+      file_path: "codecast/apps/web/foo.ts",
       line_number: 42,
       client_id: "optimistic-line-agent",
     });
@@ -862,14 +862,14 @@ describe("comments write-choke coverage", () => {
     // The placeholder inherits the anchor so it renders inside the same thread.
     const placeholder = commentsFor(ctx).find((c: any) => c.author_kind === "agent");
     expect(placeholder).toMatchObject({
-      file_path: "codecast/packages/web/foo.ts",
+      file_path: "codecast/apps/web/foo.ts",
       line_number: 42,
       agent_status: "thinking",
     });
 
     // The delivered prompt names the anchor and carries ONLY this line's thread.
     const prompt = ctx.db._tables.pending_messages[0].content as string;
-    expect(prompt).toContain("codecast/packages/web/foo.ts:42");
+    expect(prompt).toContain("codecast/apps/web/foo.ts:42");
     expect(prompt).toContain("this null check is wrong");
     expect(prompt).not.toContain("global note");
     expect(prompt).not.toContain("unrelated other-line note");
@@ -894,7 +894,7 @@ describe("comments write-choke coverage", () => {
       command_id: "create-line",
       conversation_id: CONVERSATION,
       content: "line-anchored note",
-      file_path: "codecast/packages/web/foo.ts",
+      file_path: "codecast/apps/web/foo.ts",
       line_number: 42,
       client_id: "client-line",
     });
