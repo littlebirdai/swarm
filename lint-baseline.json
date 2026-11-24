@@ -20370,7 +20370,6 @@
     "swarm/no-comments": 3
   },
   "apps/web/components/roadmap/Roadmap.tsx": {
-    "react/immutability": 1,
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 30
   },
@@ -22611,7 +22610,6 @@
     "swarm/no-comments": 5
   },
   "apps/web/hooks/useRoleScope.ts": {
-    "react/purity": 1,
     "swarm/no-comments": 18
   },
   "apps/web/hooks/useRolesAndPeopleOptions.tsx": {
@@ -27244,7 +27242,7 @@
     "swarm/no-comments": 24
   },
   "apps/web/src/routes.manifest.test.ts": {
-    "swarm/no-comments": 109
+    "swarm/no-comments": 94
   },
   "apps/web/src/routes.manifest.ts": {
     "swarm/no-comments": 111
