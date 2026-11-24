@@ -8,6 +8,9 @@
 set -e
 cd "$(dirname "$0")/.."
 EXT_DIR="$(pwd)"
+if [ "${1:-}" = "--publish" ]; then
+  bash ../../scripts/lib/fork-guard.sh
+fi
 STAGE="$EXT_DIR/../web/public/binaries"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -36,7 +39,4 @@ if [ "${1:-}" = "--publish" ]; then
     --file "$STAGE/codecast-blame.vsix" \
     --content-type "application/octet-stream" --remote
   echo "Live at https://dl.codecast.sh/codecast-blame.vsix"
-else
-  echo "To publish:  scripts/build-vsix.sh --publish"
-  echo "  (or: npx wrangler r2 object put codecast/codecast-blame.vsix --file <vsix> --remote)"
 fi

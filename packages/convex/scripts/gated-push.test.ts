@@ -1,18 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { FAILED_PUSH_RETRY_MS, Gate, QUIET_MS, STALE_RETRY_MS, bundledSources, shipsToProd, signatureOf, type CheckResult, type PushChanges, watcherMarkArgs } from "./gated-push";
+import { FAILED_PUSH_RETRY_MS, Gate, QUIET_MS, STALE_RETRY_MS, bundledSources, devEnv, shipsToProd, signatureOf, type CheckResult } from "./gated-push";
 
 // The pusher's contract, driven with fakes: a push happens only for a quiet,
 // fresh, green tree, and a tree that moved under the push goes around again.
 
-function harness(over: Partial<{ fresh: boolean; check: CheckResult; pushCode: number; base: string; changes: PushChanges | null }> = {}) {
+function harness(over: Partial<{ fresh: boolean; check: CheckResult; pushCode: number; base: string }> = {}) {
   let now = 1_000_000;
   let sig = "a";
   const log: string[] = [];
   const calls = { push: 0, typecheck: 0 };
-  // Each push's diff and record, in order, beside the push calls above.
-  const around: string[] = [];
-  const recorded: Array<PushChanges | null> = [];
-  const state = { fresh: true, check: { errors: 0, diagnostics: "" }, pushCode: 0, sigDuringPush: null as string | null, changes: { adds: ["table:voiceprints"], drops: [] } as PushChanges | null, ...over };
+  const state = { fresh: true, check: { errors: 0, diagnostics: "" }, pushCode: 0, sigDuringPush: null as string | null, ...over };
   const gate = new Gate({
     now: () => now,
     treeIsFresh: async () => state.fresh,
@@ -21,15 +18,12 @@ function harness(over: Partial<{ fresh: boolean; check: CheckResult; pushCode: n
     typecheck: async () => { calls.typecheck += 1; return state.check; },
     push: async () => {
       calls.push += 1;
-      around.push("push");
       if (state.sigDuringPush !== null) sig = state.sigDuringPush;
       return state.pushCode;
     },
-    diff: async () => { around.push("diff"); return state.changes; },
-    record: async (changes) => { around.push("record"); recorded.push(changes); },
     log: (l) => log.push(l),
   });
-  return { gate, log, calls, around, recorded, state, advance: (ms: number) => { now += ms; }, setSig: (s: string) => { sig = s; } };
+  return { gate, log, calls, state, advance: (ms: number) => { now += ms; }, setSig: (s: string) => { sig = s; } };
 }
 
 describe("gated convex push", () => {
@@ -163,66 +157,31 @@ describe("gated convex push", () => {
   });
 });
 
-describe("every push says what it changes on prod and is recorded", () => {
-  test("the diff runs before the push and the push is recorded with it after", async () => {
-    const h = harness();
-    expect(await h.gate.tick()).toBe("pushed");
-    expect(h.around).toEqual(["diff", "push", "record"]);
-    expect(h.recorded).toEqual([{ adds: ["table:voiceprints"], drops: [] }]);
+describe("watcher deployment selection", () => {
+  test.each(["dev:personal-dev-123", "local:anonymous-swarm", "local:swarm", "anonymous-swarm", ""])(
+    "keeps the configured dev deployment %j and prevents dotenv fallback",
+    (deployment) => {
+      expect(devEnv({ CONVEX_DEPLOYMENT: deployment })).toEqual({
+        CONVEX_DEPLOYMENT: deployment,
+        CONVEX_DEPLOY_KEY: "",
+        CONVEX_SELF_HOSTED_URL: "",
+        CONVEX_SELF_HOSTED_ADMIN_KEY: "",
+        CONVEX_PROVISION_HOST: "",
+      });
+    },
+  );
+
+  test.each(["prod:production", "preview:preview", "untyped-name", "dev:prod:production"])(
+    "refuses deployment %j",
+    (deployment) => expect(() => devEnv({ CONVEX_DEPLOYMENT: deployment })).toThrow("dev or local"),
+  );
+
+  test("a legacy anonymous setting lets Convex select local dev", () => {
+    expect(devEnv({ CONVEX_DEPLOYMENT: "anonymous" }).CONVEX_DEPLOYMENT).toBe("");
   });
 
-  test("a prod it cannot read still pushes, and records the push without changes", async () => {
-    const h = harness({ changes: null });
-    expect(await h.gate.tick()).toBe("pushed");
-    expect(h.recorded).toEqual([null]);
-  });
-
-  test("a failed push is not recorded; a red tree is not even diffed", async () => {
-    const failed = harness({ pushCode: 1 });
-    expect(await failed.gate.tick()).toBe("failed");
-    expect(failed.around).toEqual(["diff", "push"]);
-    const red = harness({ check: { errors: 1, diagnostics: "x" } });
-    expect(await red.gate.tick()).toBe("errors");
-    expect(red.around).toEqual([]);
-  });
-
-  test("a push that went out under moving files is still recorded: prod changed", async () => {
-    const h = harness();
-    h.state.sigDuringPush = "b";
-    expect(await h.gate.tick()).toBe("moved");
-    expect(h.around).toEqual(["diff", "push", "record"]);
-  });
-
-  test("drops never stop the push", async () => {
-    const h = harness({ changes: { adds: [], drops: ["index:voiceprints.by_user"] } });
-    expect(await h.gate.tick()).toBe("pushed");
-    expect(h.calls.push).toBe(1);
-  });
-});
-
-describe("the mark that records a watcher push", () => {
-  test("a cast that knows --via records it as the watcher's, with what it changed", () => {
-    expect(watcherMarkArgs("  --via <path>\n  --changes <file>", "abc", 3, "/t/c.json")).toEqual(
-      ["cast", "ship", "mark", "--surface", "backend", "--sha", "abc", "--via", "dev watcher", "--dirty", "3", "--changes", "/t/c.json"]);
-    expect(watcherMarkArgs("--changes", "abc", 0)).toEqual(["cast", "ship", "mark", "--surface", "backend", "--sha", "abc", "--via", "dev watcher"]);
-  });
-
-  test("an older cast records nothing rather than a mark that reads as a deploy", () => {
-    expect(watcherMarkArgs("  --dirty <n>\n  --deploy <dp-N>", "abc", 3)).toBeNull();
-    expect(watcherMarkArgs("", "abc", 0)).toBeNull();
-  });
-});
-
-describe("the record runs after the tree is read again", () => {
-  test("a save while the push is being recorded is not taken for a mid-push edit", async () => {
-    let sig = "a";
-    const gate = new Gate({
-      now: () => 1_000_000, treeIsFresh: async () => true, signature: async () => sig,
-      typecheck: async () => ({ errors: 0, diagnostics: "" }), push: async () => 0,
-      diff: async () => ({ adds: [], drops: [] }),
-      record: async () => { sig = "b"; },
-      log: () => {},
-    });
-    expect(await gate.tick()).toBe("pushed");
-  });
+  test.each(["CONVEX_DEPLOY_KEY", "CONVEX_SELF_HOSTED_URL", "CONVEX_SELF_HOSTED_ADMIN_KEY", "CONVEX_PROVISION_HOST"])(
+    "refuses %s even with a dev deployment",
+    (key) => expect(() => devEnv({ CONVEX_DEPLOYMENT: "dev:personal-dev-123", [key]: "configured" })).toThrow("server overrides"),
+  );
 });

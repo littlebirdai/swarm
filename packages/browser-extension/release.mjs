@@ -172,6 +172,7 @@ async function publish({ token, item }) {
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
+  if (o.upload) execFileSync("bash", ["scripts/lib/fork-guard.sh"], { cwd: path.join(extDir, "../.."), stdio: "inherit" });
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
   const version = o.version ?? nextVersion(manifest.version, o.bump);
   const zipPath = buildZip(version, path.join(extDir, "dist"));

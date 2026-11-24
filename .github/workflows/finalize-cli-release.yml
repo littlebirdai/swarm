@@ -46,7 +46,15 @@ env:
   WAIT_MINUTES: ${{ inputs.wait_minutes }}
 
 jobs:
+  release-disabled:
+    if: github.repository != 'codecast-sh/codecast'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - run: echo "Swarm's release targets are not configured yet." >> "$GITHUB_STEP_SUMMARY"
+
   finalize:
+    if: github.repository == 'codecast-sh/codecast'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:

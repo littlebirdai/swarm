@@ -1,3 +1,4 @@
+# Codecast's artifact edge (a.codecast.sh). Swarm does not deploy it; see scripts/lib/fork-guard.sh.
 # Edge cache for published HTML artifacts (cast publish).
 #
 # a.codecast.sh/<slug> serves the branded artifact document from Cloudflare's

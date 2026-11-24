@@ -4,6 +4,8 @@
 # flight, since two releases at once race on the version bump. The release goes live
 # when dl.codecast.sh/latest.json names its commit; the deploy run waits for that.
 set -euo pipefail
+cd "$(dirname "$0")/.."
+bash scripts/lib/fork-guard.sh
 REPO=codecast-sh/codecast
 for wf in cut-cli-release.yml finalize-cli-release.yml; do
   busy="$(gh run list -R "$REPO" --workflow "$wf" -L 5 --json status,url -q '.[] | select(.status != "completed") | .url')"

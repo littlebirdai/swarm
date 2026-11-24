@@ -20,23 +20,17 @@
 //     stdout; --out writes the same JSON to a file. Exit 0 when the diff ran,
 //     drops or not; exit 3 when the tree or prod could not be read (callers
 //     fail open), the reason on stderr.
-//     Each drop names the recorded push that put it there (`cast ship
-//     added-by`), when cast can say.
 //   bun packages/convex/scripts/prod-diff.ts --tree-only
 //     The tree's names as a JSON array. The main command runs this as a child
-//     process, so a long-lived caller (the dev watcher) never holds ~800
-//     backend modules in its own module cache.
+//     process to isolate module caches and timers from the diff command.
 //
 // Prod is read with two read-only system queries and nothing else. The admin
 // key comes from CONVEX_SELF_HOSTED_ADMIN_KEY, else from packages/convex/.env.local
 // (only that key and CONVEX_SELF_HOSTED_URL are read from it), and is never printed.
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 export const EXIT_UNREADABLE = 3;
-const DEFAULT_URL = "https://convex.codecast.sh";
 const PROD_TIMEOUT_MS = 30_000;
 const TREE_TIMEOUT_MS = 120_000;
 const FUNCTIONS_DIR = join(import.meta.dir, "..", "convex");
@@ -148,53 +142,18 @@ export function diffNames(tree: Iterable<string>, prod: Iterable<string>): { add
 
 export const SUMMARY_ADDS_SHOWN = 10;
 
-/** The recorded push that put a name on prod (`cast ship added-by`). */
-export type AddedBy = { name: string; deploy: string | null; dev_push?: boolean; by: string | null; machine: string | null; via: string | null; at: number; dirty: number; committed_in?: string };
-
-/** Who put a dropped name there, in words: "dp-2372, uncommitted push by Ashot on MBP, 11/21 9:21 PM". */
-export function describeAdder(a: AddedBy | undefined): string {
-  if (!a) return "no recorded push added it";
-  const how = a.dev_push || a.via === "dev watcher" ? "dev watcher push" : a.dirty > 0 ? `uncommitted push (${a.dirty} file${a.dirty === 1 ? "" : "s"})` : "push of a commit";
-  const who = [a.by, a.machine ? `on ${a.machine}` : null].filter(Boolean).join(" ");
-  const since = a.committed_in ? `; committed since (${a.committed_in} carried it)` : "";
-  return `${a.deploy ? `${a.deploy}, ` : ""}${how}${who ? ` by ${who}` : ""}, ${new Date(a.at).toLocaleString()}${since}`;
-}
-
-export function formatSummary(diff: { adds: string[]; drops: string[] }, ms?: { tree_ms: number; prod_ms: number }, addedBy?: AddedBy[]): string {
+export function formatSummary(diff: { adds: string[]; drops: string[] }, ms?: { tree_ms: number; prod_ms: number }): string {
   const { adds, drops } = diff;
   const timing = ms ? ` (tree ${(ms.tree_ms / 1000).toFixed(1)}s, prod ${(ms.prod_ms / 1000).toFixed(1)}s)` : "";
   const lines = [`prod-diff: ${drops.length} drop${drops.length === 1 ? "" : "s"}, ${adds.length} add${adds.length === 1 ? "" : "s"}${timing}`];
-  if (drops.length) lines.push(`  This push takes ${drops.length === 1 ? "this" : "these"} off prod${addedBy ? ", with the push that put each there" : ""}:`);
-  const by = new Map((addedBy ?? []).map((a) => [a.name, a]));
-  for (const d of drops) lines.push(`  DROP ${d}${addedBy ? `  ← ${describeAdder(by.get(d))}` : ""}`);
+  if (drops.length) lines.push(`  This push takes ${drops.length === 1 ? "this" : "these"} off prod:`);
+  for (const d of drops) lines.push(`  DROP ${d}`);
   if (adds.length) {
     const shown = adds.slice(0, SUMMARY_ADDS_SHOWN).join(", ");
     const more = adds.length > SUMMARY_ADDS_SHOWN ? `, +${adds.length - SUMMARY_ADDS_SHOWN} more` : "";
     lines.push(`  ADD ${adds.length}: ${shown}${more}`);
   }
   return lines.join("\n");
-}
-
-// ------------------------------------------------------------- attribution
-
-/** The recorded push that put each dropped name on prod, from `cast ship
- *  added-by`. Undefined when cast is missing, older than that command,
- *  logged out or offline: the summary then lists drops without attribution. */
-function addersOf(drops: string[]): AddedBy[] | undefined {
-  const dir = mkdtempSync(join(tmpdir(), "prod-diff-"));
-  const file = join(dir, "drops.json");
-  writeFileSync(file, JSON.stringify({ drops }));
-  const r = spawnSync("cast", ["ship", "added-by", "--surface", "backend", "--names", file, "--json"], {
-    cwd: join(import.meta.dir, ".."), encoding: "utf-8", timeout: 15_000, env: { ...process.env, CAST_HTTP_TIMEOUT_MS: "10000" },
-  });
-  rmSync(dir, { recursive: true, force: true });
-  if (r.status !== 0) return undefined;
-  try {
-    const found = JSON.parse(r.stdout)?.found;
-    return Array.isArray(found) ? found : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 // ---------------------------------------------------------------- tree side
@@ -253,7 +212,7 @@ async function runTreeChild(): Promise<string[]> {
 // ---------------------------------------------------------------- prod side
 
 /** Env first, then only the two named keys from packages/convex/.env.local. */
-export function readCredentials(env: Record<string, string | undefined> = process.env, envFile = ENV_FILE): { url: string; key: string | undefined } {
+export function readCredentials(env: Record<string, string | undefined> = process.env, envFile = ENV_FILE): { url: string | undefined; key: string | undefined } {
   let url = env.CONVEX_SELF_HOSTED_URL;
   let key = env.CONVEX_SELF_HOSTED_ADMIN_KEY;
   if ((!url || !key) && existsSync(envFile)) {
@@ -265,7 +224,7 @@ export function readCredentials(env: Record<string, string | undefined> = proces
       else key ||= value;
     }
   }
-  return { url: (url || DEFAULT_URL).replace(/\/+$/, ""), key };
+  return { url: url?.replace(/\/+$/, "") || undefined, key };
 }
 
 async function systemQuery(url: string, key: string, path: string): Promise<unknown> {
@@ -321,6 +280,19 @@ async function main(argv: string[]): Promise<number> {
   }
 
   const { url, key } = readCredentials();
+  if (!url) {
+    console.error("prod-diff: skipped because CONVEX_SELF_HOSTED_URL is not set.");
+    return EXIT_UNREADABLE;
+  }
+  const target = URL.parse(url);
+  if (!target) {
+    console.error("prod-diff: CONVEX_SELF_HOSTED_URL must be an absolute URL.");
+    return EXIT_UNREADABLE;
+  }
+  if (target.hostname.replace(/\.$/, "") === "convex.codecast.sh") {
+    console.error("prod-diff: the Codecast production server is disabled in Swarm.");
+    return EXIT_UNREADABLE;
+  }
   if (!key) {
     console.error("prod-diff: cannot read prod: CONVEX_SELF_HOSTED_ADMIN_KEY is not set (env or packages/convex/.env.local)");
     return EXIT_UNREADABLE;
@@ -336,8 +308,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   const result = { ...diffNames(tree.value.value, prod.value.value), read_at: readAt, tree_ms: tree.value.ms, prod_ms: prod.value.ms };
-  const addedBy = result.drops.length ? addersOf(result.drops) : undefined;
-  console.error(formatSummary(result, result, addedBy));
+  console.error(formatSummary(result, result));
   const text = JSON.stringify(result, null, 2);
   if (out) writeFileSync(out, text + "\n");
   if (json) await Bun.write(Bun.stdout, text + "\n");

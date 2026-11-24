@@ -12,6 +12,8 @@
 # is not recorded here.
 set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT"
+bash scripts/lib/fork-guard.sh "The Codecast production runner is disabled in Swarm."
 cd "$ROOT/packages/convex"
 HOLD=""
 if [ -f "$ROOT/.env.local" ] && grep -q '^CONVEX_DEPLOYMENT=' "$ROOT/.env.local"; then

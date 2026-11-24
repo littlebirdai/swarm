@@ -5,7 +5,7 @@
   "scripts": {
     "build": "bun build src/player.ts --outfile public/player.js --target browser --minify && cp node_modules/@rrweb/replay/dist/style.css public/player.css",
     "test": "bun test",
-    "deploy": "bun run build && bunx wrangler deploy"
+    "deploy": "bash ../../scripts/lib/fork-guard.sh && bun run build && bunx wrangler deploy"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.4.0",

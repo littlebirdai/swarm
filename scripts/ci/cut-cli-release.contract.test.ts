@@ -135,6 +135,7 @@ describe("the builder builds the commit it was dispatched on", () => {
 
 describe("only main ships", () => {
   test("a dispatch from another branch runs only as a dry run", () => {
-    expect((cut.jobs.build as any).if).toBe("github.ref == 'refs/heads/main' || inputs.dry_run");
+    // Only codecast-sh/codecast releases; a fork's dispatch builds nothing.
+    expect((cut.jobs.build as any).if).toBe("github.repository == 'codecast-sh/codecast' && (github.ref == 'refs/heads/main' || inputs.dry_run)");
   });
 });

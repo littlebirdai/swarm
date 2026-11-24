@@ -45,7 +45,15 @@ env:
   APPLE_API_ISSUER: 69a6de76-856e-47e3-e053-5b8c7c11a4d1
 
 jobs:
+  release-disabled:
+    if: github.repository != 'codecast-sh/codecast'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - run: echo "Swarm's release targets are not configured yet." >> "$GITHUB_STEP_SUMMARY"
+
   build:
+    if: github.repository == 'codecast-sh/codecast'
     runs-on: macos-15
     timeout-minutes: 60
     steps:

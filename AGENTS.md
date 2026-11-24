@@ -24,6 +24,8 @@ Keep history flat — rebase, never merge. Pull with `git pull --rebase` (never 
 
 ## Convex deploys
 
+In Swarm, use `scripts/deploy-backend.sh` to deploy the backend. The rest of this section describes Codecast's setup: in Swarm, `packages/convex/deploy.sh` refuses, `cast ship` runs no backend deploy, and the dev watcher pushes only to your own dev deployment, with no prod-diff and no push record.
+
 Convex deploys push whole-tree snapshots: a tree behind origin/main doesn't just lack new code — it DELETES newer functions and routes from prod on push (three separate prod outages on 2026-07-15).
 
 - Deploy ONLY via `packages/convex/deploy.sh`. It fetches the `codecast-sh/codecast` remote (`scripts/convex-base-remote.sh` picks it: `$CONVEX_FRESHNESS_REMOTE`, else whichever remote fetches codecast-sh/codecast, else origin, so a fork clone's stale origin never passes), hard-fails if the tree is behind its main (naming the missing commits), moves the repo-root `.env.local` aside for the deploy (its `CONVEX_DEPLOYMENT=anonymous` pointer hijacks the CLI away from prod) and restores it after, and holds a lock (`.git/convex-deploy.lock`) so overlapping runs wait instead of pushing out of order. **Raw `npx convex deploy` is banned.**
@@ -46,6 +48,8 @@ Web carries a second layer of defence. A query that merely ENRICHES a surface go
 Run any headless `claude -p` that grades a prompt through `packages/cli/scripts/prompt-dry-run.ts`, never a bare `claude -p`: the daemon syncs every transcript under `~/.claude/projects`, so a bare run lands in the founder's inbox, and only the harness isolates it and refuses its writes. `--model` is required. The script's header documents its flags, isolation and output files. Don't edit the harness or its guard while a run is alive (bash reads a script as it runs). To grade a prod prompt against real moments, use `./evals`, which drives this harness.
 
 ## CLI releases
+
+Swarm release paths stay disabled until Swarm has its own release targets.
 
 Cut CLI releases from CI. No laptop needs the signing certificate.
 
