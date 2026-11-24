@@ -28955,7 +28955,7 @@
     "swarm/no-comments": 7
   },
   "packages/shared/contracts/agentStatus.test.ts": {
-    "swarm/no-comments": 36
+    "swarm/no-comments": 22
   },
   "packages/shared/contracts/agentStatus.ts": {
     "swarm/no-comments": 231
@@ -29099,7 +29099,7 @@
     "swarm/no-comments": 30
   },
   "packages/shared/contracts/cloudAgents.test.ts": {
-    "swarm/no-comments": 21
+    "swarm/no-comments": 15
   },
   "packages/shared/contracts/cloudAgents.ts": {
     "swarm/no-comments": 97
@@ -29316,9 +29316,6 @@
   },
   "packages/shared/contracts/headOfPeoplePrompt.ts": {
     "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/hibernation.test.ts": {
-    "swarm/no-comments": 3
   },
   "packages/shared/contracts/huddleDigest.test.ts": {
     "swarm/no-comments": 6
