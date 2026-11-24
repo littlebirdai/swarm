@@ -14,7 +14,6 @@
   "dependencies": {
     "@codecast/agent-clients": "workspace:*",
     "@codecast/org": "workspace:*",
-    "@codecast/shared": "workspace:*",
     "@mariozechner/pi-ai": "0.73.1",
     "@platform/agent": "file:../../platform/packages/agent",
     "convex": "^1.31.6",

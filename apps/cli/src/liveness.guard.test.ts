@@ -56,7 +56,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGES = path.resolve(HERE, "../../../packages");
 const ROOTS: Record<string, string> = {
   "": HERE,
-  contracts: path.resolve(HERE, "../../../packages/shared/contracts"),
   ...Object.fromEntries(
     fs
       .readdirSync(PACKAGES)

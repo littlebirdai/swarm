@@ -44,6 +44,6 @@ A development build's tokens only work against the APNs sandbox host. The native
 
 ## Verifying
 
-- `bun test` in `packages/shared` and `apps/server` covers the merge, the decision and the refresh against a fake database.
+- `bun test` in `packages/sessions` and `apps/server` covers the merge, the decision and the refresh against a fake database.
 - `npx convex run liveActivity:probeLiveActivityConfig '{}'` sends a start to a bogus token. `BadDeviceToken` proves the key and the topic are accepted.
 - The simulator renders the strip through the local start path. Push tokens never arrive on a simulator.

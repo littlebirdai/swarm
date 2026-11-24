@@ -13,20 +13,7 @@ const PACKAGE_SOURCES = fs
   .readdirSync(path.join(ROOT, "packages"))
   .map((name) => `packages/${name}/src`)
   .filter((dir) => fs.existsSync(path.join(ROOT, dir)));
-const SCANNED = [
-  "apps/cli/src",
-  "packages/machines/src",
-  "packages/mods/src",
-  "packages/search/src",
-  "packages/sessions/src",
-  "packages/replay/src",
-  "packages/calls/src",
-  "packages/entities/src",
-  "packages/ingest/src",
-  "packages/shared/contracts",
-  ...PACKAGE_SOURCES,
-  "apps/server/convex",
-];
+const SCANNED = ["apps/cli/src", ...PACKAGE_SOURCES, "apps/server/convex"];
 
 const TERMINAL_HANDOFF =
   /\b(in|from) (a|your|their) (own )?terminal\b|\b(your|their) own terminal\b|\bin a terminal there\b|\btype (this|it) in\b|\b(have (them|the human|your person) run|ask (the human|your person|them) to run) [`'\"]|\bpaste (this|it) into (a|your|their) terminal\b/i;

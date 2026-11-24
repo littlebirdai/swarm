@@ -81,10 +81,10 @@ describe("resolveSharedDirectories", () => {
   test("refuses a directory holding workspace links back into the repo", () => {
     // The shape a package manager writes for a monorepo: a link out of
     // node_modules into the checkout's own source.
-    mkdirIn(primary, "packages/shared");
+    mkdirIn(primary, "packages/line");
     mkdirIn(primary, "node_modules/@scope");
     fs.symlinkSync(
-      "../../packages/shared",
+      "../../packages/line",
       path.join(primary, "node_modules/@scope/shared"),
     );
 

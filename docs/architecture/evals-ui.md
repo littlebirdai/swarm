@@ -232,7 +232,7 @@ All paths are relative to `/evals`.
 ### 3.7 Multiplayer sim changes
 
 - **History** (`sim/history.ts`; details in multiplayer-sim-harness.md section 3.12). Every `bun run sim` that runs tests writes a session folder at `<home>/sessions/<stamp>/`, where `<home>` is `$CODECAST_SIM_HOME`, else `~/.local/share/codecast/sim`. `--list`, `--invariants`, `--help` and `--shrink` write none.
-  - `session.json` holds `{id, argv, gitHead, dirty, treePatch, startedAt, finishedAt, exit}`. `treePatch` is the sha256 of the uncommitted edits under `apps/web`, `apps/server`, `packages/shared` and `platform/packages` (untracked files included), stored gzipped at `<home>/trees/<sha>.patch.gz`; it is computed while the tests run, so it lands with `finishedAt`.
+  - `session.json` holds `{id, argv, gitHead, dirty, treePatch, startedAt, finishedAt, exit}`. `treePatch` is the sha256 of the uncommitted edits under `apps/web`, `apps/server`, `packages` and `platform/packages` (untracked files included), stored gzipped at `<home>/trees/<sha>.patch.gz`; it is computed while the tests run, so it lands with `finishedAt`.
   - `runs.jsonl` gets one line per scenario run: `{scenario, mode, seed, passed, deliveries, ms, dir?}`.
   - Failure artifacts go into `<scenario>-<mode>-<seed>/` inside the session: the runner passes the folder as `SIM_SESSION`, and `artifactRoot` picks `SIM_OUT`, else `SIM_SESSION`, else the temp dir. The known check (a scenario's first run again with nothing left out) writes `<scenario>-<mode>-<seed>-known/`, so it never overwrites that run's folder.
   - Full artifacts for passes are written only with `--keep` (`SIM_KEEP=1`) or `SIM_OUT`, so a `--sweep` does not write a thousand folders. Artifacts sent to `--out` outside the session get no `dir`.

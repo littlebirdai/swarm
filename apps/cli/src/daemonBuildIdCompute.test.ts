@@ -25,7 +25,7 @@ const write = (rel: string, body: string) => {
 // a later test needs the full set of specifiers back.
 const ENTRY_SRC =
   `import { a } from "./a.js";\nimport "./bare.js";\nconst m = await import("./dyn.js");\nimport ws from "ws";\n` +
-  `import pkg from "../package.json";\nimport { c } from "@codecast/shared/contracts";\n` +
+  `import pkg from "../package.json";\nimport { c } from "@codecast/line/lineWords";\n` +
   `import { k } from "@platform/cli-kit";\nimport { ghost } from "@platform/nothing-here";\n` +
   `export { a, m, ws, pkg, c, k, ghost };\n`;
 
@@ -38,13 +38,13 @@ beforeAll(() => {
   );
   write("apps/cli/src/daemon.ts", ENTRY_SRC);
   write(
-    "packages/shared/package.json",
+    "packages/line/package.json",
     JSON.stringify({
-      name: "@codecast/shared",
-      exports: { "./contracts": "./contracts.ts" },
+      name: "@codecast/line",
+      exports: { "./lineWords": "./src/lineWords.ts" },
     }),
   );
-  write("packages/shared/contracts.ts", `export const c = 1;\n`);
+  write("packages/line/src/lineWords.ts", `export const c = 1;\n`);
   write("platform/packages/cli-kit/src/a.ts", `export const k = 1;\n`);
   write("platform/packages/cli-kit/src/b.ts", `export const k2 = 2;\n`);
   write(
@@ -95,12 +95,12 @@ describe("computeDaemonBuildId", () => {
   // silently: an unresolvable specifier becomes an external string instead of
   // throwing. If a root path ever moves, those files leave the hashed set and
   // the veto starts suppressing restarts that were needed.
-  test("reaches @codecast/shared and every source file of a @platform package", () => {
+  test("reaches @codecast/line and every source file of a @platform package", () => {
     const { files, external } = computeDaemonBuildId(root);
-    expect(files).toContain("packages/shared/contracts.ts");
+    expect(files).toContain("packages/line/src/lineWords.ts");
     expect(files).toContain("platform/packages/cli-kit/src/a.ts");
     expect(files).toContain("platform/packages/cli-kit/src/b.ts");
-    expect(external).not.toContain("@codecast/shared/contracts");
+    expect(external).not.toContain("@codecast/line/lineWords");
     expect(external).not.toContain("@platform/cli-kit");
   });
 

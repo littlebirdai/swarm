@@ -523,7 +523,7 @@ const LINKED = [
   "apps/evals/node_modules",
   "apps/evals/fixtures",
   "apps/cli",
-  "packages/shared",
+  "packages",
   "node_modules",
   "platform",
   "package.json",

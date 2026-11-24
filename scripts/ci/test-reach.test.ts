@@ -43,11 +43,8 @@ describe("resolveImport", () => {
   const from = join(ROOT, "apps/web/lib/x.ts");
 
   test("resolves workspace packages through their manifests, without node_modules", () => {
-    expect(resolveImport("@codecast/shared", from)).toBe(
-      join(ROOT, "packages/shared/package.json"),
-    );
-    expect(resolveImport("@codecast/shared/contracts", from)).toBe(
-      join(ROOT, "packages/shared/contracts/index.ts"),
+    expect(resolveImport("@codecast/line/lineWords", from)).toBe(
+      join(ROOT, "packages/line/src/lineWords.ts"),
     );
     expect(resolveImport("@codecast/edge-contract", from)).toBe(
       join(ROOT, "packages/edge-contract/src/index.ts"),

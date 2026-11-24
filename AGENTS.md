@@ -12,7 +12,7 @@ Work directly in the main checkout. Other sessions may have uncommitted work in 
 
 1. Make a directory under `packages/` with a `package.json`.
 2. Set `name` to `@codecast/<name>`, and set `exports` or `main` to the entry point.
-3. Put the source in `src/` and the tests in `test/`. `cast check packages` examines only these two folders of each library, and it does not examine `packages/shared`.
+3. Put the source in `src/` and the tests in `test/`. `cast check packages` examines only these two folders of each library.
 4. Add the library as a `workspace:*` dependency of each workspace that imports it.
 5. Run `bun install` to update the lockfile.
 6. Typecheck with `cast check packages`.

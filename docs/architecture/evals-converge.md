@@ -757,7 +757,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 
 **Codecast**
 
-- Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `apps/cli/package.json` and `apps/web/package.json`. `apps/evals` already has it.
+- Add `"@platform/evals": "file:../../platform/packages/evals"` to the shared package manifest at the time, `apps/cli/package.json` and `apps/web/package.json`. `apps/evals` already has it.
 - Run `scripts/vendor-platform.sh` and commit `platform/packages/**`, `platform/vendor-manifest.txt` and `bun.lock` together. The vendor commit lands before any commit that imports a new subpath.
 - CI `test-platform` then installs inside the mirror and runs its React tests with no CI edit.
 - A running dev server needs `depsCacheGuard`, because vendoring purges `.vite`.

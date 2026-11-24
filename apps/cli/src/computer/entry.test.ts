@@ -68,7 +68,6 @@ console.log(JSON.stringify(Object.keys(require.cache)));`;
     "/cli/src/browser/instance.ts",
     "/cli/src/browser/profile.ts",
     "/cli/src/update.ts",
-    "/shared/contracts/index.ts",
     "/node_modules/convex/",
   ];
   expect(

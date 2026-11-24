@@ -731,7 +731,7 @@ async function setup() {
       "docs/guide.md",
     ]);
     await commit(`e1-${date}`, LONG_FEAT, at("12:00", date), [
-      "packages/shared/retry.ts",
+      "packages/line/src/retry.ts",
     ]);
     await commit(
       `f1-${date}`,
