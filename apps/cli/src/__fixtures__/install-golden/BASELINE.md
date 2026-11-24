@@ -21,7 +21,7 @@ output the rewrite is supposed to be measured against, which proves nothing.
 
 ```
 git archive 6544b1e4d | tar -x -C /tmp/head-baseline
-# mirror node_modules by symlink, with workspace libraries resolved from the extraction
+# mirror node_modules by symlink, with @codecast/shared pointed at the extraction
 cd apps/cli
 UPDATE_GOLDEN=1 GOLDEN_CLI_ROOT=/tmp/head-baseline/apps/cli \
 GOLDEN_SLUGS=memory,messaging,forks,tasks,triggers,workflows,visual,publish,state,orchestration \

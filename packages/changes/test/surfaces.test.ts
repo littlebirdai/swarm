@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { commit, MIN, T0 } from "../src/__fixtures__/commit";
 import { dedupeCommits, resolveDefaultBranch } from "../src/dedupe";
 import { computeRisks } from "../src/risks";
@@ -172,6 +174,22 @@ describe("surfaces", () => {
     expect(surfaceCoversArea("cli", "line")).toBe(true);
     expect(surfaceCoversArea("web", "inbox")).toBe(true);
     expect(surfaceCoversArea("web", "infra")).toBe(false);
+    expect(surfaceCoversArea("web", "docs")).toBe(false);
+    expect(surfaceCoversArea("cli", "ratchet")).toBe(false);
+  });
+
+  test("each package that ships is in the cli, desktop and web surfaces", () => {
+    const excluded = new Set(["docs", "ratchet"]);
+    const missing = readdirSync(join(import.meta.dir, "../.."), {
+      withFileTypes: true,
+    })
+      .filter((entry) => entry.isDirectory() && !excluded.has(entry.name))
+      .flatMap(({ name }) =>
+        ["cli", "desktop", "web"]
+          .filter((surface) => !surfaceCoversArea(surface, name))
+          .map((surface) => `${surface}: ${name}`),
+      );
+    expect(missing).toEqual([]);
   });
 
   test("a story ships in the first covering release after its last commit", () => {
