@@ -119,14 +119,13 @@ export async function endGroupLeftovers(
   );
 }
 
-// The KILL a runner on its way out leaves behind: after the grace, each pid
-// that `ps` still prints with the group and start time it had at the TERM
-// (sameProcess, in shell). A pid the kernel gave to another program meanwhile
-// is left alone, and one that ended at the TERM is not there to match.
 export const KILL_IF_SAME = [
   `sleep "$1"; shift`,
   `while [ $# -ge 2 ]; do`,
-  `  [ "$(ps -o pgid=,lstart= -p "$1" 2>/dev/null | tr -s ' ' | sed 's/^ //;s/ $//')" = "$2" ] && kill -KILL "$1" 2>/dev/null`,
+  `  current=$(ps -o pgid=,lstart= -p "$1" 2>/dev/null | tr -s ' ' | sed 's/^ //;s/ $//')`,
+  `  if [ "$current" = "$2" ] || [ "$current" = "$1 \${2#* }" ]; then`,
+  `    kill -KILL "$1" 2>/dev/null`,
+  `  fi`,
   `  shift 2`,
   `done`,
   `exit 0`,
