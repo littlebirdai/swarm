@@ -36,7 +36,7 @@ import {
   huddleWith as huddleWithPerson,
   liveRoomOf,
 } from "./personActions";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { showActionSheet } from "@/lib/popups";
 
 // The Chat tab's home list: live huddles first, then channels, then direct

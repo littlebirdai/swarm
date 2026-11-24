@@ -25,6 +25,7 @@
     "@codecast/files": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@inquirer/prompts": "^8.2.0",
     "@platform/auth": "file:../../platform/packages/auth",

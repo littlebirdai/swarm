@@ -148,7 +148,7 @@ import {
   memberHandle,
   sessionLineTitle,
 } from "./chatText";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { parseQueryTerms } from "@codecast/shared/search";
 import {
   chatMentionClientId,

@@ -1,6 +1,6 @@
 import { CommentAvatar } from "../comments/CommentAvatar";
 import { memberName, type ChatMember } from "../../lib/chatViews";
-import { isAgentMember } from "@codecast/shared/team/memberKind";
+import { isAgentMember } from "@codecast/team/memberKind";
 import "./chat.css";
 
 // "Someone is typing" — the composer-foot strip.

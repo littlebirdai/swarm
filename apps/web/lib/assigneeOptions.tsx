@@ -18,7 +18,7 @@ import {
 import type { FilterOption } from "../components/FilterDropdown";
 import { AssigneeFace } from "../components/identity/AssigneeFace";
 import { memberAvatarUrl, memberDisplayName } from "./liveEntities";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 
 /** A picker row plus who it names, in the contract's shape, so a picker can
  *  draw the face its own way and hand the info to whatever it writes. */

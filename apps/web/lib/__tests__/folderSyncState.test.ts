@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { folderSyncState } from "../folderSyncState";
-import { planSyncChange } from "@codecast/shared/team/syncPlan";
+import { planSyncChange } from "@codecast/team/syncPlan";
 
 test("a folder outside the chosen ones reads not synced, an excluded one reads excluded", () => {
   const chosen = {

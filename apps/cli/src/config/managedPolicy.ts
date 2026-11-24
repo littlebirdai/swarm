@@ -29,7 +29,7 @@ import {
   type PolicySource,
   type RestrictionKey,
 } from "@codecast/shared/contracts/managedPolicy";
-import { folderCovers } from "@codecast/shared/team/folderLists";
+import { folderCovers } from "@codecast/team/folderLists";
 import type { Config } from "./types.js";
 import { defaultConfigDir } from "./configDir.js";
 

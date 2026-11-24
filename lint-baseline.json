@@ -30196,27 +30196,6 @@
   "packages/shared/tasks/tasks.test.ts": {
     "swarm/no-comments": 26
   },
-  "packages/shared/team/directoryRules.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/team/folderLists.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/team/memberKind.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/team/shareImpact.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/team/shareImpact.ts": {
-    "swarm/no-comments": 25
-  },
-  "packages/shared/team/syncPlan.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/team/visibility.ts": {
-    "swarm/no-comments": 6
-  },
   "packages/shared/vault/entityRef.ts": {
     "swarm/no-comments": 79
   },
@@ -30237,6 +30216,27 @@
   },
   "packages/shared/vault/vaultIndex.ts": {
     "swarm/no-comments": 82
+  },
+  "packages/team/src/directoryRules.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/team/src/folderLists.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/team/src/memberKind.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/team/src/shareImpact.ts": {
+    "swarm/no-comments": 25
+  },
+  "packages/team/src/syncPlan.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/team/src/visibility.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/team/test/shareImpact.test.ts": {
+    "swarm/no-comments": 1
   },
   "packages/time/src/index.ts": {
     "swarm/no-comments": 58

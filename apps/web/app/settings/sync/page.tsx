@@ -62,7 +62,7 @@ import {
   planSyncChange,
   type SyncChange,
   type SyncSettings,
-} from "@codecast/shared/team/syncPlan";
+} from "@codecast/team/syncPlan";
 import { useShareSummaries } from "../../../hooks/useShareSummaries";
 import {
   describeMappingScope,
@@ -298,7 +298,7 @@ export default function SyncPage() {
     }
   };
 
-  // The daemon's own reading of the lists (@codecast/shared/team/syncPlan).
+  // The daemon's own reading of the lists (@codecast/team/syncPlan).
   const isSynced = (path: string): boolean =>
     !!syncSettings && isFolderSyncing(syncSettings, path);
 

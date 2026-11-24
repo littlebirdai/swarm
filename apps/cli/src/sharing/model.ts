@@ -10,14 +10,14 @@
 //     no rule leaves it private to the owner.
 
 import * as path from "node:path";
-import { startOfDay, type PathShareSummary } from "@codecast/shared/team";
-import { matchDirectoryMapping } from "@codecast/shared/team/directoryRules";
+import { startOfDay, type PathShareSummary } from "@codecast/team";
+import { matchDirectoryMapping } from "@codecast/team/directoryRules";
 import {
   planSyncChange as planWith,
   type SyncChange,
   type SyncPlan,
   type SyncSettings,
-} from "@codecast/shared/team/syncPlan";
+} from "@codecast/team/syncPlan";
 import { isProjectAllowedToSync } from "../syncScope.js";
 import type { Config } from "../config/types.js";
 

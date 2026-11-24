@@ -44,7 +44,7 @@ import {
   relativeSeen,
   type Device,
 } from "./DevicesSection";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 /**

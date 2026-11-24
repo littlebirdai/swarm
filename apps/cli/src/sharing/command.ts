@@ -14,11 +14,11 @@ import {
   summarizeShareImpact,
   describeTeammates,
   type PathShareSummary,
-} from "@codecast/shared/team";
+} from "@codecast/team";
 import {
   TEAM_VISIBILITY_OPTIONS,
   teamVisibilityOption,
-} from "@codecast/shared/team/visibility";
+} from "@codecast/team/visibility";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import { commandGroup } from "../commandGroups.js";
 import { fmt, c } from "../colors.js";

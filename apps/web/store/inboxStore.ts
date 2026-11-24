@@ -3,7 +3,7 @@ import {
   cancelResourceBatch,
   requeueMigrationBatch,
 } from "./resourceOffloadActions";
-import { planSyncChange } from "@codecast/shared/team/syncPlan";
+import { planSyncChange } from "@codecast/team/syncPlan";
 import { approvesCommandRun } from "@codecast/shared/contracts/commandRun";
 import {
   GOAL_IDLE_LIMIT_MS,

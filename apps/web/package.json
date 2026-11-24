@@ -20,6 +20,7 @@
     "@codecast/files": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
+    "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",

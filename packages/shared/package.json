@@ -165,12 +165,6 @@
     "./artifacts/sheet": "./artifacts/sheet.ts",
     "./artifacts/sheets": "./artifacts/sheets/index.ts",
     "./replay": "./replay/index.ts",
-    "./team": "./team/index.ts",
-    "./team/directoryRules": "./team/directoryRules.ts",
-    "./team/visibility": "./team/visibility.ts",
-    "./team/syncPlan": "./team/syncPlan.ts",
-    "./team/folderLists": "./team/folderLists.ts",
-    "./team/memberKind": "./team/memberKind.ts",
     "./vault": "./vault/index.ts",
     "./vault/frontmatter": "./vault/frontmatter.ts",
     "./memory": "./memory/index.ts",
@@ -192,6 +186,7 @@
     "./mods/inspect": "./mods/inspect.ts"
   },
   "dependencies": {
+    "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "css-tree": "3.2.1",
     "@platform/agent": "file:../../platform/packages/agent",

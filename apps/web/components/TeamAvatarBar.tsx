@@ -22,7 +22,7 @@ import { isCallCard } from "../lib/faces/faceRow";
 import { CallCardAccessories } from "./calls/CallCardAccessories";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { objectHref, personRefOf } from "../lib/entityLinks";
 import { FaceChatLayer } from "./faces/FaceChatLayer";
 import { useFaceChatActive } from "../lib/chat/faceChat";

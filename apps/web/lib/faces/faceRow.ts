@@ -1,5 +1,5 @@
 import type { FaceState } from "./faceState";
-import { memberKind } from "@codecast/shared/team/memberKind";
+import { memberKind } from "@codecast/team/memberKind";
 import { teamMembersOf } from "../activeTeam";
 export type { FaceState } from "./faceState";
 // THE FACE ROW: presence, walkie, ringing and calls as the same faces in

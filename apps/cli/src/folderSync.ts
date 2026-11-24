@@ -20,7 +20,7 @@
 
 import { execFile, lastErrorLine, spawn } from "./proc.js";
 import * as fs from "node:fs";
-import { folderOnThisMachine } from "@codecast/shared/team/folderLists";
+import { folderOnThisMachine } from "@codecast/team/folderLists";
 import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";

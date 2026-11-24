@@ -17,8 +17,8 @@ import { scheduleLiveActivityRefresh } from "./lib/liveActivityRefresh";
 import { wakeDevicesFor } from "./cloudWake";
 import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
-import { peopleOf } from "@codecast/shared/team/memberKind";
-import { planSyncChange } from "@codecast/shared/team/syncPlan";
+import { peopleOf } from "@codecast/team/memberKind";
+import { planSyncChange } from "@codecast/team/syncPlan";
 import { paginationOptsValidator } from "convex/server";
 import type {
   PaginationOptions,

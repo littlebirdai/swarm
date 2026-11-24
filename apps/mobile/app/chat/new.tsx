@@ -19,7 +19,7 @@ import { useInboxStore } from "@codecast/web/store/inboxStore";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { ChatAvatar } from "@/components/chat/MessageRow";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 // New message: pick one teammate and land in the 1:1, or several and land in

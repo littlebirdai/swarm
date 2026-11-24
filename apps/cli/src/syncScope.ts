@@ -18,7 +18,7 @@ import { managedExcludedPaths } from "./config/managedPolicy.js";
 import {
   folderCovers,
   folderCoversOnAnyMachine,
-} from "@codecast/shared/team/folderLists";
+} from "@codecast/team/folderLists";
 import {
   TEST_SCRATCH_DIRNAME,
   isTestArtifactPath,

@@ -239,7 +239,7 @@ describe("command groups stay off the boot graph", () => {
       // hookIdentity.ts (node and atomicWrite only), and session-move.ts copies
       // worktree files through workspace/copyFiles.ts.
       // 263 after sync exclusions: syncScope.ts reads its folder lists through
-      // @codecast/shared/team/syncPlan (no imports), the rule the settings page
+      // @codecast/team/syncPlan (no imports), the rule the settings page
       // and `cast sharing` read too.
       // 262 after the 2026-09-30 cloud agents landing, which had pushed it to 280.
       // Its new leaves stay: the `cast sync` verb registrar cloud/syncCli.ts

@@ -11,7 +11,7 @@ import {
   objectHref,
   personRefOf,
 } from "@codecast/shared/entities";
-import { isPerson } from "@codecast/shared/team/memberKind";
+import { isPerson } from "@codecast/team/memberKind";
 import { useInboxStore } from "../store/inboxStore";
 import { useCollectionRows } from "./useCollectionRows";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";

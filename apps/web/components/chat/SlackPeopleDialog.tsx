@@ -20,7 +20,7 @@ import { memberAvatarUrl } from "../../lib/liveEntities";
 import { memberListSig } from "../../hooks/useTeamRoster";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import "./chat.css";
-import { peopleOf } from "@codecast/shared/team/memberKind";
+import { peopleOf } from "@codecast/team/memberKind";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 type Person = {

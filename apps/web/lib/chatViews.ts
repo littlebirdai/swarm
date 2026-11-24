@@ -31,7 +31,7 @@ import {
   mentionUserIds,
   threadFaceKey,
 } from "@codecast/shared/chat";
-import { isAgentMember, isPerson } from "@codecast/shared/team/memberKind";
+import { isAgentMember, isPerson } from "@codecast/team/memberKind";
 
 export type ChatMember = {
   _id: string;
