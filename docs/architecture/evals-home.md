@@ -379,12 +379,12 @@ Files:
 - `platform/vendor-manifest.txt`
 
 Steps:
-1. `git -C ~/src/platform status --short packages/evals`, and record the result.
+1. `git -C ~/src/platform status --short ./packages/evals`, and record the result.
 2. Build an overlay source so only evals changes:
    ```
    rm -rf /tmp/plat-src && mkdir -p /tmp/plat-src/packages
    cp -Rp platform/packages/* /tmp/plat-src/packages/
-   git -C ~/src/platform archive HEAD packages/evals | tar -x -C /tmp/plat-src
+   git -C ~/src/platform archive HEAD ./packages/evals | tar -x -C /tmp/plat-src
    ```
    Use HEAD, not the working tree: it is reviewed code, and the mirror's other packages already differ from platform HEAD (auth and cli-kit hold files HEAD lacks), so vendoring everything from either source would break codecast.
 3. Write `apps/evals/package.json`.

@@ -472,7 +472,7 @@ The rules for every unit:
 - Files are disjoint within a wave.
 - Each unit names its repo.
 - Codecast checks use `cast check` (all programs unless noted) and per-file `bun test`.
-- Platform checks are `cd ~/src/platform && bun run typecheck && cd packages/evals && bun test`.
+- Platform checks are `cd ~/src/platform && bun run typecheck && cd ./packages/evals && bun test`.
 
 ### Wave 0 (parallel)
 
