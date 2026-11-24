@@ -6,5 +6,5 @@ export type {
   PipelineStation,
   PipelineTarget,
   PipelineWho,
-} from "@codecast/shared/contracts/pipeline";
+} from "@codecast/deploys/pipeline";
 export type { PipelineRow } from "../../hooks/useSyncPipelines";

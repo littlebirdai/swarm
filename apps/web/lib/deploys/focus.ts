@@ -5,11 +5,8 @@
 // IDs the queue shows and the filters both columns share ride the same
 // address (show=, mine=, group=), so a link opens the page as its sender saw
 // it.
-import type { QueueCommit } from "@codecast/shared/contracts/deployTargets";
-import type {
-  DeployReach,
-  ReachState,
-} from "@codecast/shared/contracts/deployReach";
+import type { QueueCommit } from "@codecast/deploys/deployTargets";
+import type { DeployReach, ReachState } from "@codecast/deploys/deployReach";
 import { prNumberOf } from "@codecast/changes/cluster";
 import { deploysOf, type DeployTargetRow, type TeamDeployRow } from "./targets";
 import {

@@ -43,7 +43,7 @@ import {
   commitTouchesTarget,
   readJsonLive,
   type DeployLiveReader,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { liveDeployOf } from "@codecast/shared/contracts/deploys";
 import {
   checkSuiteCi,

@@ -536,7 +536,7 @@ export function registerLineSubcommands(line: Command, deps: GroupDeps): void {
       const { runDeployStep, deployProfileFor } =
         await import("./lineDeploy.js");
       const { LINE_DEPLOY_STEPS } =
-        await import("@codecast/shared/contracts/lineDeploy");
+        await import("@codecast/deploys/lineDeploy");
       if (!(LINE_DEPLOY_STEPS as readonly string[]).includes(step)) {
         console.error(`A deploy's steps are ${LINE_DEPLOY_STEPS.join(", ")}`);
         process.exit(2);
@@ -626,7 +626,7 @@ export function registerLineSubcommands(line: Command, deps: GroupDeps): void {
         post: (path, body) => apiPost(deps, path, body),
       });
       const { LINE_DEPLOY_STEP_LABELS } =
-        await import("@codecast/shared/contracts/lineDeploy");
+        await import("@codecast/deploys/lineDeploy");
       console.log(
         `${ref} stopped at ${r.step ? LINE_DEPLOY_STEP_LABELS[r.step] : "a step"}; ${r.signal?.task_short_id ? `the line has it as ${r.signal.task_short_id}` : `filed as ${r.signal?.short_id ?? "a finding"}`}`,
       );

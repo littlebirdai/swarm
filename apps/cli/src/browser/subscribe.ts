@@ -37,7 +37,7 @@ import type {
   ModelCallResult,
   ModelCallSpec,
 } from "@codecast/shared/contracts/modelCall";
-import { globMatch } from "@codecast/shared/contracts/deployTargets";
+import { globMatch } from "@codecast/deploys/deployTargets";
 import { codecastDir } from "../codecastDir.js";
 import { resolveCastInvocation } from "../castInvocation.js";
 import { signInHost } from "./siteGuard.js";

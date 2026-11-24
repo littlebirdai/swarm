@@ -1189,7 +1189,7 @@ export const CLIENT_SYNC_REGISTRY = {
     },
     feeds: ["deployTargets.view", "deployRefs.recentForTeam"],
   },
-  // Each repository's pipeline (pipeline.md PL6, contracts/pipeline.ts): its
+  // Each repository's pipeline (pipeline.md PL6, packages/deploys/src/pipeline.ts): its
   // change and release flows as its checkout resolves them, one row per
   // repository keyed by it, published beside its deploy targets. Delta, as
   // deployTargets: one team's feed must not drop another team's rows.

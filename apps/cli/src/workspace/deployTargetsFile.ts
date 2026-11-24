@@ -8,7 +8,7 @@ import {
   parseDeployTargetEntries,
   type DeployTarget,
   type ShipStepRef,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 
 export const DEPLOY_TARGETS_REL_PATH = ".codecast/deploy.toml";
 

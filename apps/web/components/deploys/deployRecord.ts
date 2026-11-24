@@ -5,7 +5,7 @@ import type {
   DeployPushSummary,
   DeployView,
 } from "@codecast/shared/contracts/deploys";
-import type { TargetDevPush } from "@codecast/shared/contracts/deployTargets";
+import type { TargetDevPush } from "@codecast/deploys/deployTargets";
 import { agoOf } from "../../lib/threadState";
 
 type Row = Partial<DeployPushSummary>;

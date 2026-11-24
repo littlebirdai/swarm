@@ -70,7 +70,7 @@ export {
   normalizeDeployTarget,
   type LineDeployProfile,
   type LineDeployTrigger,
-} from "./lineDeploy";
+} from "@codecast/deploys/lineDeploy";
 
 /**
  * How a deploy is known to carry a fix. `sent`: the line's deploy stage sent

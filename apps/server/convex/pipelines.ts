@@ -1,5 +1,5 @@
 // A repository's pipeline (docs/architecture/pipeline.md PL6;
-// contracts/pipeline.ts): published from the checkout that publishes its
+// packages/deploys/src/pipeline.ts): published from the checkout that publishes its
 // deploy targets (deploys.md DP10), into the repository's team's workspace,
 // and read back per team for the pipeline page. Access is the row's workspace
 // key, as deploy_targets reads it.
@@ -14,10 +14,7 @@ import { normalizeRepository } from "./lib/gitRefs";
 import { deployTeamFor } from "./changesDeploy";
 import { teamKey } from "./deployTargetsCi";
 import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
-import {
-  EMPTY_RECENT,
-  recentRefusal,
-} from "@codecast/shared/contracts/pipeline";
+import { EMPTY_RECENT, recentRefusal } from "@codecast/deploys/pipeline";
 
 /** The most a published pipeline may weigh: well under a document's 1 MiB. */
 export const PIPELINE_MAX_BYTES = 700_000;

@@ -19,14 +19,14 @@ import {
   LINE_DEPLOY_STEPS,
   type LineDeployProfile,
   type LineDeployStep,
-} from "@codecast/shared/contracts/lineDeploy";
+} from "@codecast/deploys/lineDeploy";
 import { resolveCastInvocation } from "./castInvocation.js";
 import type { ResolvedLineProfile } from "./lineProfile.js";
 import {
   targetFromLineDeploy,
   type DeployTarget,
   type TargetDevPush,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 
 export type DeployStageReply = {
   project: { _id: string; short_id: string | null; title: string | null };

@@ -11,7 +11,7 @@ import {
   type FlowEdgeIn,
   type FlowNodeIn,
 } from "@codecast/flows/flowPool";
-import { globMatch } from "@codecast/shared/contracts/deployTargets";
+import { globMatch } from "@codecast/deploys/deployTargets";
 import type { PipelineFlow, PipelineStation } from "./pipelineTypes";
 
 /** What a new station does: runs a command, is an agent with a prompt, or asks a person. */

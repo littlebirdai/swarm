@@ -3,7 +3,7 @@ import {
   DeployTargetError,
   parseDeployTargets,
   publishableTarget,
-} from "./deployTargets";
+} from "../src/deployTargets";
 
 // A target's deploy workflow (deploys.md DP11): `workflow = "deploy.yml"` names
 // the GitHub Actions file its deploys run as. Synthetic data only.

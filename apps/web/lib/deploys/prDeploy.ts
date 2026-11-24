@@ -8,11 +8,11 @@ import {
   type ReachDeployRef,
   type ReachState,
   type TargetReach,
-} from "@codecast/shared/contracts/deployReach";
+} from "@codecast/deploys/deployReach";
 import {
   commitTouchesTarget,
   type CommitCiState,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { REACH_LOOK, deployAgo } from "./deployPill";
 import {
   deploysOf,

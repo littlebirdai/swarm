@@ -2,7 +2,7 @@
 // its carries and steps, and what happened after each live deploy.
 
 import type { Doc, Id } from "./_generated/dataModel";
-import { LINE_DEPLOY_STEP_LABELS } from "@codecast/shared/contracts/lineDeploy";
+import { LINE_DEPLOY_STEP_LABELS } from "@codecast/deploys/lineDeploy";
 import {
   summarizeAfter,
   type DeployAfter,

@@ -30,7 +30,7 @@ import { enqueueConfigCommand } from "./users";
 import { normalizeRepository } from "./lib/gitRefs";
 import { resolveWorkspaceProject } from "./lib/projectRef";
 import { deployIsLive } from "@codecast/shared/contracts/causeHistory";
-import { normalizeRoleHandle } from "@codecast/shared/contracts/lineDeploy";
+import { normalizeRoleHandle } from "@codecast/deploys/lineDeploy";
 import {
   deployAllowance,
   deployGrantOf,

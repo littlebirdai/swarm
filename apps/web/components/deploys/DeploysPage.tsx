@@ -60,7 +60,7 @@ import {
   useDeployDetail,
   useSyncDeployDetail,
 } from "../../hooks/useDeployDetail";
-import type { DeployReach } from "@codecast/shared/contracts/deployReach";
+import type { DeployReach } from "@codecast/deploys/deployReach";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {
   changeGroups,
@@ -73,7 +73,7 @@ import {
 import type {
   CommitCiState,
   QueueGroup,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { entityRoute } from "@codecast/shared/entities";
 import { ShareControl } from "../ShareControl";
 import { EntityIdPill } from "../EntityIdPill";

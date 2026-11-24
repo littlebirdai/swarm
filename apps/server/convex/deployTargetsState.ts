@@ -15,13 +15,13 @@ import {
   commitTouchesTarget,
   groupQueueBySession,
   type QueueCommit,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import {
   liveDeployOf,
   type DeployPushSummary,
 } from "@codecast/shared/contracts/deploys";
-import type { TargetDevPush } from "@codecast/shared/contracts/deployTargets";
+import type { TargetDevPush } from "@codecast/deploys/deployTargets";
 
 const DAY = 86_400_000;
 /** Commits on main read for one target's queue. */
