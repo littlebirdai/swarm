@@ -20,7 +20,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { HUDDLE_GRACE_MS } from "./transcripts";
 import { retireCallDigest } from "./chat";
-import { isRoomlessKey } from "@codecast/shared/contracts";
+import { isRoomlessKey } from "@codecast/calls/callRoomKeys";
 
 const OFF_GAP_MS = 15 * 60_000;
 

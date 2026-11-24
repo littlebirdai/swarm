@@ -1,9 +1,9 @@
 import { Video } from "lucide-react";
+import { callMomentHref } from "@codecast/shared/contracts";
 import {
-  callMomentHref,
   describeClockSpans,
   spanStartSecond,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 
 /**
  * Which part of a call was filmed, in the call's own clock: `video 4:40-7:20`.

@@ -30,7 +30,7 @@
 // its team, not to whoever was in it.
 
 import { fnv1a32 } from "@codecast/hash/fnv1a32";
-import { type CallRecordingKind } from "@codecast/shared/contracts";
+import { type CallRecordingKind } from "@codecast/calls/callRecordings";
 import { presignUrl } from "./awsSigV4";
 
 export type R2Bucket = {

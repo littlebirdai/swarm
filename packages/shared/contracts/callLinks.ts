@@ -2,7 +2,10 @@
 // page's chips, the session header's pill and `cast call` all say it the
 // same way.
 
-import { CALL_FRAME_PREFER, type CallRecordingKind } from "./callRecordings";
+import {
+  CALL_FRAME_PREFER,
+  type CallRecordingKind,
+} from "@codecast/calls/callRecordings";
 
 export type CallLinkHow = {
   live: boolean;

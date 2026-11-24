@@ -21,12 +21,12 @@ import {
   CALL_RECORDING_STATUSES,
   CALL_RECORDING_URL_WINDOW_MS,
   callRecordingUrlWindow,
-  dmRoomKey,
-  guestIdentity,
   isRecordingFilming,
   locateCallMoment,
   recordingStoppedItselfWords,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
+import { guestIdentity } from "@codecast/calls/callGuests";
 import schema from "./schema";
 import { hashToken } from "./apiTokens";
 import { sha256Hex } from "./lib/hash";

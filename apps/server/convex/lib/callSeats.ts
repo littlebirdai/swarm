@@ -5,7 +5,7 @@
 import type { Doc } from "../_generated/dataModel";
 import { CALL_INVITE_TTL_MS, parseRoomKey } from "../callRooms";
 import { bucketTs } from "../presenceState";
-import { normalizeTranscribeLanguages } from "@codecast/shared/contracts";
+import { normalizeTranscribeLanguages } from "@codecast/calls/transcribeLanguage";
 
 /** Seat languages the transcriber unions. Undefined means "this client did not say". */
 export function stampedLanguages(

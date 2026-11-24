@@ -11,10 +11,8 @@ import { Text as RNText } from "@/components/Themed";
 import { themedStyles, useTheme } from "@/constants/Theme";
 import { canPlayInApp, VideoPlayerModal } from "@/components/InlineVideo";
 import { openLink } from "@/lib/links";
-import {
-  formatCallTime,
-  type ParsedScreenRecording,
-} from "@codecast/shared/contracts";
+import { formatCallTime } from "@codecast/calls/callRecordings";
+import { type ParsedScreenRecording } from "@codecast/shared/contracts";
 import { useCallDetail } from "@codecast/web/hooks/useSyncCalls";
 import { useCallRecordings } from "@codecast/web/lib/calls/callRecordingsFeed";
 import { playableFiles } from "@codecast/web/lib/calls/callVideo";

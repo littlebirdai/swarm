@@ -7,16 +7,15 @@
 // Kept free of the web call engine and of the `@/` alias: Metro reads this
 // file for the phone, where `@/` means the mobile app.
 import { api } from "@codecast/convex/convex/_generated/api";
+import { callAnchorHref, callMomentHref } from "@codecast/shared/contracts";
 import {
-  callAnchorHref,
   isRecordingFilming,
-  callMomentHref,
   RECORDING_LOST_TITLE,
   recordingFailureWords,
   recordingKeptWords,
   recordingStoppedItselfWords,
   type CallRecordingStopReason,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { firstName, speakerShortName } from "../../components/calls/speakers";
 import type { RoomRecordingLive } from "./roomRecordingFields";

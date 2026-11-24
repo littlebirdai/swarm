@@ -4,7 +4,7 @@ import {
   GUEST_NAME_MAX,
   noticeNews,
   type GuestNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { AvatarImg } from "../../../lib/avatarCache";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";

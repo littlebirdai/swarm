@@ -7,7 +7,7 @@ import {
   CHANNEL_HUDDLE_WARNING_SIZE,
   parseRoomKey,
   sessionRoomKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 import { Text } from "@/components/Themed";
 import { Theme, themedStyles, useTheme } from "@/constants/Theme";
 import { joinCall, startHuddle } from "@/lib/calls/callManager";

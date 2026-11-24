@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Stack, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import { startHuddle } from "@/lib/calls/callManager";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import FontAwesome from "@expo/vector-icons/FontAwesome";

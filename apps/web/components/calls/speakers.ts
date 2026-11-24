@@ -1,6 +1,7 @@
 // Speaker presentation shared by the call stage and the calls page: one
 // stable accent per voice so a conversation reads the same everywhere.
-import { callLength, markedName } from "@codecast/shared/contracts";
+import { callLength } from "@codecast/calls/callRoomKeys";
+import { markedName } from "@codecast/calls/callGuests";
 
 export const SPEAKER_COLORS = [
   "text-sol-cyan",

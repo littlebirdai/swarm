@@ -9,7 +9,7 @@
 // No components in this file, so the surfaces that DO render one stay Fast
 // Refresh boundaries — the same split hooks/useWalkie keeps.
 import { useCallback, useRef, useSyncExternalStore } from "react";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import {
   getWalkieStatus,
   subscribeWalkie,

@@ -18,8 +18,8 @@ import {
 import {
   recordingFailureWords,
   recordingSubject,
-  type CallView,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
+import { type CallView } from "@codecast/shared/contracts";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
 import { useStableMediaSrcs } from "../../hooks/useStableMediaSrcs";

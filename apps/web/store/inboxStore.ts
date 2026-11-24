@@ -17,10 +17,7 @@ import {
 import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
 import { pinnableAgentIds } from "@codecast/shared/contracts";
 import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
-import {
-  parseStagePinRef,
-  stagePinRowId,
-} from "@codecast/shared/contracts/stagePins";
+import { parseStagePinRef, stagePinRowId } from "@codecast/calls/stagePins";
 import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
 import { captureError } from "../lib/analytics";
 import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
@@ -299,7 +296,6 @@ import {
   rowArmedHomes,
   DEAD_AGENT_STATUSES,
   WORKING_SET_RECENCY_MS,
-  guestIdentity,
   type InboxBucket,
   type InboxTally,
   type InboxTruncation,
@@ -307,6 +303,7 @@ import {
   type ProjectableInboxRow,
   type WorkingSetRow,
 } from "@codecast/shared/contracts";
+import { guestIdentity } from "@codecast/calls/callGuests";
 import {
   isSessionUnread,
   type SessionActivityFacts,

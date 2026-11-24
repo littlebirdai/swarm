@@ -2,7 +2,7 @@
 // that reads the file, the write batch, and the reply parser. Used by
 // transcripts.transcribeRecording and screenRecordings.transcribe.
 
-import { TRANSCRIBE_MAX_BYTES } from "@codecast/shared/contracts";
+import { TRANSCRIBE_MAX_BYTES } from "@codecast/calls/recordingAudio";
 import { openaiFetch, openaiRefusal } from "./openai";
 import type { VendorGate } from "./vendorGuard";
 
@@ -103,7 +103,7 @@ export async function transcribeAudio(
   const refusal = await openaiRefusal(gate);
   if (refusal) throw new Error(refusal);
   // The recorder stops before it can make a file this big (see
-  // shared/contracts/recordingAudio). Reaching here means something else
+  // @codecast/calls/recordingAudio). Reaching here means something else
   // produced the audio, and the endpoint would refuse it with a 413 that
   // reads like an outage — say the real thing instead.
   if (audio.size > TRANSCRIBE_MAX_BYTES) {

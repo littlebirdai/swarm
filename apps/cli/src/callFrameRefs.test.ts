@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { callFrameSeenRef } from "@codecast/shared/contracts";
+import { callFrameSeenRef } from "@codecast/calls/callRecordings";
 import { replayFrameSeenRef } from "@codecast/shared/contracts/replayPlayer";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "cast-frames-"));

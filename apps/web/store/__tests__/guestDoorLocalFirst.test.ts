@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { guestIdentity } from "@codecast/shared/contracts";
+import { guestIdentity } from "@codecast/calls/callGuests";
 import { useInboxStore } from "../inboxStore";
 import { removeGuest } from "../../lib/calls/guestDoorActions";
 

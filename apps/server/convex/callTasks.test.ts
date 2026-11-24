@@ -4,7 +4,7 @@
 import { afterEach, expect, setDefaultTimeout, test } from "bun:test";
 import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
-import { dmRoomKey } from "@codecast/shared/contracts";
+import { dmRoomKey } from "@codecast/calls/callRoomKeys";
 import schema from "./schema";
 import { hashToken } from "./apiTokens";
 

@@ -19,15 +19,14 @@ import { AppState, Platform } from "react-native";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { ConvexReactClient } from "convex/react";
+import { CALL_HEARTBEAT_MS, recRoomKey } from "@codecast/calls/callRoomKeys";
 import {
-  CALL_HEARTBEAT_MS,
   MAX_RECORDING_MS,
   meterLevelFromDb,
   RECORDING_BIT_RATE,
   RECORDING_CHANNELS,
   RECORDING_SAMPLE_RATE,
-  recRoomKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/recordingAudio";
 import { startAsrCapture, type AsrCapture } from "./asrCapture";
 import { getCallSnapshot } from "./calls/callManager";
 import { uploadUriToStorage } from "./uploadToStorage";
@@ -173,7 +172,7 @@ function beatNow(
     .catch(() => {});
 }
 
-/** What the file is. See shared/contracts/recordingAudio for why it is speech
+/** What the file is. See @codecast/calls/recordingAudio for why it is speech
  *  quality rather than the platform's HIGH_QUALITY preset: the transcriber
  *  refuses a file over 25 MB and an m4a cannot be cut up afterwards, so the
  *  encoding is what buys a meeting room to run long in. */

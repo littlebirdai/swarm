@@ -23,7 +23,8 @@ import {
   type ChatReaction,
 } from "../components/chat/chatTypes";
 import { botHandle } from "@codecast/convex/convex/chatText";
-import { chatRoomKey, titleLine } from "@codecast/shared/contracts";
+import { chatRoomKey } from "@codecast/calls/callRoomKeys";
+import { titleLine } from "@codecast/shared/contracts";
 import {
   dmOtherIds,
   isClosedAgentPlaceholder,

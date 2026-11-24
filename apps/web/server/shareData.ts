@@ -8,7 +8,7 @@ import {
   guestJoinPath,
   guestNoticeSentence,
   type GuestLinkRefusal,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { meetingTitle } from "../lib/calls/roomGuests";
 import {
   weekRangeLabel,

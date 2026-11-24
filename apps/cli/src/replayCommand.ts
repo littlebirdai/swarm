@@ -77,7 +77,7 @@ import {
   sortReplayEvents,
   toRepro,
 } from "@codecast/shared/replay";
-import { parseCallTime } from "@codecast/shared/contracts";
+import { parseCallTime } from "@codecast/calls/callRecordings";
 import { parseDuration } from "@codecast/time";
 import {
   REPLAY_FRAME_LIMITS,

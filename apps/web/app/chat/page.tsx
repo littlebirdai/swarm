@@ -74,7 +74,7 @@ import {
   OccupancyChip,
 } from "../../components/calls/OccupancyChip";
 import { chatViewRoomKey } from "../../lib/chatViews";
-import { channelHuddleMemberIds } from "@codecast/shared/contracts";
+import { channelHuddleMemberIds } from "@codecast/calls/callRoomKeys";
 import { NewMessageModal } from "../../components/chat/NewMessageModal";
 import { ChatSearch } from "../../components/chat/ChatSearch";
 import { useShortcutAction } from "../../shortcuts";

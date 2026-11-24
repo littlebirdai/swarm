@@ -14,7 +14,7 @@
 import { useSyncExternalStore } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useInboxStore } from "../../store/inboxStore";
-import { parseRoomKey } from "@codecast/shared/contracts";
+import { parseRoomKey } from "@codecast/calls/callRoomKeys";
 import {
   acceptInvite,
   declineInvite,

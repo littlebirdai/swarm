@@ -25,6 +25,7 @@
     "@codecast/async": "workspace:*",
     "@codecast/blame": "workspace:*",
     "@codecast/browser": "workspace:*",
+    "@codecast/calls": "workspace:*",
     "@codecast/capabilities": "workspace:*",
     "@codecast/cloud-hosts": "workspace:*",
     "@codecast/comments": "workspace:*",

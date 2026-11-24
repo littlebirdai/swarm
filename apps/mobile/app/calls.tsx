@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { isRecRoomKey, callLength } from "@codecast/shared/contracts";
+import { isRecRoomKey, callLength } from "@codecast/calls/callRoomKeys";
 import { useCallList, useCallPlaces } from "@codecast/web/hooks/useSyncCalls";
 import { isCallLive } from "@codecast/web/lib/calls/callStatus";
 import { callTitle, type CallPlace } from "@codecast/web/lib/calls/roomLabels";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { locateCallMoment } from "@codecast/shared/contracts";
+import { locateCallMoment } from "@codecast/calls/callRecordings";
 import {
   EGRESS_FINISHING_SAVE_TIMEOUT_MS,
   EGRESS_SAVE_TIMEOUT_MS,

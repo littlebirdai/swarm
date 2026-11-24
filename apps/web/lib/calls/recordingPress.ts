@@ -6,7 +6,7 @@ import {
   recordingPressStale,
   recordingPressStaleWords,
   type CallRecordingStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { myUserId, useInboxStore } from "../../store/inboxStore";
@@ -32,7 +32,7 @@ import {
 // file for the phone, where `@/` means the mobile app.
 
 // A Record or Stop press is a moment, and the store's writes ride a durable
-// outbox (shared contracts/callRecordings, "A press is a moment"). This is the
+// outbox (@codecast/calls/callRecordings, "A press is a moment"). This is the
 // client's half of the rule: the dispatch binding asks here before a
 // setRoomRecording leaves the browser, on the first send, on every retry and
 // on a replay after a reload alike, and a press that is no longer a moment is

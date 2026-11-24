@@ -130,7 +130,6 @@ import {
 } from "./lib/callGuestAdmission";
 import {
   CALL_GUEST_WAITING_PUSH_TYPE,
-  CALL_MEMBER_STALE_MS,
   GUEST_ADMISSION_LAPSE_MS,
   GUEST_CREATOR_NOTICE_ANY_LINK_MS,
   GUEST_CREATOR_NOTICE_MS,
@@ -160,7 +159,8 @@ import {
   type GuestJoinRefusal,
   type GuestLinkRefusal,
   type GuestNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
+import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
 
 // The link token is the whole secret of a link, and the guest secret the
 // whole proof of a guest; both are far past guessing (~143 and ~190 bits).

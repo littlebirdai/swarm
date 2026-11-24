@@ -1,7 +1,7 @@
 "use client";
 
 import { DoorOpen, Lock } from "lucide-react";
-import { guestDisplayName } from "@codecast/shared/contracts";
+import { guestDisplayName } from "@codecast/calls/callGuests";
 import { Facepile } from "./OccupancyChip";
 import { LiveRoomLabel } from "./LiveRoomLabel";
 import { joinCall, knockRoom } from "../../lib/calls/actions";

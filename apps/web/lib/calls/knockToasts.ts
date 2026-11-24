@@ -1,5 +1,5 @@
 import { toast as sonner } from "sonner";
-import { guestDisplayName } from "@codecast/shared/contracts";
+import { guestDisplayName } from "@codecast/calls/callGuests";
 import type { GuestWaiting, RoomKnock } from "../../store/callRoomTypes";
 import { firstName } from "../../components/calls/speakers";
 

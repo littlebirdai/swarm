@@ -33,7 +33,8 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { recRoomKey, TRANSCRIBE_MAX_BYTES } from "@codecast/shared/contracts";
+import { recRoomKey } from "@codecast/calls/callRoomKeys";
+import { TRANSCRIBE_MAX_BYTES } from "@codecast/calls/recordingAudio";
 import { authorizeRoom } from "./callRooms";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessConversation } from "./lib/access";

@@ -14,12 +14,12 @@
 // closed: membership in any regulated team strips every push to that person.
 // A leaf module (no ./functions import), so tests and actions can use it.
 import type { Id } from "../_generated/dataModel";
+import { CALL_GUEST_WAITING_PUSH_TYPE } from "@codecast/calls/callGuests";
 import {
-  CALL_GUEST_WAITING_PUSH_TYPE,
   CALL_PUSH_TYPE_MISSED,
   CALL_PUSH_TYPE_RING,
   RECORDING_SUMMARY_PUSH_TYPE,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callPush";
 import { teamPolicyOf } from "./teamPolicyGuard";
 
 /** Event names by notification type, [one, many]: the batch summary's words and a stripped push's title. */

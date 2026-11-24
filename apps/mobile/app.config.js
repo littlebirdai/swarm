@@ -1,6 +1,6 @@
 // Wraps app.json. Android resource names forbid hyphens, so the
 // "huddle-ring.caf" iOS ringtone (a cross-platform push contract —
-// see shared/contracts/callPush.ts) breaks Android prebuild if the
+// see packages/calls/src/callPush.ts) breaks Android prebuild if the
 // sound plugins try to copy it into res/raw. Android rings via the
 // Telecom framework's system ringtone instead, so we drop the asset
 // from plugin configs on Android builds only. EAS_BUILD_PLATFORM is

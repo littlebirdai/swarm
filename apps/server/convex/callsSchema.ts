@@ -16,7 +16,7 @@ import { chatAttachmentValidator } from "./lib/chatAttachment";
 export const callTables = {
   // A call's video: one row per file LiveKit Egress writes for it, on the
   // call's record (a call IS a transcripts row). The model, the time rule and
-  // the vocabulary live in shared/contracts/callRecordings.ts; in short:
+  // the vocabulary live in packages/calls/src/callRecordings.ts; in short:
   //   kind composite  the room as people saw it, faces and share, with audio.
   //                   One per press of Record.
   //   kind screen     one shared screen at its own resolution, no audio, for

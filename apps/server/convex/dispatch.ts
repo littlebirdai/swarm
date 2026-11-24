@@ -112,9 +112,11 @@ import {
   fromConvexAgentType,
   type ConvexAgentType,
   isHostedAgentType,
+} from "@codecast/shared/contracts";
+import {
   recordingPressStale,
   recordingPressStaleWords,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRecordings";
 import {
   checkoutInUseMessage,
   normalizeCloudWorkspace,

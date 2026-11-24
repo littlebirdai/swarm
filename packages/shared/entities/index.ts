@@ -23,7 +23,7 @@ import {
   CALL_TIME_SOURCE,
   formatCallTime,
   parseCallTime,
-} from "../contracts/callRecordings";
+} from "@codecast/calls/callRecordings";
 import {
   parseReplayRef,
   replayRefId,
@@ -872,7 +872,7 @@ export function parseGitHubLocationUrl(
 export const CALL_TURNS_REF_SOURCE = "(?:cl-\\d+|[a-z0-9]{32}):\\d+(?:-\\d+)?";
 
 /** A time into a call (`754s`, `12:34`, `1:02:03`) and its reader live in
- *  contracts/callRecordings, beside the clock that writes it. */
+ *  @codecast/calls/callRecordings, beside the clock that writes it. */
 export { CALL_TIME_SOURCE, parseCallTime };
 
 /** A moment of a call, as prose writes it: `cl-42@12:34`. */
@@ -885,7 +885,7 @@ export type CallRef = {
   at_ms?: number;
 };
 
-/** The player clock for a time into a call (contracts/callRecordings holds
+/** The player clock for a time into a call (@codecast/calls/callRecordings holds
  *  it, beside the spans it names). */
 export { formatCallTime };
 

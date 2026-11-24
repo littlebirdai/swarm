@@ -52,7 +52,7 @@ import {
 import { MarkdownRenderer } from "../../tools/MarkdownRenderer";
 import { isMarkdownFile, isPlanFile } from "../../../lib/markdownFiles";
 import { EntityObjectCard } from "../../EntityObjectCard";
-import { callFrameSeenRef } from "@codecast/shared/contracts";
+import { callFrameSeenRef } from "@codecast/calls/callRecordings";
 import { replayFrameSeenRef } from "@codecast/shared/contracts/replayPlayer";
 import { entityRemarkPlugins } from "../../../lib/remarkEntityIds";
 import {

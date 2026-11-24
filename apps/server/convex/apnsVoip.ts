@@ -9,10 +9,8 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import {
-  CALL_INVITE_TTL_MS,
-  CALL_PUSH_TYPE_RING,
-} from "@codecast/shared/contracts";
+import { CALL_INVITE_TTL_MS } from "@codecast/calls/callRoomKeys";
+import { CALL_PUSH_TYPE_RING } from "@codecast/calls/callPush";
 import { APNS_BUNDLE_ID, apnsTokenIsDead, sendApns } from "./apns";
 
 async function sendVoip(

@@ -35,7 +35,7 @@ import {
   CALL_HEARTBEAT_MS,
   CALL_MEMBER_STALE_MS,
   parseRoomKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callRoomKeys";
 import {
   JOIN_TITLE_MS,
   getJoinAnnouncement,

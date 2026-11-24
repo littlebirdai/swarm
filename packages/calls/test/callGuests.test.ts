@@ -27,9 +27,9 @@ import {
   isGuestPresent,
   GUEST_ADMISSION_LAPSE_MS,
   GUEST_NAME_MAX,
-} from "./callGuests";
-import { CALL_MEMBER_STALE_MS } from "./callRoomKeys";
-import { agentFaceIdentity } from "./callRoomKeys";
+} from "../src/callGuests";
+import { CALL_MEMBER_STALE_MS } from "../src/callRoomKeys";
+import { agentFaceIdentity } from "../src/callRoomKeys";
 
 describe("guest identities", () => {
   test("round trip through the LiveKit identity", () => {

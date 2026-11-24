@@ -12,7 +12,7 @@ import {
   type StatedGoals,
 } from "./lib/statedGoals";
 import { canReadCall } from "./transcripts";
-import { isRoomlessKey } from "@codecast/shared/contracts";
+import { isRoomlessKey } from "@codecast/calls/callRoomKeys";
 import { ANALYSIS_CAPS, ANALYSIS_WINDOW_MS } from "./lib/orgAnalysisCaps";
 import type { ProjectRef } from "./orgInit";
 

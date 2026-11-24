@@ -18,13 +18,13 @@ import { setDevicePushToken } from "@/lib/devicePushToken";
 import {
   CALL_PUSH_ACTION_DECLINE,
   CALL_PUSH_ACTION_JOIN,
-  CALL_GUEST_WAITING_PUSH_TYPE,
   CALL_PUSH_CATEGORY,
   CALL_PUSH_TYPE_MISSED,
   CALL_PUSH_TYPE_RING,
   parseCallRingPush,
   parseRecordingSummaryPush,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callPush";
+import { CALL_GUEST_WAITING_PUSH_TYPE } from "@codecast/calls/callGuests";
 
 // Dev-only, for simulator e2e harnesses driven over the Hermes inspector: this
 // device's Expo push token, without registering it anywhere (simulators never

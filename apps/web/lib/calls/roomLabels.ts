@@ -2,15 +2,12 @@
 // the dock pill, the stage, the ring toast's "about:" line and every start
 // button, so the same room never reads differently on two surfaces.
 //
-// A room is a key (@codecast/shared/contracts/callRoomKeys); its people, its
+// A room is a key (@codecast/calls/callRoomKeys); its people, its
 // channel or its session live in the store, so this stays a pure function of
 // (key, state) and re-derives at render (lib/liveEntities' rule — a renamed
 // teammate renames the huddle everywhere at once).
-import {
-  callDisplayTitle,
-  isGuestParticipant,
-  parseRoomKey,
-} from "@codecast/shared/contracts";
+import { callDisplayTitle, parseRoomKey } from "@codecast/calls/callRoomKeys";
+import { isGuestParticipant } from "@codecast/calls/callGuests";
 import { meetingTitle } from "./roomGuests";
 import { channelDisplayName } from "../chatViews";
 import { teamMembersOf } from "../activeTeam";

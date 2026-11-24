@@ -23,12 +23,9 @@ import {
   TrackEvent,
   type LocalTrack,
 } from "livekit-client";
-import {
-  addressesAgent,
-  agentSpokenNames,
-  callSpeakerName,
-  isAgentFaceIdentity,
-} from "@codecast/shared/contracts";
+import { addressesAgent, agentSpokenNames } from "@codecast/shared/contracts";
+import { callSpeakerName } from "@codecast/calls/callGuests";
+import { isAgentFaceIdentity } from "@codecast/calls/callRoomKeys";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { agentStatusAt } from "../liveness";
 import { useInboxStore } from "../../store/inboxStore";

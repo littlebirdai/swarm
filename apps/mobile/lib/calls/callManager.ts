@@ -28,11 +28,9 @@ import {
 const audioSession = () => getLivekit()?.AudioSession ?? null;
 import { api } from "@codecast/convex/convex/_generated/api";
 import { convex } from "../convex";
-import {
-  CALL_HEARTBEAT_MS,
-  isRoomMachineryKind,
-  localTranscribeLanguages,
-} from "@codecast/shared/contracts";
+import { CALL_HEARTBEAT_MS } from "@codecast/calls/callRoomKeys";
+import { isRoomMachineryKind } from "@codecast/calls/callGuests";
+import { localTranscribeLanguages } from "@codecast/calls/transcribeLanguage";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 
 export type CallPhase = "idle" | "connecting" | "connected" | "error";

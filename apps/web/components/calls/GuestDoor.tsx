@@ -18,7 +18,7 @@ import {
   GUEST_LINK_TTL_MS,
   guestIdFromIdentity,
   isGuestIdentity,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useGuestLinks } from "../../hooks/useGuestLinks";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

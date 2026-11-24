@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { Mic } from "lucide-react";
 import { toast } from "sonner";
-import { isRecRoomKey } from "@codecast/shared/contracts";
+import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import { Facepile } from "./OccupancyChip";
 import { LiveRoomAction, LiveRoomLabel } from "./LiveNow";
 import { RecordButton } from "./RoomRecording";

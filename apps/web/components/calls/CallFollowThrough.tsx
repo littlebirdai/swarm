@@ -9,7 +9,8 @@
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
-import { callPathRef, isRecRoomKey } from "@codecast/shared/contracts";
+import { callPathRef } from "@codecast/shared/contracts";
+import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import { EntityIdPill } from "../EntityIdPill";
 import { AuthorAvatar } from "../entityDisplay";
 import { relativeTime } from "../../lib/entityDisplay";

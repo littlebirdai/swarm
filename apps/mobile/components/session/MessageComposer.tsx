@@ -66,7 +66,7 @@ import {
   type BegunRecording,
   type PickedRecording,
 } from "@/lib/screenRecordingSend";
-import { formatCallTime } from "@codecast/shared/contracts";
+import { formatCallTime } from "@codecast/calls/callRecordings";
 import type { useComposerField } from "@/lib/composerField";
 import { appAlert } from "@/lib/popups";
 

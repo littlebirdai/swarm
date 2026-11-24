@@ -17,7 +17,7 @@ import {
   callParticipantKind,
   isRoomMachineryKind,
   type CallParticipantKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import {
   huddleRoomOptions,
   micConstraints,

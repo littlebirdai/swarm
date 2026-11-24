@@ -18,7 +18,7 @@ import {
   VideoOff,
   Volume2,
 } from "lucide-react";
-import { CHANNEL_HUDDLE_WARNING_SIZE } from "@codecast/shared/contracts";
+import { CHANNEL_HUDDLE_WARNING_SIZE } from "@codecast/calls/callRoomKeys";
 import { GuestPreview, canPickSpeaker } from "../../lib/calls/guestRoom";
 import {
   rememberCamera,

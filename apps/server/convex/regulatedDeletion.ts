@@ -36,7 +36,7 @@ import {
   conversationRowPlan,
   teamDeletionSteps,
 } from "./lib/deletionPlans";
-import { isRecordingActive } from "@codecast/shared/contracts";
+import { isRecordingActive } from "@codecast/calls/callRecordings";
 import { retireTeam } from "./teams";
 
 type Kind = Doc<"data_deletions">["kind"];

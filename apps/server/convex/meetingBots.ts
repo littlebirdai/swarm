@@ -25,7 +25,7 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { meetRoomKey, parseRoomKey } from "@codecast/shared/contracts";
+import { meetRoomKey, parseRoomKey } from "@codecast/calls/callRoomKeys";
 import { callsOffReason, recRoutingTeam } from "./callRooms";
 import {
   beginCallRecord,

@@ -24,7 +24,7 @@ import type { Room, RemoteParticipant } from "livekit-client";
 import { RoomEvent, Track } from "livekit-client";
 import { GHOST_IDLE_MS } from "../browserGhost";
 import { sendShareCursors, type ShareCursor } from "../desktop";
-import { callSpeakerName } from "@codecast/shared/contracts";
+import { callSpeakerName } from "@codecast/calls/callGuests";
 
 export const CURSOR_TOPIC = "cursor";
 /** Sends are paced like the browser control surface: about thirty a second. */

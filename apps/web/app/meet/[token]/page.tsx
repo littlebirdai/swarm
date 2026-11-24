@@ -6,14 +6,14 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { useParams } from "react-router";
 import { useAction, useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
+import { CALL_HEARTBEAT_MS } from "@codecast/calls/callRoomKeys";
 import {
-  CALL_HEARTBEAT_MS,
   guestJoinRefusalOf,
   type CallGuestView,
   type GuestLinkRefusal,
   noticeWidened,
   type GuestNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";

@@ -30,7 +30,7 @@ import {
   recordingWindow,
   sampleCallMoments,
   type CallRecordingSpan,
-} from "./callRecordings";
+} from "../src/callRecordings";
 
 // A call that started at wall time T. Two runs: the first from 1:00 to 5:00
 // (composite, with Ana's screen shared 2:00 to 4:00), a gap, then a second
@@ -622,7 +622,7 @@ describe("a press is a moment", () => {
   const now = 1_700_000_000_000;
   test("a press just made is acted on, one delivered late is not", async () => {
     const { recordingPressStale, RECORDING_PRESS_FRESH_MS } =
-      await import("./callRecordings");
+      await import("../src/callRecordings");
     expect(recordingPressStale(now - 2_000, now)).toBe(false);
     expect(recordingPressStale(now - RECORDING_PRESS_FRESH_MS, now)).toBe(
       false,
@@ -634,13 +634,13 @@ describe("a press is a moment", () => {
     expect(recordingPressStale(now - 3 * 60 * 60 * 1000, now)).toBe(true);
   });
   test("a client clock ahead of the server, or no stamp at all, is not refused", async () => {
-    const { recordingPressStale } = await import("./callRecordings");
+    const { recordingPressStale } = await import("../src/callRecordings");
     expect(recordingPressStale(now + 5_000, now)).toBe(false);
     expect(recordingPressStale(undefined, now)).toBe(false);
   });
   test("Record waits out the cooldown after a stop, on every platform alike", async () => {
     const { recordingCooling, RECORDING_RESTART_COOLDOWN_MS } =
-      await import("./callRecordings");
+      await import("../src/callRecordings");
     expect(recordingCooling("stopping", now - 1_000, now)).toBe(true);
     expect(
       recordingCooling("stopping", now - RECORDING_RESTART_COOLDOWN_MS, now),

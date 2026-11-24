@@ -32,7 +32,7 @@
 // at a time on this machine, components read a small status snapshot through
 // subscribe/getSnapshot, and no audio machinery goes anywhere near React.
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { CALL_HEARTBEAT_MS, recRoomKey } from "@codecast/shared/contracts";
+import { CALL_HEARTBEAT_MS, recRoomKey } from "@codecast/calls/callRoomKeys";
 import { useInboxStore } from "../../store/inboxStore";
 import { uploadBlobToStorage } from "../uploadBlob";
 import { mutateOnUnload } from "../keepaliveMutation";

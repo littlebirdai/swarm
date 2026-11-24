@@ -7,7 +7,7 @@ import {
   isRoomlessKey,
   meetRoomKey,
   parseRoomKey,
-} from "./callRoomKeys";
+} from "../src/callRoomKeys";
 
 describe("callDisplayTitle", () => {
   test("a call's own title wins over every place name", () => {

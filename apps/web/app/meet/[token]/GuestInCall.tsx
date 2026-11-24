@@ -54,7 +54,7 @@ import {
   guestNoticeLines,
   noticeNews,
   type GuestNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { Button } from "../../../components/ui/button";
 

@@ -9,7 +9,7 @@ import {
   normalizeTranscribeLanguages,
   scriptsForLanguage,
   unionTranscribeLanguages,
-} from "./transcribeLanguage";
+} from "../src/transcribeLanguage";
 
 describe("foldLanguageTag", () => {
   test("strips region from a BCP-47 tag", () => {

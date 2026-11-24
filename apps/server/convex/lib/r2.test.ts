@@ -17,7 +17,7 @@ import {
   stableSigningWindow,
   recordingGetParams,
 } from "./r2";
-import { CALL_RECORDING_URL_WINDOW_MS as W } from "@codecast/shared/contracts";
+import { CALL_RECORDING_URL_WINDOW_MS as W } from "@codecast/calls/callRecordings";
 
 const bucket = {
   endpoint: "https://acct.r2.cloudflarestorage.com",

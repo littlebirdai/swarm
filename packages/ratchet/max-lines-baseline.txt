@@ -755,6 +755,8 @@ packages/artifacts/src/sheets/model.ts 1000
 packages/artifacts/src/sheets/ops.ts 1300
 packages/artifacts/test/board.test.ts 1100
 packages/artifacts/test/dashboard.test.ts 1700
+packages/calls/src/callRecordings.ts 850
+packages/calls/test/callRecordings.test.ts 850
 packages/capabilities/src/capabilities.ts 950
 packages/capabilities/src/fleetDiff.ts 900
 packages/capabilities/test/fleetDiff.test.ts 1200
@@ -765,8 +767,6 @@ packages/policy/src/permissionRules.ts 900
 packages/shared/contracts/agentClients.test.ts 850
 packages/shared/contracts/agentClients.ts 1650
 packages/shared/contracts/appConnector.ts 1000
-packages/shared/contracts/callRecordings.test.ts 850
-packages/shared/contracts/callRecordings.ts 850
 packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
 packages/shared/contracts/changeCard.ts 1350

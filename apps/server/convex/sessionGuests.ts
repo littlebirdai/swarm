@@ -20,7 +20,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   guestDisplayName,
   normalizeGuestName,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 import { emitNotification } from "./notificationRouter";
 import { sha256Hex } from "./lib/hash";
 import { newSlug } from "./lib/slug";

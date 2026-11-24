@@ -3,8 +3,8 @@ import {
   callFrameHref,
   callMomentHref,
   type CallAnchor,
-  type CallRecordingKind,
 } from "@codecast/shared/contracts";
+import { type CallRecordingKind } from "@codecast/calls/callRecordings";
 import { copyText } from "../copyText";
 import { sharePageUrl } from "../utils";
 

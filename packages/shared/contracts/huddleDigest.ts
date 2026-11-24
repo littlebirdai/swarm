@@ -12,7 +12,10 @@
 // prose; the body tells the agent how to read the whole transcript. The agent
 // gets the summary and a pointer, never the transcript itself.
 
-import { describeClockSpans, parseClockSpans } from "./callRecordings";
+import {
+  describeClockSpans,
+  parseClockSpans,
+} from "@codecast/calls/callRecordings";
 
 export const HUDDLE_DIGEST_CLIENT_ID_PREFIX = "call-digest:";
 

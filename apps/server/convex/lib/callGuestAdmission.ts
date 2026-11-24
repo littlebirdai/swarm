@@ -27,13 +27,13 @@
 // and callGuests all reach it without an import cycle.
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
 import {
-  CALL_MEMBER_STALE_MS,
   GUEST_ADMISSION_LAPSE_MS,
   MAX_ROOM_GUESTS,
   guestDisplayName,
   guestIdentity,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callGuests";
 
 /** After an admission ends, the roster is checked now and then again at each
  *  of these delays: past a reconnect's backoff, and past the life of the last
