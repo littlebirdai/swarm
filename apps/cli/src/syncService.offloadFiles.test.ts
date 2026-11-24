@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile, truncate } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { SyncService } from "./syncService.js";
-import { MAX_USER_FILE_SIZE } from "@codecast/shared/files";
+import { MAX_USER_FILE_SIZE } from "@codecast/files";
 import type { SyncFile } from "./userFiles.js";
 
 function makeService(): SyncService {

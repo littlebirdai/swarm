@@ -42,7 +42,7 @@ import {
   MAX_USER_FILE_SIZE,
   fileBasename,
   mediaTypeForFile,
-} from "@codecast/shared/files";
+} from "@codecast/files";
 import { filesForWire, type SyncFile } from "./userFiles.js";
 import { callFrameAtPath, referenceCallFrames } from "./callFrameRefs.js";
 export { filesForWire, type SyncFile } from "./userFiles.js";

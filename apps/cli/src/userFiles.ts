@@ -14,7 +14,7 @@
  */
 
 import * as path from "node:path";
-import { fileBasename, mediaTypeForFile } from "@codecast/shared/files";
+import { fileBasename, mediaTypeForFile } from "@codecast/files";
 
 export const SEND_USER_FILE_TOOL = "SendUserFile";
 

@@ -5,7 +5,7 @@ import {
   formatFileSize,
   isPreviewableKind,
   mediaTypeForFile,
-} from "./index";
+} from "../src/index";
 
 describe("mediaTypeForFile", () => {
   it("reads the type off the name, case and path insensitive", () => {

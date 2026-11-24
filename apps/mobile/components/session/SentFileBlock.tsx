@@ -16,7 +16,7 @@ import {
   fileTypeLabel,
   type FileKind,
   type SentFileData,
-} from "@codecast/shared/files";
+} from "@codecast/files";
 import { Theme } from "@/constants/Theme";
 import { openLink } from "@/lib/links";
 

@@ -23,6 +23,7 @@
     "@codecast/async": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/files": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/time": "workspace:*",
     "@inquirer/prompts": "^8.2.0",

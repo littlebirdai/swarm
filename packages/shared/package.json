@@ -164,7 +164,6 @@
     "./artifacts/board": "./artifacts/board.ts",
     "./artifacts/sheet": "./artifacts/sheet.ts",
     "./artifacts/sheets": "./artifacts/sheets/index.ts",
-    "./files": "./files/index.ts",
     "./replay": "./replay/index.ts",
     "./team": "./team/index.ts",
     "./team/directoryRules": "./team/directoryRules.ts",
