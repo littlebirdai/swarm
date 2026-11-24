@@ -21,6 +21,7 @@
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",
+    "@codecast/memory": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/team": "workspace:*",

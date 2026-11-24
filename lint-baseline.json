@@ -28609,6 +28609,9 @@
   "packages/files/test/index.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/memory/src/index.ts": {
+    "swarm/no-comments": 36
+  },
   "packages/mods/src/authoring.d.ts": {
     "swarm/no-comments": 86
   },
@@ -29979,9 +29982,6 @@
   },
   "packages/shared/entities/orgObjects.test.ts": {
     "swarm/no-comments": 2
-  },
-  "packages/shared/memory/index.ts": {
-    "swarm/no-comments": 36
   },
   "packages/shared/ratchet/docRefs.guard.test.ts": {
     "swarm/no-comments": 35

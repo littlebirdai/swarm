@@ -31,7 +31,7 @@ import {
   type ProjectRegistration,
 } from "./projectRefresh.js";
 import { remapContextPaths } from "./transform.js";
-import { indexLineFiles } from "@codecast/shared/memory";
+import { indexLineFiles } from "@codecast/memory";
 
 const execFileAsync = promisify(execFile);
 const sha256 = (b: Buffer | string) =>

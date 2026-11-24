@@ -10,8 +10,8 @@
 // fences never produce links here either.
 //
 // PURE isomorphic data — no Node or DOM APIs.
-import { parseNote } from "../vault/parseNote";
-import { splitFrontmatter as splitVaultFrontmatter } from "../vault/frontmatter";
+import { parseNote } from "@codecast/shared/vault/parseNote";
+import { splitFrontmatter as splitVaultFrontmatter } from "@codecast/shared/vault/frontmatter";
 
 export const MEMORY_INDEX_FILE = "MEMORY.md";
 /** Claude Code loads MEMORY.md whole lines at a time until the running total

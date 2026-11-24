@@ -29,7 +29,7 @@ import {
   writeMemoryField,
   type MemoryAtlas,
   type MemoryFields,
-} from "@codecast/shared/memory";
+} from "@codecast/memory";
 import { formatRelative } from "@codecast/time";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";

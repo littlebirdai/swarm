@@ -8,7 +8,7 @@ import {
   MEMORY_INDEX_LINE_SOFT_MAX,
   lineBytes,
   type MemoryAtlas,
-} from "@codecast/shared/memory";
+} from "@codecast/memory";
 import { parseNote } from "@codecast/shared/vault";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { formatBytes } from "./memoryView";

@@ -166,7 +166,6 @@
     "./vault": "./vault/index.ts",
     "./vault/parseNote": "./vault/parseNote.ts",
     "./vault/frontmatter": "./vault/frontmatter.ts",
-    "./memory": "./memory/index.ts",
     "./comments": "./comments/index.ts",
     "./blame": "./blame/index.ts",
     "./ratchet": "./ratchet/index.ts",

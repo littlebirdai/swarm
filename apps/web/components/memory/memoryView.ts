@@ -9,7 +9,7 @@ import {
   type MemoryAtlas,
   type MemoryNote,
   type MemoryReach,
-} from "@codecast/shared/memory";
+} from "@codecast/memory";
 import type { GraphTone } from "../graph/LinkGraphCanvas";
 
 export type MemoryView = "map" | "index" | "list" | "health";

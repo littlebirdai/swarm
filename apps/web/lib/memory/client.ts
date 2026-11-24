@@ -3,10 +3,7 @@
 // straight off its disk through the same bridge, token and endpoint discovery
 // as the Files page.
 
-import type {
-  MemoryProject,
-  MemoryProjectSummary,
-} from "@codecast/shared/memory";
+import type { MemoryProject, MemoryProjectSummary } from "@codecast/memory";
 import { loopbackFetch, type VaultEndpoint } from "../vault/client";
 
 /** Carries the status, so a daemon without these routes (404, too old) reads

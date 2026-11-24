@@ -8,7 +8,7 @@ import {
   readMemoryFields,
   removeIndexLinesFor,
   writeMemoryField,
-} from "./index";
+} from "../src/index";
 
 const file = (name: string, raw: string) => ({
   file: name,

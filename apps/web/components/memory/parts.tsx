@@ -1,7 +1,7 @@
 // Small pieces every Memory view draws the same way.
 
 import type { ReactNode } from "react";
-import type { MemoryIndexBudget, MemoryNote } from "@codecast/shared/memory";
+import type { MemoryIndexBudget, MemoryNote } from "@codecast/memory";
 import { REACH, TYPE_TONE, formatBytes, toneCss, typeKey } from "./memoryView";
 
 /** An inline link to a memory, tinted by its type; a broken one is wavy. */

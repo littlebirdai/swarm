@@ -19,7 +19,7 @@ import {
   buildMemoryAtlas,
   MEMORY_INDEX_FILE,
   type MemoryProjectSummary,
-} from "@codecast/shared/memory";
+} from "@codecast/memory";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useEventListener } from "../../hooks/useEventListener";
