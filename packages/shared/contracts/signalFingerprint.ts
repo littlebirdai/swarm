@@ -3,7 +3,7 @@
 // observation seen again must hash to the same string, so a cause collects it
 // instead of a second cause opening. Each finder's shape lives here once, so
 // the CLI, the evals package and convex never spell one differently.
-import { fnv1a32 } from "./inboxProjection";
+import { fnv1a32 } from "@codecast/hash/fnv1a32";
 
 /** What a signal can say it saw (LE3). The door, the CLI and a repo's line profile share this list. */
 export const SIGNAL_KINDS = [

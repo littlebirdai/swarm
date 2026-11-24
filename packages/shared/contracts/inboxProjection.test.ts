@@ -14,7 +14,6 @@ import {
   computeFold,
   digestProjection,
   emptyInboxTally,
-  fnv1a32,
   rollupParentIdOf,
   isStackedAsk,
   rideLeadPlacements,
@@ -54,11 +53,6 @@ function input(
 }
 
 describe("digestProjection", () => {
-  test("fnv1a32 matches the reference vectors", () => {
-    expect(fnv1a32("")).toBe(0x811c9dc5);
-    expect(fnv1a32("a")).toBe(0xe40c292c);
-  });
-
   // The fixed vector: the server and every client must produce exactly this
   // string for exactly these triples. Change it only with a projection version
   // bump (v2: fold entered the digest).

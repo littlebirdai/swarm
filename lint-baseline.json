@@ -28955,7 +28955,7 @@
     "swarm/no-comments": 7
   },
   "packages/shared/contracts/agentStatus.test.ts": {
-    "swarm/no-comments": 36
+    "swarm/no-comments": 22
   },
   "packages/shared/contracts/agentStatus.ts": {
     "swarm/no-comments": 231
@@ -29099,7 +29099,7 @@
     "swarm/no-comments": 30
   },
   "packages/shared/contracts/cloudAgents.test.ts": {
-    "swarm/no-comments": 21
+    "swarm/no-comments": 15
   },
   "packages/shared/contracts/cloudAgents.ts": {
     "swarm/no-comments": 97
@@ -29317,9 +29317,6 @@
   "packages/shared/contracts/headOfPeoplePrompt.ts": {
     "swarm/no-comments": 16
   },
-  "packages/shared/contracts/hibernation.test.ts": {
-    "swarm/no-comments": 3
-  },
   "packages/shared/contracts/huddleDigest.test.ts": {
     "swarm/no-comments": 6
   },
@@ -29339,7 +29336,7 @@
     "swarm/no-comments": 53
   },
   "packages/shared/contracts/inboxProjection.golden.test.ts": {
-    "swarm/no-comments": 88
+    "swarm/no-comments": 86
   },
   "packages/shared/contracts/inboxProjection.property.test.ts": {
     "swarm/no-comments": 18
@@ -29354,7 +29351,7 @@
     "swarm/no-comments": 26
   },
   "packages/shared/contracts/inboxProjection.ts": {
-    "swarm/no-comments": 633
+    "swarm/no-comments": 627
   },
   "packages/shared/contracts/inboxSplit.test.ts": {
     "swarm/no-comments": 2

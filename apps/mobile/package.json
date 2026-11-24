@@ -24,6 +24,7 @@
     "@codecast/convex": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/files": "workspace:*",
+    "@codecast/hash": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/shared": "workspace:*",

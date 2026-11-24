@@ -26,7 +26,8 @@
 // the module bindings that belong to a window (sim/windowSlots.ts).
 
 import { drainMicrotasks } from "bun:jsc";
-import { fnv1a32, inboxEpoch } from "@codecast/shared/contracts";
+import { fnv1a32 } from "@codecast/hash/fnv1a32";
+import { inboxEpoch } from "@codecast/shared/contracts";
 import { makeRng } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
 import { __createInboxStoreForTests, useInboxStore } from "../../inboxStore";
 import type { Net } from "./net";

@@ -195,7 +195,7 @@ import {
   parseRelativeDate,
   wasEdited,
 } from "@codecast/time";
-import { SESSION_QUERY_OPERATORS } from "@codecast/shared/search";
+import { SESSION_QUERY_OPERATORS } from "@codecast/shared/search/sessionQuery";
 import {
   describeShareSpan,
   formatDateRange,

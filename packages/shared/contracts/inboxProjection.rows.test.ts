@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  FNV1A32_OFFSET,
   INBOX_CREATE_GRACE_MS,
-  fnv1a32,
-  fnv1a32Update,
   inboxEpoch,
   inboxSortTimeOfRow,
   isBelowFoldAt,
@@ -59,13 +56,7 @@ describe("isBelowFoldAt — the per-row fold rule computeFold's loop reads", () 
   });
 });
 
-describe("fnv1a32Update — the incremental form of the digest hash", () => {
-  test("folding a string in pieces equals hashing it whole", () => {
-    const whole = fnv1a32("abc:working:0");
-    expect(
-      fnv1a32Update(fnv1a32Update(FNV1A32_OFFSET, "abc:"), "working:0"),
-    ).toBe(whole);
-  });
+describe("isWorkingSetWindow", () => {
   test("isWorkingSetWindow names exactly the five windows", () => {
     for (const w of [
       "recent",
