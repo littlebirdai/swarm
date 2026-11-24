@@ -5,9 +5,9 @@ import {
   orgChangeError,
   orgProposalWork,
   orgProposalWorkErrors,
-} from "./orgProposal";
-import { changeWords } from "./orgChangeWords";
-import { sessionDestination } from "./orgSessionFiling";
+} from "../src/orgProposal";
+import { changeWords } from "../src/orgChangeWords";
+import { sessionDestination } from "../src/orgSessionFiling";
 
 // The person's sessions filed where they belong (org-staffing.md S43): what a
 // filing may name, and how the card reads one and a batch of them.

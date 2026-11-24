@@ -42,7 +42,7 @@ import {
   type OrgLogEntry,
   type OrgLogRow,
   type OrgUndoPreview,
-} from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgChange";
 
 type Ctx = { db: any; auth?: any };
 type StoredRow = OrgLogRow & {

@@ -47,7 +47,7 @@
 import { describe, test } from "bun:test";
 import { basename, dirname } from "node:path";
 import { fnv1a32 } from "@codecast/hash/fnv1a32";
-import { canonical } from "@codecast/shared/contracts/orgChange";
+import { canonical } from "@codecast/org/orgChange";
 import { canAccessConversation } from "@codecast/convex/convex/lib/access";
 import { accessJudgeFor } from "@codecast/convex/convex/lib/accessKeys";
 import {

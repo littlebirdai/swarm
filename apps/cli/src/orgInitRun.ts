@@ -8,7 +8,7 @@ import * as path from "path";
 import { spawn } from "./proc.js";
 import { fmt } from "./colors.js";
 import { unplacedLines } from "./orgUnplacedLines.js";
-import { headOfPeoplePrompt } from "@codecast/shared/contracts/headOfPeoplePrompt";
+import { headOfPeoplePrompt } from "@codecast/org/headOfPeoplePrompt";
 import {
   ORG_CHANGE_KINDS,
   describeOrgChange,
@@ -21,13 +21,10 @@ import {
   type OrgProposalMode,
   type OrgReviseOp,
   type OrgSpecChange,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { formatRelative } from "@codecast/time";
 import { metricLine } from "@codecast/goals/initiative";
-import {
-  reachedBreakdown,
-  reachedTotal,
-} from "@codecast/shared/contracts/orgAreas";
+import { reachedBreakdown, reachedTotal } from "@codecast/org/orgAreas";
 import { formatDuration, parseDuration } from "./stackCommand.js";
 import {
   HEAD_OF_PEOPLE_HANDLE,
@@ -40,7 +37,7 @@ import {
 
 // ── The prompt ───────────────────────────────────────────────────────────────
 //
-// The Head of People's own text (shared/contracts/headOfPeoplePrompt.ts), the
+// The Head of People's own text (packages/org/src/headOfPeoplePrompt.ts), the
 // same one its opening message carries, with the workspace, the person and
 // the verbs' --team flag filled in.
 

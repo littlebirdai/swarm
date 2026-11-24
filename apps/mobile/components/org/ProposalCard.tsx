@@ -57,8 +57,8 @@ import {
   ORG_REPLY_WORDS,
   isOrgChangeApprovable,
   type OrgReplyVerdict,
-} from "@codecast/shared/contracts/orgProposal";
-import type { ChangeField } from "@codecast/shared/contracts/orgChangeWords";
+} from "@codecast/org/orgProposal";
+import type { ChangeField } from "@codecast/org/orgChangeWords";
 import type {
   OrgProposalChange,
   OrgProposalListRow,

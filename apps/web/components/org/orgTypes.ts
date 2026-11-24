@@ -3,7 +3,7 @@
 // singleton. Types live here so the fixture, the layout, the cards and the
 // store slice all agree on one definition.
 import type { WorkState } from "@codecast/sessions/workState";
-import type { OrgTenureSpec } from "@codecast/shared/contracts/orgProposal";
+import type { OrgTenureSpec } from "@codecast/org/orgProposal";
 import type { RoleIcon } from "@codecast/org/roleIcon";
 import type { RoleFailover } from "@codecast/org/roleFailover";
 

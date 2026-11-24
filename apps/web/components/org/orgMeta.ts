@@ -9,7 +9,7 @@ import {
   describeTenure,
   type OrgChange,
   type OrgTenureSpec,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import type { HealthFlag } from "@codecast/org/orgCapacity";
 import { THREAD_STATE_STATUS_META } from "../../lib/threadState";
 import type {
@@ -293,14 +293,14 @@ export function kindDescription(kind: string | undefined): string {
 /** The one line a change reads as to a person (org-staffing.md S17). The
  *  writer is the shared contract's, so the pane, the chart's chips, the org
  *  log and `cast org log` say a change the same way (S21). */
-export { changeLine } from "@codecast/shared/contracts/orgProposal";
+export { changeLine } from "@codecast/org/orgProposal";
 /** The words for limits and cadences are the shared contract's, so a derived
  *  ask (server or page) and a row line say them the same way. */
-export { capsWords, everyWords } from "@codecast/shared/contracts/orgProposal";
+export { capsWords, everyWords } from "@codecast/org/orgProposal";
 /** The delta alone, for the chip on a card (org-staffing.md S5). The writer
  *  lives with the rest of a change's words (orgChangeWords); the chart keeps
  *  reading it from here. */
-export { chipLine } from "@codecast/shared/contracts/orgChangeWords";
+export { chipLine } from "@codecast/org/orgChangeWords";
 
 /** The one word a change's action strip leads with, so "Accept" names what
  *  it accepts on a card carrying several changes. */

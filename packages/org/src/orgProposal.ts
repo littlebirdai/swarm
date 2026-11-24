@@ -16,7 +16,7 @@ export {
   type OrgFileSessionChange,
   type OrgSessionDestination,
 } from "./orgSessionFiling";
-import { autonomyOn, trustForSwitch } from "@codecast/org/roleAutonomy";
+import { autonomyOn, trustForSwitch } from "./roleAutonomy";
 import {
   INITIATIVE_METRICS_MAX,
   INITIATIVE_RECORD_MAX,

@@ -1,5 +1,5 @@
 import { useInboxStore } from "../store/inboxStore";
-import type { OrgRoleSeat } from "@codecast/shared/contracts/orgProposal";
+import type { OrgRoleSeat } from "@codecast/org/orgProposal";
 
 /** A session this old may already be a role (the analyzer's own age rule). */
 export const MAKE_ROLE_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;

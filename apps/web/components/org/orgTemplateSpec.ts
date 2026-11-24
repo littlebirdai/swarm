@@ -8,10 +8,7 @@ import {
   type OrgTemplate,
   type TemplateInput,
 } from "@codecast/shared/contracts/orgTemplateManifest";
-import type {
-  OrgAuthorityGrant,
-  OrgChange,
-} from "@codecast/shared/contracts/orgProposal";
+import type { OrgAuthorityGrant, OrgChange } from "@codecast/org/orgProposal";
 import { updateCard, type UpdateSource } from "./templateUpdate";
 
 export type HireDraft = {

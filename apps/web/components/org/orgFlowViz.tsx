@@ -4,7 +4,7 @@
 // (healthParts.RoleLevers). One colour
 // per measure everywhere: work in, work closed, and a daily limit.
 import { RoleFace } from "./RoleFace";
-import { checkFaultOf } from "@codecast/shared/contracts/orgAreas";
+import { checkFaultOf } from "@codecast/org/orgAreas";
 import { AREA_STATUS_COLOR } from "./staffingModel";
 import type { RoleFlow } from "./orgFlow";
 

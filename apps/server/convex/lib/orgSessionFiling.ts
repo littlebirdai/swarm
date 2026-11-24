@@ -20,7 +20,7 @@ import {
   sessionDestination,
   type OrgFileChange,
   type OrgFileSessionChange,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import type { OrgScan } from "../org";
 import type { ApplyOpts, ApplyResult, Boundary } from "../orgInit";
 

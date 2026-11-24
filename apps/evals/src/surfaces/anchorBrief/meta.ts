@@ -13,7 +13,7 @@ export const meta: SurfaceMeta = {
   sources: surfaceSources(
     "anchor-brief",
     "apps/server/convex/anchors.ts",
-    "packages/shared/contracts/headOfPeoplePrompt.ts",
+    "packages/org/src/headOfPeoplePrompt.ts",
     ROLE_WAKE_DIR,
     "apps/evals/src/served.ts",
     "apps/cli/scripts/prompt-dry-run-bin/cast",

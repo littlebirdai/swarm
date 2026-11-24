@@ -13,7 +13,7 @@ import {
   type OrgChange,
   type OrgChangeKind,
   type OrgChangeStatus,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import type { InitiativeRow } from "@codecast/goals/initiative";
 import type { OrgParentRef, OrgTree } from "./orgTypes";
 import type { OrgProposalChange } from "./orgStaffingTypes";

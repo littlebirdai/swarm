@@ -11,10 +11,7 @@
 import type { OrgRole, OrgSession } from "./orgTypes";
 import { roleWords } from "./orgStaffingTypes";
 import { standingLineOf } from "./orgMeta";
-import {
-  seatSentence,
-  type OrgRoleSeat,
-} from "@codecast/shared/contracts/orgProposal";
+import { seatSentence, type OrgRoleSeat } from "@codecast/org/orgProposal";
 
 export const CARD = {
   role: { w: 360, far: 84 },

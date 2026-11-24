@@ -18,7 +18,7 @@ import {
   whereOfRecord,
   withOrgChange,
 } from "./lib/orgChangeLog";
-import { movedFields } from "@codecast/shared/contracts/orgChange";
+import { movedFields } from "@codecast/org/orgChange";
 import { v, type Validator } from "convex/values";
 import {
   INITIATIVE_METRICS_MAX,

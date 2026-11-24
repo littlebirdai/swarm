@@ -55,7 +55,7 @@ export const meta: SurfaceMeta = {
     "packages/shared/contracts/machineMessages.ts",
     "apps/server/convex/lib/orgRoutine.ts",
     "packages/org/src/briefStanding.ts",
-    "packages/shared/contracts/rolePlaybook.ts",
+    "packages/org/src/rolePlaybook.ts",
     "apps/cli/src/briefLines.ts",
     "apps/evals/src/served.ts",
     "apps/cli/scripts/prompt-dry-run-bin/cast",

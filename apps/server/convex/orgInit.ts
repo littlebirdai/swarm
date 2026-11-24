@@ -15,7 +15,7 @@ import {
 } from "./lib/orgSessionFiling";
 import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { matchHandle } from "@codecast/chat";
-import { movedFields } from "@codecast/shared/contracts/orgChange";
+import { movedFields } from "@codecast/org/orgChange";
 import { action, mutation, query } from "./functions";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
@@ -138,7 +138,7 @@ import {
   type OrgRoleEditChange,
   describeOrgChange,
   applyCharterEdits,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   INITIATIVE_RECORD_MAX,
   INITIATIVE_RECORD_NOUN,
@@ -164,7 +164,7 @@ import {
   roleCheckOf,
   standingConversationOf,
 } from "./orgRoles";
-import { roleWakeOf } from "@codecast/shared/contracts/rolePlaybook";
+import { roleWakeOf } from "@codecast/org/rolePlaybook";
 import { roleRoutineFor } from "./lib/orgRoutine";
 import { insertTask } from "./agentTasks";
 import { charterPatch } from "./lib/orgCharter";
@@ -2109,7 +2109,7 @@ export const takeoverPreview = query({
   },
 });
 
-// One writer for the sentence (contracts/orgProposal.takeoverPhrase), so the
+// One writer for the sentence (@codecast/org/orgProposal.takeoverPhrase), so the
 // note before accept, the note after apply and every page say the same thing.
 export { takeoverPhrase };
 

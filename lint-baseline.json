@@ -29302,6 +29302,12 @@
   "packages/org/src/executiveAssistantPrompt.ts": {
     "swarm/no-comments": 8
   },
+  "packages/org/src/headOfPeoplePrompt.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/org/src/orgAreas.ts": {
+    "swarm/no-comments": 62
+  },
   "packages/org/src/orgAssignee.ts": {
     "swarm/no-comments": 39
   },
@@ -29311,17 +29317,35 @@
   "packages/org/src/orgCapacity.ts": {
     "swarm/no-comments": 87
   },
+  "packages/org/src/orgChange.ts": {
+    "swarm/no-comments": 124
+  },
+  "packages/org/src/orgChangeWords.ts": {
+    "swarm/no-comments": 52
+  },
   "packages/org/src/orgIdentity.ts": {
     "swarm/no-comments": 20
   },
   "packages/org/src/orgLead.ts": {
     "swarm/no-comments": 50
   },
+  "packages/org/src/orgLog.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/org/src/orgProposal.ts": {
+    "swarm/no-comments": 254
+  },
+  "packages/org/src/orgProposalReply.ts": {
+    "swarm/no-comments": 15
+  },
   "packages/org/src/orgReview.ts": {
     "swarm/no-comments": 7
   },
   "packages/org/src/orgRoute.ts": {
     "swarm/no-comments": 19
+  },
+  "packages/org/src/orgSessionFiling.ts": {
+    "swarm/no-comments": 9
   },
   "packages/org/src/roleAutonomy.ts": {
     "swarm/no-comments": 17
@@ -29344,6 +29368,9 @@
   "packages/org/src/roleLevel.ts": {
     "swarm/no-comments": 5
   },
+  "packages/org/src/rolePlaybook.ts": {
+    "swarm/no-comments": 77
+  },
   "packages/org/src/sessionCharacter.ts": {
     "swarm/no-comments": 17
   },
@@ -29353,11 +29380,23 @@
   "packages/org/test/executiveAssistantPrompt.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/org/test/headOfPeoplePrompt.test.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/org/test/orgAreas.test.ts": {
+    "swarm/no-comments": 12
+  },
   "packages/org/test/orgAssignee.test.ts": {
     "swarm/no-comments": 2
   },
   "packages/org/test/orgCapacity.test.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/org/test/orgChange.test.ts": {
+    "swarm/no-comments": 28
+  },
+  "packages/org/test/orgChangeWords.test.ts": {
+    "swarm/no-comments": 15
   },
   "packages/org/test/orgIdentity.test.ts": {
     "swarm/no-comments": 2
@@ -29365,14 +29404,23 @@
   "packages/org/test/orgLead.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/org/test/orgProposal.test.ts": {
+    "swarm/no-comments": 79
+  },
   "packages/org/test/orgRoute.test.ts": {
     "swarm/no-comments": 3
+  },
+  "packages/org/test/orgSessionFiling.test.ts": {
+    "swarm/no-comments": 4
   },
   "packages/org/test/roleGoals.test.ts": {
     "swarm/no-comments": 2
   },
   "packages/org/test/roleIcon.test.ts": {
     "swarm/no-comments": 6
+  },
+  "packages/org/test/rolePlaybook.test.ts": {
+    "swarm/no-comments": 2
   },
   "packages/pages/src/castMotion.ts": {
     "swarm/no-comments": 10
@@ -29776,12 +29824,6 @@
   "packages/shared/contracts/handoffPrompt.ts": {
     "swarm/no-comments": 34
   },
-  "packages/shared/contracts/headOfPeoplePrompt.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/headOfPeoplePrompt.ts": {
-    "swarm/no-comments": 16
-  },
   "packages/shared/contracts/idleDigest.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29908,42 +29950,6 @@
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
   },
-  "packages/shared/contracts/orgAreas.test.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/orgAreas.ts": {
-    "swarm/no-comments": 62
-  },
-  "packages/shared/contracts/orgChange.test.ts": {
-    "swarm/no-comments": 28
-  },
-  "packages/shared/contracts/orgChange.ts": {
-    "swarm/no-comments": 124
-  },
-  "packages/shared/contracts/orgChangeWords.test.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/orgChangeWords.ts": {
-    "swarm/no-comments": 52
-  },
-  "packages/shared/contracts/orgLog.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/orgProposal.test.ts": {
-    "swarm/no-comments": 79
-  },
-  "packages/shared/contracts/orgProposal.ts": {
-    "swarm/no-comments": 254
-  },
-  "packages/shared/contracts/orgProposalReply.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/orgSessionFiling.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/orgSessionFiling.ts": {
-    "swarm/no-comments": 9
-  },
   "packages/shared/contracts/orgTemplateBind.ts": {
     "swarm/no-comments": 7
   },
@@ -29991,12 +29997,6 @@
   },
   "packages/shared/contracts/regretRates.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/rolePlaybook.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/rolePlaybook.ts": {
-    "swarm/no-comments": 77
   },
   "packages/shared/contracts/runEnd.test.ts": {
     "swarm/no-comments": 7

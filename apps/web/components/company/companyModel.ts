@@ -35,7 +35,7 @@ import {
   type OrgChange,
   type OrgChangeKind,
   type OrgChangeStatus,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { personRefOf } from "@codecast/entities";
 import { byListOrder, type BoardTask } from "../../lib/initiatives";
 import {

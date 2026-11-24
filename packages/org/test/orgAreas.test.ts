@@ -13,7 +13,7 @@ import {
   reachedBreakdown,
   reachedSentence,
   type AreaInput,
-} from "./orgAreas";
+} from "../src/orgAreas";
 
 // An area as a person reads it (docs/architecture/org-staffing.md S29): the
 // status word the signals add up to, most pressing first; the sentence it

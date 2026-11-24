@@ -7,7 +7,7 @@ import {
   orgRecordRedundancyErrors,
   recordGroupTotalsLine,
   type OrgRecordAct,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { askNames } from "./staffingAsks";
 import {
   ESCALATIONS_CHARTER,

@@ -65,7 +65,7 @@ import {
   type OrgReplyVerdict,
   type OrgTenureSpec,
   type OrgVerdictSeen,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   hasThreadState,
   answeredThreadStateFields,
@@ -74,10 +74,7 @@ import {
 import { isConvexId } from "../lib/entityLinks";
 import { activeWorkspaceKeyOf } from "../lib/workspaceScope";
 import { leadScopeChange, type LeadScopeChange } from "@codecast/org/orgLead";
-import type {
-  OrgLogEntry,
-  OrgLogRow,
-} from "@codecast/shared/contracts/orgChange";
+import type { OrgLogEntry, OrgLogRow } from "@codecast/org/orgChange";
 import {
   applyMoveBack,
   moveBackEchoed,

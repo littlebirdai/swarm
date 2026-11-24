@@ -5,7 +5,7 @@ import {
   isOrgChangeDecidable,
   latestOrgRevisionAt,
   type OrgVerdictSeen,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   useInboxStore,
   type PlanItem,

@@ -1,7 +1,7 @@
 // Ghosts on the chart (docs/architecture/org-staffing.md S5): ghostsFor merges
 // an open proposal into the tree, the layout carries the decoration. One test
 // per change kind, then the accept stub, supersession, skip and focus.
-import { isOrgQuietChange } from "@codecast/shared/contracts/orgProposal";
+import { isOrgQuietChange } from "@codecast/org/orgProposal";
 import { describe, expect, it } from "bun:test";
 import {
   focusTargetNodeId,

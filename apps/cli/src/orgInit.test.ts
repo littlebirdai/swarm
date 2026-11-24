@@ -18,11 +18,8 @@ import {
   staff,
   summarizeInputs,
 } from "./orgInitRun";
-import { headOfPeoplePrompt } from "@codecast/shared/contracts/headOfPeoplePrompt";
-import {
-  describeOrgChange,
-  orgProposalBlock,
-} from "@codecast/shared/contracts/orgProposal";
+import { headOfPeoplePrompt } from "@codecast/org/headOfPeoplePrompt";
+import { describeOrgChange, orgProposalBlock } from "@codecast/org/orgProposal";
 
 // The review prompt is the Head of People's own text
 // (docs/architecture/head-of-people-prompt.md), filled in for the workspace.

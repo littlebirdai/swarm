@@ -72,7 +72,7 @@ import {
   type OrgSessionDetail,
   type RoleOpenDetail,
 } from "./orgCardModel";
-import { seatSentence } from "@codecast/shared/contracts/orgProposal";
+import { seatSentence } from "@codecast/org/orgProposal";
 import { FlagDots } from "./FlagDots";
 import { RoleWeekBody } from "./orgFlowViz";
 import type { RoleFlow } from "./orgFlow";

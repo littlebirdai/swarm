@@ -4,7 +4,7 @@
 // reads them as one current set of pieces. The Head of People keeps that set
 // current by revising its own proposals; what another author posted stays
 // apart, because only its author can revise it.
-import { isOrgChangeDecidable } from "@codecast/shared/contracts/orgProposal";
+import { isOrgChangeDecidable } from "@codecast/org/orgProposal";
 import type { OrgProposalChange, OrgProposalListRow } from "./orgStaffingTypes";
 import { workspaceOpenProposals, type OrgWorkspaceRef } from "./staffingModel";
 

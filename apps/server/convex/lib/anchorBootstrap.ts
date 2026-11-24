@@ -4,13 +4,13 @@
 import { isHeadOfPeopleRole } from "./orgAccess";
 import { assistantOpeningFor } from "./orgAssistant";
 import { roleStartsOnItsOwn } from "./orgCaps";
-import { headOfPeopleOpening } from "@codecast/shared/contracts/headOfPeoplePrompt";
+import { headOfPeopleOpening } from "@codecast/org/headOfPeoplePrompt";
 import { roleLevelGuidance } from "@codecast/org/roleLevel";
 
 // The first turn a role's standing session reads (org-roles-standing.md T1):
 // who it is and whom it reports to, what it looks after, how it wakes, that its
 // sessions stay out of the person's inbox, and that its brief is its memory.
-// The Head of People's (shared/contracts/headOfPeoplePrompt.ts) and the
+// The Head of People's (packages/org/src/headOfPeoplePrompt.ts) and the
 // Executive Assistant's (executiveAssistantPrompt.ts, org-staffing.md S30) are
 // their own texts, in the same shape.
 export type RoleBootstrap = {

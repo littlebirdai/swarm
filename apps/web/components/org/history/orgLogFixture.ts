@@ -1,6 +1,6 @@
 // A typed record for the History surfaces (docs/architecture/org-staffing.md
 // S21): the DEV preview and the mount tests paint from it. Every row is the
-// contract's own shape (shared/contracts/orgChange.ts), so a sentence here is
+// contract's own shape (packages/org/src/orgChange.ts), so a sentence here is
 // the sentence the live page writes. The ids match orgFixture.ts where a row
 // names a role of the fixture tree.
 import type {
@@ -8,7 +8,7 @@ import type {
   OrgLogKind,
   OrgLogRow,
   OrgUndoPreview,
-} from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgChange";
 
 const HOUR = 3_600_000;
 const ME = { user_id: "fixture-user-ashot", name: "Ashot Petrosian" };
